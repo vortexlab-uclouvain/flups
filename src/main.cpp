@@ -223,15 +223,21 @@ int main(int argc, char* argv[])
 
     for(int iy=0; iy<n_ghat[1];  iy++){
         for(int ix=0; ix<n_ghat[0]; ix++){
-            ghat[iy][ix][0] = ghat[iy][ix][0]/fact_green;
-            ghat[iy][ix][1] = ghat[iy][ix][1]/fact_green;
+            ghat[iy][ix][0] = ghat[iy][ix][0]* (h[0]*h[1]);
+            ghat[iy][ix][1] = ghat[iy][ix][1]* (h[0]*h[1]);
+
+            // double kx = 2.0*M_PI/(4.0*L[0]) * ix;
+            // double ky = 2.0*M_PI/(2.0*L[1]) * iy;
+            // if( ghat[iy][ix][0] > 1e-6){
+            //     printf("G (%e + i %e) = %e vs k^2 = %e \n",ghat[iy][ix][0] ,ghat[iy][ix][1],ghat[iy][ix][0]*ghat[iy][ix][0]+ghat[iy][ix][1]*ghat[iy][ix][1],kx*kx+ky*ky);
+            // }
         }
     }
 
     for(int iy=0; iy<n_fhat[1];  iy++){
         for(int ix=0; ix<n_fhat[0]; ix++){
-            fhat[iy][ix][0] = fhat[iy][ix][0]/fact_field;
-            fhat[iy][ix][1] = fhat[iy][ix][1]/fact_field;
+            fhat[iy][ix][0] = fhat[iy][ix][0]/(fact_field);
+            fhat[iy][ix][1] = fhat[iy][ix][1]/(fact_field);
 
             // // if(iy==8 && ix==0){
             // if(ix==16 && iy==0){                
