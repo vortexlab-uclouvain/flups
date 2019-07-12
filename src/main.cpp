@@ -1,10 +1,10 @@
 #include <cmath>
 #include <iostream>
 
-#include "fftw3.h"
 #include "expint.hpp"
 #include "tools.hpp"
 
+#include "FFTW_Solver.hpp"
 
 #define GAMMA 0.5772156649
 
@@ -15,9 +15,13 @@ int main(int argc, char* argv[])
     -  We assume a cell-centered layout
     */
 
-    const int    n[2] = {32,32};
+    const size_t    n[2] = {16,16};
     const double L[2] = {1.0,1.0};
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
+
+    BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,UNB}};
+
+    FFTW_Solver mysolver(n,h,L,mybc);
 
     //-------------------------------------------------------------------------------
     // allocate the memory
@@ -179,15 +183,10 @@ int main(int argc, char* argv[])
             freal_ext[iy][ix] = 0.0;
         }
     }
-   const double sigma = 0.1;
+   const double sigma    = 0.1;
    const double oosigma2 = 1.0/(sigma*sigma);
     for(int iy=0; iy<n[1]; iy++){
         for(int ix=0; ix<n[0]; ix++){
-            // double x  = (ix+0.5)*h[0]-L[0]/2.0;
-            // double y  = (iy+0.5)*h[1]-L[1]/2.0;
-            // double r2 = x*x+y*y;
-
-            // freal_ext[iy][ix] = 1.0/(M_PI*rhs_sigma2) * exp(-r2/(rhs_sigma2));
             freal_ext[iy][ix] = 0.0;
 
             double x  = (ix+0.5)*h[0]-L[0]*0.5;
@@ -221,48 +220,24 @@ int main(int argc, char* argv[])
     fftw_execute(green_r2f[1]);
     fftw_execute(field_r2f[1]);
 
-    for(int iy=0; iy<n_ghat[1];  iy++){
-        for(int ix=0; ix<n_ghat[0]; ix++){
-            ghat[iy][ix][0] = ghat[iy][ix][0]* (h[0]*h[1]);
-            ghat[iy][ix][1] = ghat[iy][ix][1]* (h[0]*h[1]);
+    write_array(n_ghat,ghat[0],"green_fourier");
 
-            // double kx = 2.0*M_PI/(4.0*L[0]) * ix;
-            // double ky = 2.0*M_PI/(2.0*L[1]) * iy;
-            // if( ghat[iy][ix][0] > 1e-6){
-            //     printf("G (%e + i %e) = %e vs k^2 = %e \n",ghat[iy][ix][0] ,ghat[iy][ix][1],ghat[iy][ix][0]*ghat[iy][ix][0]+ghat[iy][ix][1]*ghat[iy][ix][1],kx*kx+ky*ky);
-            // }
-        }
-    }
-
+   
+    const double vol = h[0]*h[1];
     for(int iy=0; iy<n_fhat[1];  iy++){
         for(int ix=0; ix<n_fhat[0]; ix++){
             fhat[iy][ix][0] = fhat[iy][ix][0]/(fact_field);
             fhat[iy][ix][1] = fhat[iy][ix][1]/(fact_field);
 
-            // // if(iy==8 && ix==0){
-            // if(ix==16 && iy==0){                
-            //     printf("f(8,5) = %f + i %f\n",fhat[iy][ix][0],fhat[iy][ix][1]);
-            //     printf("g(8,5) = %f + i %f\n",ghat[iy][ix][0],ghat[iy][ix][1]);
+            fhat[iy][ix][0] = vol * (ghat[iy][ix][0]*fhat[iy][ix][0] - ghat[iy][ix][1]*fhat[iy][ix][1]);
+            fhat[iy][ix][1] = vol * (ghat[iy][ix][0]*fhat[iy][ix][1] + ghat[iy][ix][1]*fhat[iy][ix][0]);
+            // double tempr = ghat[iy][ix][0]*fhat[iy][ix][0] - ghat[iy][ix][1]*fhat[iy][ix][1];
+            // double tempi = ghat[iy][ix][0]*fhat[iy][ix][1] + ghat[iy][ix][1]*fhat[iy][ix][0];
 
-            //     double w0[2] ={ (2.0*M_PI)/(2.0*L[0]) , (2.0*M_PI)/(2.0*L[1]) };
-                
-            //     double c = cos(ix*w0[0]*h[0]/2.0 + iy*w0[1]*h[1]/2.0);
-            //     double s = sin(ix*w0[0]*h[0]/2.0 + iy*w0[1]*h[1]/2.0);
-            //     printf("f to non-shift: %f + i %f\n",fhat[iy][ix][0]*c+fhat[iy][ix][1]*s,fhat[iy][ix][1]*c-fhat[iy][ix][0]*s); // exp(-)
-            //     printf("g to shift: %f + i %f\n",ghat[iy][ix][0]*c-ghat[iy][ix][1]*s,ghat[iy][ix][1]*c+ghat[iy][ix][0]*s); // exp(-)
-            // }
-
-            fhat[iy][ix][0] = ghat[iy][ix][0]*fhat[iy][ix][0] - ghat[iy][ix][1]*fhat[iy][ix][1];
-            fhat[iy][ix][1] = ghat[iy][ix][0]*fhat[iy][ix][1] + ghat[iy][ix][1]*fhat[iy][ix][0];
-
-            // double kx = 2.0*M_PI/(2.0*L[0]) * ix;
-            // double ky = 2.0*M_PI/(L[1]) * iy;
-            // fhat[iy][ix][0] = fhat[iy][ix][0]/(kx*kx+ky*ky+1e-6);
-            // fhat[iy][ix][1] = fhat[iy][ix][1]/(kx*kx+ky*ky+1e-6);
         }
     }
     write_array(n_fhat,fhat[0],"field_fourier");
-    write_array(n_ghat,ghat[0],"green_fourier");
+    
 
     // do the inverse one
     fftw_execute(field_f2r[1]);

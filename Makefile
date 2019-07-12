@@ -12,8 +12,8 @@ TARGET := poisson
 CC = icc
 CXX = icpc
 
-#CXXFLAGS := -O3 -DNDEBUG
-CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all
+#CXXFLAGS := -O3 -DNDEBUG -stdc++11
+CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -DVERBOSE -stdc++11
 
 # define some options
 DEF :=
