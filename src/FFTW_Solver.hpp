@@ -28,11 +28,13 @@ protected:
     multimap<int, FFTW_plan_dim*> _plan_backward;
 
     void _init_plan_map(size_t sizeorder[DIM],int dimorder[DIM], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap) const;
+    void _delete_plan(multimap<int,FFTW_plan_dim* > *planmap);
     void _allocate_data(const size_t size[DIM],void** data) const;
     void _allocate_plan(const size_t size[DIM],const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap) const;
 
 public:
     FFTW_Solver(const size_t field_size[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
+    ~FFTW_Solver();
 
 };
 

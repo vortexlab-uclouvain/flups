@@ -13,7 +13,7 @@ CC = icc
 CXX = icpc
 
 #CXXFLAGS := -O3 -DNDEBUG -stdc++11
-CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -DVERBOSE -stdc++11
+CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 
 # define some options
 DEF :=

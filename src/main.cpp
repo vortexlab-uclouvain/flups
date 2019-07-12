@@ -19,9 +19,12 @@ int main(int argc, char* argv[])
     const double L[2] = {1.0,1.0};
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
 
-    BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,UNB}};
+    // BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
+    BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,UNB}};
 
-    FFTW_Solver mysolver(n,h,L,mybc);
+    FFTW_Solver*  mysolver = new FFTW_Solver(n,h,L,mybc);
+
+    delete(mysolver);
 
     //-------------------------------------------------------------------------------
     // allocate the memory

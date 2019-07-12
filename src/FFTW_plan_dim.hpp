@@ -30,11 +30,12 @@ protected:
     const int _sign; // FFT_FORWARD (-1) or FFT_BACKWARD(+1)
     const bool _isGreen ;
 
+
     bool   _imult; // boolean to determine if we have to multiply by (i=sqrt(-1)) or not
     double _fact;  // factor you need to multiply to get the transform on the right scaling
     double _k_fact;
-    bool _isComplex; // is this plan complex? 
     bool _isDataComplex; // is the data allocated complex? (yes if any plan is complex)
+    bool _switch2Complex; // is this plan the one that changes to complex?
     int _orderID; // my ID in the !!ordered!! dimension
 
     SolverType _type;
@@ -45,7 +46,7 @@ protected:
     size_t _n_out; // the number of element coming out of the transform
     
     fftw_r2r_kind _kind;
-    fftw_plan* _plan = NULL;
+    fftw_plan _plan = NULL;
     int _howmany;
 
 
@@ -75,9 +76,9 @@ public:
     void get_dimID   (const int id, int    dimID[DIM]) const;
     void get_outsize (const int id, size_t size [DIM]) const;
     void get_padstart(const int id, size_t start[DIM]) const;
-
-    void set_order(const int id);
     
+    void set_order(const int id);
+
     void disp();
 
 protected:
@@ -86,10 +87,8 @@ protected:
     void _init_periodic  (const size_t size[DIM],bool isComplex);
     void _init_unbounded (const size_t size[DIM],bool isComplex);
 
-    void _allocate_plan_real2real (const size_t size_plan[DIM],void* data);
-    // void _allocate_plan_mixpoisson(const size_t size_plan[DIM],double* data);
-    // void _allocate_plan_periodic  (const size_t size_plan[DIM],double* data);
-    // void _allocate_plan_unbounded (const size_t size_plan[DIM],double* data);
+    void _allocate_plan_real   (const size_t size_ordered[DIM],void* data);
+    void _allocate_plan_complex(const size_t size_ordered[DIM],void* data);
 
 };
 

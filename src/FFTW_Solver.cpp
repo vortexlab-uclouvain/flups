@@ -3,7 +3,7 @@
 
 FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2])
 {
-
+    BEGIN_FUNC
     //-------------------------------------------------------------------------
     // store the field size
     //-------------------------------------------------------------------------
@@ -43,8 +43,24 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     _allocate_plan(_size_hat,_isComplex,_data,&_plan_forward);
 }
 
+FFTW_Solver::~FFTW_Solver(){
+    BEGIN_FUNC
+    _delete_plan(&_plan_forward);
+    _delete_plan(&_plan_backward);
+}
+void FFTW_Solver::_delete_plan(multimap<int,FFTW_plan_dim* > *planmap){
+    BEGIN_FUNC
+    // deallocate the plans
+    for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        delete myplan;
+    }
+}
+
 void FFTW_Solver::_init_plan_map(size_t sizeorder[DIM],int dimorder[DIM], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap) const
 {
+    BEGIN_FUNC
     //-------------------------------------------------------------------------
     // get the plan info
     //-------------------------------------------------------------------------
@@ -60,9 +76,11 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[DIM],int dimorder[DIM], bool* 
         // initialize the plan - read only
         myplan->init(size_tmp,*isComplex);
         // update the size to the new one starting from the slowest index
-        myplan->get_outsize(DIM-1-count,sizeorder);
+        myplan->get_outsize(size_tmp); // update the size for the next plans
+        myplan->get_outsize(DIM-1-count,sizeorder); // store the size in the correct order
         myplan->get_dimID  (count      ,dimorder);
         myplan->get_isComplex(isComplex);
+        // set the order of calls
         myplan->set_order(count);
         // display it
         myplan->disp();
@@ -76,6 +94,7 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[DIM],int dimorder[DIM], bool* 
 
 void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data) const
 {
+    BEGIN_FUNC
     //-------------------------------------------------------------------------
     // Sanity checks
     //-------------------------------------------------------------------------
@@ -84,22 +103,24 @@ void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data) const
     //-------------------------------------------------------------------------
     // Do the memory allocation
     //-------------------------------------------------------------------------
+    printf("are we complex? %d\n",_isComplex);
     size_t size_tot = 1;
     for(int id=0; id<DIM; id++) size_tot *= size[id];
 
     if(_isComplex){
+        INFOLOG2("Complex memory allocation, size = %ld\n",size_tot);
         (*data) =(void*) fftw_malloc(size_tot*sizeof(fftw_complex));
     }
     else{
+        INFOLOG2("Real memory allocation, size = %ld\n",size_tot);
         (*data) =(void*) fftw_malloc(size_tot*sizeof(double));
-    }
-
-    INFOLOG("memory allocation finished\n");
+    }   
 }
 
 
 void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap) const
 {
+    BEGIN_FUNC
     INFOLOG("start plan allocation\n");
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
     {
