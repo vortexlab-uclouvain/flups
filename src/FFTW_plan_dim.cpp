@@ -388,6 +388,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],void* 
         INFOLOG ("------------------------------------------\n");
         if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
         else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
+        INFOLOG2("orderedID = %d\n",_orderID);
         INFOLOG2("howmany = %d\n",_howmany);
         INFOLOG2("size n = %ld\n",_n_in);
         INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
@@ -433,7 +434,7 @@ void FFTW_plan_dim::set_order(const int id){
     BEGIN_FUNC
     // if the plan is called in ith position
     // its dimension is located in DIM-id-1th index
-    _orderID = DIM-id-1;
+    _orderID = id;
 }
 
 void FFTW_plan_dim::disp(){

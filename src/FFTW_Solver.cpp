@@ -21,7 +21,7 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
         FFTW_plan_dim* myplan_backward = new FFTW_plan_dim(id,h,L,mybc[id],FFTW_BACKWARD,false);
         _plan_backward.insert(pair<int,FFTW_plan_dim*>(myplan_backward->get_type(),myplan_backward));
     }
-    
+
     //-------------------------------------------------------------------------
     // initialise the plans and get the sizes + dimorder
     //-------------------------------------------------------------------------
@@ -69,19 +69,40 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[DIM],int dimorder[DIM], bool* 
     size_t size_tmp[DIM];
     for(int id=0; id<DIM; id++) size_tmp[id] = _size_field[id];
     // init the plans
-    int count = 0;
+    int count = 0; // index from 0 to DIM-1 following the priority given by the type
+    int orderID = 0;  // the order ID to give to the plan in the memory
+    int max_count = DIM-1; // max bound to compute the order in memory
+
+    // by default, we put the first plans on the slowest rotating index
+    // if we have a R2C, it HAS to be on the faster rotating index
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
     {
         FFTW_plan_dim* myplan = it->second;
         // initialize the plan - read only
         myplan->init(size_tmp,*isComplex);
-        // update the size to the new one starting from the slowest index
-        myplan->get_outsize(size_tmp); // update the size for the next plans
-        myplan->get_outsize(DIM-1-count,sizeorder); // store the size in the correct order
-        myplan->get_dimID  (count      ,dimorder);
-        myplan->get_isComplex(isComplex);
-        // set the order of calls
-        myplan->set_order(count);
+        myplan->get_outsize(size_tmp); // update the size for the next plans, keep order unchanged
+        
+        // get the orderID of the plan
+        if(!(*isComplex)){ // if we are not complex yet
+            myplan->get_isComplex(isComplex);
+            // if we just changed to complex = R2C, we have to put the plan on the fastest index = 0
+            // we also increment the max_count to prevent any other plan reaching this 0 index
+            if((*isComplex)){
+                max_count += 1;
+                orderID    = 0;
+            }
+            else{
+                // if we didn't became complex, put the latest plan in the fastest indexing direction
+                orderID = max_count-count;
+            }
+        }
+        else{ // already complex, put the latest plan in the fastest rotating index
+            orderID = max_count-count;
+        }
+        myplan->get_outsize(orderID,sizeorder); // store the size in the correct order
+        myplan->get_dimID  (orderID,dimorder); // store the correspondance of the transposition
+        // set the orderID
+        myplan->set_order(orderID);
         // display it
         myplan->disp();
         // update the counter
