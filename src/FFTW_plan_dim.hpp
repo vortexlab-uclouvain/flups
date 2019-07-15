@@ -40,7 +40,7 @@ protected:
 
     SolverType _type;
     BoundaryType _bc[2]; // boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX
-    size_t _padstart;
+    size_t _fieldstart;
     
     size_t _n_in; // the number of element in the transform
     size_t _n_out; // the number of element coming out of the transform
@@ -71,11 +71,11 @@ public:
     int  get_type()      const;
     bool get_isComplex() const;
     void get_outsize  (size_t* size ) const;
-    void get_padstart (size_t* start) const;
+    void get_fieldstart (size_t* start) const;
     void get_isComplex(bool* isComplex) const;
     void get_dimID   (const int id, int    dimID[DIM]) const;
     void get_outsize (const int id, size_t size [DIM]) const;
-    void get_padstart(const int id, size_t start[DIM]) const;
+    void get_fieldstart(const int id, size_t start[DIM]) const;
     
     void set_order(const int id);
 

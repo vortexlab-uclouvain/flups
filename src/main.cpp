@@ -15,16 +15,16 @@ int main(int argc, char* argv[])
     -  We assume a cell-centered layout
     */
 
-    const size_t    n[2] = {16,16};
+    const size_t    n[2] = {16,8};
     const double L[2] = {1.0,1.0};
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
 
-    // BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
-    BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,UNB}};
+    BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
+    // BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,EVEN}};
+    // BoundaryType mybc[DIM][2] = {{UNB,EVEN},{UNB,UNB}};
 
     FFTW_Solver*  mysolver = new FFTW_Solver(n,h,L,mybc);
 
-    delete(mysolver);
 
     //-------------------------------------------------------------------------------
     // allocate the memory
@@ -191,6 +191,7 @@ int main(int argc, char* argv[])
     for(int iy=0; iy<n[1]; iy++){
         for(int ix=0; ix<n[0]; ix++){
             freal_ext[iy][ix] = 0.0;
+            
 
             double x  = (ix+0.5)*h[0]-L[0]*0.5;
             double y  = (iy+0.5)*h[1]-L[1]*0.35;
@@ -204,11 +205,19 @@ int main(int argc, char* argv[])
 
             freal_ext[iy][ix] += - oo2pi * oosigma2 * exp(-r2*oosigma2*0.5);
 
+            freal[iy][ix] = freal_ext[iy][ix];
+
         }
     }
 
+    mysolver->solve(freal[0],freal[0]);
+    delete(mysolver);
+
+    int mysize[2] = {n[0],n[1]};
+    write_array(mysize,freal[0],"field_real");
     write_array(n_green,greal_ext[0],"green_real");
-    write_array(n_ext,  freal_ext[0],"field_real");
+    // write_array(n_ext,  freal_ext[0],"field_real");
+    
 
     //-------------------------------------------------------------------------------
     // Do the FFT FORWARD
