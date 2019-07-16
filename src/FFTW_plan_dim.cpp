@@ -1,4 +1,13 @@
-
+/**
+ * @file FFTW_plan_dim.cpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
+ * 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
 #include "FFTW_plan_dim.hpp"
 
 

@@ -1,3 +1,14 @@
+/**
+ * @file main.cpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
+ * 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
+
 #include <cmath>
 #include <iostream>
 

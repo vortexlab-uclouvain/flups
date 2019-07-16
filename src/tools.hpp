@@ -1,3 +1,14 @@
+/**
+ * @file tools.hpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
+ * 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
+
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>

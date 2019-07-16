@@ -1,33 +1,58 @@
+/**
+ * @file FFTW_plan_dim.hpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
+ * 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
 #ifndef FFTW_PLAN_DIM_HPP
 #define FFTW_PLAN_DIM_HPP
 
 #include "defines.hpp"
 #include "fftw3.h"
 
+/**
+ * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded
+ * 
+ */
 enum BoundaryType
 {
-    //The sum of the BoundaryType gives the priority. The lowest sum is to perfom first
-    // DCT/DST < mix < unbounded < periodic
-    EVEN    = 0, // even boundary condition = zero flux
-    ODD     = 1, // odd boundary condition = zero value
-    PER     = 3, // periodic boundary conditions
-    UNB     = 4  // unbounded boundary condition
+    EVEN    = 0, /**< EVEN boundary condition = zero flux  */
+    ODD     = 1, /**< ODD boundary condition = zero value */
+    PER     = 3, /**< PERiodic boundary conditions */
+    UNB     = 4  /**< UNBounded boundary condition */
 };
 
+/**
+ * @brief SolverType is the type of solver considered and is computed as the sum of both BoundaryType variables
+ * 
+ * The integer value associated gives is the priority of processing.
+ * We first have to do the real to real transforms, then the padded real to real (mix direction = unbounded + boundary condition),
+ * then the periodic (DFT) directions and finally the padded periodic boundary condition.
+ * This order is chosen in order to reduce the computational cost.
+ * 
+ */
 enum SolverType
 {
-    R2R     = 2, // real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2)
-    MIX     = 5, // unbounded and a symetry condition: UE/EU (4) , UO/OU (5)
-    PERPER  = 6, // periodic - periodic: PERPER (6)
-    UNBUNB  = 8  // fully unbounded UU (8)
+    R2R     = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */ 
+    MIX     = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
+    PERPER  = 6, /**< type periodic - periodic: PERPER (6) */
+    UNBUNB  = 8  /**< type fully unbounded UU (8) */
 };
 
 
+/**
+ * @brief A FFTW plan in one dimension
+ * 
+ */
 class FFTW_plan_dim{
 
 protected:
-    const int _dimID; // my ID in the dimension - used to fill the dimension arrays
-    const int _sign; // FFT_FORWARD (-1) or FFT_BACKWARD(+1)
+    const int _dimID; /**< the dimension of the plan in the field reference */
+    const int _sign; /**< FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
     const bool _isGreen ;
 
 

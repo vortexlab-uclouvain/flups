@@ -1,11 +1,23 @@
-#include "FFTW_Solver.hpp"
 /**
- * @brief Construct a new fftw solver::fftw solver object
+ * @file FFTW_Solver.cpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
  * 
- * @param size_field 
- * @param h 
- * @param L 
- * @param mybc 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
+
+#include "FFTW_Solver.hpp"
+
+/*!
+ * @brief Construct a new fftw solver
+ * 
+ * @param[in] size_field the size of the field (real) that has to be solved
+ * @param[in] h the grid spacing uniform in each direction
+ * @param[in] L the length of the computational domain
+ * @param[in] mybc the boundary conditions asked
  */
 FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2])
 {

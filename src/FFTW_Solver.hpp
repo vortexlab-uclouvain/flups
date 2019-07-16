@@ -1,3 +1,14 @@
+/**
+ * @file FFTW_Solver.hpp
+ * @author Thomas Gillis
+ * @brief 
+ * @version
+ * @date 2019-07-16
+ * 
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ */
+
 #ifndef FFTW_SOLVER_HPP
 #define FFTW_SOLVER_HPP
 
@@ -11,15 +22,19 @@
 
 using namespace std;
 
+/**
+ * @brief The Poisson solver in itself
+ * 
+ * A collection of 2 or 3 FFTW_plan_dim and a Green's function to solve the Poisson equation
+ */
 class FFTW_Solver{
     // the memory allocation is assumed to be data[iz][iy][ix]
     // so the fastest running index is n[0] then n[1] then n[2]
     // even is the dimension is 2, we allocate arrays of dimension 3
-    int    _dimorder   [3] = {0,1,2};
+    int    _dimorder   [3] = {0,1,2}; 
     size_t _size_field [3] = {1,1,1};
     size_t _fieldstart [3] = {0,0,0};
     size_t _size_hat   [3] = {1,1,1};
-
     size_t _dim_multfact[3] = {1,1,1};
     
     size_t _offset = 0;
