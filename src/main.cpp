@@ -30,9 +30,9 @@ int main(int argc, char* argv[])
     const double L[2] = {1.0,1.0};
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
 
-    // BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
+    BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
     // BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,EVEN}};
-    BoundaryType mybc[DIM][2] = {{UNB,EVEN},{UNB,UNB}};
+    // BoundaryType mybc[DIM][2] = {{UNB,EVEN},{UNB,UNB}};
 
     FFTW_Solver*  mysolver = new FFTW_Solver(n,h,L,mybc);
 
@@ -221,13 +221,12 @@ int main(int argc, char* argv[])
         }
     }
 
-    mysolver->solve(freal[0],freal[0]);
+    mysolver->solve_rhs(freal[0],freal[0]);
     delete(mysolver);
 
     int mysize[2] = {n[0],n[1]};
     write_array(mysize,freal[0],"field_real");
     write_array(n_green,greal_ext[0],"green_real");
-    // write_array(n_ext,  freal_ext[0],"field_real");
     
 
     //-------------------------------------------------------------------------------

@@ -18,17 +18,20 @@
  * @param[in] h the grid spacing uniform in each direction
  * @param[in] L the length of the computational domain
  * @param[in] mybc the boundary conditions asked
+ * 
+ * --------------------------------------
+ * We do the following operations:
  */
 FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2])
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // store the field size
+    /** - store the field size */
     //-------------------------------------------------------------------------
     for(int id=0; id<DIM; id++) _size_field[id] = size_field[id];
 
     //-------------------------------------------------------------------------
-    // for each dim, compute the plan and its type
+    /** - for each dim, compute the plan and its type */
     //-------------------------------------------------------------------------
     for(int id=0; id<DIM; id++)
     {
@@ -38,10 +41,14 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
         // backward
         FFTW_plan_dim* myplan_backward = new FFTW_plan_dim(id,h,L,mybc[id],FFTW_BACKWARD,false);
         _plan_backward.insert(pair<int,FFTW_plan_dim*>(myplan_backward->get_type(),myplan_backward));
+
+        // Green's function
+        FFTW_plan_dim* myplan_green = new FFTW_plan_dim(id,h,L,mybc[id],FFTW_FORWARD,true);
+        _plan_green.insert(pair<int,FFTW_plan_dim*>(myplan_green->get_type(),myplan_green));
     }
 
     //-------------------------------------------------------------------------
-    // initialise the plans and get the sizes + dimorder
+    /** - initialise the plans and get the sizes + dimorder */
     //-------------------------------------------------------------------------
     // forward, store the size and dim order for the object
     _init_plan_map(_size_hat,_fieldstart,_dimorder,&_isComplex,&_plan_forward);
@@ -60,8 +67,17 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
         assert(isComplex_tmp      == _isComplex);
     }
 
+    // backward uses temporary sizes and check the output
+    _init_plan_map(_size_green,fieldstart_tmp,dimorder_tmp,&isComplex_tmp,&_plan_green);
+    // sanity checks
+    for(int id=0; id<3; id++){
+        assert(fieldstart_tmp[id] == 0); // no field start for Green
+        assert(dimorder_tmp[id]   == _dimorder[id]);
+        assert(isComplex_tmp      == _isComplex);
+    }
+
     //-------------------------------------------------------------------------
-    // Store some usefull factors in 'double' index calculus
+    /** - Store some usefull factors in 'double' index calculus */
     //-------------------------------------------------------------------------
     // _dim_multfact is used to compute the tranposed index location = 
     // _dim_multfact[0] * ix +  _dim_multfact[1] * iy + _dim_multfact[2] * iz
@@ -81,7 +97,7 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     }
 
     //-------------------------------------------------------------------------
-    // Get the normalization factor
+    /** - Get the normalization factors */
     //-------------------------------------------------------------------------
     _normfact = 1.0;
     _volfact  = 1.0;
@@ -93,15 +109,23 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     }
 
     //-------------------------------------------------------------------------
-    // allocate the data
+    /** - allocate the data */
     //-------------------------------------------------------------------------
     _allocate_data(_size_hat,&_data);
+    _allocate_data(_size_green,&_green);
 
     //-------------------------------------------------------------------------
-    // allocate the plans
+    /** - allocate the plans */
     //-------------------------------------------------------------------------
     _allocate_plan(_size_hat,_offset,_isComplex,_data,&_plan_forward );
     _allocate_plan(_size_hat,_offset,_isComplex,_data,&_plan_backward);
+
+    //-------------------------------------------------------------------------
+    /** - Comnpute the Green's function */
+    //-------------------------------------------------------------------------
+    _allocate_plan(_size_green,0,_isComplex,_green,&_plan_green);
+    // _compute_Green(_size_green);
+    _delete_plan(&_plan_green);
 }
 
 /**
@@ -114,6 +138,7 @@ FFTW_Solver::~FFTW_Solver(){
     _delete_plan(&_plan_backward);
 
     _deallocate_data(_data);
+    _deallocate_data(_green);
 }
 /**
  * @brief delete the FFTW_plan_dim stored in planmap
@@ -131,7 +156,7 @@ void FFTW_Solver::_delete_plan(multimap<int,FFTW_plan_dim* > *planmap){
 }
 
 /**
- * @brief initialize a map containing plan
+ * @brief initialize a multimap containing plan
  * 
  * @param[out] sizeorder the size of the tranformed field in the correct order
  * @param[out] dimorder the order of 
@@ -200,7 +225,7 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int 
  * @param size  the size to allocate
  * @param data  the adress of the data to allocate
  */
-void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data)
+void FFTW_Solver::_allocate_data(const size_t size[3],double** data)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -217,11 +242,11 @@ void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data)
 
     if(_isComplex){
         INFOLOG2("Complex memory allocation, size = %ld\n",size_tot);
-        (*data) =(void*) fftw_malloc(size_tot*sizeof(fftw_complex));
+        (*data) =(double*) fftw_malloc(size_tot*sizeof(fftw_complex));
     }
     else{
         INFOLOG2("Real memory allocation, size = %ld\n",size_tot);
-        (*data) =(void*) fftw_malloc(size_tot*sizeof(double));
+        (*data) =(double*) fftw_malloc(size_tot*sizeof(double));
     }   
 }
 
@@ -230,7 +255,7 @@ void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data)
  * 
  * @param data the data to deallocate
  */
-void FFTW_Solver::_deallocate_data(void* data)
+void FFTW_Solver::_deallocate_data(double* data)
 {
     BEGIN_FUNC
     if(data != NULL){
@@ -239,7 +264,7 @@ void FFTW_Solver::_deallocate_data(void* data)
 }
 
 
-void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const size_t offset, const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap)
+void  FFTW_Solver::_allocate_plan(const size_t size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap)
 {
     BEGIN_FUNC
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
@@ -252,7 +277,7 @@ void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const size_t offset, co
 
 
  /**
- * @brief Solve the Poisson equation nabla^2 field = rhs
+ * @brief Solve the Poisson equation \f$\nabla^2 f = rhs\f$
  * 
  * @param field 
  * @param rhs 
@@ -260,7 +285,7 @@ void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const size_t offset, co
  * -----------------------------------------------
  * We perform the following operations:
  */
-void FFTW_Solver::solve(double* field, double* rhs)
+void FFTW_Solver::solve_rhs(double* field, double* rhs)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -381,7 +406,7 @@ void FFTW_Solver::solve(double* field, double* rhs)
     }
 
     //-------------------------------------------------------------------------
-    /** - copy the solution to the field */
+    /** - copy the solution in the field */
     //-------------------------------------------------------------------------
     for(int iz=0; iz<_size_field[2]; iz++){
         for(int iy=0; iy<_size_field[1]; iy++){
@@ -399,5 +424,6 @@ void FFTW_Solver::solve(double* field, double* rhs)
         int mysize4[2] = {_size_field[0],_size_field[1]};
         write_array(mysize4,field,"sol_final");
     }
-    
 }
+
+void _compute_Green(const size_t size_green[3],double* Green, multimap<int,FFTW_plan_dim* > *planmap);

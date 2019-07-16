@@ -136,19 +136,15 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
     //-------------------------------------------------------------------------
     // Get the memory details (size in/out, _fieldstart, isComplex, howmany)
     //-------------------------------------------------------------------------
-    if(!_isGreen){
-        _n_in  = size[_dimID];
-        _n_out = size[_dimID];
-    }
-    else if( _isGreen){
-        _n_in  = 1;
-        _n_out = 1;
-        INFOLOG("no need for DST/DCT for the Green's function\n");
-    }
+    _n_in       = size[_dimID];
+    _n_out      = size[_dimID];
+    _fieldstart = 0;
 
-    _fieldstart  = 0; // no padding
-    _howmany   = 1;
+    // no switch to complex
     _switch2Complex = false;
+
+    // howmany
+    _howmany = 1;
     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
 
@@ -286,12 +282,7 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     // Get the size and multiplication factor
     //-------------------------------------------------------------------------
-    if(_isGreen){
-        _n_in  = 1;
-        _n_out = 1;
-        INFOLOG("no need for DST/DCT for the Green's function\n");
-    }
-    else if(isComplex){
+    if(isComplex){
         _n_in  = size[_dimID]; // takes n complex, return n complex
         _n_out = size[_dimID];
 
@@ -313,6 +304,11 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     // udpate scaling factor
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(size[_dimID]);
+
+    //-------------------------------------------------------------------------
+    // Get the type of Fourier transforms
+    //-------------------------------------------------------------------------
+    _imult = false;
 }
 
 /**
@@ -350,6 +346,11 @@ void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex)
     // udpate scaling factor
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(2*size[_dimID]);
+
+    //-------------------------------------------------------------------------
+    // Get the type of Fourier transforms
+    //-------------------------------------------------------------------------
+    _imult = false;
 }
 
 /**
@@ -421,17 +422,16 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     // if the solver is a R2R is may be before a mix one
     // so we have to take the offset into account
     if(_type == R2R){
-        double* mydata  = (double*) data;
         // set the plan
         _plan = fftw_plan_many_r2r( rank,(int*) (&_n_in),_howmany,
-                                    &(mydata[offset]),NULL,istride,idist,
-                                    &(mydata[offset]),NULL,ostride,odist,&_kind,FFTW_FLAG);
+                                    data+offset,NULL,istride,idist,
+                                    data+offset,NULL,ostride,odist,&_kind,FFTW_FLAG);
     }
     else{
         // set the plan
         _plan = fftw_plan_many_r2r( rank,(int*) (&_n_in),_howmany,
-                                    (double*) data,NULL,istride,idist,
-                                    (double*) data,NULL,ostride,odist,&_kind,FFTW_FLAG);
+                                    data,NULL,istride,idist,
+                                    data,NULL,ostride,odist,&_kind,FFTW_FLAG);
     }
     
     INFOLOG ("------------------------------------------\n");
@@ -444,6 +444,7 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     INFOLOG3("ostride (double) = %d - odist = %d\n",ostride,odist);
     if(_type == R2R) {INFOLOG2("starting offset  = %ld\n",offset);}
     INFOLOG ("------------------------------------------\n");
+
 }
 
 /**
@@ -456,6 +457,16 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
     BEGIN_FUNC
 
     assert(data != NULL);
+
+    if(_isGreen && _type == PERPER){
+        _plan = NULL;
+        
+        INFOLOG("------------------------------------------\n");
+        INFOLOG("## no DFT plan created for Green\n");
+        INFOLOG ("------------------------------------------\n");
+        return;
+    }
+
     // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
@@ -485,16 +496,16 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
         INFOLOG3("ostride (complex) = %d - odist = %d\n",ostride,odist);
         INFOLOG ("------------------------------------------\n");
 
-        // set the plan
+        // set the plan - there is no offset in r2c or c2c possible
         if(_sign == FFTW_FORWARD){
             _plan = fftw_plan_many_dft_r2c( rank,(int*) (&_n_in),_howmany,
-                                            (double*) data,NULL,istride,idist,
+                                            data,NULL,istride,idist,
                                             (fftw_complex*) data,NULL,ostride,odist,FFTW_FLAG);
         }
         else{
             _plan = fftw_plan_many_dft_c2r( rank,(int*) (&_n_in),_howmany,
                                             (fftw_complex*) data,NULL,ostride,odist,
-                                            (double*) data,NULL,istride,idist,FFTW_FLAG);
+                                            data,NULL,istride,idist,FFTW_FLAG);
         }
 
         
