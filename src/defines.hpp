@@ -59,5 +59,10 @@
 
 
 
+static const double oo2pi = 1.0/(2.0*M_PI);
+static const double oo4pi = 1.0/(4.0*M_PI);
+static const double oo2   = 1.0/2.0;
+static const double oo4   = 1.0/4.0;
+
 
 #endif

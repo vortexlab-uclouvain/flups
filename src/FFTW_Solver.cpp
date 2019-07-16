@@ -45,8 +45,6 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     //-------------------------------------------------------------------------
     // forward, store the size and dim order for the object
     _init_plan_map(_size_hat,_fieldstart,_dimorder,&_isComplex,&_plan_forward);
-    _allocate_data(_size_hat,&_data);
-    _allocate_plan(_size_hat,_isComplex,_data,&_plan_forward);
 
     // backward uses temporary sizes and check the output
     size_t size_tmp      [3] = {1,1,1};
@@ -65,13 +63,14 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     //-------------------------------------------------------------------------
     // Store some usefull factors in 'double' index calculus
     //-------------------------------------------------------------------------
-    // we accumulate the number of memory already visited
+    // _dim_multfact is used to compute the tranposed index location = 
+    // _dim_multfact[0] * ix +  _dim_multfact[1] * iy + _dim_multfact[2] * iz
     size_t acc = 1;
     for(int id=0; id<3; id++){
         _dim_multfact[_dimorder[id]] = acc;
         acc *= _size_hat[id];
     }
-    // if we are complex, we have to double the indexes to use them with doubles, except the first ones!!
+    // if we are complex, we have to double the indexes to use them with doubles, except the first ones
     if(_isComplex) for(int id=1; id<3; id++) _dim_multfact[_dimorder[id]] *=2;
 
     if(_isComplex){
@@ -81,14 +80,34 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
         _offset = _fieldstart[2]*_size_hat[1]*_size_hat[0]      + _fieldstart[1] * _size_hat[0]     + _fieldstart[0];
     }
 
+    //-------------------------------------------------------------------------
+    // Get the normalization factor
+    //-------------------------------------------------------------------------
+    _normfact = 1.0;
+    _volfact  = 1.0;
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        _normfact *= myplan->get_normfact();
+        _volfact  *= myplan->get_volfact ();
+    }
 
-    
+    //-------------------------------------------------------------------------
+    // allocate the data
+    //-------------------------------------------------------------------------
+    _allocate_data(_size_hat,&_data);
 
-    
-
-    // printf(">>>dim_multfact = %ld %ld %ld\n",_dim_multfact[0],_dim_multfact[1],_dim_multfact[2]);
+    //-------------------------------------------------------------------------
+    // allocate the plans
+    //-------------------------------------------------------------------------
+    _allocate_plan(_size_hat,_offset,_isComplex,_data,&_plan_forward );
+    _allocate_plan(_size_hat,_offset,_isComplex,_data,&_plan_backward);
 }
 
+/**
+ * @brief Destroy the fftw solver
+ * 
+ */
 FFTW_Solver::~FFTW_Solver(){
     BEGIN_FUNC
     _delete_plan(&_plan_forward);
@@ -96,6 +115,11 @@ FFTW_Solver::~FFTW_Solver(){
 
     _deallocate_data(_data);
 }
+/**
+ * @brief delete the FFTW_plan_dim stored in planmap
+ * 
+ * @param planmap 
+ */
 void FFTW_Solver::_delete_plan(multimap<int,FFTW_plan_dim* > *planmap){
     BEGIN_FUNC
     // deallocate the plans
@@ -170,6 +194,12 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int 
     printf("solver final size %ld %ld\n",sizeorder[0],sizeorder[1]);
 }
 
+/**
+ * @brief allocate the data associated to the solver
+ * 
+ * @param size  the size to allocate
+ * @param data  the adress of the data to allocate
+ */
 void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data)
 {
     BEGIN_FUNC
@@ -196,7 +226,7 @@ void FFTW_Solver::_allocate_data(const size_t size[DIM],void** data)
 }
 
 /**
- * @brief deallocate an array allocate for the solver
+ * @brief deallocate the data associated with the solver
  * 
  * @param data the data to deallocate
  */
@@ -209,34 +239,47 @@ void FFTW_Solver::_deallocate_data(void* data)
 }
 
 
-void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap) const
+void  FFTW_Solver::_allocate_plan(const size_t size[DIM],const size_t offset, const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap)
 {
     BEGIN_FUNC
-    INFOLOG("start plan allocation\n");
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
     {
         FFTW_plan_dim* myplan = it->second;
         // initialize the plan - read only
-        myplan->allocate_plan(size,isComplex,data);
+        myplan->allocate_plan(size,offset,isComplex,data);
     }
 }
 
 
+ /**
+ * @brief Solve the Poisson equation nabla^2 field = rhs
+ * 
+ * @param field 
+ * @param rhs 
+ * 
+ * -----------------------------------------------
+ * We perform the following operations:
+ */
 void FFTW_Solver::solve(double* field, double* rhs)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // sanity checks
+    /** - sanity checks */
     //-------------------------------------------------------------------------
     assert(field != NULL);
     assert(rhs   != NULL);
     
-    // get the data pointer to double style
-    double* in = (double*) _data;
+    {
+        int mysize4[2] = {_size_field[0],_size_field[1]};
+        write_array(mysize4,rhs,"rhs_in");
+    }
 
     //-------------------------------------------------------------------------
-    // go to Fourier
+    /** - clean the data memory */
     //-------------------------------------------------------------------------
+    // get the data pointer to double style    
+    double* in = (double*) _data;
+    
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
@@ -247,7 +290,7 @@ void FFTW_Solver::solve(double* field, double* rhs)
     }
 
     //-------------------------------------------------------------------------
-    // copy the rhs in the correct order
+    /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
     INFOLOG ("------------------------------------------\n");
     INFOLOG ("## memory information\n")
@@ -271,12 +314,90 @@ void FFTW_Solver::solve(double* field, double* rhs)
         }
     }
 
-    // int mysize2[2] = {_size_hat[0],_size_hat[1]};
-    // write_array(mysize2,in,"rhs_pad");
+    
+    if(_isComplex){
+        int mysize[2] = {_size_hat[0]*2,_size_hat[1]};
+        write_array(mysize,in,"rhs_pad");
+    }
+    else{
+        int mysize[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize,in,"rhs_pad");
+    }
 
     //-------------------------------------------------------------------------
-    // go to Fourier
+    /** - go to Fourier */
     //-------------------------------------------------------------------------
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        // initialize the plan - read only
+        myplan->execute_plan();
+    }    
 
+    //-------------------------------------------------------------------------
+    /** - Perform the magic */
+    //-------------------------------------------------------------------------
+    printf("doing the magic\n");
+    if(!_isComplex){
+        double* mydata = (double*) _data;
+        for(int iz=0; iz<_size_hat[2]; iz++){
+            for(int iy=0; iy<_size_hat[1]; iy++){
+                for(int ix=0; ix<_size_hat[0]; ix++){
+                    const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
+                    mydata[id] *= _normfact;
+                }
+            }
+        }
+    }
+    else{
+        fftw_complex* mydata = (fftw_complex*) _data;
+        for(int iz=0; iz<_size_hat[2]; iz++){
+            for(int iy=0; iy<_size_hat[1]; iy++){
+                for(int ix=0; ix<_size_hat[0]; ix++){
+                    const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
+                    mydata[id][0] *= _normfact;
+                    mydata[id][1] *= _normfact;
+                }
+            }
+        }
+    }
 
+    //-------------------------------------------------------------------------
+    /** - go back to reals */
+    //-------------------------------------------------------------------------
+    for(multimap<int,FFTW_plan_dim* >::reverse_iterator it = _plan_backward.rbegin(); it != _plan_backward.rend(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        myplan->execute_plan();
+    }
+
+    if(_isComplex){
+        int mysize2[2] = {_size_hat[0]*2,_size_hat[1]};
+        write_array(mysize2,in,"sol_pad");
+    }
+    else{
+        int mysize2[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize2,in,"sol_pad");
+    }
+
+    //-------------------------------------------------------------------------
+    /** - copy the solution to the field */
+    //-------------------------------------------------------------------------
+    for(int iz=0; iz<_size_field[2]; iz++){
+        for(int iy=0; iy<_size_field[1]; iy++){
+            for(int ix=0; ix<_size_field[0]; ix++){
+                // comnpute the index permutation
+                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
+                const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
+                // put the data
+                field[id_field] = in[id_fourier] ;
+            }
+        }
+    }
+
+    {
+        int mysize4[2] = {_size_field[0],_size_field[1]};
+        write_array(mysize4,field,"sol_final");
+    }
+    
 }

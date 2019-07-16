@@ -43,6 +43,9 @@ class FFTW_Solver{
     bool _isComplex;
     void* _data=NULL;
 
+    double _normfact = 1.0;
+    double _volfact  = 1.0;
+
     
 
 protected:
@@ -51,10 +54,16 @@ protected:
 
     void _init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap);
     
+    /**
+     * @name Data management
+     * Manage the data associated to the solver
+     */
+    /**@{  */
     void _allocate_data(const size_t size[DIM],void** data);
     void _deallocate_data(void* data);
+    /**@}  */
 
-    void _allocate_plan(const size_t size[DIM],const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap) const;
+    void _allocate_plan(const size_t size[DIM],const size_t offset, const bool isComplex,void* data, multimap<int,FFTW_plan_dim* > *planmap);
     void _delete_plan(multimap<int,FFTW_plan_dim* > *planmap);
 
 public:

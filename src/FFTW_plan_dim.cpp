@@ -11,6 +11,16 @@
 #include "FFTW_plan_dim.hpp"
 
 
+/**
+ * @brief Construct a new FFTW_plan_dim object
+ * 
+ * @param dimID the dimension id in the non-transpose reference = the field reference
+ * @param h the grid spacing
+ * @param L the lenght of the computational domain
+ * @param mybc the boundary condition to use for this plan
+ * @param sign the sign of the plan (FFTW_FORWARD or FFTW_BACKWARD)
+ * @param isGreen 
+ */
 FFTW_plan_dim::FFTW_plan_dim(const int dimID,const double h[DIM],const double L[DIM],const BoundaryType mybc[2],const int sign, const bool isGreen):
 _dimID(dimID),
 _sign(sign),
@@ -35,23 +45,27 @@ _isGreen(isGreen)
     //-------------------------------------------------------------------------
     if( mytype <= R2R ){
         _type   = R2R;
-        _fact   = 1.0; // no convolution so no multiplication by h
+        _normfact   = 1.0;
+        _volfact  = 1.0; // no convolution so no multiplication by h
         _k_fact = C2PI/(2.0*L[_dimID]);
     }
     else if( mytype <= MIX ){
         _type   = MIX;
-        _fact   = h[_dimID]; 
+        _normfact   = 1.0;
+        _volfact  = h[_dimID];
         _k_fact = C2PI/(4.0*L[_dimID]);
     }
     else if( mytype == PERPER ){
         _type   = PERPER;
-        _fact   = 1.0; // no convolution so no multiplication by h
+        _normfact   = 1.0; 
+        _volfact  = 1.0; // no convolution so no multiplication by h
         _k_fact = C2PI/(L[_dimID]);
     }
     else if( mytype == UNBUNB ){
         _type   = UNBUNB;
-        _fact   = h[_dimID];
-        _k_fact = C2PI/(2.0*L[_dimID]);
+        _normfact = 1.0;
+        _volfact  = h[_dimID];
+        _k_fact   = C2PI/(2.0*L[_dimID]);
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim(){
@@ -113,7 +127,7 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
     //-------------------------------------------------------------------------
     // update scaling factor
     //-------------------------------------------------------------------------
-    _fact *= 1.0 /(2.0*size[_dimID]);
+    _normfact *= 1.0 /(2.0*size[_dimID]);
 
     //-------------------------------------------------------------------------
     // Get the type of Fourier transforms and imult
@@ -183,7 +197,7 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
     //-------------------------------------------------------------------------
     // update scaling factor
     //-------------------------------------------------------------------------
-    _fact *= 1.0/(4.0*size[_dimID]);
+    _normfact *= 1.0/(4.0*size[_dimID]);
     
     //-------------------------------------------------------------------------
     // Get the type of Fourier transforms
@@ -256,7 +270,7 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     // udpate scaling factor
     //-------------------------------------------------------------------------
-    _fact *= 1.0/(size[_dimID]);
+    _normfact *= 1.0/(size[_dimID]);
 }
 void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
@@ -286,10 +300,10 @@ void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex)
     //-------------------------------------------------------------------------
     // udpate scaling factor
     //-------------------------------------------------------------------------
-    _fact *= 1.0/(2*size[_dimID]);
+    _normfact *= 1.0/(2*size[_dimID]);
 }
 
-void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const bool isComplex, void* data){
+void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, void* data){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // remember if the data allocated are complex or not
@@ -299,13 +313,13 @@ void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const bool isCompl
     // allocate the plan
     //-------------------------------------------------------------------------
     if( _type == R2R || _type == MIX ){
-        _allocate_plan_real(size_plan,data);
+        _allocate_plan_real(size_plan,offset,data);
     }
     else if( _type == PERPER || _type == UNBUNB ){
         _allocate_plan_complex(size_plan,data);
     }
 }
-void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],void* data){
+void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const size_t offset, void* data){
     BEGIN_FUNC
 
     assert(data != NULL);
@@ -322,20 +336,32 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],void* dat
     int idist   = sizemult[(_orderID+1)%DIM];
     int ostride = sizemult[(_orderID  )%DIM];
     int odist   = sizemult[(_orderID+1)%DIM];
-    
-    // set the plan
-    _plan = fftw_plan_many_r2r(  rank,(int*) (&_n_in),_howmany,
+
+    // if the solver is a R2R is may be before a mix one
+    // so we have to take the offset into account
+    if(_type == R2R){
+        double* mydata  = (double*) data;
+        // set the plan
+        _plan = fftw_plan_many_r2r( rank,(int*) (&_n_in),_howmany,
+                                    &(mydata[offset]),NULL,istride,idist,
+                                    &(mydata[offset]),NULL,ostride,odist,&_kind,FFTW_FLAG);
+    }
+    else{
+        // set the plan
+        _plan = fftw_plan_many_r2r( rank,(int*) (&_n_in),_howmany,
                                     (double*) data,NULL,istride,idist,
                                     (double*) data,NULL,ostride,odist,&_kind,FFTW_FLAG);
-
+    }
+    
     INFOLOG ("------------------------------------------\n");
-    if      (_type == R2R   ) {INFO2("## R2R plan created for plan r2r (=%d)\n",_type);}
-    else if (_type == MIX   ) {INFO2("## R2R plan created for plan mix (=%d)\n",_type);}
+    if      (_type == R2R   ) {INFOLOG2("## R2R plan created for plan r2r (=%d)\n",_type);}
+    else if (_type == MIX   ) {INFOLOG2("## R2R plan created for plan mix (=%d)\n",_type);}
     INFOLOG2("orderedID = %d\n",_orderID);
     INFOLOG2("howmany   = %d\n",_howmany);
     INFOLOG2("size n    = %ld\n",_n_in);
     INFOLOG3("istride (double) = %d - idist = %d\n",istride,idist);
     INFOLOG3("ostride (double) = %d - odist = %d\n",ostride,odist);
+    if(_type == R2R) {INFOLOG2("starting offset  = %ld\n",offset);}
     INFOLOG ("------------------------------------------\n");
 }
 void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],void* data){
@@ -405,6 +431,16 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],void* 
     }
 }
 
+void FFTW_plan_dim::execute_plan(){
+    BEGIN_FUNC
+    // run the plan
+    if      (_type == R2R   ) {INFO2(">> Doing plan real2real for order %d\n",_orderID);}
+    else if (_type == MIX   ) {INFO2(">> Doing plan mix for order %d\n",_orderID);}
+    else if (_type == PERPER) {INFO2(">> Doing plan periodic-periodic for order %d\n",_orderID);}
+    else if (_type == UNBUNB) {INFO2(">> Doing plan unbounded for order %d\n",_orderID);}
+    fftw_execute(_plan);
+}
+
 
 bool FFTW_plan_dim::get_isComplex() const {
     BEGIN_FUNC
@@ -413,6 +449,14 @@ bool FFTW_plan_dim::get_isComplex() const {
 int FFTW_plan_dim::get_type() const {
     BEGIN_FUNC
     return _type;
+}
+double FFTW_plan_dim::get_normfact() const{
+    BEGIN_FUNC
+    return _normfact;
+}
+double FFTW_plan_dim::get_volfact() const{
+    BEGIN_FUNC
+    return _volfact;
 }
 void FFTW_plan_dim::get_outsize (size_t size[DIM]) const {
     BEGIN_FUNC

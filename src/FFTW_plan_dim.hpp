@@ -57,7 +57,8 @@ protected:
 
 
     bool   _imult; // boolean to determine if we have to multiply by (i=sqrt(-1)) or not
-    double _fact;  // factor you need to multiply to get the transform on the right scaling
+    double _normfact;  // factor you need to multiply to get the transform on the right scaling
+    double _volfact; 
     double _k_fact;
     bool _isDataComplex; // is the data allocated complex? (yes if any plan is complex)
     bool _switch2Complex; // is this plan the one that changes to complex?
@@ -91,10 +92,14 @@ public:
     ~FFTW_plan_dim();
 
     void init(const size_t size[DIM],const bool isComplex);
-    void allocate_plan(const size_t size_plan[DIM],const bool isComplex, void* data);
+    void allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, void* data);
+
+    void execute_plan();
 
     int  get_type()      const;
     bool get_isComplex() const;
+    double get_normfact() const;
+    double get_volfact() const;
     void get_outsize  (size_t* size ) const;
     void get_fieldstart (size_t* start) const;
     void get_isComplex(bool* isComplex) const;
@@ -112,7 +117,7 @@ protected:
     void _init_periodic  (const size_t size[DIM],bool isComplex);
     void _init_unbounded (const size_t size[DIM],bool isComplex);
 
-    void _allocate_plan_real   (const size_t size_ordered[DIM],void* data);
+    void _allocate_plan_real   (const size_t size_ordered[DIM],const size_t offset, void* data);
     void _allocate_plan_complex(const size_t size_ordered[DIM],void* data);
 
 };
