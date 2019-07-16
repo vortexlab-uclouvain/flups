@@ -19,7 +19,7 @@
  * @param L the lenght of the computational domain
  * @param mybc the boundary condition to use for this plan
  * @param sign the sign of the plan (FFTW_FORWARD or FFTW_BACKWARD)
- * @param isGreen 
+ * @param isGreen boolean to indicate if the plan is intended for Green's function
  */
 FFTW_plan_dim::FFTW_plan_dim(const int dimID,const double h[DIM],const double L[DIM],const BoundaryType mybc[2],const int sign, const bool isGreen):
 _dimID(dimID),
@@ -72,16 +72,37 @@ FFTW_plan_dim::~FFTW_plan_dim(){
     BEGIN_FUNC
     if(_plan != NULL) fftw_destroy_plan(_plan);
 }
+
+/**
+ * @brief Initialize the FFTW_plan_dim by performing a 'dry run'
+ * 
+ * The function redirects to one of the init functions depending on the type:
+ * - _init_real2real()
+ * - _init_mixpoisson()
+ * - _init_periodic()
+ * - _init_unbounded()
+ * 
+ * In each of the sub-function, we initialize the following variables
+ * - #_n_in
+ * - #_n_out
+ * - #_fieldstart
+ * - #_switch2Complex
+ * - #_howmany
+ * - #_imult
+ * - #_kind (for R2R and MIX plans only)
+ * 
+ * @param size the current size that will come in (hence already partially transformed)
+ * @param isComplex the current complex state of the data
+ */
 void FFTW_plan_dim::init(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
-    // !! has to be called IN THE CORRECT ORDER GIVEN BY PRIORITIES
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
     assert(size[_dimID] >= 0);
 
     //-------------------------------------------------------------------------
-    // Get important informations
+    // redirect to the
     //-------------------------------------------------------------------------
     if( _type == R2R ){
         _init_real2real(size,isComplex);
@@ -97,6 +118,13 @@ void FFTW_plan_dim::init(const size_t size[DIM],const bool isComplex){
         _init_unbounded(size,isComplex);
     }
 }
+
+/**
+ * @brief Initialize for a real to real plan
+ * 
+ * @param size 
+ * @param isComplex 
+ */
 void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
 {
     BEGIN_FUNC
@@ -165,6 +193,13 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
         ERROR("unable to init the solver required\n")
     }
 }
+
+/**
+ * @brief Initialize for a mix unbounded-symmetry plan
+ * 
+ * @param size 
+ * @param isComplex 
+ */
 void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -239,6 +274,13 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
         ERROR("unable to init the solver required\n")     
     }
 }
+
+/**
+ * @brief Initialize for a periodic plan
+ * 
+ * @param size 
+ * @param isComplex 
+ */
 void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -272,6 +314,13 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(size[_dimID]);
 }
+
+/**
+ * @brief 
+ * 
+ * @param size 
+ * @param isComplex 
+ */
 void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
 
@@ -303,7 +352,19 @@ void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex)
     _normfact *= 1.0/(2*size[_dimID]);
 }
 
-void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, void* data){
+/**
+ * @brief allocate the plan based on the information computed by _init()
+ * 
+ * The function redirects to one of the init functions depending on the type:
+ * - _allocate_plan_real()
+ * - _allocate_plan_complex()
+ * 
+ * @param size_plan the size of the transposed data
+ * @param offset the offset in memory computed by FFW_Solver in double indexing unit
+ * @param isComplex if the transpoed data is complex or real
+ * @param data the pointer to the transposed data (has to be allocated)
+ */
+void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, double* data){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // remember if the data allocated are complex or not
@@ -319,10 +380,30 @@ void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offse
         _allocate_plan_complex(size_plan,data);
     }
 }
-void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const size_t offset, void* data){
+
+/**
+ * @brief allocate a plan that only treats real numbers
+ * 
+ * @param size_ordered the size of the transposed data
+ * @param offset the offset in memory computed by FFW_Solver in double indexing unit
+ * @param data the pointer to the transposed data (has to be allocated)
+ */
+void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const size_t offset, double* data){
     BEGIN_FUNC
 
     assert(data != NULL);
+
+    printf("is Green = %d and type = %d\n",_isGreen,_type);
+    if(_isGreen && _type == R2R){
+        _plan = NULL;
+        
+        INFOLOG("------------------------------------------\n");
+        INFOLOG("## no real to real plan created for Green\n");
+        INFOLOG ("------------------------------------------\n");
+        return;
+    }
+
+
     // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
@@ -364,7 +445,14 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     if(_type == R2R) {INFOLOG2("starting offset  = %ld\n",offset);}
     INFOLOG ("------------------------------------------\n");
 }
-void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],void* data){
+
+/**
+ * @brief allocate a plan that treats complex numbers (r2c or c2c)
+ * 
+ * @param size_ordered 
+ * @param data 
+ */
+void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double* data){
     BEGIN_FUNC
 
     assert(data != NULL);

@@ -34,6 +34,7 @@ for(int iz=0; iz<n[2]; iz++){
 ```
 
 ### Authors
+By alphabetical order
 - Denis-Gabriel Caprace (main author)
 - Thomas Gillis (main author)
 

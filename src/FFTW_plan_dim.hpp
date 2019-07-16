@@ -27,15 +27,14 @@ enum BoundaryType
 };
 
 /**
- * @brief SolverType is the type of solver considered and is computed as the sum of both BoundaryType variables
+ * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
  * 
  * The integer value associated gives is the priority of processing.
  * We first have to do the real to real transforms, then the padded real to real (mix direction = unbounded + boundary condition),
  * then the periodic (DFT) directions and finally the padded periodic boundary condition.
  * This order is chosen in order to reduce the computational cost.
- * 
  */
-enum SolverType
+enum PlanType
 {
     R2R     = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */ 
     MIX     = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
@@ -51,29 +50,29 @@ enum SolverType
 class FFTW_plan_dim{
 
 protected:
-    const int _dimID; /**< the dimension of the plan in the field reference */
-    const int _sign; /**< FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
-    const bool _isGreen ;
+    const int _dimID; /**< @brief the dimension of the plan in the field reference */
+    const int _sign; /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
+    const bool _isGreen ; /**< @brief boolean is true if this plan is for a Green's function */
 
 
-    bool   _imult; // boolean to determine if we have to multiply by (i=sqrt(-1)) or not
-    double _normfact;  // factor you need to multiply to get the transform on the right scaling
-    double _volfact; 
-    double _k_fact;
-    bool _isDataComplex; // is the data allocated complex? (yes if any plan is complex)
-    bool _switch2Complex; // is this plan the one that changes to complex?
-    int _orderID; // my ID in the !!ordered!! dimension
+    bool   _imult; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
+    double _normfact;  /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact; /**< @brief volume factor*/
+    double _k_fact;/**< @brief multiplication factor to have the correct k numbers*/
+    bool _isDataComplex; /**< @brief is the data allocated complex? (yes if any plan is complex)*/
+    bool _switch2Complex; /**< @brief is this plan the one that changes to complex?*/
+    int _orderID; /**< @brief ID in the !!ordered!! dimension*/
 
-    SolverType _type;
-    BoundaryType _bc[2]; // boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX
-    size_t _fieldstart;
+    PlanType _type; /**< @brief type of this plan, see #PlanType*/
+    BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
+    size_t _fieldstart; /**< @brief the starting index for the field copy in the direction of the plan*/
     
-    size_t _n_in; // the number of element in the transform
-    size_t _n_out; // the number of element coming out of the transform
+    size_t _n_in; /**< @brief the number of element in the transform*/
+    size_t _n_out; /**< @brief the number of element coming out of the transform*/
     
-    fftw_r2r_kind _kind;
-    fftw_plan _plan = NULL;
-    int _howmany;
+    fftw_r2r_kind _kind;/**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan _plan = NULL;/**< @brief the actual FFTW plan*/
+    int _howmany;/**< @brief number of transfroms to perfom */
 
 
     // // data's for Green to be destroyed one performed
@@ -92,8 +91,8 @@ public:
     ~FFTW_plan_dim();
 
     void init(const size_t size[DIM],const bool isComplex);
-    void allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, void* data);
 
+    void allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, double* data);
     void execute_plan();
 
     int  get_type()      const;
@@ -112,14 +111,23 @@ public:
     void disp();
 
 protected:
+    /**
+     * @name Initialization
+     */
+    /**@{ */
     void _init_real2real (const size_t size[DIM],bool isComplex);
     void _init_mixpoisson(const size_t size[DIM],bool isComplex);
     void _init_periodic  (const size_t size[DIM],bool isComplex);
     void _init_unbounded (const size_t size[DIM],bool isComplex);
+    /**@} */
 
-    void _allocate_plan_real   (const size_t size_ordered[DIM],const size_t offset, void* data);
-    void _allocate_plan_complex(const size_t size_ordered[DIM],void* data);
-
+    /**
+     * @name Plan allocation
+     */
+    /**@{ */
+    void _allocate_plan_real   (const size_t size_ordered[DIM],const size_t offset, double* data);
+    void _allocate_plan_complex(const size_t size_ordered[DIM],double* data);
+    /**@} */
 };
 
 #endif
