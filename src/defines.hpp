@@ -51,14 +51,16 @@
 
 //-----------------------------------------------------------------------------
 #ifndef NDEBUG
-    #define UP_ERROR(a) {\
-                        printf("ERROR - %s\n",a);\
-                        void* callstack[128];\
-                        int i, frames = backtrace(callstack, 128);\
-                        char** strs = backtrace_symbols(callstack, frames);\
-                        for (i = 0; i < frames; ++i) printf("   %s\n", strs[i]);\
-                        free(strs);\
-                    }
+    // #define UP_ERROR(a) {\
+    //                     printf("ERROR - %s\n",a);\
+    //                     void* callstack[128];\
+    //                     int i, frames = backtrace(callstack, 128);\
+    //                     char** strs = backtrace_symbols(callstack, frames);\
+    //                     for (i = 0; i < frames; ++i) printf("   %s\n", strs[i]);\
+    //                     free(strs);\
+    //                 }
+
+    #define UP_ERROR(a) { char msg[512]; sprintf(msg,"ERROR - %s - in %s from %s at line %d\n",a,__func__,__FILE__,__LINE__); }
 
     #define UP_CHECK0(a,b)        if(!(a)){ UP_ERROR(b);}
     #define UP_CHECK1(a,b,c)      if(!(a)){ char msg[256]; sprintf(msg,b,c); UP_ERROR(msg);}

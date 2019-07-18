@@ -79,17 +79,51 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     //-------------------------------------------------------------------------
     /** - Get the normalization factors and the grid spacing */
     //-------------------------------------------------------------------------
-    _normfact = 1.0;
-    _volfact  = 1.0;
+    _normfact  = 1.0;
+    _volfact   = 1.0;
     for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
     {
         FFTW_plan_dim* myplan = it->second;
         _normfact *= myplan->get_normfact();
         _volfact  *= myplan->get_volfact ();
-
+        // get the hgrid
         const int orderID = myplan->get_dimID();
         _hgrid[orderID]   = h[_dimorder[orderID]];
     }
+
+    //-------------------------------------------------------------------------
+    /** - Get the imult factor */
+    //-------------------------------------------------------------------------
+    _nbr_imult = 0;
+    bool imult_forward [DIM] = {false};
+    bool imult_backward[DIM] = {false};
+    bool imult_green   [DIM] = {false};
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan   = it->second;
+        const int orderID       = myplan->get_dimID();
+        imult_forward[orderID]  = myplan->get_imult();
+    }
+    // store the number of imult
+    for(int id=0; id<DIM; id++) if(imult_forward[id]) _nbr_imult++;
+
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_backward.begin(); it != _plan_backward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        const int orderID       = myplan->get_dimID();
+        imult_backward[orderID] = myplan->get_imult();
+    }
+    // store the number of imult
+    for(int id=0; id<DIM; id++) if(imult_backward[id]) _nbr_imult--;
+
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_green.begin(); it != _plan_green.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        const int orderID       = myplan->get_dimID();
+        imult_green[orderID] = myplan->get_imult();
+    }
+    // store the number of imult
+    for(int id=0; id<DIM; id++) if(imult_green[id]) _nbr_imult++;
 }
 
 void FFTW_Solver::setup()
@@ -308,166 +342,6 @@ void  FFTW_Solver::_allocate_plan(const size_t size[3],const size_t offset, cons
 }
 
 
- /**
- * @brief Solve the Poisson equation \f$\nabla^2 f = rhs\f$
- * 
- * @param field 
- * @param rhs 
- * 
- * -----------------------------------------------
- * We perform the following operations:
- */
-void FFTW_Solver::solve_rhs(double* field, double* rhs)
-{
-    BEGIN_FUNC
-    //-------------------------------------------------------------------------
-    /** - sanity checks */
-    //-------------------------------------------------------------------------
-    assert(field != NULL);
-    assert(rhs   != NULL);
-    
-    {
-        int mysize4[2] = {_size_field[0],_size_field[1]};
-        write_array(mysize4,rhs,"rhs_in");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - clean the data memory */
-    //-------------------------------------------------------------------------
-    // get the data pointer to double style    
-    double* in = (double*) _data;
-    
-    for(int iz=0; iz<_size_hat[2]; iz++){
-        for(int iy=0; iy<_size_hat[1]; iy++){
-            for(int ix=0; ix<_size_hat[0]; ix++){
-                const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
-                in[id] = 0.0 ;
-            }
-        }
-    }
-
-    //-------------------------------------------------------------------------
-    /** - copy the rhs in the correct order */
-    //-------------------------------------------------------------------------
-    INFOLOG ("------------------------------------------\n");
-    INFOLOG ("## memory information\n")
-    INFOLOG4("- size field   = %ld %ld %ld\n",_size_field[0],_size_field[1],_size_field[2]);
-    INFOLOG4("- size hat     = %ld %ld %ld\n",_size_hat[0],_size_hat[1],_size_hat[2]);
-    INFOLOG4("- dim order    = %d %d %d\n",_dimorder[0],_dimorder[1],_dimorder[2]);
-    INFOLOG4("- field start  = %ld %ld %ld\n",_fieldstart[0],_fieldstart[1],_fieldstart[2]);
-    INFOLOG4("- dim multfact = %ld %ld %ld\n",_dim_multfact[0],_dim_multfact[1],_dim_multfact[2]);
-    INFOLOG2("- offset       = %ld\n",_offset);
-    INFOLOG ("------------------------------------------\n");
-
-    for(int iz=0; iz<_size_field[2]; iz++){
-        for(int iy=0; iy<_size_field[1]; iy++){
-            for(int ix=0; ix<_size_field[0]; ix++){
-                // comnpute the index permutation
-                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
-                const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
-                // put the data
-                in[id_fourier] = rhs[id_field] ;
-            }
-        }
-    }
-
-    
-    if(_isComplex){
-        int mysize[2] = {_size_hat[0]*2,_size_hat[1]};
-        write_array(mysize,in,"rhs_pad");
-    }
-    else{
-        int mysize[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize,in,"rhs_pad");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - go to Fourier */
-    //-------------------------------------------------------------------------
-    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
-    {
-        FFTW_plan_dim* myplan = it->second;
-        // initialize the plan - read only
-        myplan->execute_plan();
-    }
-
-    //-------------------------------------------------------------------------
-    /** - Perform the magic */
-    //-------------------------------------------------------------------------
-    printf("doing the magic\n");
-    if(!_isComplex){
-        for(int iz=0; iz<_size_hat[2]; iz++){
-            for(int iy=0; iy<_size_hat[1]; iy++){
-                for(int ix=0; ix<_size_hat[0]; ix++){
-                    const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                    const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-                    _data[id] = _normfact * ( _data[id] * _green[id_green] );
-                }
-            }
-        }
-    }
-    else{
-        fftw_complex* mydata  = (fftw_complex*) _data;
-        fftw_complex* mygreen = (fftw_complex*) _green;
-
-        for(int iz=0; iz<_size_hat[2]; iz++){
-            for(int iy=0; iy<_size_hat[1]; iy++){
-                for(int ix=0; ix<_size_hat[0]; ix++){
-                    const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                    const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-
-                    mydata[id][0] = _normfact * (mydata[id][0]*mygreen[id_green][0] - mydata[id][1]*mygreen[id_green][1]);
-                    mydata[id][1] = _normfact * (mydata[id][0]*mygreen[id_green][1] + mydata[id][1]*mygreen[id_green][0]);
-                }
-            }
-        }
-    }
-
-    {
-        int mysize4[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize4,(fftw_complex*) _data,"new_field_fourier");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - go back to reals */
-    //-------------------------------------------------------------------------
-    for(multimap<int,FFTW_plan_dim* >::reverse_iterator it = _plan_backward.rbegin(); it != _plan_backward.rend(); ++it)
-    {
-        FFTW_plan_dim* myplan = it->second;
-        myplan->execute_plan();
-    }
-
-    if(_isComplex){
-        int mysize2[2] = {_size_hat[0]*2,_size_hat[1]};
-        write_array(mysize2,in,"sol_pad");
-    }
-    else{
-        int mysize2[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize2,in,"sol_pad");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - copy the solution in the field */
-    //-------------------------------------------------------------------------
-    for(int iz=0; iz<_size_field[2]; iz++){
-        for(int iy=0; iy<_size_field[1]; iy++){
-            for(int ix=0; ix<_size_field[0]; ix++){
-                // comnpute the index permutation
-                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
-                const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
-                // put the data
-                field[id_field] = in[id_fourier] ;
-            }
-        }
-    }
-
-    {
-        int mysize4[2] = {_size_field[0],_size_field[1]};
-        write_array(mysize4,field,"sol_final");
-    }
-}
-
-
 /**
  * @brief compute the green function and fill the green data
  * 
@@ -621,4 +495,248 @@ void FFTW_Solver::set_GreenDiff(const OrderDiff diff){
 void FFTW_Solver::set_alpha(const double alpha){
     BEGIN_FUNC
     _greenalpha = alpha;
+}
+
+
+/**
+ * @brief Solve the Poisson equation
+ * 
+ * @param field 
+ * @param rhs 
+ * 
+ * -----------------------------------------------
+ * We perform the following operations:
+ */
+void FFTW_Solver::solve(double* field, double* rhs,const SolverType mytype)
+{
+    BEGIN_FUNC
+    //-------------------------------------------------------------------------
+    /** - sanity checks */
+    //-------------------------------------------------------------------------
+    assert(field != NULL);
+    assert(rhs   != NULL);
+    
+    {
+        int mysize4[2] = {_size_field[0],_size_field[1]};
+        write_array(mysize4,rhs,"rhs_in");
+    }
+
+    //-------------------------------------------------------------------------
+    /** - clean the data memory */
+    //-------------------------------------------------------------------------
+    // get the data pointer to double style    
+    double* in = (double*) _data;
+    
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
+                in[id] = 0.0 ;
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    /** - copy the rhs in the correct order */
+    //-------------------------------------------------------------------------
+    INFOLOG ("------------------------------------------\n");
+    INFOLOG ("## memory information\n")
+    INFOLOG4("- size field   = %ld %ld %ld\n",_size_field[0],_size_field[1],_size_field[2]);
+    INFOLOG4("- size hat     = %ld %ld %ld\n",_size_hat[0],_size_hat[1],_size_hat[2]);
+    INFOLOG4("- dim order    = %d %d %d\n",_dimorder[0],_dimorder[1],_dimorder[2]);
+    INFOLOG4("- field start  = %ld %ld %ld\n",_fieldstart[0],_fieldstart[1],_fieldstart[2]);
+    INFOLOG4("- dim multfact = %ld %ld %ld\n",_dim_multfact[0],_dim_multfact[1],_dim_multfact[2]);
+    INFOLOG2("- offset       = %ld\n",_offset);
+    INFOLOG ("------------------------------------------\n");
+
+    for(int iz=0; iz<_size_field[2]; iz++){
+        for(int iy=0; iy<_size_field[1]; iy++){
+            for(int ix=0; ix<_size_field[0]; ix++){
+                // comnpute the index permutation
+                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
+                const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
+                // put the data
+                in[id_fourier] = rhs[id_field] ;
+            }
+        }
+    }
+
+    
+    if(_isComplex){
+        int mysize[2] = {_size_hat[0]*2,_size_hat[1]};
+        write_array(mysize,in,"rhs_pad");
+    }
+    else{
+        int mysize[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize,in,"rhs_pad");
+    }
+
+    //-------------------------------------------------------------------------
+    /** - go to Fourier */
+    //-------------------------------------------------------------------------
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        // initialize the plan - read only
+        myplan->execute_plan();
+    }
+
+    //-------------------------------------------------------------------------
+    /** - Perform the magic */
+    //-------------------------------------------------------------------------
+    printf("doing the magic\n");
+    if(mytype == UP_RHS){
+        if(!_isComplex){
+            if     (_nbr_imult == 0) dothemagic_rhs_real();
+            else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
+        }
+        else{
+            if     (_nbr_imult == 0) dothemagic_rhs_complex_nmult0();
+            else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1();
+            else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
+            else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
+            else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
+        }
+    }
+
+    {
+        int mysize4[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize4,(fftw_complex*) _data,"new_field_fourier");
+    }
+
+    //-------------------------------------------------------------------------
+    /** - go back to reals */
+    //-------------------------------------------------------------------------
+    for(multimap<int,FFTW_plan_dim* >::reverse_iterator it = _plan_backward.rbegin(); it != _plan_backward.rend(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        myplan->execute_plan();
+    }
+
+    if(_isComplex){
+        int mysize2[2] = {_size_hat[0]*2,_size_hat[1]};
+        write_array(mysize2,in,"sol_pad");
+    }
+    else{
+        int mysize2[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize2,in,"sol_pad");
+    }
+
+    //-------------------------------------------------------------------------
+    /** - copy the solution in the field */
+    //-------------------------------------------------------------------------
+    for(int iz=0; iz<_size_field[2]; iz++){
+        for(int iy=0; iy<_size_field[1]; iy++){
+            for(int ix=0; ix<_size_field[0]; ix++){
+                // comnpute the index permutation
+                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
+                const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
+                // put the data
+                field[id_field] = in[id_fourier] ;
+            }
+        }
+    }
+
+    {
+        int mysize4[2] = {_size_field[0],_size_field[1]};
+        write_array(mysize4,field,"sol_final");
+    }
+}
+
+
+/**
+ * @brief perform the convolution for real to real cases
+ * 
+ */
+void FFTW_Solver::dothemagic_rhs_real()
+{
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                _data[id] = _normfact * ( _data[id] * _green[id_green] );
+            }
+        }
+    }
+}
+
+/**
+ * @brief 
+ * 
+ */
+void FFTW_Solver::dothemagic_rhs_complex_nmult0()
+{
+    fftw_complex* mydata = (fftw_complex*) _data;
+    fftw_complex* mygreen = (fftw_complex*) _green;
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                mydata[id][0] = _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
+                mydata[id][1] = _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+            }
+        }
+    }
+}
+
+/**
+ * @brief 
+ * 
+ */
+void FFTW_Solver::dothemagic_rhs_complex_nmult1()
+{
+    fftw_complex* mydata = (fftw_complex*) _data;
+    fftw_complex* mygreen = (fftw_complex*) _green;
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                mydata[id][0] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+                mydata[id][1] =          _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
+            }
+        }
+    }
+}
+
+/**
+ * @brief 
+ * 
+ */
+void FFTW_Solver::dothemagic_rhs_complex_nmult2()
+{
+    fftw_complex* mydata = (fftw_complex*) _data;
+    fftw_complex* mygreen = (fftw_complex*) _green;
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                mydata[id][0] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
+                mydata[id][1] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+            }
+        }
+    }
+}
+
+/**
+ * @brief 
+ * 
+ */
+void FFTW_Solver::dothemagic_rhs_complex_nmult3()
+{
+    fftw_complex* mydata = (fftw_complex*) _data;
+    fftw_complex* mygreen = (fftw_complex*) _green;
+    for(int iz=0; iz<_size_hat[2]; iz++){
+        for(int iy=0; iy<_size_hat[1]; iy++){
+            for(int ix=0; ix<_size_hat[0]; ix++){
+                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                mydata[id][0] =          _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
+                mydata[id][1] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+            }
+        }
+    }
 }

@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
 
     // BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
-    BoundaryType mybc[DIM][2] = {{UNB,UNB},{EVEN,UNB}};
+    BoundaryType mybc[DIM][2] = {{UNB,UNB},{ODD,UNB}};
     // BoundaryType mybc[DIM][2] = {{UNB,EVEN},{UNB,UNB}};
     // BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,UNB}};
 
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    mysolver->solve_rhs(freal[0],freal[0]);
+    mysolver->solve(freal[0],freal[0],UP_RHS);
     delete(mysolver);
 
     int mysize[2] = {n[0],n[1]};

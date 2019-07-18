@@ -23,6 +23,14 @@
 
 using namespace std;
 
+
+
+enum SolverType{
+    UP_RHS,
+    UP_ROT,
+    UP_DIV
+};
+
 /**
  * @brief The Poisson solver
  * 
@@ -45,6 +53,7 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
+    int    _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
     int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
     size_t _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
     size_t _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
@@ -99,6 +108,17 @@ protected:
     void _delete_plan(multimap<int,FFTW_plan_dim* > *planmap);
     /**@} */
 
+    /**
+     * @name Do the magic
+     * 
+     * @{
+     */
+    void dothemagic_rhs_real();
+    void dothemagic_rhs_complex_nmult0();
+    void dothemagic_rhs_complex_nmult1();
+    void dothemagic_rhs_complex_nmult2();
+    void dothemagic_rhs_complex_nmult3();
+    /**@} */
 
     /**
      * @name Green's function
@@ -119,7 +139,7 @@ public:
      * 
      * @{
      */
-    void solve_rhs(double* field, double* rhs);
+    void solve(double* field, double* rhs, const SolverType mytype);
     // void solve_rotrhs(double* field, double* rhs);
     // void solve_div_rhs(double* field, double* rhs);
     /**@} */

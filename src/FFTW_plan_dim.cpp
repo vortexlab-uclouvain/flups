@@ -284,14 +284,15 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
         }   
     }
     else if(_bc[0] == ODD && _bc[1] == UNB){ // we have a DST - we are ODD - EVEN
-        _imult = true; // we DO have to multiply by i=sqrt(-1)
         if(_isGreen){
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT01; // DST type III
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT10;
+            _imult = false;
+            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT00; // DCT type I
+            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
         }
         else{
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT11; // DST type IV
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
+            _imult = true; // we DO have to multiply by i=sqrt(-1)
+            if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT11; // DST type IV
+            if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT11;
         }
     }
     else{
@@ -674,6 +675,15 @@ int FFTW_plan_dim::get_dimID() const {
     return _dimID;
 }
 /**
+ * @brief Returns the imult
+ * 
+ * @return int 
+ */
+int FFTW_plan_dim::get_imult() const {
+    BEGIN_FUNC
+    return _imult;
+}
+/**
  * @brief Returns the type of the plan
  * 
  * @return int 
@@ -830,10 +840,10 @@ void FFTW_plan_dim::disp(){
         if(_kind == FFTW_REDFT10) {INFO("- kind = REDFT10 = DCT type II\n")}
         if(_kind == FFTW_REDFT01) {INFO("- kind = REDFT01 = DCT type III\n")}
         if(_kind == FFTW_REDFT11) {INFO("- kind = REDFT11 = DCT type IV\n")}
-        if(_kind == FFTW_RODFT00) {INFO("- kind = REDFT00 = DST type I\n")}
-        if(_kind == FFTW_RODFT10) {INFO("- kind = REDFT10 = DST type II\n")}
-        if(_kind == FFTW_RODFT01) {INFO("- kind = REDFT01 = DST type III\n")}
-        if(_kind == FFTW_RODFT11) {INFO("- kind = REDFT11 = DST type IV\n")}
+        if(_kind == FFTW_RODFT00) {INFO("- kind = RODFT00 = DST type I\n")}
+        if(_kind == FFTW_RODFT10) {INFO("- kind = RODFT10 = DST type II\n")}
+        if(_kind == FFTW_RODFT01) {INFO("- kind = RODFT01 = DST type III\n")}
+        if(_kind == FFTW_RODFT11) {INFO("- kind = RODFT11 = DST type IV\n")}
     }
     INFO2("- is Green   ? %d\n",_isGreen);
     INFO2("- s2Complex  ? %d\n",_switch2Complex);

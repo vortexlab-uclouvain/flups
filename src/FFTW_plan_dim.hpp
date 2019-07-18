@@ -92,6 +92,7 @@ public:
     bool   get_isComplex()  const;
     bool   get_dospectral() const;
     int    get_dimID()      const;
+    int    get_imult()      const;
     int    get_type()       const;
     int    get_order()      const;
     int    get_symstart()   const;
