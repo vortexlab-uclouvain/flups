@@ -365,8 +365,6 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
  */
 void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
-
-    printf(">> incomming size = %ld %ld\n",size[0],size[1]);
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
     //-------------------------------------------------------------------------
@@ -418,7 +416,7 @@ void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex)
  * - _allocate_plan_complex()
  * 
  * @param size_plan the size of the transposed data
- * @param offset the offset in memory computed by FFW_Solver in double indexing unit
+ * @param offset the offset in memory computed by FFW_Solver in double indexing unit for R2R tranforms
  * @param isComplex if the transpoed data is complex or real
  * @param data the pointer to the transposed data (has to be allocated)
  */
@@ -457,10 +455,14 @@ void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offse
  */
 void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const size_t offset, double* data){
     BEGIN_FUNC
-
+    //-------------------------------------------------------------------------
+    /** - Sanity checks */
+    //-------------------------------------------------------------------------
     assert(data != NULL);
 
-    printf("is Green = %d and type = %d\n",_isGreen,_type);
+    //-------------------------------------------------------------------------
+    /** - If is Green and #_type is R2R, exit */
+    //-------------------------------------------------------------------------
     if(_isGreen && _type == R2R){
         _plan = NULL;
         
@@ -470,7 +472,9 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
         return;
     }
 
-
+    //-------------------------------------------------------------------------
+    /** - Get compute the rank and the stides  */
+    //-------------------------------------------------------------------------
     // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
@@ -485,7 +489,9 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     int ostride = sizemult[(_orderID  )%DIM];
     int odist   = sizemult[(_orderID+1)%DIM];
 
-    // if we are green we need to recompute howmany
+    //-------------------------------------------------------------------------
+    /** - If is Green, compute #_howmany  */
+    //-------------------------------------------------------------------------
     if(_isGreen){
         _howmany = 1;
         for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
@@ -494,6 +500,9 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
         if(_isDataComplex && _orderID>0) _howmany *= 2;
     }
 
+    //-------------------------------------------------------------------------
+    /** - Create the plan  */
+    //-------------------------------------------------------------------------
     // if the solver is a R2R is may be before a mix one
     // so we have to take the offset into account
     if(_type == R2R){

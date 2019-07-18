@@ -26,12 +26,12 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - store the field size */
+    /** - Store the field size */
     //-------------------------------------------------------------------------
     for(int id=0; id<DIM; id++) _size_field[id] = size_field[id];
 
     //-------------------------------------------------------------------------
-    /** - for each dim, compute the plan and its type */
+    /** - For each dim, compute the plan and its type */
     //-------------------------------------------------------------------------
     for(int id=0; id<DIM; id++)
     {
@@ -48,7 +48,7 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     }
 
     //-------------------------------------------------------------------------
-    /** - initialise the plans and get the sizes + dimorder */
+    /** - Initialise the plans and get the sizes + dimorder */
     //-------------------------------------------------------------------------
     // forward, store the size and dim order for the object
     _init_plan_map(_size_hat,_fieldstart,_dimorder,&_isComplex,&_plan_forward);
@@ -126,10 +126,16 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     for(int id=0; id<DIM; id++) if(imult_green[id]) _nbr_imult++;
 }
 
+/**
+ * @brief Sets up the Solver
+ * 
+ * After this function the parameter of the solver (size etc) cannot be changed anymore
+ * 
+ * -------------------------------------------
+ * We do the following operations
+ */
 void FFTW_Solver::setup()
 {
-    
-
     //-------------------------------------------------------------------------
     /** - Store some usefull factors in 'double' index calculus */
     //-------------------------------------------------------------------------
@@ -186,11 +192,6 @@ void FFTW_Solver::setup()
     /** - delete the plan */
     //-------------------------------------------------------------------------
     _delete_plan(&_plan_green);
-
-
-    // {int mysize[2] = {_size_hat_green[0],_size_hat_green[1]};
-    // write_array(mysize,(fftw_complex*) _green,"green_fourier");}
-
 
 }
 
@@ -280,9 +281,6 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int 
         // update the counter
         count++;
     }
-    
-    printf("solver final order %d %d\n",dimorder[0],dimorder[1]);
-    printf("solver final size %ld %ld\n",sizeorder[0],sizeorder[1]);
 }
 
 /**
