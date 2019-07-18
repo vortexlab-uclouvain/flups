@@ -68,7 +68,7 @@
     #define ERROR(a) ((void)0);
 #endif
 
-#define GAMMA 0.5772156649
+#define GAMMA 0.5772156649015328606
 
 
 

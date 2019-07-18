@@ -489,6 +489,8 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
         _howmany = 1;
         for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
         for(int id=_orderID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+        // if the data are complex we need to count twice the fastest rotating index
+        if(_isDataComplex && _orderID>0) _howmany *= 2;
     }
 
     // if the solver is a R2R is may be before a mix one
@@ -572,7 +574,11 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
     
     // incomming arrays depends if we are a complex switcher or not
     if(_switch2Complex){
-        for(int id=1; id<DIM; id++) if(_isDataComplex) sizemult[id]*= 2;
+        // if the data are complex we need to count twice the fastest rotating index
+        if(_isDataComplex) for(int id=1; id<DIM; id++) sizemult[id]*= 2;
+        if(_isDataComplex && _orderID>0) _howmany *= 2;
+
+
         int istride = sizemult[ _orderID   %DIM];
         int idist   = sizemult[(_orderID+1)%DIM];
 

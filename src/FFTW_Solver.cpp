@@ -129,11 +129,35 @@ void FFTW_Solver::setup()
     _allocate_plan(_size_hat,_offset,_isComplex,_data,&_plan_backward);
 
     //-------------------------------------------------------------------------
-    /** - Comnpute the Green's function */
+    /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
     _allocate_plan(_size_hat_green,0,_isComplex,_green,&_plan_green);
     _compute_Green(_size_hat_green,_green,&_plan_green);
+
+    //-------------------------------------------------------------------------
+    /** - do the forward transfrom*/
+    //-------------------------------------------------------------------------
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_green.begin(); it != _plan_green.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        myplan->execute_plan();
+    }
+
+    {
+        int mysize4[2] = {_size_hat_green[0],_size_hat_green[1]};
+        write_array(mysize4,(fftw_complex*) _green,"new_green_fourier");
+    }
+    
+    //-------------------------------------------------------------------------
+    /** - delete the plan */
+    //-------------------------------------------------------------------------
     _delete_plan(&_plan_green);
+
+
+    // {int mysize[2] = {_size_hat_green[0],_size_hat_green[1]};
+    // write_array(mysize,(fftw_complex*) _green,"green_fourier");}
+
+
 }
 
 /**
@@ -365,34 +389,43 @@ void FFTW_Solver::solve_rhs(double* field, double* rhs)
         FFTW_plan_dim* myplan = it->second;
         // initialize the plan - read only
         myplan->execute_plan();
-    }    
+    }
 
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
     printf("doing the magic\n");
     if(!_isComplex){
-        double* mydata = (double*) _data;
         for(int iz=0; iz<_size_hat[2]; iz++){
             for(int iy=0; iy<_size_hat[1]; iy++){
                 for(int ix=0; ix<_size_hat[0]; ix++){
-                    const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
-                    mydata[id] *= _normfact;
+                    const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                    const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                    _data[id] = _normfact * ( _data[id] * _green[id_green] );
                 }
             }
         }
     }
     else{
-        fftw_complex* mydata = (fftw_complex*) _data;
+        fftw_complex* mydata  = (fftw_complex*) _data;
+        fftw_complex* mygreen = (fftw_complex*) _green;
+
         for(int iz=0; iz<_size_hat[2]; iz++){
             for(int iy=0; iy<_size_hat[1]; iy++){
                 for(int ix=0; ix<_size_hat[0]; ix++){
-                    const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
-                    mydata[id][0] *= _normfact;
-                    mydata[id][1] *= _normfact;
+                    const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
+                    const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+
+                    mydata[id][0] = _normfact * (mydata[id][0]*mygreen[id_green][0] - mydata[id][1]*mygreen[id_green][1]);
+                    mydata[id][1] = _normfact * (mydata[id][0]*mygreen[id_green][1] + mydata[id][1]*mygreen[id_green][0]);
                 }
             }
         }
+    }
+
+    {
+        int mysize4[2] = {_size_hat[0],_size_hat[1]};
+        write_array(mysize4,(fftw_complex*) _data,"new_field_fourier");
     }
 
     //-------------------------------------------------------------------------
@@ -513,40 +546,48 @@ void FFTW_Solver::_compute_Green(const size_t size_green[3], double* green, mult
     }
 
     //-------------------------------------------------------------------------
-    /** - do the symmetry. If no symmetry is required it will copy the data in-place */
+    /** - do the symmetry */
     //-------------------------------------------------------------------------
 
-    printf("printing the extended Green's function\n");
     {int mysize[2] = {dsize_green[0],dsize_green[1]};
     write_array(mysize,green,"green_ext");}
 
-    printf("doing the symmetry with symstart = %d %d %d on size = %d %d %d\n",symstart[0],symstart[1],symstart[2],dsize_green[0],dsize_green[1],dsize_green[2]);
+    // check if we have to symmetrize a direction
 
-    // the symmetry is done around symstart
-    // we go through the full array again and symmetry the data
-    for(int i2=symstart[2]; i2<dsize_green[2]; i2++){
-        for(int i1=symstart[1]; i1<dsize_green[1]; i1++){
-            for(int i0=symstart[0]; i0<dsize_green[0]; i0++){
+        for(int i2=0; i2<dsize_green[2]; i2++){
+            for(int i1=0; i1<dsize_green[1]; i1++){
+                for(int i0=0; i0<dsize_green[0]; i0++){
 
-                const size_t id     = i0 + dsize_green[0]*i1 + dsize_green[0]*dsize_green[1]*i2;
-                // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
-                // to use the abs we have to go back to integers
-                const int is0 = abs(2*(int)symstart[0]-i0);
-                const int is1 = abs(2*(int)symstart[1]-i1);
-                const int is2 = abs(2*(int)symstart[2]-i2);
-                const size_t id_sym = is0 + is1 * dsize_green[0] + is2 * dsize_green[0]*dsize_green[1];
+                    const size_t id = i0 + dsize_green[0]*(i1 + dsize_green[1]*i2);
+                    // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
+                    // to use the abs we have to go back to integers
+                    const int is0 = (symstart[0]==0 || i0 <= symstart[0]) ? i0 : abs(2*(int)symstart[0]-i0);
+                    const int is1 = (symstart[1]==0 || i1 <= symstart[1]) ? i1 : abs(2*(int)symstart[1]-i1);
+                    const int is2 = (symstart[2]==0 || i2 <= symstart[2]) ? i2 : abs(2*(int)symstart[2]-i2);
 
-                // printf
-                printf("%d,%d,%d: from %d to idsym = %ld\n",i0,i1,i2,id,id_sym);
+                    const size_t id_sym = is0 + dsize_green[0]*(is1 + dsize_green[1]*is2);
 
-                UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
-                UP_CHECK3(id < dsize_green[0]*dsize_green[1]*dsize_green[2],"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
+                    UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
+                    UP_CHECK3(id < dsize_green[0]*dsize_green[1]*dsize_green[2],"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
 
-                green[id] = green[id_sym];
+                    green[id] = green[id_sym];
+                }
+            }
+        }
+
+    //-------------------------------------------------------------------------
+    /** - scale the Green data using #_volfact */
+    //-------------------------------------------------------------------------
+    for(int i2=0; i2<dsize_green[2]; i2++){
+        for(int i1=0; i1<dsize_green[1]; i1++){
+            for(int i0=0; i0<dsize_green[0]; i0++){
+                const size_t id = i0 + dsize_green[0]*(i1 + dsize_green[1]*i2);
+                green[id] = green[id] * _volfact;
             }
         }
     }
-    
+
+
     {
     int mysize[2] = {dsize_green[0],dsize_green[1]};
     write_array(mysize,green,"green_sym");
