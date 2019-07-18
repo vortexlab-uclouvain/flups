@@ -68,13 +68,33 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     }
 
     // backward uses temporary sizes and check the output
-    _init_plan_map(_size_green,fieldstart_tmp,dimorder_tmp,&isComplex_tmp,&_plan_green);
+    _init_plan_map(_size_hat_green,fieldstart_tmp,dimorder_tmp,&isComplex_tmp,&_plan_green);
     // sanity checks
     for(int id=0; id<3; id++){
         assert(fieldstart_tmp[id] == 0); // no field start for Green
         assert(dimorder_tmp[id]   == _dimorder[id]);
         assert(isComplex_tmp      == _isComplex);
     }
+
+    //-------------------------------------------------------------------------
+    /** - Get the normalization factors and the grid spacing */
+    //-------------------------------------------------------------------------
+    _normfact = 1.0;
+    _volfact  = 1.0;
+    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+        _normfact *= myplan->get_normfact();
+        _volfact  *= myplan->get_volfact ();
+
+        const int orderID = myplan->get_dimID();
+        _hgrid[orderID]   = h[_dimorder[orderID]];
+    }
+}
+
+void FFTW_Solver::setup()
+{
+    
 
     //-------------------------------------------------------------------------
     /** - Store some usefull factors in 'double' index calculus */
@@ -97,22 +117,10 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     }
 
     //-------------------------------------------------------------------------
-    /** - Get the normalization factors */
-    //-------------------------------------------------------------------------
-    _normfact = 1.0;
-    _volfact  = 1.0;
-    for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
-    {
-        FFTW_plan_dim* myplan = it->second;
-        _normfact *= myplan->get_normfact();
-        _volfact  *= myplan->get_volfact ();
-    }
-
-    //-------------------------------------------------------------------------
     /** - allocate the data */
     //-------------------------------------------------------------------------
     _allocate_data(_size_hat,&_data);
-    _allocate_data(_size_green,&_green);
+    _allocate_data(_size_hat_green,&_green);
 
     //-------------------------------------------------------------------------
     /** - allocate the plans */
@@ -123,8 +131,8 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     //-------------------------------------------------------------------------
     /** - Comnpute the Green's function */
     //-------------------------------------------------------------------------
-    _allocate_plan(_size_green,0,_isComplex,_green,&_plan_green);
-    // _compute_Green(_size_green);
+    _allocate_plan(_size_hat_green,0,_isComplex,_green,&_plan_green);
+    _compute_Green(_size_hat_green,_green,&_plan_green);
     _delete_plan(&_plan_green);
 }
 
@@ -426,4 +434,150 @@ void FFTW_Solver::solve_rhs(double* field, double* rhs)
     }
 }
 
-void _compute_Green(const size_t size_green[3],double* Green, multimap<int,FFTW_plan_dim* > *planmap);
+
+/**
+ * @brief compute the green function and fill the green data
+ * 
+ * @param size_green 
+ * @param green 
+ * @param planmap 
+ * 
+ * @warning
+ * We to fill the green function using double unit indexing, so we first require the size in double
+ * 
+ * --------------------------------------
+ * We do the following operations:
+ */
+void FFTW_Solver::_compute_Green(const size_t size_green[3], double* green, multimap<int,FFTW_plan_dim* >* planmap){
+    BEGIN_FUNC
+    //-------------------------------------------------------------------------
+    /** - Sanity checks */
+    //-------------------------------------------------------------------------
+    assert(green != NULL);
+
+    //-------------------------------------------------------------------------
+    /** - get the direction where we need to do spectral diff and count them */
+    //-------------------------------------------------------------------------
+    int  order[3];
+    bool dospectral[3] = {false};
+
+    double hfact   [3] = {_hgrid[0],_hgrid[1],_hgrid[2]};
+    double kfact   [3] = {0.0};
+    size_t symstart[3] = {0};
+
+    for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
+    {
+        FFTW_plan_dim* myplan = it->second;
+
+        const int id   = myplan->get_order();
+        dospectral[id] = myplan->get_dospectral();
+        symstart[id]   = myplan->get_symstart();
+
+        if(dospectral[id]){
+            hfact[id] = 0.0;
+            kfact[id] = myplan->get_kfact();
+        }
+    }
+
+    // count the number of spectral dimensions
+    int nbr_spectral = 0;
+    for(int id=0; id<3; id++) if(dospectral[id]) nbr_spectral++;
+
+    //-------------------------------------------------------------------------
+    /** - get the green size in double unit indexing to fill it, we double only the fastest rotating index*/
+    //-------------------------------------------------------------------------
+    size_t dsize_green[3] = {size_green[0],size_green[1],size_green[2]};
+    if(_isComplex) dsize_green[0] *= 2;
+
+    //-------------------------------------------------------------------------
+    /** - get the expression of Green in the full domain*/
+    //-------------------------------------------------------------------------
+    
+    if     (nbr_spectral == 0){
+        INFOLOG(">> using Green function 3 dir unbounded\n");
+        // _compute_Green_3dirunbounded_0dirspectral
+        if     (_greenorder == CHAT_2) Green_2D_3dirunbounded_0dirspectral_chat2(dsize_green,hfact,green);
+        else if(_greenorder == HEJ_2 ) Green_2D_3dirunbounded_0dirspectral_hej2 (dsize_green,hfact,green,_greenalpha);
+    }
+    else if(nbr_spectral == 1){
+        INFOLOG(">> using Green function 2 dir unbounded - 1 dir spectral\n");
+        // _compute_Green_2dirunbounded_1dirspectral
+    } 
+    else if(nbr_spectral == 2){
+        INFOLOG(">> using Green function 1 dir unbounded - 2 dir spectral\n");
+        // _compute_Green_1dirunbounded_2dirspectral
+    }
+    else if(nbr_spectral == 3){
+        INFOLOG(">> using Green function 3 dir spectral\n");
+        // _compute_Green_0dirunbounded_3dirspectral
+    }
+
+    //-------------------------------------------------------------------------
+    /** - do the symmetry. If no symmetry is required it will copy the data in-place */
+    //-------------------------------------------------------------------------
+
+    printf("printing the extended Green's function\n");
+    {int mysize[2] = {dsize_green[0],dsize_green[1]};
+    write_array(mysize,green,"green_ext");}
+
+    printf("doing the symmetry with symstart = %d %d %d on size = %d %d %d\n",symstart[0],symstart[1],symstart[2],dsize_green[0],dsize_green[1],dsize_green[2]);
+
+    // the symmetry is done around symstart
+    // we go through the full array again and symmetry the data
+    for(int i2=symstart[2]; i2<dsize_green[2]; i2++){
+        for(int i1=symstart[1]; i1<dsize_green[1]; i1++){
+            for(int i0=symstart[0]; i0<dsize_green[0]; i0++){
+
+                const size_t id     = i0 + dsize_green[0]*i1 + dsize_green[0]*dsize_green[1]*i2;
+                // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
+                // to use the abs we have to go back to integers
+                const int is0 = abs(2*(int)symstart[0]-i0);
+                const int is1 = abs(2*(int)symstart[1]-i1);
+                const int is2 = abs(2*(int)symstart[2]-i2);
+                const size_t id_sym = is0 + is1 * dsize_green[0] + is2 * dsize_green[0]*dsize_green[1];
+
+                // printf
+                printf("%d,%d,%d: from %d to idsym = %ld\n",i0,i1,i2,id,id_sym);
+
+                UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
+                UP_CHECK3(id < dsize_green[0]*dsize_green[1]*dsize_green[2],"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
+
+                green[id] = green[id_sym];
+            }
+        }
+    }
+    
+    {
+    int mysize[2] = {dsize_green[0],dsize_green[1]};
+    write_array(mysize,green,"green_sym");
+    }
+}
+
+/**
+ * @brief sets the Green type #_greenorder, see #OrderDiff
+ * 
+ * @param order 
+ */
+void FFTW_Solver::set_GreenType(const OrderDiff order){
+    BEGIN_FUNC
+    _greenorder = order;
+}
+/**
+ * @brief set the Green spectral order of accuracy #_greendiff, see #OrderDiff
+ * 
+ * @param diff 
+ */
+void FFTW_Solver::set_GreenDiff(const OrderDiff diff){
+    BEGIN_FUNC
+    _greendiff = diff;
+}
+
+/**
+ * @brief set the alpha parameter for regularization, #_greenalpha
+ * 
+ * @param alpha 
+ */
+void FFTW_Solver::set_alpha(const double alpha){
+    BEGIN_FUNC
+    _greenalpha = alpha;
+}

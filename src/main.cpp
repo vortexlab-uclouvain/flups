@@ -26,15 +26,17 @@ int main(int argc, char* argv[])
     -  We assume a cell-centered layout
     */
 
-    const size_t    n[2] = {64,64};
+    const size_t    n[2] = {4,4};
     const double L[2] = {1.0,1.0};
     const double h[2] = {L[0]/n[0] , L[1]/n[1]};
 
-    BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
-    // BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,EVEN}};
+    // BoundaryType mybc[DIM][2] = {{EVEN,ODD},{UNB,EVEN}};
+    BoundaryType mybc[DIM][2] = {{UNB,UNB},{UNB,EVEN}};
     // BoundaryType mybc[DIM][2] = {{UNB,EVEN},{UNB,UNB}};
 
     FFTW_Solver*  mysolver = new FFTW_Solver(n,h,L,mybc);
+    mysolver->set_GreenType(HEJ_2);
+    mysolver->setup();
 
 
     //-------------------------------------------------------------------------------

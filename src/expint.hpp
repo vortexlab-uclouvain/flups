@@ -26,8 +26,8 @@
 
 #include <math.h>
 
-double expint1(double x);
-double expint2(double x);
+static double expint1(double x);
+static double expint2(double x);
 
 
 //double ExponentialIntegral(x, flag)
@@ -40,7 +40,7 @@ double expint2(double x);
 
 /* Computed value for the exponential integral returned through func- */
 /* tion name EponentialIntegral().      */
-double expint_ei(double x)//, int* flag)
+static double expint_ei(double x)//, int* flag)
 {
     
     //double expint1();  /* Used for computing the exponential      */
@@ -81,7 +81,7 @@ double expint_ei(double x)//, int* flag)
 /*                                                                    */
 /**********************************************************************/
 
-double expint1(double x)
+static double expint1(double x)
 /* Argument for which the error function is wanted.       */
 {
     static int MAX = 23;  /* The number of coefficients in a[].   */
@@ -148,7 +148,7 @@ double expint1(double x)
 /*                                                                    */
 /**********************************************************************/
 
-double expint2(double x)
+static double expint2(double x)
 /* Argument for which the error function is wanted.       */
 {
     static int MAX = 23;  /* The number of coefficients in a[].   */

@@ -47,25 +47,27 @@ _isGreen(isGreen)
         _type   = R2R;
         _normfact   = 1.0;
         _volfact  = 1.0; // no convolution so no multiplication by h
-        _k_fact = C2PI/(2.0*L[_dimID]);
+        _kfact = c_2pi/(2.0*L[_dimID]);
+        if(_isGreen) _dospectral = true;
     }
     else if( mytype <= MIX ){
         _type   = MIX;
         _normfact   = 1.0;
         _volfact  = h[_dimID];
-        _k_fact = C2PI/(4.0*L[_dimID]);
+        _kfact = c_2pi/(4.0*L[_dimID]);
     }
     else if( mytype == PERPER ){
         _type   = PERPER;
         _normfact   = 1.0; 
         _volfact  = 1.0; // no convolution so no multiplication by h
-        _k_fact = C2PI/(L[_dimID]);
+        _kfact = c_2pi/(L[_dimID]);
+        if(_isGreen) _dospectral = true;
     }
     else if( mytype == UNBUNB ){
         _type   = UNBUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
-        _k_fact   = C2PI/(2.0*L[_dimID]);
+        _kfact   = c_2pi/(2.0*L[_dimID]);
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim(){
@@ -82,14 +84,15 @@ FFTW_plan_dim::~FFTW_plan_dim(){
  * - _init_periodic()
  * - _init_unbounded()
  * 
- * In each of the sub-function, we initialize the following variables
+ * Each of the sub-function initializes the following variables
  * - #_n_in
  * - #_n_out
  * - #_fieldstart
  * - #_switch2Complex
- * - #_howmany
+ * - #_howmany (for non-Green functions only)
  * - #_imult
  * - #_kind (for R2R and MIX plans only)
+ * - #_symstart (for Green's function only)
  * 
  * @param size the current size that will come in (hence already partially transformed)
  * @param isComplex the current complex state of the data
@@ -102,7 +105,7 @@ void FFTW_plan_dim::init(const size_t size[DIM],const bool isComplex){
     assert(size[_dimID] >= 0);
 
     //-------------------------------------------------------------------------
-    // redirect to the
+    // redirect to the corresponding subfunction
     //-------------------------------------------------------------------------
     if( _type == R2R ){
         _init_real2real(size,isComplex);
@@ -124,17 +127,20 @@ void FFTW_plan_dim::init(const size_t size[DIM],const bool isComplex){
  * 
  * @param size 
  * @param isComplex 
+ * 
+ * -------------------------------------
+ * We do the following operations:
  */
 void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // sanity checks
+    /** - sanity checks */
     //-------------------------------------------------------------------------
     assert(isComplex == false);
     
     //-------------------------------------------------------------------------
-    // Get the memory details (size in/out, _fieldstart, isComplex, howmany)
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     _n_in       = size[_dimID];
     _n_out      = size[_dimID];
@@ -143,18 +149,27 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
     // no switch to complex
     _switch2Complex = false;
 
-    // howmany
-    _howmany = 1;
-    for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    //-------------------------------------------------------------------------
+    /** - get the #_symstart if is Green */
+    //-------------------------------------------------------------------------
+    _symstart = 0; // if no symmetry is needed, set to 0
 
     //-------------------------------------------------------------------------
-    // update scaling factor
+    /** - get #_howmany if we are not a Green function */
+    //-------------------------------------------------------------------------
+    if(!_isGreen){
+        _howmany = 1;
+        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    }
+
+    //-------------------------------------------------------------------------
+    /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0 /(2.0*size[_dimID]);
 
     //-------------------------------------------------------------------------
-    // Get the type of Fourier transforms and imult
+    /** - Get the #_kind of Fourier transforms and #_imult */
     //-------------------------------------------------------------------------
     if(_isGreen){
         return;
@@ -186,7 +201,7 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
         }
     }
     else{
-        ERROR("unable to init the solver required\n")
+        UP_ERROR("unable to init the solver required\n")
     }
 }
 
@@ -195,16 +210,19 @@ void FFTW_plan_dim::_init_real2real(const size_t size[DIM],const bool isComplex)
  * 
  * @param size 
  * @param isComplex 
+ * 
+ * ----------------------------------------
+ * We do the following operations
  */
 void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // sanity checks
+    /** - sanity checks */
     //-------------------------------------------------------------------------
     assert(isComplex == false);
 
     //-------------------------------------------------------------------------
-    // Get the memory details (size in/out, _fieldstart, isComplex, howmany)
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(!_isGreen){
         _n_in  =  2*size[_dimID];
@@ -221,17 +239,27 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
     else if(_bc[0] == UNB) _fieldstart = size[_dimID];   // padding to the left
     else if(_bc[1] == UNB) _fieldstart = 0;              // padding to the right
 
-    _howmany = 1;
-    for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    //-------------------------------------------------------------------------
+    /** - get the #_symstart if is Green */
+    //-------------------------------------------------------------------------
+    _symstart = 0; // if no symmetry is needed, set to 0
 
     //-------------------------------------------------------------------------
-    // update scaling factor
+    /** - get #_howmany if we are not a Green function */
+    //-------------------------------------------------------------------------
+    if(!_isGreen){
+        _howmany = 1;
+        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    }
+
+    //-------------------------------------------------------------------------
+    /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(4.0*size[_dimID]);
     
     //-------------------------------------------------------------------------
-    // Get the type of Fourier transforms
+    /** - Get the #_kind of Fourier transforms and #_imult */
     //-------------------------------------------------------------------------
     if((_bc[0] == EVEN && _bc[1] == UNB)||(_bc[0] == UNB && _bc[1] == EVEN)){ // We have a DCT - we are EVEN / EVEN
         _imult = false; // we do NOT have to multiply by i=sqrt(-1)
@@ -267,7 +295,7 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
         }
     }
     else{
-        ERROR("unable to init the solver required\n")     
+        UP_ERROR("unable to init the solver required\n")     
     }
 }
 
@@ -275,12 +303,15 @@ void FFTW_plan_dim::_init_mixpoisson(const size_t size[DIM],const bool isComplex
  * @brief Initialize for a periodic plan
  * 
  * @param size 
- * @param isComplex 
+ * @param isComplex
+ * 
+ * ----------------------------------------
+ * We do the following operations
  */
 void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // Get the size and multiplication factor
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = size[_dimID]; // takes n complex, return n complex
@@ -296,17 +327,28 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
     }
 
     _fieldstart  = 0;
-    _howmany   = 1;
-    for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
 
     //-------------------------------------------------------------------------
-    // udpate scaling factor
+    /** - get the #_symstart if is Green */
+    //-------------------------------------------------------------------------
+    _symstart = 0; // if no symmetry is needed, set to 0
+
+    //-------------------------------------------------------------------------
+    /** - get #_howmany if we are not a Green function */
+    //-------------------------------------------------------------------------
+    if(!_isGreen){
+        _howmany = 1;
+        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    }
+
+    //-------------------------------------------------------------------------
+    /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(size[_dimID]);
 
     //-------------------------------------------------------------------------
-    // Get the type of Fourier transforms
+    /** - Get the #_imult factor */
     //-------------------------------------------------------------------------
     _imult = false;
 }
@@ -316,13 +358,16 @@ void FFTW_plan_dim::_init_periodic(const size_t size[DIM],const bool isComplex){
  * 
  * @param size 
  * @param isComplex 
+ * 
+ * --------------------------------------
+ * We do the following operations:
  */
 void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex){
     BEGIN_FUNC
 
     printf(">> incomming size = %ld %ld\n",size[0],size[1]);
     //-------------------------------------------------------------------------
-    // Get the size and multiplication factor
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = 2*size[_dimID]; // takes 2n complex, return 2n complex
@@ -338,17 +383,28 @@ void FFTW_plan_dim::_init_unbounded(const size_t size[DIM],const bool isComplex)
     }
 
     _fieldstart  = 0;
-    _howmany   = 1;
-    for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
 
     //-------------------------------------------------------------------------
-    // udpate scaling factor
+    /** - get the #_symstart if is Green */
+    //-------------------------------------------------------------------------
+    _symstart = size[_dimID];
+    
+    //-------------------------------------------------------------------------
+    /** - get howmany if we are not a Green function */
+    //-------------------------------------------------------------------------
+    if(!_isGreen){
+        _howmany = 1;
+        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    }
+
+    //-------------------------------------------------------------------------
+    /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(2*size[_dimID]);
 
     //-------------------------------------------------------------------------
-    // Get the type of Fourier transforms
+    /** - Get the #_imult */
     //-------------------------------------------------------------------------
     _imult = false;
 }
@@ -383,11 +439,20 @@ void FFTW_plan_dim::allocate_plan(const size_t size_plan[DIM],const size_t offse
 }
 
 /**
- * @brief allocate a plan that only treats real numbers
+ * @brief Allocate a plan that only treats real numbers
+ * 
+ * @note
+ * The howmany is recomputed if we consider a Green function since it has been symmetrized
+ * on the entire domain
+ * 
+ * @warning
+ * If there is a r2c tranform we will perfom upto 2 spurious transform.
+ * This is not important since the Green's transform is only performed once
  * 
  * @param size_ordered the size of the transposed data
  * @param offset the offset in memory computed by FFW_Solver in double indexing unit
  * @param data the pointer to the transposed data (has to be allocated)
+ * 
  */
 void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const size_t offset, double* data){
     BEGIN_FUNC
@@ -419,6 +484,13 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     int ostride = sizemult[(_orderID  )%DIM];
     int odist   = sizemult[(_orderID+1)%DIM];
 
+    // if we are green we need to recompute howmany
+    if(_isGreen){
+        _howmany = 1;
+        for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
+        for(int id=_orderID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+    }
+
     // if the solver is a R2R is may be before a mix one
     // so we have to take the offset into account
     if(_type == R2R){
@@ -438,6 +510,8 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
     if      (_type == R2R   ) {INFOLOG2("## R2R plan created for plan r2r (=%d)\n",_type);}
     else if (_type == MIX   ) {INFOLOG2("## R2R plan created for plan mix (=%d)\n",_type);}
     INFOLOG2("orderedID = %d\n",_orderID);
+    if      (DIM == 2) {INFOLOG3("size = %ld x %ld\n",size_ordered[0],size_ordered[1]);}
+    else if (DIM == 3) {INFOLOG4("size = %ld x %ld x %ld\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
     INFOLOG2("howmany   = %d\n",_howmany);
     INFOLOG2("size n    = %ld\n",_n_in);
     INFOLOG3("istride (double) = %d - idist = %d\n",istride,idist);
@@ -449,6 +523,15 @@ void FFTW_plan_dim::_allocate_plan_real(const size_t size_ordered[DIM],const siz
 
 /**
  * @brief allocate a plan that treats complex numbers (r2c or c2c)
+ * 
+ * @note
+ * The howmany is recomputed if we consider a Green function since it has been symmetrized
+ * on the entire domain
+ * 
+ * @warning
+ * If there is a r2c tranform we will perfom upto 2 spurious transform.
+ * This is not important since the Green's transform is only performed once
+ * 
  * 
  * @param size_ordered 
  * @param data 
@@ -471,6 +554,13 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
 
+    // if we are green we need to recompute howmany
+    if(_isGreen){
+        _howmany = 1;
+        for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
+        for(int id=_orderID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+    }
+
     // set the sizemult array usefull for strides and dists
     int sizemult[DIM]; sizemult[0] = 1;
     for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*size_ordered[id-1];
@@ -490,6 +580,8 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
         if      (_type == PERPER) {INFO2("## R2C plan created for plan periodic-periodic (=%d)\n",_type);}
         else if (_type == UNBUNB) {INFO2("## R2C plan created for plan unbounded (=%d)\n",_type);}
         INFOLOG2("orderedID = %d\n",_orderID);
+        if      (DIM == 2) {INFOLOG3("size = %ld x %ld\n",size_ordered[0],size_ordered[1]);}
+        else if (DIM == 3) {INFOLOG4("size = %ld x %ld x %ld\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
         INFOLOG2("howmany   = %d\n",_howmany);
         INFOLOG2("size n    = %ld\n",_n_in);
         INFOLOG3("istride (double)  = %d - idist = %d\n",istride,idist);
@@ -522,6 +614,8 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
         if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
         else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
         INFOLOG2("orderedID = %d\n",_orderID);
+        if      (DIM == 2) {INFOLOG3("size = %ld x %ld\n",size_ordered[0],size_ordered[1]);}
+        else if (DIM == 3) {INFOLOG4("size = %ld x %ld x %ld\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
         INFOLOG2("howmany = %d\n",_howmany);
         INFOLOG2("size n = %ld\n",_n_in);
         INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
@@ -530,6 +624,10 @@ void FFTW_plan_dim::_allocate_plan_complex(const size_t size_ordered[DIM],double
     }
 }
 
+/**
+ * @brief Executes the plan
+ * 
+ */
 void FFTW_plan_dim::execute_plan(){
     BEGIN_FUNC
     // run the plan
@@ -540,54 +638,171 @@ void FFTW_plan_dim::execute_plan(){
     fftw_execute(_plan);
 }
 
-
+/**
+ * @brief Returns true if this plan switches from the real to the complex (R2C)
+ * 
+ * @return true
+ * @return false 
+ */
 bool FFTW_plan_dim::get_isComplex() const {
     BEGIN_FUNC
     return _switch2Complex;
 }
+/**
+ * @brief Returns true if this plan has to be done spectrally with the Green's function
+ * 
+ * @return true 
+ * @return false 
+ */
+bool FFTW_plan_dim::get_dospectral() const{
+    BEGIN_FUNC
+    return _dospectral;
+}
+/**
+ * @brief Returns the dimension ID in the un-tranposed domain
+ * 
+ * @return int 
+ */
+int FFTW_plan_dim::get_dimID() const {
+    BEGIN_FUNC
+    return _dimID;
+}
+/**
+ * @brief Returns the type of the plan
+ * 
+ * @return int 
+ */
 int FFTW_plan_dim::get_type() const {
     BEGIN_FUNC
     return _type;
 }
+/**
+ * @brief Returns the order of the plan in the transposed space
+ * 
+ * @return int 
+ */
+int FFTW_plan_dim::get_order() const{
+    BEGIN_FUNC
+    return _orderID;
+}
+/**
+ * @brief Returns the start index of the symmetry
+ * 
+ * @return int 
+ */
+int FFTW_plan_dim::get_symstart() const{
+    BEGIN_FUNC
+    return _symstart;
+}
+/**
+ * @brief Returns the normalization factor
+ * 
+ * @return double 
+ */
 double FFTW_plan_dim::get_normfact() const{
     BEGIN_FUNC
     return _normfact;
 }
+/**
+ * @brief Returns the volume factor
+ * 
+ * @return double 
+ */
 double FFTW_plan_dim::get_volfact() const{
     BEGIN_FUNC
     return _volfact;
 }
+/**
+ * @brief return the multiplication factor to get the wavenumber
+ * 
+ * @return double 
+ */
+double FFTW_plan_dim::get_kfact() const{
+    BEGIN_FUNC
+    return _kfact;
+}
+/**
+ * @brief 
+ * 
+ * @param size 
+ */
 void FFTW_plan_dim::get_outsize (size_t size[DIM]) const {
     BEGIN_FUNC
     size[_dimID] = _n_out;
 }
+/**
+ * @brief 
+ * 
+ * @param start 
+ */
 void FFTW_plan_dim::get_fieldstart(size_t start[DIM]) const {
     BEGIN_FUNC
     start[_dimID] = _fieldstart;
 }
+/**
+ * @brief 
+ * 
+ * @param isComplex 
+ */
 void FFTW_plan_dim::get_isComplex(bool* isComplex) const {
     BEGIN_FUNC
     (*isComplex) = (*isComplex) || _switch2Complex;
 }
+/**
+ * @brief 
+ * 
+ * @param id 
+ * @param size 
+ */
 void FFTW_plan_dim::get_outsize (const int id, size_t size[DIM]) const {
     BEGIN_FUNC
     size[id] = _n_out;
 }
+/**
+ * @brief returns the size that comes into the FFT plan
+ * 
+ * @param id 
+ * @param size 
+ */
+void FFTW_plan_dim::get_outsize_double (const int id, size_t size[DIM]) const {
+    BEGIN_FUNC
+    if(_switch2Complex) size[id] = _n_out*2;
+    else                size[id] = _n_out;
+}
+/**
+ * @brief 
+ * 
+ * @param id 
+ * @param start 
+ */
 void FFTW_plan_dim::get_fieldstart(const int id, size_t start[DIM]) const {
     BEGIN_FUNC
     start[id] = _fieldstart;
 }
+/**
+ * @brief 
+ * 
+ * @param id 
+ * @param dimID 
+ */
 void FFTW_plan_dim::get_dimID   (const int id, int dimID[DIM]) const {
     BEGIN_FUNC
     dimID[id] = _dimID;
 }
+/**
+ * @brief 
+ * 
+ * @param id 
+ */
 void FFTW_plan_dim::set_order(const int id){
     BEGIN_FUNC
-    // if the plan is called in ith position
-    // its dimension is located in DIM-id-1th index
     _orderID = id;
 }
 
+/**
+ * @brief display the FFTW_plan_dim object
+ * 
+ */
 void FFTW_plan_dim::disp(){
     BEGIN_FUNC
     INFO ("------------------------------------------\n");
@@ -620,6 +835,7 @@ void FFTW_plan_dim::disp(){
     INFO2("- n_out      = %ld\n",_n_out);
     INFO2("- howmany    = %d\n",_howmany);
     INFO2("- fieldstart = %ld\n",_fieldstart);
+    INFO2("- dospectral ? %d\n",_dospectral);
     if      (_sign == FFTW_FORWARD ) {INFO("- FORWARD plan\n");}
     else if (_sign == FFTW_BACKWARD) {INFO("- BACKWARD plan\n");}
     

@@ -15,6 +15,7 @@
 #include <map>
 #include "defines.hpp"
 #include "FFTW_plan_dim.hpp"
+#include "green_functions.hpp"
 #include "fftw3.h"
 
 #include "tools.hpp"
@@ -24,6 +25,7 @@ using namespace std;
 
 /**
  * @brief The Poisson solver
+ * 
  * 
  * A collection of 2 or 3 FFTW_plan_dim and a Green's function to solve the Poisson equation.
  * The tranformation are done in-place in each direction successively
@@ -49,6 +51,7 @@ protected:
     size_t _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
     size_t _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
     size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart*/
+    double _hgrid       [3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
 
     bool _isComplex = false;    /**< @brief boolean to indicate if the transfrom data is complex (true) or not */
     double* _data   = NULL;     /**< @brief data pointer to the transposed memory */
@@ -59,15 +62,18 @@ protected:
     multimap<int, FFTW_plan_dim*> _plan_forward;    /**< @brief map containing the plan forward  */
     multimap<int, FFTW_plan_dim*> _plan_backward;   /**< @brief map containing the plan backward */
     
-
-
     /**
      * @name Green's function 
      * 
      */
     /**@{ */
-    size_t _size_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    // size_t _size_field_green [3] = {1,1,1};  /**< @brief the size of the Green's function in the real, extended!!, domain in double indexing unit otherwize */
+    size_t _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    
     double* _green           = NULL; /**< @brief data pointer to the transposed memory for Green */
+    OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
+    OrderDiff _greendiff = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
+    double _greenalpha = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
     multimap<int, FFTW_plan_dim*> _plan_green;      /**< @brief map containing the plan for the Green's function */
     /**@} */
 
@@ -94,17 +100,19 @@ protected:
     /**@} */
 
 
-     /**
+    /**
      * @name Green's function
      * 
      * @{
      */
-    void _compute_Green(const int size_green[3],void* Green, multimap<int,FFTW_plan_dim* > *planmap);
+    void _compute_Green(const size_t size_green[3],double* green, multimap<int,FFTW_plan_dim* >* planmap);
     /**@} */
 
 public:
     FFTW_Solver(const size_t field_size[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
     ~FFTW_Solver();
+
+    void setup();
 
     /**
      * @name Solver use
@@ -114,6 +122,16 @@ public:
     void solve_rhs(double* field, double* rhs);
     // void solve_rotrhs(double* field, double* rhs);
     // void solve_div_rhs(double* field, double* rhs);
+    /**@} */
+
+    /**
+     * @name Green's function
+     * 
+     * @{
+     */
+    void set_GreenType(const OrderDiff order);
+    void set_GreenDiff(const OrderDiff order);
+    void set_alpha(const double alpha);
     /**@} */
 };
 

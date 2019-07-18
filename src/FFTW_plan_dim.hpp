@@ -50,40 +50,29 @@ enum PlanType
 class FFTW_plan_dim{
 
 protected:
-    const int _dimID; /**< @brief the dimension of the plan in the field reference */
-    const int _sign; /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
-    const bool _isGreen ; /**< @brief boolean is true if this plan is for a Green's function */
-
-
-    bool   _imult; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
-    double _normfact;  /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double _volfact; /**< @brief volume factor*/
-    double _k_fact;/**< @brief multiplication factor to have the correct k numbers*/
-    bool _isDataComplex; /**< @brief is the data allocated complex? (yes if any plan is complex)*/
-    bool _switch2Complex; /**< @brief is this plan the one that changes to complex?*/
-    int _orderID; /**< @brief ID in the !!ordered!! dimension*/
-
-    PlanType _type; /**< @brief type of this plan, see #PlanType*/
-    BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
-    size_t _fieldstart; /**< @brief the starting index for the field copy in the direction of the plan*/
+    const bool  _isGreen ;   /**< @brief boolean is true if this plan is for a Green's function */
+    const int   _dimID;      /**< @brief the dimension of the plan in the field reference */
+    const int   _sign;       /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
     
-    size_t _n_in; /**< @brief the number of element in the transform*/
-    size_t _n_out; /**< @brief the number of element coming out of the transform*/
+    bool    _isDataComplex  = false;    /**< @brief is the data allocated complex? (yes if any plan is complex)*/
+    bool    _switch2Complex = false;    /**< @brief is this plan the one that changes to complex?*/
+    bool    _imult          = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
+    bool    _dospectral     = false;    /**< @brief indicate if the Green's function has to be done spectrally */
+    int     _orderID        = -1;       /**< @brief ID in the !!ordered!! dimension*/
+    int     _howmany        = -1;       /**< @brief number of transfroms to perfom */
+    double  _normfact       = 0.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double  _volfact        = 0.0;      /**< @brief volume factor*/
+    double  _kfact          = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
+    size_t  _fieldstart     = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
+    size_t  _n_in           = 0;        /**< @brief the number of element in the transform*/
+    size_t  _n_out          = 0;        /**< @brief the number of element coming out of the transform*/
+    size_t  _symstart       = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
     
-    fftw_r2r_kind _kind;/**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    fftw_plan _plan = NULL;/**< @brief the actual FFTW plan*/
-    int _howmany;/**< @brief number of transfroms to perfom */
-
-
-    // // data's for Green to be destroyed one performed
-    // size_t _n_green;
-    // fftw_plan* _plan_green;
-    // fftw_r2r_kind _kind_green;
-    // int _howmany;
-    // int _istride;
-    // int _ostride;
-    // int _idist;
-    // int _odist;
+    PlanType     _type;      /**< @brief type of this plan, see #PlanType*/
+    BoundaryType _bc[2];     /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
+    
+    fftw_r2r_kind   _kind;          /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan       _plan = NULL;   /**< @brief the actual FFTW plan*/
     
 public:
 
@@ -95,18 +84,50 @@ public:
     void allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, double* data);
     void execute_plan();
 
-    int  get_type()      const;
-    bool get_isComplex() const;
-    double get_normfact() const;
-    double get_volfact() const;
+    /**
+     * @name Getters - return the value
+     * 
+     */
+    /**@{ */
+    bool   get_isComplex()  const;
+    bool   get_dospectral() const;
+    int    get_dimID()      const;
+    int    get_type()       const;
+    int    get_order()      const;
+    int    get_symstart()   const;
+    double get_normfact()   const;
+    double get_volfact()    const;
+    double get_kfact()      const;
+    /**@} */
+
+    /**
+     * @name Getters - return the value in array[ _dimID ]
+     * 
+     */
+    /**@{ */
     void get_outsize  (size_t* size ) const;
     void get_fieldstart (size_t* start) const;
     void get_isComplex(bool* isComplex) const;
-    void get_dimID   (const int id, int    dimID[DIM]) const;
-    void get_outsize (const int id, size_t size [DIM]) const;
-    void get_fieldstart(const int id, size_t start[DIM]) const;
+    /**@} */
+
+    /**
+     * @name Getters - return the value in array[ id ]
+     * 
+     */
+    /**@{ */
+    void get_dimID          (const int id, int    dimID[DIM]) const;
+    void get_outsize        (const int id, size_t size [DIM]) const;
+    void get_outsize_double (const int id, size_t size [DIM]) const;
+    void get_fieldstart     (const int id, size_t start[DIM]) const;
+    /**@} */
     
+    /**
+     * @name Setters
+     * 
+     */
+    /**@{ */
     void set_order(const int id);
+    /**@} */
 
     void disp();
 
