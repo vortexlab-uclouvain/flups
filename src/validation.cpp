@@ -286,8 +286,8 @@ void validation_2d_UU_UE(const SolverType type, const OrderDiff orderdiff){
 void validation_2d_UU_UO(const SolverType type, const OrderDiff orderdiff){
 
     // int size[2] = {1024,2048};
-    // int size[4] = {64,128,256,512}; int nsample = 4;
-    int size[2] = {128,256}; int nsample = 2;
+    int size[4] = {64,128,256,512}; int nsample = 4;
+    // int size[2] = {128,256}; int nsample = 2;
     // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[1] = {64}; int nsample = 1;
 
@@ -425,8 +425,8 @@ void validation_2d_UU_UO(const SolverType type, const OrderDiff orderdiff){
  */
 void validation_2d_UU_OU(const SolverType type, const OrderDiff orderdiff){
 
-    int size[2] = {128,256}; int nsample = 2;
-    // int size[4] = {64,128,256,512}; int nsample = 4;
+    // int size[2] = {128,256}; int nsample = 2;
+    int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[1] = {64}; int nsample = 1;
 

@@ -77,7 +77,7 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
     }
 
     //-------------------------------------------------------------------------
-    /** - Get the normalization factors and the grid spacing */
+    /** - Get the normalization factors and the grid spacing and the #_shiftgreen factor */
     //-------------------------------------------------------------------------
     _normfact  = 1.0;
     _volfact   = 1.0;
@@ -89,6 +89,7 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
         // get the hgrid
         const int orderID = myplan->get_dimID();
         _hgrid[orderID]   = h[_dimorder[orderID]];
+        _shiftgreen[orderID] = myplan->get_shiftgreen();
     }
 
     //-------------------------------------------------------------------------
@@ -663,7 +664,8 @@ void FFTW_Solver::dothemagic_rhs_real()
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                // const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                const size_t id_green = (ix+_shiftgreen[0]) + _size_hat_green[0] * ((iy+_shiftgreen[1]) + _size_hat_green[1] * (iz+_shiftgreen[2]));
                 _data[id] = _normfact * ( _data[id] * _green[id_green] );
             }
         }
@@ -676,13 +678,16 @@ void FFTW_Solver::dothemagic_rhs_real()
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult0()
 {
+
+    printf("doing the magic with shiftgreen = %d %d\n",_shiftgreen[0],_shiftgreen[1]);
     fftw_complex* mydata = (fftw_complex*) _data;
     fftw_complex* mygreen = (fftw_complex*) _green;
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                // const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+                const size_t id_green = (ix+_shiftgreen[0]) + _size_hat_green[0] * ((iy+_shiftgreen[1]) + _size_hat_green[1] * (iz+_shiftgreen[2]));
                 mydata[id][0] = _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
                 mydata[id][1] = _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
             }

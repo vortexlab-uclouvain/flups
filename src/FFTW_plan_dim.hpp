@@ -67,6 +67,7 @@ protected:
     int  _n_in           = 0;        /**< @brief the number of element in the transform*/
     int  _n_out          = 0;        /**< @brief the number of element coming out of the transform*/
     int  _symstart       = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
+    int _shiftgreen =0;
     
     PlanType     _type;      /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2];     /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
@@ -93,6 +94,7 @@ public:
     bool   get_dospectral() const;
     int    get_dimID()      const;
     int    get_imult()      const;
+    int    get_shiftgreen() const;
     int    get_type()       const;
     int    get_order()      const;
     int    get_symstart()   const;

@@ -149,6 +149,8 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
     // no switch to complex
     _switch2Complex = false;
 
+    _shiftgreen = 0;
+
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
@@ -272,6 +274,8 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
             _imult = false;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT10; // DCT type II
             if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT01;
+
+            _shiftgreen = 0;
         }
         else if(_bc[0] == UNB && _bc[1] == ODD){ // We have a DCT - we are EVEN - ODD
             _imult = false;
@@ -279,6 +283,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
             // if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DCT type IV
             if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+            _shiftgreen = 1;
         }
         else if(_bc[0] == ODD && _bc[1] == UNB){ // we have a DST - we are ODD - EVEN
             _imult = true;
@@ -286,6 +291,8 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
             // if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT11;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DST type II
             if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+
+            _shiftgreen = 1;
         }
         else{
             UP_ERROR("unable to init the solver required\n")     
@@ -321,6 +328,8 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     }
 
     _fieldstart  = 0;
+
+    _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -375,6 +384,8 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     }
 
     _fieldstart  = 0;
+    
+    _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -675,6 +686,15 @@ bool FFTW_plan_dim::get_dospectral() const{
 int FFTW_plan_dim::get_dimID() const {
     BEGIN_FUNC
     return _dimID;
+}
+/**
+ * @brief Returns the dimension ID in the un-tranposed domain
+ * 
+ * @return int 
+ */
+int FFTW_plan_dim::get_shiftgreen() const {
+    BEGIN_FUNC
+    return _shiftgreen;
 }
 /**
  * @brief Returns the imult

@@ -64,6 +64,7 @@ protected:
     int _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
     int _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
     int _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
+    int _shiftgreen[3] = {0,0,0}; 
     size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart (only used for a R2R transfrom!)*/
     double _hgrid       [3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
 
