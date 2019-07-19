@@ -100,7 +100,7 @@ void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfa
                 const double y = i1*hfact[1];
                 const double r2 = x*x+y*y;
 
-                const size_t id = i0 + i1*size[0] + i2*size[0]*size[1];
+                const size_t id = i0 + size[0]*(i1 + i2*size[1]);
 
                 green[id] = c_1o4pi * (log(r2) + expint_ei(r2*oo2eps2));
             }
@@ -130,7 +130,7 @@ void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfa
  * @param green the Green memory
  * @param alpha regularization parameter
  */
-void Green_2D_3dirunbounded_0dirspectral_hej4(const size_t size[3],const double hfact[3],double* green,const double alpha){
+void Green_2D_3dirunbounded_0dirspectral_hej4(const int size[3],const double hfact[3],double* green,const double alpha){
     BEGIN_FUNC
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
@@ -148,7 +148,7 @@ void Green_2D_3dirunbounded_0dirspectral_hej4(const size_t size[3],const double 
                 const double y = i1*hfact[1];
                 const double r2 = x*x+y*y;
 
-                const size_t id = i0 + i1*size[0] + i2*size[0]*size[1];
+                const size_t id = i0 + size[0]*(i1 + i2*size[1]);
 
                 green[id] = c_1o4pi * (log(r2) + expint_ei(r2*oo2eps2) - exp(-r2*oo2eps2));
             }

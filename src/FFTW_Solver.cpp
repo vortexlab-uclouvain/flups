@@ -190,10 +190,10 @@ void FFTW_Solver::setup(const SolverType mytype)
         myplan->execute_plan();
     }
 
-    {
-        int mysize4[2] = {_size_hat_green[0],_size_hat_green[1]};
-        write_array(mysize4,(fftw_complex*) _green,"new_green_fourier");
-    }
+    // {
+    //     int mysize4[2] = {_size_hat_green[0],_size_hat_green[1]};
+    //     write_array(mysize4,(fftw_complex*) _green,"new_green_fourier");
+    // }
     
     //-------------------------------------------------------------------------
     /** - delete the plan */
@@ -213,6 +213,9 @@ FFTW_Solver::~FFTW_Solver(){
 
     _deallocate_data(_data);
     _deallocate_data(_green);
+
+    //cleanup
+    fftw_cleanup();
 }
 /**
  * @brief delete the FFTW_plan_dim stored in planmap
@@ -409,6 +412,8 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
         // _compute_Green_3dirunbounded_0dirspectral
         if     (_greenorder == CHAT_2) Green_2D_3dirunbounded_0dirspectral_chat2(dsize_green,hfact,green);
         else if(_greenorder == HEJ_2 ) Green_2D_3dirunbounded_0dirspectral_hej2 (dsize_green,hfact,green,_greenalpha);
+        else if(_greenorder == HEJ_4 ) Green_2D_3dirunbounded_0dirspectral_hej4 (dsize_green,hfact,green,_greenalpha);
+        else UP_CHECK2(false,"Green Function = %d  unknow for nbr_spectral = %d",_greenorder,nbr_spectral);
     }
     else if(nbr_spectral == 1){
         INFOLOG(">> using Green function 2 dir unbounded - 1 dir spectral\n");
@@ -427,8 +432,8 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
     /** - do the symmetry */
     //-------------------------------------------------------------------------
 
-    {int mysize[2] = {dsize_green[0],dsize_green[1]};
-    write_array(mysize,green,"green_ext");}
+    // {int mysize[2] = {dsize_green[0],dsize_green[1]};
+    // write_array(mysize,green,"green_ext");}
 
     // check if we have to symmetrize a direction
 
@@ -466,10 +471,10 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
     }
 
 
-    {
-    int mysize[2] = {dsize_green[0],dsize_green[1]};
-    write_array(mysize,green,"green_sym");
-    }
+    // {
+    // int mysize[2] = {dsize_green[0],dsize_green[1]};
+    // write_array(mysize,green,"green_sym");
+    // }
 }
 
 /**
@@ -520,10 +525,10 @@ void FFTW_Solver::solve(double* field, double* rhs)
     assert(field != NULL);
     assert(rhs   != NULL);
     
-    {
-        int mysize4[2] = {_size_field[0],_size_field[1]};
-        write_array(mysize4,rhs,"rhs_in");
-    }
+    // {
+    //     int mysize4[2] = {_size_field[0],_size_field[1]};
+    //     write_array(mysize4,rhs,"rhs_in");
+    // }
 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
@@ -566,14 +571,14 @@ void FFTW_Solver::solve(double* field, double* rhs)
     }
 
     
-    if(_isComplex){
-        int mysize[2] = {_size_hat[0]*2,_size_hat[1]};
-        write_array(mysize,in,"rhs_pad");
-    }
-    else{
-        int mysize[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize,in,"rhs_pad");
-    }
+    // if(_isComplex){
+    //     int mysize[2] = {_size_hat[0]*2,_size_hat[1]};
+    //     write_array(mysize,in,"rhs_pad");
+    // }
+    // else{
+    //     int mysize[2] = {_size_hat[0],_size_hat[1]};
+    //     write_array(mysize,in,"rhs_pad");
+    // }
 
     //-------------------------------------------------------------------------
     /** - go to Fourier */
@@ -603,10 +608,10 @@ void FFTW_Solver::solve(double* field, double* rhs)
         }
     }
 
-    {
-        int mysize4[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize4,(fftw_complex*) _data,"new_field_fourier");
-    }
+    // {
+    //     int mysize4[2] = {_size_hat[0],_size_hat[1]};
+    //     write_array(mysize4,(fftw_complex*) _data,"new_field_fourier");
+    // }
 
     //-------------------------------------------------------------------------
     /** - go back to reals */
@@ -617,14 +622,14 @@ void FFTW_Solver::solve(double* field, double* rhs)
         myplan->execute_plan();
     }
 
-    if(_isComplex){
-        int mysize2[2] = {_size_hat[0]*2,_size_hat[1]};
-        write_array(mysize2,in,"sol_pad");
-    }
-    else{
-        int mysize2[2] = {_size_hat[0],_size_hat[1]};
-        write_array(mysize2,in,"sol_pad");
-    }
+    // if(_isComplex){
+    //     int mysize2[2] = {_size_hat[0]*2,_size_hat[1]};
+    //     write_array(mysize2,in,"sol_pad");
+    // }
+    // else{
+    //     int mysize2[2] = {_size_hat[0],_size_hat[1]};
+    //     write_array(mysize2,in,"sol_pad");
+    // }
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
@@ -641,10 +646,10 @@ void FFTW_Solver::solve(double* field, double* rhs)
         }
     }
 
-    {
-        int mysize4[2] = {_size_field[0],_size_field[1]};
-        write_array(mysize4,field,"sol_final");
-    }
+    // {
+    //     int mysize4[2] = {_size_field[0],_size_field[1]};
+    //     write_array(mysize4,field,"sol_final");
+    // }
 }
 
 

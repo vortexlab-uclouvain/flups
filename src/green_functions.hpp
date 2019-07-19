@@ -37,7 +37,7 @@ enum OrderDiff{
 void Green_2D_3dirunbounded_0dirspectral_chat2(const int size[3],const double hfact[3],double* green);
 // void Green_2D_3dirunbounded_0dirspectral_lgf2 (const size_t size[3],const double hfact[3],double* green);
 void Green_2D_3dirunbounded_0dirspectral_hej2 (const int size[3],const double hfact[3],double* green,const double alpha);
-void Green_2D_3dirunbounded_0dirspectral_hej4 (const int size[3],const double hfact[3],double* green,const double alpha);
+void Green_2D_3dirunbounded_0dirspectral_hej4(const int size[3],const double hfact[3],double* green,const double alpha);
 /**@} */
 
 

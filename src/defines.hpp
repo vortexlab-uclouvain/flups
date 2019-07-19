@@ -40,7 +40,8 @@
     #define INFOLOG3(a,b,c)   printf(a,b,c);
     #define INFOLOG4(a,b,c,d) printf(a,b,c,d);
 
-    #define BEGIN_FUNC ((void)0); //INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);
+    #define BEGIN_FUNC ((void)0); 
+    // #define BEGIN_FUNC {INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);}
 #else
     #define INFOLOG(a)    ((void)0);
     #define INFOLOG2(a,b)    ((void)0);
@@ -60,12 +61,12 @@
     //                     free(strs);\
     //                 }
 
-    #define UP_ERROR(a) { char msg[512]; sprintf(msg,"ERROR - %s - in %s from %s at line %d\n",a,__func__,__FILE__,__LINE__); }
+    #define UP_ERROR(a) { char msg_error[1024]; sprintf(msg_error,"ERROR - %s - in %s from %s at line %d\n",a,__func__,__FILE__,__LINE__); printf(msg_error);}
 
     #define UP_CHECK0(a,b)        if(!(a)){ UP_ERROR(b);}
-    #define UP_CHECK1(a,b,c)      if(!(a)){ char msg[256]; sprintf(msg,b,c); UP_ERROR(msg);}
-    #define UP_CHECK2(a,b,c,d)    if(!(a)){ char msg[256]; sprintf(msg,b,c,d); UP_ERROR(msg);}
-    #define UP_CHECK3(a,b,c,d,e)  if(!(a)){ char msg[256]; sprintf(msg,b,c,d,e); UP_ERROR(msg);}
+    #define UP_CHECK1(a,b,c)      if(!(a)){ char msg_chk[1024]; sprintf(msg_chk,b,c); UP_ERROR(msg_chk);}
+    #define UP_CHECK2(a,b,c,d)    if(!(a)){ char msg_chk[1024]; sprintf(msg_chk,b,c,d); UP_ERROR(msg_chk);}
+    #define UP_CHECK3(a,b,c,d,e)  if(!(a)){ char msg_chk[1024]; sprintf(msg_chk,b,c,d,e); UP_ERROR(msg_chk);}
 #else
     #define ERROR(a) ((void)0);
 #endif

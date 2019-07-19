@@ -261,42 +261,35 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms and #_imult */
     //-------------------------------------------------------------------------
-    if((_bc[0] == EVEN && _bc[1] == UNB)||(_bc[0] == UNB && _bc[1] == EVEN)){ // We have a DCT - we are EVEN / EVEN
-        _imult = false; // we do NOT have to multiply by i=sqrt(-1)
-        if(_isGreen){
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT00; // DCT type I
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
-        }
-        else{
+    if(_isGreen){
+        _imult = false;
+        // The Green function is ALWAYS EVEN - EVEN
+        if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT00; // DCT type I
+        if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
+    }
+    else{
+        if((_bc[0] == EVEN && _bc[1] == UNB)||(_bc[0] == UNB && _bc[1] == EVEN)){ // We have a DCT - we are EVEN - EVEN
+            _imult = false;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT10; // DCT type II
             if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT01;
         }
-    }
-    else if(_bc[0] == UNB && _bc[1] == ODD){ // We have a DCT - we are EVEN / ODD
-        _imult = false; // we do NOT have to multiply by i=sqrt(-1)
-        if(_isGreen){
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT01; // DCT type III
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT10;
-        }
-        else{
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT11; // DCT type IV
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
-        }   
-    }
-    else if(_bc[0] == ODD && _bc[1] == UNB){ // we have a DST - we are ODD - EVEN
-        if(_isGreen){
+        else if(_bc[0] == UNB && _bc[1] == ODD){ // We have a DCT - we are EVEN - ODD
             _imult = false;
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT00; // DCT type I
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
+            // if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT11; // DCT type IV
+            // if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
+            if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DCT type IV
+            if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+        }
+        else if(_bc[0] == ODD && _bc[1] == UNB){ // we have a DST - we are ODD - EVEN
+            _imult = true;
+            // if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT11; // DST type IV
+            // if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT11;
+            if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DST type II
+            if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
         }
         else{
-            _imult = true; // we DO have to multiply by i=sqrt(-1)
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT11; // DST type IV
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT11;
+            UP_ERROR("unable to init the solver required\n")     
         }
-    }
-    else{
-        UP_ERROR("unable to init the solver required\n")     
     }
 }
 
@@ -528,7 +521,7 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM],const size_t
     INFOLOG2("size n    = %d\n",_n_in);
     INFOLOG3("istride (double) = %d - idist = %d\n",istride,idist);
     INFOLOG3("ostride (double) = %d - odist = %d\n",ostride,odist);
-    if(_type == R2R) {INFOLOG2("starting offset  = %d\n",offset);}
+    if(_type == R2R) {INFOLOG2("starting offset  = %ld\n",offset);}
     INFOLOG ("------------------------------------------\n");
 
 }
