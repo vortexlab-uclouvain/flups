@@ -22,7 +22,7 @@
  * --------------------------------------
  * We do the following operations:
  */
-FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2])
+FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2])
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -54,8 +54,8 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
     _init_plan_map(_size_hat,_fieldstart,_dimorder,&_isComplex,&_plan_forward);
 
     // backward uses temporary sizes and check the output
-    size_t size_tmp      [3] = {1,1,1};
-    size_t fieldstart_tmp[3] = {0,0,0};
+    int size_tmp      [3] = {1,1,1};
+    int fieldstart_tmp[3] = {0,0,0};
     int    dimorder_tmp  [3] = {0,1,2};
     bool   isComplex_tmp     = false;
     _init_plan_map(size_tmp,fieldstart_tmp,dimorder_tmp,&isComplex_tmp,&_plan_backward);
@@ -134,8 +134,15 @@ FFTW_Solver::FFTW_Solver(const size_t size_field[DIM],const double h[DIM],const 
  * -------------------------------------------
  * We do the following operations
  */
-void FFTW_Solver::setup()
+void FFTW_Solver::setup(const SolverType mytype)
 {
+    //-------------------------------------------------------------------------
+    /** - Store the solver type */
+    //-------------------------------------------------------------------------
+    _type = mytype;
+
+    UP_CHECK1(mytype == UP_SRHS,"unsupported solver type %d\n",mytype);
+
     //-------------------------------------------------------------------------
     /** - Store some usefull factors in 'double' index calculus */
     //-------------------------------------------------------------------------
@@ -230,7 +237,7 @@ void FFTW_Solver::_delete_plan(multimap<int,FFTW_plan_dim* > *planmap){
  * @param[out] isComplex indicate if the data needed by the plan is complex or not
  * @param[in/out] planmap the 2 (or 3) plans for each direction to initialize
  */
-void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap)
+void FFTW_Solver::_init_plan_map(int sizeorder[3], int fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -238,7 +245,7 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int 
     //-------------------------------------------------------------------------
     (*isComplex) = false;
     // get the sizes
-    size_t size_tmp[DIM];
+    int size_tmp[DIM];
     for(int id=0; id<DIM; id++) size_tmp[id] = _size_field[id];
     // init the plans
     int count = 0; // index from 0 to DIM-1 following the priority given by the type
@@ -289,7 +296,7 @@ void FFTW_Solver::_init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int 
  * @param size  the size to allocate
  * @param data  the adress of the data to allocate
  */
-void FFTW_Solver::_allocate_data(const size_t size[3],double** data)
+void FFTW_Solver::_allocate_data(const int size[3],double** data)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -300,7 +307,6 @@ void FFTW_Solver::_allocate_data(const size_t size[3],double** data)
     //-------------------------------------------------------------------------
     // Do the memory allocation
     //-------------------------------------------------------------------------
-    printf("are we complex? %d\n",_isComplex);
     size_t size_tot = 1;
     for(int id=0; id<DIM; id++) size_tot *= size[id];
 
@@ -328,7 +334,7 @@ void FFTW_Solver::_deallocate_data(double* data)
 }
 
 
-void  FFTW_Solver::_allocate_plan(const size_t size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap)
+void  FFTW_Solver::_allocate_plan(const int size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap)
 {
     BEGIN_FUNC
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
@@ -353,7 +359,7 @@ void  FFTW_Solver::_allocate_plan(const size_t size[3],const size_t offset, cons
  * --------------------------------------
  * We do the following operations:
  */
-void FFTW_Solver::_compute_Green(const size_t size_green[3], double* green, multimap<int,FFTW_plan_dim* >* planmap){
+void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multimap<int,FFTW_plan_dim* >* planmap){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Sanity checks */
@@ -368,7 +374,7 @@ void FFTW_Solver::_compute_Green(const size_t size_green[3], double* green, mult
 
     double hfact   [3] = {_hgrid[0],_hgrid[1],_hgrid[2]};
     double kfact   [3] = {0.0};
-    size_t symstart[3] = {0};
+    int symstart[3] = {0};
 
     for(multimap<int,FFTW_plan_dim* >::iterator it = (*planmap).begin(); it != (*planmap).end(); ++it)
     {
@@ -391,7 +397,7 @@ void FFTW_Solver::_compute_Green(const size_t size_green[3], double* green, mult
     //-------------------------------------------------------------------------
     /** - get the green size in double unit indexing to fill it, we double only the fastest rotating index*/
     //-------------------------------------------------------------------------
-    size_t dsize_green[3] = {size_green[0],size_green[1],size_green[2]};
+    int dsize_green[3] = {size_green[0],size_green[1],size_green[2]};
     if(_isComplex) dsize_green[0] *= 2;
 
     //-------------------------------------------------------------------------
@@ -505,7 +511,7 @@ void FFTW_Solver::set_alpha(const double alpha){
  * -----------------------------------------------
  * We perform the following operations:
  */
-void FFTW_Solver::solve(double* field, double* rhs,const SolverType mytype)
+void FFTW_Solver::solve(double* field, double* rhs)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -539,11 +545,11 @@ void FFTW_Solver::solve(double* field, double* rhs,const SolverType mytype)
     //-------------------------------------------------------------------------
     INFOLOG ("------------------------------------------\n");
     INFOLOG ("## memory information\n")
-    INFOLOG4("- size field   = %ld %ld %ld\n",_size_field[0],_size_field[1],_size_field[2]);
-    INFOLOG4("- size hat     = %ld %ld %ld\n",_size_hat[0],_size_hat[1],_size_hat[2]);
+    INFOLOG4("- size field   = %d %d %d\n",_size_field[0],_size_field[1],_size_field[2]);
+    INFOLOG4("- size hat     = %d %d %d\n",_size_hat[0],_size_hat[1],_size_hat[2]);
     INFOLOG4("- dim order    = %d %d %d\n",_dimorder[0],_dimorder[1],_dimorder[2]);
-    INFOLOG4("- field start  = %ld %ld %ld\n",_fieldstart[0],_fieldstart[1],_fieldstart[2]);
-    INFOLOG4("- dim multfact = %ld %ld %ld\n",_dim_multfact[0],_dim_multfact[1],_dim_multfact[2]);
+    INFOLOG4("- field start  = %d %d %d\n",_fieldstart[0],_fieldstart[1],_fieldstart[2]);
+    INFOLOG4("- dim multfact = %d %d %d\n",_dim_multfact[0],_dim_multfact[1],_dim_multfact[2]);
     INFOLOG2("- offset       = %ld\n",_offset);
     INFOLOG ("------------------------------------------\n");
 
@@ -583,7 +589,7 @@ void FFTW_Solver::solve(double* field, double* rhs,const SolverType mytype)
     /** - Perform the magic */
     //-------------------------------------------------------------------------
     printf("doing the magic\n");
-    if(mytype == UP_RHS){
+    if(_type == UP_SRHS){
         if(!_isComplex){
             if     (_nbr_imult == 0) dothemagic_rhs_real();
             else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);

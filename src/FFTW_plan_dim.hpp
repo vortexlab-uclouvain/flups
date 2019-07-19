@@ -63,10 +63,10 @@ protected:
     double  _normfact       = 0.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
     double  _volfact        = 0.0;      /**< @brief volume factor*/
     double  _kfact          = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
-    size_t  _fieldstart     = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
-    size_t  _n_in           = 0;        /**< @brief the number of element in the transform*/
-    size_t  _n_out          = 0;        /**< @brief the number of element coming out of the transform*/
-    size_t  _symstart       = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
+    int  _fieldstart     = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
+    int  _n_in           = 0;        /**< @brief the number of element in the transform*/
+    int  _n_out          = 0;        /**< @brief the number of element coming out of the transform*/
+    int  _symstart       = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
     
     PlanType     _type;      /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2];     /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
@@ -79,9 +79,9 @@ public:
     FFTW_plan_dim(const int dimID,const double h[DIM],const double L[DIM],const BoundaryType mybc[2],const int sign, const bool isGreen);
     ~FFTW_plan_dim();
 
-    void init(const size_t size[DIM],const bool isComplex);
+    void init(const int size[DIM],const bool isComplex);
 
-    void allocate_plan(const size_t size_plan[DIM],const size_t offset,const bool isComplex, double* data);
+    void allocate_plan(const int size_plan[DIM],const size_t offset,const bool isComplex, double* data);
     void execute_plan();
 
     /**
@@ -106,8 +106,8 @@ public:
      * 
      */
     /**@{ */
-    void get_outsize  (size_t* size ) const;
-    void get_fieldstart (size_t* start) const;
+    void get_outsize  (int* size ) const;
+    void get_fieldstart (int* start) const;
     void get_isComplex(bool* isComplex) const;
     /**@} */
 
@@ -116,10 +116,10 @@ public:
      * 
      */
     /**@{ */
-    void get_dimID          (const int id, int    dimID[DIM]) const;
-    void get_outsize        (const int id, size_t size [DIM]) const;
-    void get_outsize_double (const int id, size_t size [DIM]) const;
-    void get_fieldstart     (const int id, size_t start[DIM]) const;
+    void get_dimID          (const int id, int dimID[DIM]) const;
+    void get_outsize        (const int id, int size [DIM]) const;
+    void get_outsize_double (const int id, int size [DIM]) const;
+    void get_fieldstart     (const int id, int start[DIM]) const;
     /**@} */
     
     /**
@@ -137,18 +137,18 @@ protected:
      * @name Initialization
      */
     /**@{ */
-    void _init_real2real (const size_t size[DIM],bool isComplex);
-    void _init_mixpoisson(const size_t size[DIM],bool isComplex);
-    void _init_periodic  (const size_t size[DIM],bool isComplex);
-    void _init_unbounded (const size_t size[DIM],bool isComplex);
+    void _init_real2real (const int size[DIM],bool isComplex);
+    void _init_mixpoisson(const int size[DIM],bool isComplex);
+    void _init_periodic  (const int size[DIM],bool isComplex);
+    void _init_unbounded (const int size[DIM],bool isComplex);
     /**@} */
 
     /**
      * @name Plan allocation
      */
     /**@{ */
-    void _allocate_plan_real   (const size_t size_ordered[DIM],const size_t offset, double* data);
-    void _allocate_plan_complex(const size_t size_ordered[DIM],double* data);
+    void _allocate_plan_real   (const int size_ordered[DIM],const size_t offset, double* data);
+    void _allocate_plan_complex(const int size_ordered[DIM],double* data);
     /**@} */
 };
 

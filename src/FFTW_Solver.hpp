@@ -24,11 +24,15 @@
 using namespace std;
 
 
-
+/**
+ * @brief Type of Poisson equation solved
+ * 
+ */
 enum SolverType{
-    UP_RHS,
-    UP_ROT,
-    UP_DIV
+    UP_SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
+    UP_VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
+    UP_ROT, /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
+    UP_DIV /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
 };
 
 /**
@@ -53,12 +57,13 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
+    int    _type; /**< @brief the type of the solver, see #SolverType */
     int    _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
     int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
-    size_t _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
-    size_t _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
-    size_t _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
-    size_t _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
+    int _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
+    int _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
+    int _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    int _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
     size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart (only used for a R2R transfrom!)*/
     double _hgrid       [3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
 
@@ -76,7 +81,7 @@ protected:
      * 
      */
     /**@{ */
-    size_t _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    int _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
     double* _green           = NULL; /**< @brief data pointer to the transposed memory for Green */
     OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
     OrderDiff _greendiff = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
@@ -92,7 +97,7 @@ protected:
      * 
      * @{
      */
-    void _allocate_data(const size_t size[3],double** data);
+    void _allocate_data(const int size[3],double** data);
     void _deallocate_data(double* data);
     /**@}  */
 
@@ -101,8 +106,8 @@ protected:
      * 
      * @{
      */
-    void _init_plan_map(size_t sizeorder[3], size_t fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap);
-    void _allocate_plan(const size_t size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap);
+    void _init_plan_map(int sizeorder[3], int fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap);
+    void _allocate_plan(const int size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap);
     void _delete_plan(multimap<int,FFTW_plan_dim* > *planmap);
     /**@} */
 
@@ -123,21 +128,21 @@ protected:
      * 
      * @{
      */
-    void _compute_Green(const size_t size_green[3],double* green, multimap<int,FFTW_plan_dim* >* planmap);
+    void _compute_Green(const int size_green[3],double* green, multimap<int,FFTW_plan_dim* >* planmap);
     /**@} */
 
 public:
-    FFTW_Solver(const size_t field_size[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
+    FFTW_Solver(const int field_size[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
     ~FFTW_Solver();
 
-    void setup();
+    void setup(const SolverType mytype);
 
     /**
      * @name Solver use
      * 
      * @{
      */
-    void solve(double* field, double* rhs, const SolverType mytype);
+    void solve(double* field, double* rhs);
     // void solve_rotrhs(double* field, double* rhs);
     // void solve_div_rhs(double* field, double* rhs);
     /**@} */

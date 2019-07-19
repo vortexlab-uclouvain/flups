@@ -31,7 +31,7 @@
  * @param kfact 
  * @param green 
  */
-void Green_2D_3dirunbounded_0dirspectral_chat2(const size_t size[3],const double hfact[3],double* green){
+void Green_2D_3dirunbounded_0dirspectral_chat2(const int size[3],const double hfact[3],double* green){
     BEGIN_FUNC
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
@@ -81,7 +81,7 @@ void Green_2D_3dirunbounded_0dirspectral_chat2(const size_t size[3],const double
  * @param green the Green memory
  * @param alpha regularization parameter
  */
-void Green_2D_3dirunbounded_0dirspectral_hej2(const size_t size[3],const double hfact[3],double* green,const double alpha){
+void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfact[3],double* green,const double alpha){
     BEGIN_FUNC
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
