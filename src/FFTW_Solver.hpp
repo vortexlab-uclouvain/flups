@@ -58,22 +58,20 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
-    int _type;                       /**< @brief the type of the solver, see #SolverType */
-    int _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
-    int _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
-    int _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
-    int _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
-    int _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
-    int _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
-    int _shiftgreen[3] = {0,0,0}; 
+    int    _type;                       /**< @brief the type of the solver, see #SolverType */
+    int    _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
+    int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
+    int    _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
+    int    _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
+    int    _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    int    _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
+    bool   _isComplex       = false;    /**< @brief boolean to indicate if the transfrom data is complex (true) or not */
     size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart (only used for a R2R transfrom!)*/
-    double _hgrid       [3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
 
-    bool _isComplex = false;    /**< @brief boolean to indicate if the transfrom data is complex (true) or not */
-    double* _data   = NULL;     /**< @brief data pointer to the transposed memory */
-
-    double _normfact = 1.0; /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double _volfact  = 1.0; /**< @brief volume factor due to the convolution computation */
+    double _hgrid [3] = {0.0};  /**< @brief grid spacing in the tranposed directions */
+    double* _data     = NULL;   /**< @brief data pointer to the transposed memory */
+    double _normfact  = 1.0;    /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double _volfact   = 1.0;    /**< @brief volume factor due to the convolution computation */
 
     multimap<int, FFTW_plan_dim*> _plan_forward;    /**< @brief map containing the plan forward  */
     multimap<int, FFTW_plan_dim*> _plan_backward;   /**< @brief map containing the plan backward */
@@ -83,11 +81,14 @@ protected:
      * 
      */
     /**@{ */
-    int _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
-    double* _green           = NULL; /**< @brief data pointer to the transposed memory for Green */
+    int     _shiftgreen     [3] = {0,0,0};  /**< @brief the shift in the Green's function that chose to take the flip-flop mode or not */
+    int     _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    double _greenalpha          = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
+    double* _green              = NULL; /**< @brief data pointer to the transposed memory for Green */
+    
     OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
-    OrderDiff _greendiff = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
-    double _greenalpha = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
+    OrderDiff _greendiff  = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
+    
     multimap<int, FFTW_plan_dim*> _plan_green;      /**< @brief map containing the plan for the Green's function */
     /**@} */
 

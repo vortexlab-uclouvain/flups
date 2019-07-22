@@ -853,12 +853,14 @@ void FFTW_plan_dim::disp(){
         if(_kind == FFTW_RODFT01) {INFO("- kind = RODFT01 = DST type III\n")}
         if(_kind == FFTW_RODFT11) {INFO("- kind = RODFT11 = DST type IV\n")}
     }
+    INFO2("- orderID    = %d\n",_orderID);
     INFO2("- is Green   ? %d\n",_isGreen);
     INFO2("- s2Complex  ? %d\n",_switch2Complex);
     INFO2("- n_in       = %d\n",_n_in);
     INFO2("- n_out      = %d\n",_n_out);
     INFO2("- howmany    = %d\n",_howmany);
     INFO2("- fieldstart = %d\n",_fieldstart);
+    INFO2("- shiftgreen = %d\n",_shiftgreen);
     INFO2("- dospectral ? %d\n",_dospectral);
     if      (_sign == FFTW_FORWARD ) {INFO("- FORWARD plan\n");}
     else if (_sign == FFTW_BACKWARD) {INFO("- BACKWARD plan\n");}
