@@ -17,10 +17,11 @@
  * @param type 
  * @param orderdiff 
  */
-void validation_2d_UU_UU(const SolverType type, const OrderDiff orderdiff){
+void validation_2d_UU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff)
+{
 
     // int size[2] = {1024,2048};
-    int size[4] = {64,128,256,512};
+    // int size[4] = {64,128,256,512};
     // int size[4] = {64,128,256,512};
     // int size[1] = {64};
 
@@ -34,7 +35,7 @@ void validation_2d_UU_UU(const SolverType type, const OrderDiff orderdiff){
         UP_CHECK1(false,"unable to open file %s",filename);
     }
 
-    for(int is=0; is<4; is++){
+    for(int is=0; is<nsample; is++){
         const int n[2] = {size[is],size[is]};
 
         // printf("doing size = ")
@@ -145,10 +146,11 @@ void validation_2d_UU_UU(const SolverType type, const OrderDiff orderdiff){
  * @param type 
  * @param orderdiff 
  */
-void validation_2d_UU_UE(const SolverType type, const OrderDiff orderdiff){
+void validation_2d_UU_UE(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff)
+{
 
     // int size[2] = {1024,2048};
-    int size[4] = {64,128,256,512};
+    // int size[4] = {64,128,256,512};
     // int size[4] = {64,128,256,512};
     // int size[1] = {64};
 
@@ -162,7 +164,7 @@ void validation_2d_UU_UE(const SolverType type, const OrderDiff orderdiff){
         UP_CHECK1(false,"unable to open file %s",filename);
     }
 
-    for(int is=0; is<4; is++){
+    for(int is=0; is<nsample; is++){
         const int n[2] = {size[is],2*size[is]};
 
         // printf("doing size = ")
@@ -283,10 +285,11 @@ void validation_2d_UU_UE(const SolverType type, const OrderDiff orderdiff){
  * @param type 
  * @param orderdiff 
  */
-void validation_2d_UU_UO(const SolverType type, const OrderDiff orderdiff){
+void validation_2d_UU_UO(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff)
+{
 
     // int size[2] = {1024,2048};
-    int size[4] = {64,128,256,512}; int nsample = 4;
+    // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[2] = {128,256}; int nsample = 2;
     // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[1] = {64}; int nsample = 1;
@@ -423,10 +426,11 @@ void validation_2d_UU_UO(const SolverType type, const OrderDiff orderdiff){
  * @param type 
  * @param orderdiff 
  */
-void validation_2d_UU_OU(const SolverType type, const OrderDiff orderdiff){
+void validation_2d_UU_OU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff)
+{
 
     // int size[2] = {128,256}; int nsample = 2;
-    int size[4] = {64,128,256,512}; int nsample = 4;
+    // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[4] = {64,128,256,512}; int nsample = 4;
     // int size[1] = {64}; int nsample = 1;
 

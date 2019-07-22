@@ -12,6 +12,7 @@
 #ifndef FFTW_SOLVER_HPP
 #define FFTW_SOLVER_HPP
 
+#include <cstring>
 #include <map>
 #include "defines.hpp"
 #include "FFTW_plan_dim.hpp"
@@ -57,9 +58,9 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
-    int    _type; /**< @brief the type of the solver, see #SolverType */
-    int    _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
-    int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
+    int _type;                       /**< @brief the type of the solver, see #SolverType */
+    int _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
+    int _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
     int _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
     int _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
     int _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
@@ -143,7 +144,8 @@ public:
      * 
      * @{
      */
-    void solve(double* field, double* rhs);
+    // void solve(double* field, double* rhs);
+    void solve(double* field,double * rhs);
     // void solve_rotrhs(double* field, double* rhs);
     // void solve_div_rhs(double* field, double* rhs);
     /**@} */

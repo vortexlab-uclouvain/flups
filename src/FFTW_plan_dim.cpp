@@ -140,7 +140,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
     assert(isComplex == false);
     
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     _n_in       = size[_dimID];
     _n_out      = size[_dimID];
@@ -148,8 +148,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
 
     // no switch to complex
     _switch2Complex = false;
-
-    _shiftgreen = 0;
+    _shiftgreen     = 0;
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -261,38 +260,27 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
     _normfact *= 1.0/(4.0*size[_dimID]);
     
     //-------------------------------------------------------------------------
-    /** - Get the #_kind of Fourier transforms and #_imult */
+    /** - Get the #_kind of Fourier transforms, #_imult and #_shiftgreen */
     //-------------------------------------------------------------------------
     if(_isGreen){
-        _imult = false;
+        _imult      =  false;
+        _shiftgreen = 0;
         // The Green function is ALWAYS EVEN - EVEN
         if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT00; // DCT type I
         if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
     }
     else{
         if((_bc[0] == EVEN && _bc[1] == UNB)||(_bc[0] == UNB && _bc[1] == EVEN)){ // We have a DCT - we are EVEN - EVEN
-            _imult = false;
+            _imult      = false;
+            _shiftgreen = 0;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT10; // DCT type II
             if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT01;
-
-            _shiftgreen = 0;
         }
-        else if(_bc[0] == UNB && _bc[1] == ODD){ // We have a DCT - we are EVEN - ODD
-            _imult = false;
-            // if(_sign == FFTW_FORWARD ) _kind = FFTW_REDFT11; // DCT type IV
-            // if(_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
-            if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DCT type IV
-            if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+        else if((_bc[0] == UNB && _bc[1] == ODD)||(_bc[0] == ODD && _bc[1] == UNB)){ // We have a DCT - we are EVEN - ODD
+            _imult      = true;
             _shiftgreen = 1;
-        }
-        else if(_bc[0] == ODD && _bc[1] == UNB){ // we have a DST - we are ODD - EVEN
-            _imult = true;
-            // if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT11; // DST type IV
-            // if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT11;
             if(_sign == FFTW_FORWARD ) _kind = FFTW_RODFT10; // DST type II
             if(_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
-
-            _shiftgreen = 1;
         }
         else{
             UP_ERROR("unable to init the solver required\n")     
@@ -312,7 +300,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
 void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = size[_dimID]; // takes n complex, return n complex
@@ -327,8 +315,7 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
         _switch2Complex = true;
     }
 
-    _fieldstart  = 0;
-
+    _fieldstart = 0;
     _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
@@ -368,7 +355,7 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
 void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = 2*size[_dimID]; // takes 2n complex, return 2n complex
@@ -383,8 +370,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
         _switch2Complex = true;
     }
 
-    _fieldstart  = 0;
-    
+    _fieldstart = 0;
     _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
@@ -688,7 +674,7 @@ int FFTW_plan_dim::get_dimID() const {
     return _dimID;
 }
 /**
- * @brief Returns the dimension ID in the un-tranposed domain
+ * @brief Returns the shift to set in the Green's function
  * 
  * @return int 
  */

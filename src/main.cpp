@@ -21,13 +21,17 @@
 
 int main(int argc, char* argv[])
 {
-    validation_2d_UU_UU(UP_SRHS,HEJ_2);
-    validation_2d_UU_UU(UP_SRHS,HEJ_4);
 
-    validation_2d_UU_UE(UP_SRHS,HEJ_2);
-    validation_2d_UU_UE(UP_SRHS,HEJ_4);
+    int nsample = 4;
+    int size[4] = {64,128,256,512};
 
-    validation_2d_UU_UO(UP_SRHS,HEJ_2);
-    validation_2d_UU_UO(UP_SRHS,HEJ_4);
-    validation_2d_UU_OU(UP_SRHS,HEJ_4);
+    validation_2d_UU_UU(nsample,size,UP_SRHS,HEJ_2);
+    validation_2d_UU_UU(nsample,size,UP_SRHS,HEJ_4);
+
+    validation_2d_UU_UE(nsample,size,UP_SRHS,HEJ_2);
+    validation_2d_UU_UE(nsample,size,UP_SRHS,HEJ_4);
+
+    validation_2d_UU_UO(nsample,size,UP_SRHS,HEJ_2);
+    validation_2d_UU_UO(nsample,size,UP_SRHS,HEJ_4);
+    validation_2d_UU_OU(nsample,size,UP_SRHS,HEJ_4);
 }

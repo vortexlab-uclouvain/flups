@@ -304,12 +304,12 @@ void FFTW_Solver::_allocate_data(const int size[3],double** data)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    // Sanity checks
+    /** - Sanity checks */
     //-------------------------------------------------------------------------
-    assert((*data) == NULL);
+    UP_CHECK0((*data) == NULL,"Pointer has to be NULL for allocation");
 
     //-------------------------------------------------------------------------
-    // Do the memory allocation
+    /** - Do the memory allocation */
     //-------------------------------------------------------------------------
     size_t size_tot = 1;
     for(int id=0; id<DIM; id++) size_tot *= size[id];
@@ -321,7 +321,12 @@ void FFTW_Solver::_allocate_data(const int size[3],double** data)
     else{
         INFOLOG2("Real memory allocation, size = %ld\n",size_tot);
         (*data) =(double*) fftw_malloc(size_tot*sizeof(double));
-    }   
+    }
+
+    //-------------------------------------------------------------------------
+    /** - Check memory alignement */
+    //-------------------------------------------------------------------------
+    UP_CHECK1(UP_ISALIGNED(*data),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
 }
 
 /**
@@ -438,26 +443,26 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
 
     // check if we have to symmetrize a direction
 
-        for(int i2=0; i2<dsize_green[2]; i2++){
-            for(int i1=0; i1<dsize_green[1]; i1++){
-                for(int i0=0; i0<dsize_green[0]; i0++){
+    for(int i2=0; i2<dsize_green[2]; i2++){
+        for(int i1=0; i1<dsize_green[1]; i1++){
+            for(int i0=0; i0<dsize_green[0]; i0++){
 
-                    const size_t id = i0 + dsize_green[0]*(i1 + dsize_green[1]*i2);
-                    // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
-                    // to use the abs we have to go back to integers
-                    const int is0 = (symstart[0]==0 || i0 <= symstart[0]) ? i0 : abs(2*(int)symstart[0]-i0);
-                    const int is1 = (symstart[1]==0 || i1 <= symstart[1]) ? i1 : abs(2*(int)symstart[1]-i1);
-                    const int is2 = (symstart[2]==0 || i2 <= symstart[2]) ? i2 : abs(2*(int)symstart[2]-i2);
+                const size_t id = i0 + dsize_green[0]*(i1 + dsize_green[1]*i2);
+                // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
+                // to use the abs we have to go back to integers
+                const int is0 = (symstart[0]==0 || i0 <= symstart[0]) ? i0 : abs(2*(int)symstart[0]-i0);
+                const int is1 = (symstart[1]==0 || i1 <= symstart[1]) ? i1 : abs(2*(int)symstart[1]-i1);
+                const int is2 = (symstart[2]==0 || i2 <= symstart[2]) ? i2 : abs(2*(int)symstart[2]-i2);
 
-                    const size_t id_sym = is0 + dsize_green[0]*(is1 + dsize_green[1]*is2);
+                const size_t id_sym = is0 + dsize_green[0]*(is1 + dsize_green[1]*is2);
 
-                    UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
-                    UP_CHECK3(id < dsize_green[0]*dsize_green[1]*dsize_green[2],"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
+                UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
+                UP_CHECK3(id < dsize_green[0]*dsize_green[1]*dsize_green[2],"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
 
-                    green[id] = green[id_sym];
-                }
+                green[id] = green[id_sym];
             }
         }
+    }
 
     //-------------------------------------------------------------------------
     /** - scale the Green data using #_volfact */
@@ -517,34 +522,41 @@ void FFTW_Solver::set_alpha(const double alpha){
  * -----------------------------------------------
  * We perform the following operations:
  */
-void FFTW_Solver::solve(double* field, double* rhs)
+void FFTW_Solver::solve(double * field, double * rhs)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    assert(field != NULL);
-    assert(rhs   != NULL);
+    UP_CHECK0(field != NULL,"field is NULL");
+    UP_CHECK0(rhs   != NULL,"rhs is NULL");
+    UP_CHECK1(UP_ISALIGNED(field),"pointer no aligned to UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(rhs  ),"pointer no aligned to UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
     
-    // {
-    //     int mysize4[2] = {_size_field[0],_size_field[1]};
-    //     write_array(mysize4,rhs,"rhs_in");
-    // }
+
+    opt_double_ptr myfield     = field;
+    opt_double_ptr mydata      = (double*) _data;
+    const opt_double_ptr myrhs = rhs;
 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
     // get the data pointer to double style    
-    double* in = (double*) _data;
-    
-    for(int iz=0; iz<_size_hat[2]; iz++){
-        for(int iy=0; iy<_size_hat[1]; iy++){
-            for(int ix=0; ix<_size_hat[0]; ix++){
-                const int id = iz*_size_hat[1]*_size_hat[0] + iy * _size_hat[0] + ix;
-                in[id] = 0.0 ;
-            }
-        }
-    }
+   
+
+    // __assume_aligned(mydata, UP_ALIGNMENT);
+
+    // #pragma vector aligned
+    // for(int iz=0; iz<_size_hat[2]; iz++){
+    //     for(int iy=0; iy<_size_hat[1]; iy++){
+    //         for(int ix=0; ix<_size_hat[0]; ix++){
+    //             const int id = ix + _size_hat[0] *( iy + _size_hat[1]* iz);
+    //             mydata[id] = 0;
+    //         }
+    //     }
+    // }
+    if(_isComplex) std::memset(mydata,0,sizeof(fftw_complex)*_size_hat[0]*_size_hat[1]*_size_hat[2]);
+    else           std::memset(mydata,0,sizeof(double      )*_size_hat[0]*_size_hat[1]*_size_hat[2]);
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
@@ -559,14 +571,17 @@ void FFTW_Solver::solve(double* field, double* rhs)
     INFOLOG2("- offset       = %ld\n",_offset);
     INFOLOG ("------------------------------------------\n");
 
+    __assume_aligned(mydata, UP_ALIGNMENT);
+    __assume_aligned(myrhs , UP_ALIGNMENT);
+
     for(int iz=0; iz<_size_field[2]; iz++){
         for(int iy=0; iy<_size_field[1]; iy++){
             for(int ix=0; ix<_size_field[0]; ix++){
                 // comnpute the index permutation
-                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
+                const int id_field   = ix + _size_field[0] * (iy + _size_field[1] * iz);
                 const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
                 // put the data
-                in[id_fourier] = rhs[id_field] ;
+                mydata[id_fourier] = myrhs[id_field] ;
             }
         }
     }
@@ -635,22 +650,19 @@ void FFTW_Solver::solve(double* field, double* rhs)
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
+    __assume_aligned(mydata , UP_ALIGNMENT);
+    __assume_aligned(myfield, UP_ALIGNMENT);
     for(int iz=0; iz<_size_field[2]; iz++){
         for(int iy=0; iy<_size_field[1]; iy++){
             for(int ix=0; ix<_size_field[0]; ix++){
                 // comnpute the index permutation
-                const int id_field   = iz*_size_field[1]*_size_field[0] + iy * _size_field[0] + ix;
+                const int id_field   = ix + _size_field[0] * (iy + _size_field[1] * iz);
                 const int id_fourier = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
                 // put the data
-                field[id_field] = in[id_fourier] ;
+                myfield[id_field] = mydata[id_fourier] ;
             }
         }
     }
-
-    // {
-    //     int mysize4[2] = {_size_field[0],_size_field[1]};
-    //     write_array(mysize4,field,"sol_final");
-    // }
 }
 
 
@@ -660,96 +672,137 @@ void FFTW_Solver::solve(double* field, double* rhs)
  */
 void FFTW_Solver::dothemagic_rhs_real()
 {
+    opt_double_ptr mydata  = _data;
+    const opt_double_ptr mygreen = _green;
+
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
-                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                // const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-                const size_t id_green = (ix+_shiftgreen[0]) + _size_hat_green[0] * ((iy+_shiftgreen[1]) + _size_hat_green[1] * (iz+_shiftgreen[2]));
-                _data[id] = _normfact * ( _data[id] * _green[id_green] );
+
+                __assume_aligned(mydata,  UP_ALIGNMENT);
+                __assume_aligned(mygreen, UP_ALIGNMENT);
+
+                const size_t id       = ix + _size_hat[0] * (iy + _size_hat[1]* iz);
+                const size_t id_green = ix + _shiftgreen[0] + _size_hat_green[0] * ( iy+_shiftgreen[1] + _size_hat_green[1] * (iz+_shiftgreen[2]));
+
+                mydata[id] = mydata[id] * _normfact * mygreen[id_green];
             }
         }
     }
 }
 
 /**
- * @brief 
+ * @brief Do the convolution between complex data and complex Green's function
  * 
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult0()
 {
+    opt_complex_ptr mydata = (fftw_complex*) _data;
+    const opt_complex_ptr mygreen = (fftw_complex*) _green;
 
-    printf("doing the magic with shiftgreen = %d %d\n",_shiftgreen[0],_shiftgreen[1]);
-    fftw_complex* mydata = (fftw_complex*) _data;
-    fftw_complex* mygreen = (fftw_complex*) _green;
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
-                const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
-                // const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
+
+                __assume_aligned(mydata,  UP_ALIGNMENT);
+                __assume_aligned(mygreen, UP_ALIGNMENT);
+
+                const size_t id       = ix + _size_hat[0] * (iy + _size_hat[1] * iz);
                 const size_t id_green = (ix+_shiftgreen[0]) + _size_hat_green[0] * ((iy+_shiftgreen[1]) + _size_hat_green[1] * (iz+_shiftgreen[2]));
-                mydata[id][0] = _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
-                mydata[id][1] = _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+
+                const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
+                const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
+
+                // update the values
+                mydata[id][0] = _normfact * temp_real;
+                mydata[id][1] = _normfact * temp_imag;
             }
         }
     }
 }
 
 /**
- * @brief 
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
  * 
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult1()
 {
-    fftw_complex* mydata = (fftw_complex*) _data;
-    fftw_complex* mygreen = (fftw_complex*) _green;
+    opt_complex_ptr mydata = (fftw_complex*) _data;
+    const opt_complex_ptr mygreen = (fftw_complex*) _green;
+
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
+
+                __assume_aligned(mydata,  UP_ALIGNMENT);
+                __assume_aligned(mygreen, UP_ALIGNMENT);
+
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-                mydata[id][0] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
-                mydata[id][1] =          _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
+
+                const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
+                const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
+
+                mydata[id][0] = (-1.0) * _normfact * ( temp_imag );
+                mydata[id][1] =          _normfact * ( temp_real );
             }
         }
     }
 }
 
 /**
- * @brief 
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
  * 
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult2()
 {
-    fftw_complex* mydata = (fftw_complex*) _data;
-    fftw_complex* mygreen = (fftw_complex*) _green;
+    opt_complex_ptr mydata = (fftw_complex*) _data;
+    const opt_complex_ptr mygreen = (fftw_complex*) _green;
+
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
+
+                __assume_aligned(mydata,  UP_ALIGNMENT);
+                __assume_aligned(mygreen, UP_ALIGNMENT);
+
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-                mydata[id][0] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
-                mydata[id][1] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+
+                const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
+                const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
+
+                mydata[id][0] = (-1.0) * _normfact * ( temp_real );
+                mydata[id][1] = (-1.0) * _normfact * ( temp_imag );
             }
         }
     }
 }
 
 /**
- * @brief 
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
  * 
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult3()
 {
-    fftw_complex* mydata = (fftw_complex*) _data;
-    fftw_complex* mygreen = (fftw_complex*) _green;
+    opt_complex_ptr mydata = (fftw_complex*) _data;
+    const opt_complex_ptr mygreen = (fftw_complex*) _green;
+    
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
+
+                __assume_aligned(mydata,  UP_ALIGNMENT);
+                __assume_aligned(mygreen, UP_ALIGNMENT);    
+
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
-                mydata[id][0] =          _normfact * ( mydata[id][0] * mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1] );
-                mydata[id][1] = (-1.0) * _normfact * ( mydata[id][0] * mygreen[id_green][1] + mydata[id][1] * mygreen[id_green][0] );
+
+                const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
+                const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
+
+                mydata[id][0] =          _normfact * ( temp_real );
+                mydata[id][1] = (-1.0) * _normfact * ( temp_imag );
             }
         }
     }

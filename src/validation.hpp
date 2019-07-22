@@ -20,7 +20,7 @@
  * 
  */
 /**@{ */
-void validation_2d_UU_UU(const SolverType type, const OrderDiff orderdiff);
+void validation_2d_UU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
 /**@} */
 
 /**
@@ -28,10 +28,10 @@ void validation_2d_UU_UU(const SolverType type, const OrderDiff orderdiff);
  * 
  */
 /**@{ */
-void validation_2d_UU_UE(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_UU_EU(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_EU_UU(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_UE_UU(const SolverType type, const OrderDiff orderdiff);;
+void validation_2d_UU_UE(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_UU_EU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_EU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_UE_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
 /**@} */
 
 /**
@@ -39,10 +39,10 @@ void validation_2d_UE_UU(const SolverType type, const OrderDiff orderdiff);;
  * 
  */
 /**@{ */
-void validation_2d_UU_UO(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_UU_OU(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_OU_UU(const SolverType type, const OrderDiff orderdiff);;
-void validation_2d_UO_UU(const SolverType type, const OrderDiff orderdiff);;
+void validation_2d_UU_UO(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_UU_OU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_OU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_2d_UO_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
 /**@} */
 
 #endif

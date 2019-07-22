@@ -12,8 +12,9 @@ TARGET := poisson
 CC = icc
 CXX = icpc
 
-#CXXFLAGS := -O3 -DNDEBUG -stdc++11
-CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
+CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
+# CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
+# CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11
 
 # define some options
 DEF :=
@@ -66,6 +67,7 @@ destroy:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(OBJ_DIR)/*.d
 	rm -f $(TARGET)
+	rm -f $(OBJ_DIR)/*
 
 info:
 	$(info SRC = $(SRC))
