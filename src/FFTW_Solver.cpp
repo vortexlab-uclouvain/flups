@@ -86,9 +86,9 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
         FFTW_plan_dim* myplan = it->second;
         _normfact *= myplan->get_normfact();
         _volfact  *= myplan->get_volfact ();
-        // get the hgrid
-        const int orderID = myplan->get_dimID();
-        _hgrid[orderID]   = h[_dimorder[orderID]];
+        // get the order ID
+        const int orderID    = myplan->get_order();
+        _hgrid[orderID]      = h[_dimorder[orderID]];
         _shiftgreen[orderID] = myplan->get_shiftgreen();
     }
 
@@ -102,7 +102,7 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
     for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_forward.begin(); it != _plan_forward.end(); ++it)
     {
         FFTW_plan_dim* myplan   = it->second;
-        const int orderID       = myplan->get_dimID();
+        const int orderID       = myplan->get_order();
         imult_forward[orderID]  = myplan->get_imult();
     }
     // store the number of imult
@@ -111,7 +111,7 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
     for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_backward.begin(); it != _plan_backward.end(); ++it)
     {
         FFTW_plan_dim* myplan = it->second;
-        const int orderID       = myplan->get_dimID();
+        const int orderID       = myplan->get_order();
         imult_backward[orderID] = myplan->get_imult();
     }
     // store the number of imult
@@ -120,7 +120,7 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
     for(multimap<int,FFTW_plan_dim* >::iterator it = _plan_green.begin(); it != _plan_green.end(); ++it)
     {
         FFTW_plan_dim* myplan = it->second;
-        const int orderID       = myplan->get_dimID();
+        const int orderID       = myplan->get_order();
         imult_green[orderID] = myplan->get_imult();
     }
     // store the number of imult
@@ -787,7 +787,7 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult3()
 {
     opt_complex_ptr mydata = (fftw_complex*) _data;
     const opt_complex_ptr mygreen = (fftw_complex*) _green;
-    
+
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
