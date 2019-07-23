@@ -10,7 +10,7 @@
  */
 
 #include "expint.hpp"
-#include "green_functions.hpp"
+#include "green_functions_2d.hpp"
 
 /**
  * @brief 2D Green function for 3 dir unbounded form Chatelain et al.
@@ -96,6 +96,7 @@ void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfa
     for(int i2=0; i2<size[2]; i2++){
         for(int i1=0; i1<size[1]; i1++){
             for(int i0=0; i0<size[0]; i0++){
+                
                 const double x = i0*hfact[0];
                 const double y = i1*hfact[1];
                 const double r2 = x*x+y*y;
@@ -109,6 +110,8 @@ void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfa
     // reset the value in 0.0
     green[0] = - c_1o2pi*(GAMMA*0.5 - log(M_SQRT2*eps));
 }
+
+
 
 /**
  * @brief 2D Green function for 3 dir unbounded regularized 4th order, Hejlesen et al.

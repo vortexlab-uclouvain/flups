@@ -8,8 +8,8 @@
  * @copyright Copyright © UCLouvain 2019
  * 
  */
-#ifndef VALIDATION_HPP
-#define VALIDATION_HPP
+#ifndef VALIDATION_2D_HPP
+#define VALIDATION_2D_HPP
 
 #include "defines.hpp"
 #include "FFTW_Solver.hpp"

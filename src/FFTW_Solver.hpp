@@ -16,7 +16,7 @@
 #include <map>
 #include "defines.hpp"
 #include "FFTW_plan_dim.hpp"
-#include "green_functions.hpp"
+#include "green_functions_2d.hpp"
 #include "fftw3.h"
 
 #include "tools.hpp"

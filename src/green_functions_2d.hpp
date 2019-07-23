@@ -8,8 +8,8 @@
  * @copyright Copyright © UCLouvain 2019
  * 
  */
-#ifndef GREEN_FUNCTIONS_HPP
-#define GREEN_FUNCTIONS_HPP
+#ifndef GREEN_FUNCTIONS_2D_HPP
+#define GREEN_FUNCTIONS_2D_HPP
 
 #include "defines.hpp"
 

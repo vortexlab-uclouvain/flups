@@ -415,11 +415,18 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
     
     if     (nbr_spectral == 0){
         INFOLOG(">> using Green function 3 dir unbounded\n");
-        // _compute_Green_3dirunbounded_0dirspectral
-        if     (_greenorder == CHAT_2) Green_2D_3dirunbounded_0dirspectral_chat2(dsize_green,hfact,green);
-        else if(_greenorder == HEJ_2 ) Green_2D_3dirunbounded_0dirspectral_hej2 (dsize_green,hfact,green,_greenalpha);
-        else if(_greenorder == HEJ_4 ) Green_2D_3dirunbounded_0dirspectral_hej4 (dsize_green,hfact,green,_greenalpha);
-        else UP_CHECK2(false,"Green Function = %d  unknow for nbr_spectral = %d",_greenorder,nbr_spectral);
+        if(DIM==2){
+            if     (_greenorder == CHAT_2) Green_2D_3dirunbounded_0dirspectral_chat2(dsize_green,hfact,green);
+            else if(_greenorder == HEJ_2 ) Green_2D_3dirunbounded_0dirspectral_hej2 (dsize_green,hfact,green,_greenalpha);
+            else if(_greenorder == HEJ_4 ) Green_2D_3dirunbounded_0dirspectral_hej4 (dsize_green,hfact,green,_greenalpha);
+            else UP_CHECK2(false,"Green Function = %d  unknow for nbr_spectral = %d",_greenorder,nbr_spectral);
+        }
+        else if(DIM==3){
+            // if     (_greenorder == CHAT_2) Green_3D_3dirunbounded_0dirspectral_chat2(dsize_green,hfact,green);
+            // else if(_greenorder == HEJ_2 ) Green_3D_3dirunbounded_0dirspectral_hej2 (dsize_green,hfact,green,_greenalpha);
+            // else if(_greenorder == HEJ_4 ) Green_3D_3dirunbounded_0dirspectral_hej4 (dsize_green,hfact,green,_greenalpha);
+            // else UP_CHECK2(false,"Green Function = %d  unknow for nbr_spectral = %d",_greenorder,nbr_spectral);
+        }
     }
     else if(nbr_spectral == 1){
         INFOLOG(">> using Green function 2 dir unbounded - 1 dir spectral\n");

@@ -92,6 +92,7 @@ static const double c_1o4pi = 1.0/(4.0*M_PI);
 static const double c_1o2   = 1.0/2.0;
 static const double c_1o4   = 1.0/4.0;
 
+static const double c_1osqrt2 = 1.0/M_SQRT2;
 
 static const double c_2pi = 2.0*M_PI;
 
