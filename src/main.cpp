@@ -17,6 +17,7 @@
 
 #include "FFTW_Solver.hpp"
 #include "validation_2d.hpp"
+#include "validation_3d.hpp"
 
 
 int main(int argc, char* argv[])
@@ -53,5 +54,10 @@ int main(int argc, char* argv[])
         validation_2d_UO_UU(nsample,size,UP_SRHS,HEJ_4);
         validation_2d_OU_UU(nsample,size,UP_SRHS,HEJ_2);
         validation_2d_OU_UU(nsample,size,UP_SRHS,HEJ_4);
+    }
+    else if(DIM == 3){
+        // int nsample = 2; int size[2] = {64,128}; 
+        int nsample = 3; int size[3] = {16,32,64};
+        validation_3d_UU_UU(nsample,size,UP_SRHS,HEJ_2);
     }
 }

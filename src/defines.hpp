@@ -19,7 +19,7 @@
 #include <execinfo.h>
 #include "fftw3.h"
 
-#define DIM 2
+#define DIM 3
 
 #define FFTW_FLAG FFTW_MEASURE
 

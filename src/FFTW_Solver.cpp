@@ -482,12 +482,6 @@ void FFTW_Solver::_compute_Green(const int size_green[3], double* green, multima
             }
         }
     }
-
-
-    // {
-    // int mysize[2] = {dsize_green[0],dsize_green[1]};
-    // write_array(mysize,green,"green_sym");
-    // }
 }
 
 /**
