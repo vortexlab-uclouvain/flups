@@ -18,7 +18,8 @@
 #include "FFTW_plan_dim.hpp"
 #include "green_functions_2d.hpp"
 #include "green_functions_3d.hpp"
-#include "fftw3.h"
+//#include "fftw3.h"
+#include "fftw3-mpi.h"
 
 #include "tools.hpp"
 

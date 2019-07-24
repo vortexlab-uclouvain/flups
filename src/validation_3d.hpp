@@ -15,6 +15,8 @@
 #include "FFTW_Solver.hpp"
 #include "expint.hpp"
 
+#include "fftw3-mpi.h"
+
 /**
  * @name Fully unbounded
  * 

@@ -26,6 +26,13 @@ FFTW_Solver::FFTW_Solver(const int size_field[DIM],const double h[DIM],const dou
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
+    /** - Initialize MPI if needed */
+    //-------------------------------------------------------------------------
+    #if (DIM == 3)
+        fftw_mpi_init();
+    #endif
+
+    //-------------------------------------------------------------------------
     /** - Store the field size */
     //-------------------------------------------------------------------------
     for(int id=0; id<DIM; id++) _size_field[id] = size_field[id];

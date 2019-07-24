@@ -9,8 +9,8 @@ TARGET := poisson
 
 #-----------------------------------------------------------------------------
 # COMPILER AND OPT/DEBUG FLAGS
-CC = icc
-CXX = icpc
+CC = mpiicc
+CXX = mpiicpc
 
 # CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
 CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
@@ -35,7 +35,7 @@ INC := -I$(SRC_DIR)
 #---- FFTW
 FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3
+LIB += -L$(FFTWDIR)/lib -lfftw3_mpi -lfftw3
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
