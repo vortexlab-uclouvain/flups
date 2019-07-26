@@ -24,6 +24,8 @@ protected:
     const int _iaxis;
     const int _oaxis;
 
+    bool do_deallocate = false;
+
     int _inloc[3];
     int _onloc[3];
     int _inproc[3];
@@ -41,10 +43,10 @@ protected:
     double *_bufrecv = NULL;
 
 public:
-    Reorder_MPI(const int nglob[3], const int nf, const int inproc[3], int axis0, int onproc[3], int axis1);
+    Reorder_MPI(const int nglob[3], const int mynf, const int inproc[3], int myaxis0, int onproc[3], int myaxis1, double* mybufs[2]);
     ~Reorder_MPI();
 
-    void execute(opt_double_ptr v);
+    void execute(opt_double_ptr v,const int sign);
 };
 
 #endif
