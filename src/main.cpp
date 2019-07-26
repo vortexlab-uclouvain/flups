@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     }
     int rank;
 
-    int proc_px[3] = {1,4,2};
+    int proc_px[3] = {1,2,4};
     int proc_py[3] = {2,1,4};
     int proc_pz[3] = {4,2,1};
 
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-    reorder_g2x->execute(v);
+    
     for (size_t i = 0; i < nloc[0]; i++)
     {
         for (size_t j = 0; j < nloc[1]; j++)
@@ -108,7 +108,8 @@ int main(int argc, char *argv[])
             }
         }
     }
-    printf("x to y\n");
+    reorder_g2x->execute(v);
+    // printf("x to y\n");
     reorder_x2y->execute( v);
     
     // for (size_t i = 0; i < nloc[0]; i++)
@@ -121,7 +122,7 @@ int main(int argc, char *argv[])
     //         }
     //     }
     // }
-    printf("y to z\n");
+    // printf("y to z\n");
     reorder_y2z->execute( v);
 
     for (size_t i = 0; i < nloc[0]; i++)
@@ -135,6 +136,11 @@ int main(int argc, char *argv[])
         }
     }
     fftw_free(v);
+
+    delete reorder_g2x;
+    delete reorder_x2y;
+    delete reorder_y2z;
+    
     MPI_Finalize();
 #endif
 }

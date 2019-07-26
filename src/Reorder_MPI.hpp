@@ -14,14 +14,15 @@
 
 #include "defines.hpp"
 #include "mpi.h"
+#include <cstring>
 
 class Reorder_MPI
 {
 
 protected:
-    int _nf    = 1;
-    int _axis0 = 1;
-    int _axis1 = 1;
+    const int _nf   ;
+    const int _iaxis;
+    const int _oaxis;
 
     int _inloc[3];
     int _onloc[3];
@@ -43,7 +44,7 @@ public:
     Reorder_MPI(const int nglob[3], const int nf, const int inproc[3], int axis0, int onproc[3], int axis1);
     ~Reorder_MPI();
 
-    void execute(double *v);
+    void execute(opt_double_ptr v);
 };
 
 #endif
