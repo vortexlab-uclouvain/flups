@@ -12,8 +12,8 @@ TARGET := poisson
 CC = mpiicc
 CXX = mpiicpc
 
-# CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
-CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
+CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
+# CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 # CXXFLAGS := -g -Wall -O0 -traceback -ftrapuv -debug all -stdc++11
 
 # define some options

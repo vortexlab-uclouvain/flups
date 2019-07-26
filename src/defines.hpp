@@ -83,6 +83,7 @@
 #define UP_ALIGNMENT 16
 #define UP_ISALIGNED(a) {((uintptr_t)(const void*) a)%UP_ALIGNMENT == 0 ;}
 
+typedef int* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_int_ptr ;
 typedef double* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_complex_ptr;
 

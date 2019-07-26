@@ -579,8 +579,8 @@ void FFTW_Solver::solve(double * field, double * rhs)
     INFOLOG2("- offset       = %ld\n",_offset);
     INFOLOG ("------------------------------------------\n");
 
-    __assume_aligned(mydata, UP_ALIGNMENT);
-    __assume_aligned(myrhs , UP_ALIGNMENT);
+    // __assume_aligned(mydata, UP_ALIGNMENT);
+    // __assume_aligned(myrhs , UP_ALIGNMENT);
 
     for(int iz=0; iz<_size_field[2]; iz++){
         for(int iy=0; iy<_size_field[1]; iy++){
@@ -683,17 +683,16 @@ void FFTW_Solver::dothemagic_rhs_real()
     opt_double_ptr mydata  = _data;
     const opt_double_ptr mygreen = _green;
 
+    size_t id =0;
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
+            int id_green = _shiftgreen[0] + _size_hat_green[0] * ( iy+_shiftgreen[1] + _size_hat_green[1] * (iz+_shiftgreen[2]));
+
             for(int ix=0; ix<_size_hat[0]; ix++){
+                mydata[id] *= _normfact * mygreen[id_green];
 
-                __assume_aligned(mydata,  UP_ALIGNMENT);
-                __assume_aligned(mygreen, UP_ALIGNMENT);
-
-                const size_t id       = ix + _size_hat[0] * (iy + _size_hat[1]* iz);
-                const size_t id_green = ix + _shiftgreen[0] + _size_hat_green[0] * ( iy+_shiftgreen[1] + _size_hat_green[1] * (iz+_shiftgreen[2]));
-
-                mydata[id] = mydata[id] * _normfact * mygreen[id_green];
+                ++id;
+                ++id_green;
             }
         }
     }
@@ -710,20 +709,24 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0()
 
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
+            size_t id       = _size_hat[0] * (iy + _size_hat[1] * iz);
+            size_t id_green = _shiftgreen[0] + _size_hat_green[0] * (iy+_shiftgreen[1] + _size_hat_green[1] * (iz+_shiftgreen[2]));
             for(int ix=0; ix<_size_hat[0]; ix++){
 
-                __assume_aligned(mydata,  UP_ALIGNMENT);
-                __assume_aligned(mygreen, UP_ALIGNMENT);
+                // const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
+                // const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
 
-                const size_t id       = ix + _size_hat[0] * (iy + _size_hat[1] * iz);
-                const size_t id_green = (ix+_shiftgreen[0]) + _size_hat_green[0] * ((iy+_shiftgreen[1]) + _size_hat_green[1] * (iz+_shiftgreen[2]));
-
-                const double temp_real = mydata[id][0]* mygreen[id_green][0] - mydata[id][1] * mygreen[id_green][1];
-                const double temp_imag = mydata[id][1]* mygreen[id_green][0] + mydata[id][0] * mygreen[id_green][1];
+                const double a = mydata[id][0];
+                const double b = mydata[id][1];
+                const double c = mygreen[id_green][0];
+                const double d = mygreen[id_green][1];
 
                 // update the values
-                mydata[id][0] = _normfact * temp_real;
-                mydata[id][1] = _normfact * temp_imag;
+                mydata[id][0] = _normfact * (a*c-b*d);
+                mydata[id][1] = _normfact * (a*d+b*c);
+
+                id++;
+                id_green++;
             }
         }
     }
@@ -741,9 +744,6 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult1()
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
-
-                __assume_aligned(mydata,  UP_ALIGNMENT);
-                __assume_aligned(mygreen, UP_ALIGNMENT);
 
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
