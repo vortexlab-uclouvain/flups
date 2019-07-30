@@ -198,7 +198,7 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     }
     else
     {
-        UP_CHECK0(false, 'the sign is not FFTW_FORWARD nor FFTW_BACKWARD');
+        UP_CHECK0(false, "the sign is not FFTW_FORWARD nor FFTW_BACKWARD");
     }
 
     //-------------------------------------------------------------------------
@@ -250,6 +250,8 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     //-------------------------------------------------------------------------
     std::memset(count, 0, sizeof(int) * comm_size);
 
+    printf("going from %d %d %d to %d %d %d\n",ostart[0],ostart[1],ostart[2],oend[0],oend[1],oend[2]);
+
     int orig_rankd[3];
     for (int i2 = ostart[2]; i2 < oend[2]; ++i2)
     {
@@ -272,8 +274,4 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
             }
         }
     }
-    for(int ip=0; ip<4; ip++){
-        printf("rank %d recv %d vs %d data from rank %d\n",rank,0,nrecv[ip],ip);
-    }
-
 }

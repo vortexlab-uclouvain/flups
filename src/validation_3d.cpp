@@ -52,20 +52,22 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
+        printf("Hello from proc %d / %d\n",rank,comm_size);
+
         
         const int nglob[3]  = {size[is], size[is], size[is]};
-        const int nproc[3]  = {2,1,2};
+        const int nproc[3]  = {2,1,1};
         const double L[3]   = {1.0,1.0,1.0};
         const double h[3]   = {L[0]/nglob[0],L[1]/nglob[1],L[2]/nglob[2]};
         
-        const Topology* topo = new Topology(0,nglob,nproc,h);
+        const Topology* topo = new Topology(0,nglob,nproc);
 
         const BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 
         //-------------------------------------------------------------------------
         /** - Initialize the solver */
         //-------------------------------------------------------------------------
-        FFTW_Solver *mysolver = new FFTW_Solver(topo, mybc);
+        FFTW_Solver *mysolver = new FFTW_Solver(topo, mybc,h,L);
         mysolver->set_GreenType(orderdiff);
         mysolver->setup(type);
 
@@ -94,9 +96,9 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
                 for (int i0 = 0; i0 < topo->nloc(0); i0++)
                 {
 
-                    double x = (istart[0] + i0 + 0.5) * topo->h(0) - L[0] * center[0];
-                    double y = (istart[1] + i1 + 0.5) * topo->h(1) - L[1] * center[1];
-                    double z = (istart[2] + i2 + 0.5) * topo->h(2) - L[2] * center[2];
+                    double x = (istart[0] + i0 + 0.5) * h[0] - L[0] * center[0];
+                    double y = (istart[1] + i1 + 0.5) * h[1] - L[1] * center[1];
+                    double z = (istart[2] + i2 + 0.5) * h[2] - L[2] * center[2];
                     double rho2 = (x * x + y * y + z * z) * oosigma2;
                     double rho = sqrt(rho2);
                     const size_t id = localindex(i0,i1,i2,topo);
@@ -110,7 +112,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         /** - solve the equations */
         //-------------------------------------------------------------------------
-        mysolver->solve(topo,rhs,rhs);
+        // mysolver->solve(topo,rhs,rhs);
 
         //-------------------------------------------------------------------------
         /** - compute the error */
@@ -129,7 +131,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
                     const double err = sol[id] - rhs[id];
 
                     lerri = max(lerri, abs(err));
-                    lerr2 += (err * err) * topo->h(0) * topo->h(1);
+                    lerr2 += (err * err) * h[0] * h[1];
                 }
             }
         }

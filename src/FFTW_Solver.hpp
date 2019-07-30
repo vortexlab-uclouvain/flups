@@ -146,8 +146,8 @@ protected:
     /**@} */
 
 public:
-    FFTW_Solver(const int size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
-    FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[DIM][2]);
+    FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2], const double h[3], const double L[3]);
+    // FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[DIM][2]);
     ~FFTW_Solver();
 
     void setup(const SolverType mytype);

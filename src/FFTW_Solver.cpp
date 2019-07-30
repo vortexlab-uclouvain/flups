@@ -17,7 +17,7 @@
  * @param topo the current #Topology object
  * @param mybc the boundary conditions asked on the solution
  */
-FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2])
+FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2], const double h[3], const double L[3])
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -25,11 +25,12 @@ FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2])
     //-------------------------------------------------------------------------
     // for(int id=0; id<DIM; id++) _size_field[id] = topo->nglob(id);
 
+    topo->disp();
+
     //-------------------------------------------------------------------------
     /** - For each dim, compute the plan and its type */
     //-------------------------------------------------------------------------
-    double h[3] = {topo->h(0),topo->h(1),topo->h(2)};
-    double L[3] = {topo->L(0),topo->L(1),topo->L(2)};
+    for(int id=0;id<3;id++) _hgrid[id] = h[id];
 
     for(int id=0; id<DIM; id++)
     {
@@ -62,7 +63,7 @@ FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2])
     }
 
     //-------------------------------------------------------------------------
-    /** - Get the imult factor */
+    /** - Get the #_nbr_imult factor */
     //-------------------------------------------------------------------------
     _nbr_imult = 0;
     for(int ip=0; ip<3;ip++){
@@ -242,7 +243,6 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
     /** - Store the current topology */
     //-------------------------------------------------------------------------
     const Topology* current_topo = topo;
-    const double h[3] = {current_topo->h(0),current_topo->h(1),current_topo->h(2)};
 
     //-------------------------------------------------------------------------
     /** - get the sizes to start with */
@@ -256,11 +256,12 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
     bool isComplex = false;
     for(int ip=0; ip<3;ip++)
     {
+        printf("my size was %d %d %d\n",size_tmp[0],size_tmp[1],size_tmp[2]);
         // initialize the plan
-        planmap[ip]->init(size_tmp,&isComplex);
+        planmap[ip]->init(size_tmp,isComplex);
         // update the size
         planmap[ip]->get_outsize(size_tmp); // update the size for the next plans, keep order unchanged
-        
+        planmap[ip]->get_isNowComplex(&isComplex);
 
         if (topomap != NULL && !isGreen)
         {
@@ -269,14 +270,15 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
 
             // get the number of procs
             int nproc[3];
-            int id1 = (dimID+1)%3;
-            int id2 = (dimID+2)%3;
-
             _pencil_nproc(dimID,nproc,topo->comm_size());
-            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size);
+            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size(),"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size());
 
             // create the new topology
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, h);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc);
+
+
+            // display it
+            // topomap[ip]->disp();
 
             if (reorder != NULL)
             {
@@ -285,12 +287,21 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
                 planmap[ip]->get_fieldstart(fieldstart);
                 // create the reorderMPI to change topology
                 reorder[ip] = new Reorder_MPI(1, current_topo, topomap[ip], fieldstart);
+
+                current_topo = topomap[ip];
             }
         }
-        // display it
-        planmap[ip]->disp();
+        
+
+
+        printf("my size is now %d %d %d\n",size_tmp[0],size_tmp[1],size_tmp[2]);
     }
     // if we are Green, we need to compute the topologies with the FULL size
+    /**
+     * @todo
+     * 
+     * The Green function starts from topo[0] and not from the global topo
+     */
     if(isGreen && topomap != NULL)
     {
         for(int ip=0; ip<3;ip++)
@@ -300,14 +311,11 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
 
             // get the number of procs
             int nproc[3];
-            int id1 = (dimID+1)%3;
-            int id2 = (dimID+2)%3;
-
             _pencil_nproc(dimID,nproc,topo->comm_size());
-            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size);
+            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size(),"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size());
 
             // create the new topology with the size_tmp = the final size
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, h);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc);
 
             if (reorder != NULL)
             {
@@ -315,10 +323,11 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
                 int fieldstart[3] = {0};
                 planmap[ip]->get_fieldstart(fieldstart);
                 // create the reorderMPI to change topology
+                printf("\ncreating reorder for Green with fieldstart = %d %d %d\n\n\n",fieldstart[0],fieldstart[1],fieldstart[2]);
                 reorder[ip] = new Reorder_MPI(1, current_topo, topomap[ip], fieldstart);
             }
-            // display it
-            planmap[ip]->disp();
+
+            current_topo = topomap[ip];
         }
     }
 }
@@ -408,7 +417,8 @@ void FFTW_Solver::_compute_Green(const Topology * const topo[3], double *green, 
 
         dospectral[dimID] = planmap[ip]->dospectral();
         symstart[dimID]   = planmap[ip]->symstart();
-        hfact[dimID]      = topo[ip]->h(dimID);
+        hfact[dimID]      = _hgrid[dimID];
+        kfact[dimID]      = 0.0;
 
         if(dospectral[dimID]){
             hfact[dimID] = 0.0;

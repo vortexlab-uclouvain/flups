@@ -24,10 +24,9 @@ void Green_3D_3dirunbounded_0dirspectral_hej2 (const Topology* topo,const double
     BEGIN_FUNC
 
     // assert that the green spacing is not 0.0 everywhere
-    assert(hfact[0] != 0.0);
-    assert(hfact[1] != 0.0);
-    assert(hfact[0] == hfact[1]);
-    assert(hfact[2] == 0.0); // since we are 2d
+    UP_CHECK0(hfact[0] != 0.0,"grid spacing cannot be 0");
+    UP_CHECK0(hfact[1] != 0.0,"grid spacing cannot be 0");
+    UP_CHECK0(hfact[2] != 0.0,"grid spacing cannot be 0");
 
     int ax0 = topo->axis();
     int ax1 = (ax0+1)%3;

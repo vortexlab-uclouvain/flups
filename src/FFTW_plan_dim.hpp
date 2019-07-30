@@ -57,7 +57,7 @@ protected:
     bool    _switch2Complex = false;    /**< @brief is this plan the one that changes to complex?*/
     bool    _imult          = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     bool    _dospectral     = false;    /**< @brief indicate if the Green's function has to be done spectrally */
-    int     _orderID        = -1;       /**< @brief ID in the !!ordered!! dimension*/
+    // int     _orderID        = -1;       /**< @brief ID in the !!ordered!! dimension*/
     int     _howmany        = -1;       /**< @brief number of transfroms to perfom */
     int     _fieldstart     = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
     int     _n_in           = 0;        /**< @brief the number of element in the transform*/

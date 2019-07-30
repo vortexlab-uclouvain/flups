@@ -29,10 +29,12 @@
     #define INFO(a)         printf(a);
     #define INFO2(a,b)      printf(a,b);
     #define INFO3(a,b,c)    printf(a,b,c);
+    #define INFO4(a,b,c,d)  printf(a,b,c,d);
 #else
     #define INFO(a)    ((void)0);
     #define INFO2(a,b) ((void)0);
     #define INFO3(a,b,c) ((void)0);
+    #define INFO4(a,b,c,d) ((void)0);
 #endif
 
 #ifdef VERBOSE

@@ -158,11 +158,11 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
     //-------------------------------------------------------------------------
     /** - get #_howmany if we are not a Green function */
     //-------------------------------------------------------------------------
-    if(!_isGreen){
-        _howmany = 1;
-        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    }
+    // if(!_isGreen){
+    //     _howmany = 1;
+    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    // }
 
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -248,11 +248,11 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     /** - get #_howmany if we are not a Green function */
     //-------------------------------------------------------------------------
-    if(!_isGreen){
-        _howmany = 1;
-        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    }
+    // if(!_isGreen){
+    //     _howmany = 1;
+    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    // }
 
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -326,11 +326,11 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     /** - get #_howmany if we are not a Green function */
     //-------------------------------------------------------------------------
-    if(!_isGreen){
-        _howmany = 1;
-        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    }
+    // if(!_isGreen){
+    //     _howmany = 1;
+    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    // }
 
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -358,8 +358,8 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
     //-------------------------------------------------------------------------
     if(isComplex){
-        _n_in  = 4*size[_dimID]; // takes 2n complex, return 2n complex
-        _n_out = 4*size[_dimID];
+        _n_in  = 2*size[_dimID]; // takes 2n complex, return 2n complex
+        _n_out = 2*size[_dimID];
 
         _switch2Complex = false;
     }
@@ -381,11 +381,11 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     //-------------------------------------------------------------------------
     /** - get howmany if we are not a Green function */
     //-------------------------------------------------------------------------
-    if(!_isGreen){
-        _howmany = 1;
-        for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-        for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    }
+    // if(!_isGreen){
+    //     _howmany = 1;
+    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
+    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
+    // }
 
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -484,13 +484,10 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
     //-------------------------------------------------------------------------
     /** - If is Green, compute #_howmany  */
     //-------------------------------------------------------------------------
-    if(_isGreen){
-        _howmany = 1;
-        for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
-        for(int id=_orderID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
-        // if the data are complex we need to count twice the fastest rotating index
-        // if(_isDataComplex && _orderID>0) _howmany *= 2;
-    }
+    _howmany = 1;
+    for(int id=0         ; id<_dimID; id++) _howmany *= size_ordered[id];
+    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
@@ -502,14 +499,13 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
     INFOLOG ("------------------------------------------\n");
     if      (_type == R2R   ) {INFOLOG2("## R2R plan created for plan r2r (=%d)\n",_type);}
     else if (_type == MIX   ) {INFOLOG2("## R2R plan created for plan mix (=%d)\n",_type);}
-    INFOLOG2("orderedID = %d\n",_orderID);
+    // INFOLOG2("orderedID = %d\n",_orderID);
     if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
     else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
     INFOLOG2("howmany   = %d\n",_howmany);
     INFOLOG2("size n    = %d\n",_n_in);
     INFOLOG3("istride (double) = %d - idist = %d\n",istride,idist);
     INFOLOG3("ostride (double) = %d - odist = %d\n",ostride,odist);
-    if(_type == R2R) {INFOLOG2("starting offset  = %ld\n",offset);}
     INFOLOG ("------------------------------------------\n");
 
 }
@@ -548,11 +544,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
     int rank = 1;
 
     // if we are green we need to recompute howmany
-    if(_isGreen){
-        _howmany = 1;
-        for(int id=0         ; id<_orderID; id++) _howmany *= size_ordered[id];
-        for(int id=_orderID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
-    }
+    _howmany = 1;
+    for(int id=0         ; id<_dimID; id++) _howmany *= size_ordered[id];
+    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
 
     // set the sizemult array usefull for strides and dists
     // int sizemult[DIM]; sizemult[0] = 1;
@@ -579,9 +573,12 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
         INFOLOG ("------------------------------------------\n");
         if      (_type == PERPER) {INFO2("## R2C plan created for plan periodic-periodic (=%d)\n",_type);}
         else if (_type == UNBUNB) {INFO2("## R2C plan created for plan unbounded (=%d)\n",_type);}
-        INFOLOG2("orderedID = %d\n",_orderID);
+        // INFOLOG2("orderedID = %d\n",_orderID);
+        if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
+        else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
         if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
         else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
+        INFOLOG2("dimID     = %d\n",_dimID);
         INFOLOG2("howmany   = %d\n",_howmany);
         INFOLOG2("size n    = %d\n",_n_in);
         INFOLOG3("istride (double)  = %d - idist = %d\n",istride,idist);
@@ -611,9 +608,12 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
         INFOLOG ("------------------------------------------\n");
         if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
         else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
-        INFOLOG2("orderedID = %d\n",_orderID);
+        // INFOLOG2("orderedID = %d\n",_orderID);
+        if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
+        else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
         if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
         else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
+        INFOLOG2("dimID     = %d\n",_dimID);
         INFOLOG2("howmany = %d\n",_howmany);
         INFOLOG2("size n = %d\n",_n_in);
         INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
@@ -629,10 +629,10 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
 void FFTW_plan_dim::execute_plan(){
     BEGIN_FUNC
     // run the plan
-    if      (_type == R2R   ) {INFO2(">> Doing plan real2real for order %d\n",_orderID);}
-    else if (_type == MIX   ) {INFO2(">> Doing plan mix for order %d\n",_orderID);}
-    else if (_type == PERPER) {INFO2(">> Doing plan periodic-periodic for order %d\n",_orderID);}
-    else if (_type == UNBUNB) {INFO2(">> Doing plan unbounded for order %d\n",_orderID);}
+    if      (_type == R2R   ) {INFO2(">> Doing plan real2real for dim %d\n",_dimID);}
+    else if (_type == MIX   ) {INFO2(">> Doing plan mix for dim %d\n",_dimID);}
+    else if (_type == PERPER) {INFO2(">> Doing plan periodic-periodic for dim %d\n",_dimID);}
+    else if (_type == UNBUNB) {INFO2(">> Doing plan unbounded for dim %d\n",_dimID);}
     fftw_execute(_plan);
 }
 
@@ -694,7 +694,7 @@ void FFTW_plan_dim::execute_plan(){
 void FFTW_plan_dim::disp(){
     BEGIN_FUNC
     INFO ("------------------------------------------\n");
-    INFO3("## Plan num %d created for dimension %d\n",_orderID,_dimID);
+    INFO2("## Plan num created for dimension %d\n",_dimID);
     if      (_type == R2R   ) {INFO2("- type = real2real (=%d)\n",_type);}
     else if (_type == MIX   ) {INFO2("- type = mix (=%d)\n",_type);}
     else if (_type == PERPER) {INFO2("- type = periodic-periodic (=%d)\n",_type);}
@@ -717,7 +717,7 @@ void FFTW_plan_dim::disp(){
         if(_kind == FFTW_RODFT01) {INFO("- kind = RODFT01 = DST type III\n")}
         if(_kind == FFTW_RODFT11) {INFO("- kind = RODFT11 = DST type IV\n")}
     }
-    INFO2("- orderID    = %d\n",_orderID);
+    INFO2("- dimID      = %d\n",_dimID);
     INFO2("- is Green   ? %d\n",_isGreen);
     INFO2("- s2Complex  ? %d\n",_switch2Complex);
     INFO2("- n_in       = %d\n",_n_in);

@@ -31,11 +31,11 @@ protected:
     int _rankd[3];//**< @brief rank of the current process per dim  */
     int _nbyproc[3]; //**< @brief mean number of unkows per dim = nloc except for the last one  */
 
-    double _h[3]; //**< @brief grid spacing */
-    double _L[3];//**< @brief length of the domain  */
+    // double _h[3]; //**< @brief grid spacing */
+    // double _L[3];//**< @brief length of the domain  */
 
 public:
-    Topology(const int axis, const int nglob[3], const int nproc[3], const double h[3]);
+    Topology(const int axis, const int nglob[3], const int nproc[3]);
     ~Topology();
 
     /**
@@ -45,8 +45,8 @@ public:
      */
     inline int comm_size() const { return _comm_size; }
     inline int axis() const { return _axis; }
-    inline int h(const int dim) const { return _h[dim]; }
-    inline int L(const int dim) const { return _L[dim]; }
+    // inline double h(const int dim) const { return _h[dim]; }
+    // inline double L(const int dim) const { return _L[dim]; }
     inline int nglob(const int dim) const { return _nglob[dim]; }
     inline int nloc(const int dim) const { return _nloc[dim]; }
     inline int nproc(const int dim) const { return _nproc[dim]; }
@@ -83,6 +83,8 @@ public:
     }
     /**@} */
     
+
+    void disp() const;
 };
 
 /**

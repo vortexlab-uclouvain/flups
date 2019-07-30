@@ -19,7 +19,7 @@
  * @param nglob the global size per dim
  * @param nproc the number of proc per dim
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3],const double h[3])
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3])
 {
 
     MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
@@ -36,9 +36,6 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3],const 
     {
         // total dimension
         _nglob[id] = nglob[id];
-        // lenght of the domain and h
-        _h[id] = h[id];
-        _L[id] = h[id]*nglob[id];
         // number of proc in each direction
         _nproc[id] = nproc[id];
         // number of unknows everywhere except the last one
@@ -70,6 +67,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other,int s
         const int onglob = other->nglob(id);
 
         start[id] = 0;
+        end[id] = 1;
         // for the input configuration
         for (int i = 0; i < _nloc[id]; ++i)
         {
@@ -79,4 +77,25 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other,int s
             if (oid_global < onglob) end[id] = i + 1;
         }
     }
+
+    printf("Intersection from %d %d %d to %d %d %d\n",start[0],start[1],start[2],end[0],end[1],end[2]);
+}
+
+
+void Topology::disp() const
+{
+    BEGIN_FUNC
+
+    INFO ("------------------------------------------\n");
+    INFO3("## Topology created on proc %d/%d",_rank,_comm_size);
+    INFO2(" - axis = %d\n",_axis);
+    INFO4(" - nglob = %d %d %d\n",_nglob[0],_nglob[1],_nglob[2]);
+    INFO4(" - nloc = %d %d %d\n",_nloc[0],_nloc[1],_nloc[2]);
+    INFO4(" - nproc = %d %d %d\n",_nproc[0],_nproc[1],_nproc[2]);
+    INFO4(" - rankd = %d %d %d\n",_rankd[0],_rankd[1],_rankd[2]);
+    INFO4(" - nbyproc = %d %d %d\n",_nbyproc[0],_nbyproc[1],_nbyproc[2]);
+    // INFO4(" - h = %f %f %f\n",_h[0],_h[1],_h[2]);
+    // INFO4(" - L = %f %f %f\n",_L[0],_L[1],_L[2]);
+    INFO ("------------------------------------------\n");
+
 }
