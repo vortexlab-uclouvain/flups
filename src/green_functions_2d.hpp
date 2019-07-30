@@ -1,5 +1,5 @@
 /**
- * @file green_functions.hpp
+ * @file green_functions_2d.hpp
  * @author Thomas Gillis
  * @brief 
  * @version

@@ -22,6 +22,7 @@
 #include "fftw3-mpi.h"
 
 #include "tools.hpp"
+#include "Reorder_MPI.hpp"
 
 
 using namespace std;
@@ -65,7 +66,7 @@ protected:
     int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
     int    _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
     int    _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
-    int    _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
+    int    _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in double indexing unit!! */
     int    _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
     bool   _isComplex       = false;    /**< @brief boolean to indicate if the transfrom data is complex (true) or not */
     size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart (only used for a R2R transfrom!)*/
@@ -75,8 +76,11 @@ protected:
     double _normfact  = 1.0;    /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double _volfact   = 1.0;    /**< @brief volume factor due to the convolution computation */
 
-    multimap<int, FFTW_plan_dim*> _plan_forward;    /**< @brief map containing the plan forward  */
-    multimap<int, FFTW_plan_dim*> _plan_backward;   /**< @brief map containing the plan backward */
+    FFTW_plan_dim* _plan_forward[3];    /**< @brief map containing the plan forward  */
+    FFTW_plan_dim* _plan_backward[3];   /**< @brief map containing the plan backward */
+    Topology* _topo_hat[3];
+    Reorder_MPI* _reorder [3]; /**< @brief reorder for the forward transform*/
+    double* mybufs[2] = {NULL,NULL}; /**< @brief reorder buffers*/
     
     /**
      * @name Green's function 
@@ -90,8 +94,11 @@ protected:
     
     OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
     OrderDiff _greendiff  = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
+    Reorder_MPI* _reorder_green [3]; /**< @brief reorder for the forward transform*/
+    Topology* _topo_green[3];
+    double* mybufs_green[2] = {NULL,NULL}; /**< @brief reorder buffers*/
     
-    multimap<int, FFTW_plan_dim*> _plan_green;      /**< @brief map containing the plan for the Green's function */
+    FFTW_plan_dim* _plan_green[3];      /**< @brief map containing the plan for the Green's function */
     /**@} */
 
     
@@ -102,8 +109,9 @@ protected:
      * 
      * @{
      */
-    void _allocate_data(const int size[3],double** data);
-    void _deallocate_data(double* data);
+    void _allocate_data(const Topology* topo[3],double** data);
+    void _delete_reorder(Reorder_MPI *reorder[3]);
+    void _delete_topology(Topology *topo[3]);
     /**@}  */
 
     /**
@@ -111,9 +119,10 @@ protected:
      * 
      * @{
      */
-    void _init_plan_map(int sizeorder[3], int fieldstart[3], int dimorder[3], bool* isComplex, multimap<int,FFTW_plan_dim* > *planmap);
-    void _allocate_plan(const int size[3],const size_t offset, const bool isComplex,double* data, multimap<int,FFTW_plan_dim* > *planmap);
-    void _delete_plan(multimap<int,FFTW_plan_dim* > *planmap);
+    void _sort_plan(FFTW_plan_dim* plan[3]);
+    void _init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3]);
+    void _allocate_plan(const Topology* topo[3], FFTW_plan_dim* planmap[3], double* data);
+    void _delete_plan(FFTW_plan_dim *planmap[3]);
     /**@} */
 
     /**
@@ -133,11 +142,12 @@ protected:
      * 
      * @{
      */
-    void _compute_Green(const int size_green[3],double* green, multimap<int,FFTW_plan_dim* >* planmap);
+    void _compute_Green(const Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]);
     /**@} */
 
 public:
-    FFTW_Solver(const int field_size[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
+    FFTW_Solver(const int size_field[DIM],const double h[DIM],const double L[DIM],const BoundaryType mybc[DIM][2]);
+    FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[DIM][2]);
     ~FFTW_Solver();
 
     void setup(const SolverType mytype);
@@ -148,7 +158,7 @@ public:
      * @{
      */
     // void solve(double* field, double* rhs);
-    void solve(double* field,double * rhs);
+    void solve(const Topology* topo,double * field, double * rhs);
     // void solve_rotrhs(double* field, double* rhs);
     // void solve_div_rhs(double* field, double* rhs);
     /**@} */
@@ -158,10 +168,29 @@ public:
      * 
      * @{
      */
-    void set_GreenType(const OrderDiff order);
-    void set_GreenDiff(const OrderDiff order);
-    void set_alpha(const double alpha);
+    void set_GreenType(const OrderDiff order) {_greenorder = order;}
+    void set_GreenDiff(const OrderDiff order) {_greendiff = order;}
+    void set_alpha(const double alpha){_greenalpha = alpha;}
     /**@} */
+
 };
+
+
+static inline void _pencil_nproc(const int id, int nproc[3], int comm_size)
+{
+    const int id1 = (id+1)%3;
+    const int id2 = (id+2)%3;
+
+    nproc[id] = 1;
+
+    double n1 = 1;
+    double n2 = (double) comm_size;
+    while(n1<n2 && std::floor(n2) == n2 ){
+        n1 *= 2.0;
+        n2 /= 2.0;
+    }
+    nproc[id1] = n1;
+    nproc[id2] = n2;
+}
 
 #endif

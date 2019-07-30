@@ -53,8 +53,7 @@ protected:
     const bool  _isGreen ;   /**< @brief boolean is true if this plan is for a Green's function */
     const int   _dimID;      /**< @brief the dimension of the plan in the field reference */
     const int   _sign;       /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
-    
-    bool    _isDataComplex  = false;    /**< @brief is the data allocated complex? (yes if any plan is complex)*/
+
     bool    _switch2Complex = false;    /**< @brief is this plan the one that changes to complex?*/
     bool    _imult          = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     bool    _dospectral     = false;    /**< @brief indicate if the Green's function has to be done spectrally */
@@ -83,7 +82,7 @@ public:
 
     void init(const int size[DIM],const bool isComplex);
 
-    void allocate_plan(const int size_plan[DIM],const size_t offset,const bool isComplex, double* data);
+    void allocate_plan(const int size_plan[DIM],double* data);
     void execute_plan();
 
     /**
@@ -91,47 +90,39 @@ public:
      * 
      */
     /**@{ */
-    bool   get_isComplex()  const;
-    bool   get_dospectral() const;
-    int    get_dimID()      const;
-    int    get_imult()      const;
-    int    get_shiftgreen() const;
-    int    get_type()       const;
-    int    get_order()      const;
-    int    get_symstart()   const;
-    double get_normfact()   const;
-    double get_volfact()    const;
-    double get_kfact()      const;
-    /**@} */
-
-    /**
-     * @name Getters - return the value in array[ _dimID ]
-     * 
-     */
-    /**@{ */
-    void get_outsize  (int* size ) const;
-    void get_fieldstart (int* start) const;
-    void get_isComplex(bool* isComplex) const;
-    /**@} */
-
-    /**
-     * @name Getters - return the value in array[ id ]
-     * 
-     */
-    /**@{ */
-    void get_dimID          (const int id, int dimID[DIM]) const;
-    void get_outsize        (const int id, int size [DIM]) const;
-    void get_outsize_double (const int id, int size [DIM]) const;
-    void get_fieldstart     (const int id, int start[DIM]) const;
-    /**@} */
+    inline bool   dospectral() const{return _dospectral;}
+    inline int    dimID()      const{return _dimID;}
+    inline int    imult()      const{return _imult;}
+    inline int    shiftgreen() const{return _shiftgreen;}
+    inline int    type()       const{return _type;}
+    inline int    symstart()   const{return _symstart;}
+    inline double normfact()   const{return _normfact; }
+    inline double volfact()    const{return _volfact; }
+    inline double kfact()      const{return _kfact; }
     
-    /**
-     * @name Setters
-     * 
-     */
-    /**@{ */
-    void set_order(const int id);
+    inline void get_outsize    (int* size ) const {size[_dimID] = _n_out;};
+    inline void get_fieldstart (int* start) const {start[_dimID] = _fieldstart;};
+    inline void get_isNowComplex  (bool* isComplex) const {(*isComplex) = (*isComplex) || _switch2Complex;};
     /**@} */
+
+    // /**
+    //  * @name Getters - return the value in array[ id ]
+    //  * 
+    //  */
+    // /**@{ */
+    // void get_dimID          (const int id, int dimID[DIM]) const;
+    // void get_outsize        (const int id, int size [DIM]) const;
+    // void get_outsize_double (const int id, int size [DIM]) const;
+    // void get_fieldstart     (const int id, int start[DIM]) const;
+    // /**@} */
+    
+    // /**
+    //  * @name Setters
+    //  * 
+    //  */
+    // /**@{ */
+    // void set_order(const int id);
+    // /**@} */
 
     void disp();
 
@@ -150,7 +141,7 @@ protected:
      * @name Plan allocation
      */
     /**@{ */
-    void _allocate_plan_real   (const int size_ordered[DIM],const size_t offset, double* data);
+    void _allocate_plan_real   (const int size_ordered[DIM],double *data);
     void _allocate_plan_complex(const int size_ordered[DIM],double* data);
     /**@} */
 };
