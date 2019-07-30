@@ -11,20 +11,6 @@
 
 #include "FFTW_Solver.hpp"
 
-
-/**
- * @brief Construct a new fftw solver
- * 
- * @param[in] size_field the size of the field (real) that has to be solved
- * @param[in] h the grid spacing uniform in each direction
- * @param[in] L the length of the computational domain
- * @param[in] mybc the boundary conditions asked
- * 
- * --------------------------------------
- * We do the following operations:
- */
-
-
 /**
  * @brief Construct a new fftw solver::fftw solver object
  * 
@@ -59,9 +45,9 @@ FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2])
     //-------------------------------------------------------------------------
     /** - Initialise the plans and get the sizes + dimorder */
     //-------------------------------------------------------------------------
-    _init_plan(topo,_topo_hat,_reorder,_plan_forward);
-    _init_plan(topo,NULL,NULL,_plan_backward);
-    _init_plan(topo,_topo_green,_reorder_green,_plan_green);
+    _init_plan(topo,_topo_hat,_reorder,_plan_forward,false);
+    _init_plan(topo,NULL,NULL,_plan_backward,false);
+    _init_plan(topo,_topo_green,_reorder_green,_plan_green,true);
 
     //-------------------------------------------------------------------------
     /** - Get the normalization factors #_normfact, #_volfact and the #_shiftgreen factor */
@@ -248,7 +234,7 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3])
     }
 }
 
-void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3])
+void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3], bool isGreen)
 {
     BEGIN_FUNC
 
@@ -274,19 +260,21 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
         planmap[ip]->init(size_tmp,&isComplex);
         // update the size
         planmap[ip]->get_outsize(size_tmp); // update the size for the next plans, keep order unchanged
-        // get the fastest rotating index
-        int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
+        
 
-        // get the number of procs
-        int nproc[3];
-        int id1 = (dimID+1)%3;
-        int id2 = (dimID+2)%3;
-
-        _pencil_nproc(dimID,nproc,topo->comm_size());
-        UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size);
-
-        if (topomap != NULL)
+        if (topomap != NULL && !isGreen)
         {
+            // get the fastest rotating index
+            int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
+
+            // get the number of procs
+            int nproc[3];
+            int id1 = (dimID+1)%3;
+            int id2 = (dimID+2)%3;
+
+            _pencil_nproc(dimID,nproc,topo->comm_size());
+            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size);
+
             // create the new topology
             topomap[ip] = new Topology(dimID, size_tmp, nproc, h);
 
@@ -302,8 +290,39 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_
         // display it
         planmap[ip]->disp();
     }
+    // if we are Green, we need to compute the topologies with the FULL size
+    if(isGreen && topomap != NULL)
+    {
+        for(int ip=0; ip<3;ip++)
+        {
+            // get the fastest rotating index
+            int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
+
+            // get the number of procs
+            int nproc[3];
+            int id1 = (dimID+1)%3;
+            int id2 = (dimID+2)%3;
+
+            _pencil_nproc(dimID,nproc,topo->comm_size());
+            UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size);
+
+            // create the new topology with the size_tmp = the final size
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, h);
+
+            if (reorder != NULL)
+            {
+                // get the fieldstart = the point where the old topo has to begin in the new
+                int fieldstart[3] = {0};
+                planmap[ip]->get_fieldstart(fieldstart);
+                // create the reorderMPI to change topology
+                reorder[ip] = new Reorder_MPI(1, current_topo, topomap[ip], fieldstart);
+            }
+            // display it
+            planmap[ip]->disp();
+        }
+    }
 }
-void  FFTW_Solver::_allocate_plan(const Topology* topo[3], FFTW_plan_dim* planmap[3], double* data)
+void  FFTW_Solver::_allocate_plan(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data)
 {
     BEGIN_FUNC
 
@@ -320,7 +339,7 @@ void  FFTW_Solver::_allocate_plan(const Topology* topo[3], FFTW_plan_dim* planma
  * @param topo_hat the topologies of the pencils
  * @param data 
  */
-void FFTW_Solver::_allocate_data(const Topology* topo_hat[3],double** data)
+void FFTW_Solver::_allocate_data(const Topology* const topo_hat[3],double** data)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -365,7 +384,7 @@ void FFTW_Solver::_allocate_data(const Topology* topo_hat[3],double** data)
  * -----------------------------------
  * We do the following operations
  */
-void FFTW_Solver::_compute_Green(const Topology *topo[3], double *green, FFTW_plan_dim *planmap[3])
+void FFTW_Solver::_compute_Green(const Topology * const topo[3], double *green, FFTW_plan_dim *planmap[3])
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -405,7 +424,7 @@ void FFTW_Solver::_compute_Green(const Topology *topo[3], double *green, FFTW_pl
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
     
-    if     (nbr_spectral == 0){
+    if(nbr_spectral == 0){
         INFOLOG(">> using Green function 3 dir unbounded\n");
         // if(DIM==2){
         //     if     (_greenorder == CHAT_2) Green_3D_3dirunbounded_0dirspectral_chat2(topo[0],hfact,green);
@@ -553,19 +572,19 @@ void FFTW_Solver::solve(const Topology* topo,double * field, double * rhs)
     /** - Perform the magic */
     //-------------------------------------------------------------------------
     printf("doing the magic\n");
-    if(_type == UP_SRHS){
-        if(!_isComplex){
-            if     (_nbr_imult == 0) dothemagic_rhs_real();
-            else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
-        }
-        else{
-            if     (_nbr_imult == 0) dothemagic_rhs_complex_nmult0();
-            else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1();
-            else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
-            else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
-            else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
-        }
-    }
+    // if(_type == UP_SRHS){
+    //     if(!_isComplex){
+    //         if     (_nbr_imult == 0) dothemagic_rhs_real();
+    //         else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
+    //     }
+    //     else{
+    //         if     (_nbr_imult == 0) dothemagic_rhs_complex_nmult0();
+    //         else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1();
+    //         else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
+    //         else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
+    //         else UP_CHECK1(false,"the number of imult = %d is not supported\n",_nbr_imult);
+    //     }
+    // }
 
     //-------------------------------------------------------------------------
     /** - go back to reals */
@@ -690,9 +709,6 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult2()
         for(int iy=0; iy<_size_hat[1]; iy++){
             for(int ix=0; ix<_size_hat[0]; ix++){
 
-                __assume_aligned(mydata,  UP_ALIGNMENT);
-                __assume_aligned(mygreen, UP_ALIGNMENT);
-
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);
 
@@ -717,10 +733,7 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult3()
 
     for(int iz=0; iz<_size_hat[2]; iz++){
         for(int iy=0; iy<_size_hat[1]; iy++){
-            for(int ix=0; ix<_size_hat[0]; ix++){
-
-                __assume_aligned(mydata,  UP_ALIGNMENT);
-                __assume_aligned(mygreen, UP_ALIGNMENT);    
+            for(int ix=0; ix<_size_hat[0]; ix++){   
 
                 const size_t id       = ix + _size_hat[0]       * (iy + _size_hat[1]       * iz);
                 const size_t id_green = ix + _size_hat_green[0] * (iy + _size_hat_green[1] * iz);

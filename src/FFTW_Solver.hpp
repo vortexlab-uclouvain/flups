@@ -109,7 +109,7 @@ protected:
      * 
      * @{
      */
-    void _allocate_data(const Topology* topo[3],double** data);
+    void _allocate_data(const Topology* const topo[3],double** data);
     void _delete_reorder(Reorder_MPI *reorder[3]);
     void _delete_topology(Topology *topo[3]);
     /**@}  */
@@ -120,8 +120,8 @@ protected:
      * @{
      */
     void _sort_plan(FFTW_plan_dim* plan[3]);
-    void _init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3]);
-    void _allocate_plan(const Topology* topo[3], FFTW_plan_dim* planmap[3], double* data);
+    void _init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3], bool isGreen);
+    void _allocate_plan(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void _delete_plan(FFTW_plan_dim *planmap[3]);
     /**@} */
 
@@ -142,7 +142,7 @@ protected:
      * 
      * @{
      */
-    void _compute_Green(const Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]);
+    void _compute_Green(const Topology *const topo[3], double *green, FFTW_plan_dim *planmap[3]);
     /**@} */
 
 public:
