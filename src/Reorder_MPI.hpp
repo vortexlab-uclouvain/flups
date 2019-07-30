@@ -15,23 +15,22 @@
 #include "defines.hpp"
 #include "mpi.h"
 #include <cstring>
+#include "topology.hpp"
+
 
 class Reorder_MPI
 {
 
 protected:
-    const int _nf   ;
-    const int _iaxis;
-    const int _oaxis;
+    int _nf   ;
 
-    bool do_deallocate = false;
+    int _ishift[3];
+    int _oshift[3];
 
-    int _inloc[3];
-    int _onloc[3];
-    int _inproc[3];
-    int _onproc[3];
-    int _irankd[3];
-    int _orankd[3];
+    int _istart[3];
+    int _iend[3];
+    int _ostart[3];
+    int _oend[3];
 
     int *_nsend = NULL; // number of unknowns send to each proc
     int *_nrecv = NULL; // number of unknowns received from each proc
@@ -42,8 +41,12 @@ protected:
     double *_bufsend = NULL;
     double *_bufrecv = NULL;
 
+    const Topology* _topo_in;
+    const Topology* _topo_out;
+
 public:
-    Reorder_MPI(const int nglob[3], const int mynf, const int inproc[3], int myaxis0, int onproc[3], int myaxis1, double* mybufs[2]);
+    // Reorder_MPI(const int mynf, const int nglob[3], const int inproc[3], int myaxis0, int onproc[3], int myaxis1);
+    Reorder_MPI(const int nf,const Topology* topo_input,const Topology* topo_output, const int shift[3]);
     ~Reorder_MPI();
 
     void execute(opt_double_ptr v,const int sign);

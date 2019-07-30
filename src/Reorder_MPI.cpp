@@ -11,63 +11,42 @@
 
 #include "Reorder_MPI.hpp"
 
-inline static size_t localindex(const int i[3], const int n[3], const int axis)
-{
-    int axis1 = (axis + 1) % 3;
-    int axis2 = (axis + 2) % 3;
-    return i[axis] + n[axis] * (i[axis1] + n[axis1] * i[axis2]);
-}
-inline static int rankindex(const int rankd[3], const int nproc[3])
-{
-    return rankd[0] + nproc[0] * (rankd[1] + nproc[1] * rankd[2]);
-}
-inline static int rankindex(const int rankd_0, const int rankd_1, const int rankd_2, const int nproc_0, const int nproc_1, const int nproc_2)
-{
-    return rankd_0 + nproc_0 * (rankd_1 + nproc_1 * rankd_2);
-}
-inline static void ranksplit(const int rank, const int nproc[3], int rankd[3])
-{
-    rankd[0] = rank % nproc[0];
-    rankd[1] = (rank % (nproc[0] * nproc[1])) / nproc[0];
-    rankd[2] = rank / (nproc[0] * nproc[1]);
-}
+// inline static size_t localindex(const int i[3], const int n[3], const int axis)
+// {
+//     int axis1 = (axis + 1) % 3;
+//     int axis2 = (axis + 2) % 3;
+//     return i[axis] + n[axis] * (i[axis1] + n[axis1] * i[axis2]);
+// }
+// inline static int rankindex(const int rankd[3], const int nproc[3])
+// {
+//     return rankd[0] + nproc[0] * (rankd[1] + nproc[1] * rankd[2]);
+// }
 
-Reorder_MPI::Reorder_MPI(const int nglob[3], const int mynf, const int inproc[3], int myaxis0, int onproc[3], int myaxis1, double* mybufs[2]):
- _iaxis(myaxis0), _oaxis(myaxis1), _nf(mynf)
+Reorder_MPI::Reorder_MPI(const int nf,const Topology* topo_input,const Topology* topo_output, const int shift[3])
 {
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    UP_CHECK2(nglob[0] % inproc[0] == 0, "unable to divide %d unknows into %d procs", nglob[0], inproc[0]);
-    UP_CHECK2(nglob[1] % inproc[1] == 0, "unable to divide %d unknows into %d procs", nglob[1], inproc[1]);
-    UP_CHECK2(nglob[2] % inproc[2] == 0, "unable to divide %d unknows into %d procs", nglob[2], inproc[2]);
+    _topo_in = topo_input;
+    _topo_out = topo_output;
 
-    //-------------------------------------------------------------------------
-    /** - get the rankd for input and output  */
-    //-------------------------------------------------------------------------
-    ranksplit(rank, inproc, _irankd);
-    ranksplit(rank, onproc, _orankd);
-
-    for (int id = 0; id < 3; id++)
-    {
-        _inproc[id] = inproc[id];
-        _onproc[id] = onproc[id];
-        _inloc[id] = nglob[id] / inproc[id];
-        _onloc[id] = nglob[id] / onproc[id];
-    }
-
-    // sanity checks
-    UP_CHECK2(_inloc[0] * _inloc[1] * _inloc[2] == _onloc[0] * _onloc[1] * _onloc[2], "Memory has changed from %d to %d", _inloc[0] * _inloc[1] * _inloc[2], _onloc[0] * _onloc[1] * _onloc[2]);
+    _nf = nf;
 
     //-------------------------------------------------------------------------
     /** - allocate the size arrays */
     //-------------------------------------------------------------------------
-    _nsend = (int *)fftw_malloc(comm_size * sizeof(int));
-    _nrecv = (int *)fftw_malloc(comm_size * sizeof(int));
-    _ssend = (int *)fftw_malloc(comm_size * sizeof(int));
-    _srecv = (int *)fftw_malloc(comm_size * sizeof(int));
-    _count = (int *)fftw_malloc(comm_size * sizeof(int));
+    _nsend = (int *) fftw_malloc(comm_size * sizeof(int));
+    _nrecv = (int *) fftw_malloc(comm_size * sizeof(int));
+    _ssend = (int *) fftw_malloc(comm_size * sizeof(int));
+    _srecv = (int *) fftw_malloc(comm_size * sizeof(int));
+    _count = (int *) fftw_malloc(comm_size * sizeof(int));
+
+    UP_CHECK1(UP_ISALIGNED(_nsend),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_nrecv),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_ssend),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_srecv),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_count),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
 
     std::memset(_nsend, 0, sizeof(int) * comm_size);
     std::memset(_nrecv, 0, sizeof(int) * comm_size);
@@ -76,42 +55,31 @@ Reorder_MPI::Reorder_MPI(const int nglob[3], const int mynf, const int inproc[3]
     std::memset(_count, 0, sizeof(int) * comm_size);
 
     //-------------------------------------------------------------------------
-    /** - allocate the buffer if needed */
+    /** - for each dimension, get the shared zone */
     //-------------------------------------------------------------------------
-    if (_bufsend == NULL)
+    for(int id=0; id<3; id++)
     {
-        INFOLOG("allocating memory for the buffers");
-        _bufsend = (double *)fftw_malloc(sizeof(double) * _nf * _inloc[0] * _inloc[1] * _inloc[2]);
-        _bufrecv = (double *)fftw_malloc(sizeof(double) * _nf * _onloc[0] * _onloc[1] * _onloc[2]);
-
-        mybufs[0] = _bufsend;
-        mybufs[1] = _bufrecv;
-
-        do_deallocate = true;
+        _ishift[id] = shift[id];
+        _oshift[id] = -shift[id];
     }
-    else
-    {
-        UP_CHECK0(UP_ISALIGNED(mybufs[0]),"myfufs[0] not aligned");
-        UP_CHECK0(UP_ISALIGNED(mybufs[1]),"myfufs[0] not aligned");
-
-        _bufsend = mybufs[0];
-        _bufrecv = mybufs[1];
-    }
+    _topo_in ->cmpt_intersect_id(_ishift,_topo_out, _istart,_iend);
+    _topo_out->cmpt_intersect_id(_oshift,_topo_in , _ostart,_oend);
 
     //-------------------------------------------------------------------------
     /** - for each data get its destination rank */
     //-------------------------------------------------------------------------
     int dest_rankd[3];
-    for (int i2 = 0; i2 < _inloc[2]; ++i2)
+    for (int i2 = _istart[2]; i2 < _iend[2]; ++i2)
     {
-        dest_rankd[2] = (_irankd[2] * _inloc[2] + i2) / _onloc[2];
-        for (int i1 = 0; i1 < _inloc[1]; ++i1)
+        dest_rankd[2] = _topo_in->cmpt_matchrank(2,_topo_out,i2+_ishift[2]);
+        for (int i1 = _istart[1]; i1 < _iend[1]; ++i1)
         {
-            dest_rankd[1] = (_irankd[1] * _inloc[1] + i1) / _onloc[1];
-            for (int i0 = 0; i0 < _inloc[0]; ++i0)
+            dest_rankd[1] = _topo_in->cmpt_matchrank(1,_topo_out,i1+_ishift[1]);
+            for (int i0 = _istart[0]; i0 < _iend[0]; ++i0)
             {
-                dest_rankd[0] = (_irankd[0] * _inloc[0] + i0) / _onloc[0];
-                _nsend[rankindex(dest_rankd, onproc)] += _nf;
+                dest_rankd[0] = _topo_in->cmpt_matchrank(0,_topo_out,i0+_ishift[0]);
+                // add one info to the destination index
+                _nsend[rankindex(dest_rankd,_topo_out)] += _nf;
             }
         }
     }
@@ -125,6 +93,15 @@ Reorder_MPI::Reorder_MPI(const int nglob[3], const int mynf, const int inproc[3]
         _ssend[i] = _ssend[i - 1] + _nsend[i - 1];
         _srecv[i] = _srecv[i - 1] + _nrecv[i - 1];
     }
+
+    //-------------------------------------------------------------------------
+    /** - allocate the buffer if needed */
+    //-------------------------------------------------------------------------
+    _bufsend = (double *)fftw_malloc(sizeof(double) * _nf * _topo_in->locsize());
+    _bufrecv = (double *)fftw_malloc(sizeof(double) * _nf * _topo_out->locsize());
+
+    UP_CHECK1(UP_ISALIGNED(_bufsend),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_bufrecv),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
 }
 
 Reorder_MPI::~Reorder_MPI()
@@ -139,9 +116,9 @@ Reorder_MPI::~Reorder_MPI()
         fftw_free(_srecv);
     if (_srecv != NULL)
         fftw_free(_count);
-    if (_bufsend != NULL && do_deallocate)
+    if (_bufsend != NULL)
         fftw_free(_bufsend);
-    if (_bufrecv != NULL && do_deallocate)
+    if (_bufrecv != NULL)
         fftw_free(_bufrecv);
 }
 
@@ -151,56 +128,73 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    opt_int_ptr ssend = _ssend;
-    opt_int_ptr srecv = _srecv;
-    opt_int_ptr nsend = _nsend;
-    opt_int_ptr nrecv = _nrecv;
     opt_int_ptr count = _count;
-    opt_double_ptr recvbuf = _bufrecv;
-    opt_double_ptr sendbuf = _bufsend;
 
     //-------------------------------------------------------------------------
     /** - set the size counters*/
     //-------------------------------------------------------------------------
-    int iaxis, oaxis;
-    int inloc[3];
-    int onloc[3];
-    int inproc[3];
-    int onproc[3];
-    int irankd[3];
-    int orankd[3];
+    int istart[3];
+    int ostart[3];
+    int iend[3];
+    int oend[3];
+    int ishift[3];
+    int oshift[3];
+
+    const Topology* topo_in;
+    const Topology* topo_out;
+
+    opt_int_ptr ssend;
+    opt_int_ptr srecv;
+    opt_int_ptr nsend;
+    opt_int_ptr nrecv;
+    opt_double_ptr recvbuf;
+    opt_double_ptr sendbuf;
 
     if (sign == FFTW_FORWARD)
     {
-        iaxis     = _iaxis;
-        oaxis     = _oaxis;
+        topo_in  = _topo_in;
+        topo_out = _topo_out;
 
-        for(int id=0;id<3; id++){
+        for (int id = 0; id < 3; id++)
+        {
             // input parameters
-            inloc[id]  = _inloc[id];
-            irankd[id] = _irankd[id];
-            inproc[id] = _inproc[id];
+            istart[id] = _istart[id];
+            iend[id]   = _iend[id];
+            ishift[id] = _ishift[id];
             // output params
-            onloc[id]  = _onloc[id];
-            orankd[id] = _orankd[id];
-            onproc[id] = _onproc[id];
+            ostart[id] = _ostart[id];
+            oend[id]   = _oend[id];
+            oshift[id] = _oshift[id];
         }
+        ssend   = _ssend;
+        srecv   = _srecv;
+        nsend   = _nsend;
+        nrecv   = _nrecv;
+        sendbuf = _bufsend;
+        recvbuf = _bufrecv;
     }
     else if (sign == FFTW_BACKWARD)
     {
-        iaxis     = _oaxis;
-        oaxis     = _iaxis;
+        topo_in  = _topo_out;
+        topo_out = _topo_in;
 
-        for(int id=0;id<3; id++){
+        for (int id = 0; id < 3; id++)
+        {
             // input parameters
-            inloc[id]  = _onloc[id];
-            irankd[id] = _orankd[id];
-            inproc[id] = _onproc[id];
+            istart[id] = _ostart[id];
+            iend[id]   = _oend[id];
+            ishift[id] = _oshift[id];
             // output params
-            onloc[id]  = _inloc[id];
-            orankd[id] = _irankd[id];
-            onproc[id] = _inproc[id];
+            ostart[id] = _istart[id];
+            oend[id]   = _iend[id];
+            oshift[id] = _ishift[id];
         }
+        ssend   = _srecv;
+        srecv   = _ssend;
+        nsend   = _nrecv;
+        nrecv   = _nsend;
+        sendbuf = _bufrecv;
+        recvbuf = _bufsend;
     }
     else
     {
@@ -213,21 +207,19 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     std::memset(count, 0, sizeof(int) * comm_size);
 
     int dest_rankd[3];
-
-    for (int i2 = 0; i2 < inloc[2]; i2++)
+    for (int i2 = istart[2]; i2 < iend[2]; ++i2)
     {
-        dest_rankd[2] = (irankd[2] * inloc[2] + i2) / onloc[2];
-        for (int i1 = 0; i1 < inloc[1]; i1++)
+        dest_rankd[2] = topo_in->cmpt_matchrank(2,topo_out,i2+ishift[2]);
+        for (int i1 = istart[1]; i1 < iend[1]; ++i1)
         {
-            dest_rankd[1] = (irankd[1] * inloc[1] + i1) / onloc[1];
-            for (int i0 = 0; i0 < inloc[0]; i0++)
+            dest_rankd[1] = topo_in->cmpt_matchrank(1,topo_out,i1+ishift[1]);
+            for (int i0 = istart[0]; i0 < iend[0]; ++i0)
             {
-                dest_rankd[0] = (irankd[0] * inloc[0] + i0) / onloc[0];
-
-                const int dest_rank = rankindex(dest_rankd, onproc);
+                dest_rankd[0] = topo_in->cmpt_matchrank(0,topo_out,i0+ishift[0]);
+                // add one info to the destination index
+                const int dest_rank = rankindex(dest_rankd,topo_out);
                 const int buf_idx   = ssend[dest_rank] + count[dest_rank];
-                const int id[3]     = {i0, i1, i2};
-                const int my_idx    = localindex(id, inloc, iaxis);
+                const int my_idx    = localindex(i0, i1, i2, topo_in);
 
                 for (int i = 0; i < _nf; i++)
                     sendbuf[buf_idx + i] = v[my_idx + i];
@@ -236,6 +228,13 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
             }
         }
     }
+
+    // for(int ip=0; ip<4; ip++){
+    //     printf("rank %d send %d vs %d data to rank %d\n",rank,count[ip],nsend[ip],ip);
+    // }
+    // for(int ip=0; ip<4; ip++){
+    //     printf("rank %d recv %d vs %d data from rank %d\n",rank,0,nrecv[ip],ip);
+    // }
 
     //-------------------------------------------------------------------------
     /** - Send it */
@@ -252,21 +251,19 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     std::memset(count, 0, sizeof(int) * comm_size);
 
     int orig_rankd[3];
-
-    for (int i2 = 0; i2 < onloc[2]; i2++)
+    for (int i2 = ostart[2]; i2 < oend[2]; ++i2)
     {
-        orig_rankd[2] = (orankd[2] * onloc[2] + i2) / inloc[2];
-        for (int i1 = 0; i1 < onloc[1]; i1++)
+        orig_rankd[2] = topo_out->cmpt_matchrank(2,topo_in,i2+oshift[2]);
+        for (int i1 = ostart[1]; i1 < oend[1]; ++i1)
         {
-            orig_rankd[1] = (orankd[1] * onloc[1] + i1) / inloc[1];
-            for (int i0 = 0; i0 < onloc[0]; i0++)
+            orig_rankd[1] = topo_out->cmpt_matchrank(1,topo_in,i1+oshift[1]);
+            for (int i0 = ostart[0]; i0 < oend[0]; ++i0)
             {
-                orig_rankd[0] = (orankd[0] * onloc[0] + i0) / inloc[0];
+                orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
 
-                const int orig_rank = rankindex(orig_rankd, inproc);
+                const int orig_rank = rankindex(orig_rankd,topo_in);
                 const int buf_idx   = srecv[orig_rank] + count[orig_rank];
-                const int id[3]     = {i0, i1, i2};
-                const int my_idx    = localindex(id, onloc, oaxis);
+                const int my_idx    = localindex(i0, i1, i2, topo_out);
 
                 for (int i = 0; i < _nf; i++)
                     v[my_idx + i] = recvbuf[buf_idx + i];
@@ -275,4 +272,8 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
             }
         }
     }
+    for(int ip=0; ip<4; ip++){
+        printf("rank %d recv %d vs %d data from rank %d\n",rank,0,nrecv[ip],ip);
+    }
+
 }
