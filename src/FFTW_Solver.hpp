@@ -78,8 +78,8 @@ protected:
 
     FFTW_plan_dim* _plan_forward[3];    /**< @brief map containing the plan forward  */
     FFTW_plan_dim* _plan_backward[3];   /**< @brief map containing the plan backward */
-    Topology* _topo_hat[3];
-    Reorder_MPI* _reorder [3]; /**< @brief reorder for the forward transform*/
+    Topology* _topo_hat[3] = {NULL,NULL,NULL};
+    Reorder_MPI* _reorder [3] = {NULL,NULL,NULL}; /**< @brief reorder for the forward transform*/
     double* mybufs[2] = {NULL,NULL}; /**< @brief reorder buffers*/
     
     /**
@@ -94,8 +94,8 @@ protected:
     
     OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
     OrderDiff _greendiff  = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
-    Reorder_MPI* _reorder_green [3]; /**< @brief reorder for the forward transform*/
-    Topology* _topo_green[3];
+    Reorder_MPI* _reorder_green [3]= {NULL,NULL,NULL}; /**< @brief reorder for the forward transform*/
+    Topology* _topo_green[3]= {NULL,NULL,NULL};
     double* mybufs_green[2] = {NULL,NULL}; /**< @brief reorder buffers*/
     
     FFTW_plan_dim* _plan_green[3];      /**< @brief map containing the plan for the Green's function */

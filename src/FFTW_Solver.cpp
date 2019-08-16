@@ -164,8 +164,7 @@ FFTW_Solver::~FFTW_Solver(){
 
     // delete reorder
     for(int id=0; id<3; id++){
-        delete _reorder_green[id];
-        delete _reorder[id];
+        if(_reorder[id] != NULL) delete _reorder[id];
     }
 
     //cleanup
@@ -183,6 +182,7 @@ void FFTW_Solver::_delete_plan(FFTW_plan_dim *planmap[3])
     for (int ip = 0; ip < 3; ip++)
     {
         delete planmap[ip];
+        planmap[ip] = NULL;
     }
 }
 
@@ -193,6 +193,7 @@ void FFTW_Solver::_delete_reorder(Reorder_MPI *reorder[3])
     for (int ip = 0; ip < 3; ip++)
     {
         delete reorder[ip];
+        reorder[ip] = NULL;
     }
 }
 void FFTW_Solver::_delete_topology(Topology *topo[3])
@@ -202,6 +203,7 @@ void FFTW_Solver::_delete_topology(Topology *topo[3])
     for (int ip = 0; ip < 3; ip++)
     {
         delete topo[ip];
+        topo[ip] = NULL;
     }
 }
 
