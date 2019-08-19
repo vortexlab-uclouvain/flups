@@ -12,10 +12,12 @@
 #include "FFTW_Solver.hpp"
 
 /**
- * @brief Construct a new fftw solver::fftw solver object
+ * @brief Construct a fftw Poisson solver
  * 
- * @param topo the current #Topology object
- * @param mybc the boundary conditions asked on the solution
+ * @param topo the current topology of the data
+ * @param mybc the boundary conditions of the solver
+ * @param h the grid spacing
+ * @param L 
  */
 FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2], const double h[3], const double L[3])
 {
@@ -24,11 +26,10 @@ FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2], c
     /** - Store the field size */
     //-------------------------------------------------------------------------
     // for(int id=0; id<DIM; id++) _size_field[id] = topo->nglob(id);
-
-    topo->disp();
+    // topo->disp();
 
     //-------------------------------------------------------------------------
-    /** - For each dim, compute the plan and its type */
+    /** - For each dim, create the plans and sort them type */
     //-------------------------------------------------------------------------
     for(int id=0;id<3;id++) _hgrid[id] = h[id];
 
@@ -44,14 +45,14 @@ FFTW_Solver::FFTW_Solver(const Topology* topo,const BoundaryType mybc[DIM][2], c
     _sort_plan(_plan_green);
 
     //-------------------------------------------------------------------------
-    /** - Initialise the plans and get the sizes + dimorder */
+    /** - Initialise the plans and get the sizes */
     //-------------------------------------------------------------------------
     _init_plan(topo,_topo_hat,_reorder,_plan_forward,false);
     _init_plan(topo,NULL,NULL,_plan_backward,false);
     _init_plan(topo,_topo_green,_reorder_green,_plan_green,true);
 
     //-------------------------------------------------------------------------
-    /** - Get the normalization factors #_normfact, #_volfact and the #_shiftgreen factor */
+    /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_nbr_imult */
     //-------------------------------------------------------------------------
     _normfact  = 1.0;
     _volfact   = 1.0;
@@ -237,6 +238,15 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3])
     }
 }
 
+/**
+ * @brief Initialize a set of 3 plans by doing a dry run through the plans
+ * 
+ * @param topo the starting topology
+ * @param topomap the topology array to go through each dim ( may be NULL) it corresponds to the topology AFTER the plan
+ * @param reorder the reordering array to switch between topologies (may be NULL)
+ * @param planmap the plan that will be created
+ * @param isGreen indicates if the plans are for Green
+ */
 void FFTW_Solver::_init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3], bool isGreen)
 {
     BEGIN_FUNC

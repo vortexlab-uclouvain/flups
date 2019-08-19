@@ -78,7 +78,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other,int s
         }
     }
 
-    printf("Intersection from %d %d %d to %d %d %d\n",start[0],start[1],start[2],end[0],end[1],end[2]);
+    // printf("Intersection from %d %d %d to %d %d %d\n",start[0],start[1],start[2],end[0],end[1],end[2]);
 }
 
 

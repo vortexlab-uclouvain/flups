@@ -85,14 +85,13 @@ FFTW_plan_dim::~FFTW_plan_dim(){
  * - _init_unbounded()
  * 
  * Each of the sub-function initializes the following variables
- * - #_n_in
- * - #_n_out
- * - #_fieldstart
- * - #_switch2Complex
- * - #_howmany (for non-Green functions only)
- * - #_imult
- * - #_kind (for R2R and MIX plans only)
- * - #_symstart (for Green's function only)
+ * - #_n_in the size that comes in the FFTW
+ * - #_n_out the size that comes out of the FFTW
+ * - #_fieldstart the index to start the FFTW (non zero for mixunbounded solvers)
+ * - #_switch2Complex is true if this plan switches to the complex numbers
+ * - #_imult is true if we used a DST
+ * - #_kind the kind of FFTW plan to execute (for R2R and MIX plans only)
+ * - #_symstart the symmetry start, for the Green's function only
  * 
  * @param size the current size that will come in (hence already partially transformed)
  * @param isComplex the current complex state of the data
@@ -292,7 +291,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
  * @brief Initialize for a periodic plan
  * 
  * @param size 
- * @param isComplex
+ * @param isComplex if the data is already complex
  * 
  * ----------------------------------------
  * We do the following operations
@@ -344,12 +343,13 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
 }
 
 /**
- * @brief 
+ * @brief initialize the plan for unbounded solvers
  * 
- * @param size 
- * @param isComplex 
+ * @param size the size
+ * @param isComplex if the data is already complex
  * 
- * --------------------------------------
+ * 
+ *--------------------------------------
  * We do the following operations:
  */
 void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
@@ -635,57 +635,6 @@ void FFTW_plan_dim::execute_plan(){
     else if (_type == UNBUNB) {INFO2(">> Doing plan unbounded for dim %d\n",_dimID);}
     fftw_execute(_plan);
 }
-
-// /**
-//  * @brief 
-//  * 
-//  * @param id 
-//  * @param size 
-//  */
-// void FFTW_plan_dim::get_outsize (const int id, int size[DIM]) const {
-//     BEGIN_FUNC
-//     size[id] = _n_out;
-// }
-// /**
-//  * @brief returns the size that comes into the FFT plan
-//  * 
-//  * @param id 
-//  * @param size 
-//  */
-// void FFTW_plan_dim::get_outsize_double (const int id, int size[DIM]) const {
-//     BEGIN_FUNC
-//     if(_switch2Complex) size[id] = _n_out*2;
-//     else                size[id] = _n_out;
-// }
-// /**
-//  * @brief 
-//  * 
-//  * @param id 
-//  * @param start 
-//  */
-// void FFTW_plan_dim::get_fieldstart(const int id, int start[DIM]) const {
-//     BEGIN_FUNC
-//     start[id] = _fieldstart;
-// }
-// /**
-//  * @brief 
-//  * 
-//  * @param id 
-//  * @param dimID 
-//  */
-// void FFTW_plan_dim::get_dimID   (const int id, int dimID[DIM]) const {
-//     BEGIN_FUNC
-//     dimID[id] = _dimID;
-// }
-// /**
-//  * @brief 
-//  * 
-//  * @param id 
-//  */
-// void FFTW_plan_dim::set_order(const int id){
-//     BEGIN_FUNC
-//     _orderID = id;
-// }
 
 /**
  * @brief display the FFTW_plan_dim object
