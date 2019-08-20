@@ -52,9 +52,9 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
         
-        const int nglob[3]  = {size[is], size[is], size[is]};
+        const int nglob[3]  = {size[is],size[is],2*size[is]};
         const int nproc[3]  = {2,1,1};
-        const double L[3]   = {1.0,1.0,1.0};
+        const double L[3]   = {1.0,1.0,2.0};
         const double h[3]   = {L[0]/nglob[0],L[1]/nglob[1],L[2]/nglob[2]};
         
         const Topology* topo = new Topology(0,nglob,nproc);
@@ -77,7 +77,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         /** - fill the rhs and the solution */
         //-------------------------------------------------------------------------
-        const double sigma = 0.05;
+        const double sigma = 0.15;
         const double oosigma = 1.0 / (sigma);
         const double oosigma2 = 1.0 / (sigma * sigma);
         const double oosigma3 = 1.0 / (sigma * sigma * sigma);
@@ -92,7 +92,6 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
             {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++)
                 {
-
                     double x = (istart[0] + i0 + 0.5) * h[0] - L[0] * center[0];
                     double y = (istart[1] + i1 + 0.5) * h[1] - L[1] * center[1];
                     double z = (istart[2] + i2 + 0.5) * h[2] - L[2] * center[2];
