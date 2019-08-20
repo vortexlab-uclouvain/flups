@@ -37,6 +37,11 @@ FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 INC += -I$(FFTWDIR)/include
 LIB += -L$(FFTWDIR)/lib -lfftw3_mpi -lfftw3
 
+#---- HDF5
+HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
+INC += -I$(HDF5DIR)/include
+LIB += -L$(HDF5DIR)/lib -lhdf5
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
