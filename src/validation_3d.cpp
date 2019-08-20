@@ -106,6 +106,9 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
             }
         }
 
+        xmf_write(topo,"rhs","data");
+        hdf5_write(topo,"rhs","data",rhs);
+
         //-------------------------------------------------------------------------
         /** - solve the equations */
         //-------------------------------------------------------------------------

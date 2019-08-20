@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
     MPI_Init(&argc,&argv);
     // int nsample = 3; int size[3] = {16, 32, 64};
-    int nsample = 1; int size[1] = {8};
+    int nsample = 1; int size[1] = {16};
     validation_3d_UU_UU(nsample,size,UP_SRHS,HEJ_2);
     MPI_Finalize();
 

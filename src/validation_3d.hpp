@@ -16,6 +16,7 @@
 #include "expint.hpp"
 
 #include "mpi.h"
+#include "hdf5_io.hpp"
 
 /**
  * @name Fully unbounded
