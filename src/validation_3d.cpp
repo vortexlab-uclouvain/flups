@@ -51,9 +51,6 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         int rank, comm_size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-
-        printf("Hello from proc %d / %d\n",rank,comm_size);
-
         
         const int nglob[3]  = {size[is], size[is], size[is]};
         const int nproc[3]  = {2,1,1};
@@ -69,7 +66,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         FFTW_Solver *mysolver = new FFTW_Solver(topo, mybc,h,L);
         mysolver->set_GreenType(orderdiff);
-        mysolver->setup(type);
+        mysolver->setup();
 
         //-------------------------------------------------------------------------
         /** - allocate rhs and solution */
@@ -112,7 +109,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         /** - solve the equations */
         //-------------------------------------------------------------------------
-        // mysolver->solve(topo,rhs,rhs);
+        mysolver->solve(topo,rhs,rhs,UP_SRHS);
 
         //-------------------------------------------------------------------------
         /** - compute the error */

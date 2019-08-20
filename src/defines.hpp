@@ -43,8 +43,8 @@
     #define INFOLOG3(a,b,c)   printf(a,b,c);
     #define INFOLOG4(a,b,c,d) printf(a,b,c,d);
 
-    #define BEGIN_FUNC ((void)0); 
-    // #define BEGIN_FUNC {INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);}
+    // #define BEGIN_FUNC ((void)0); 
+    #define BEGIN_FUNC {INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);}
 #else
     #define INFOLOG(a)    ((void)0);
     #define INFOLOG2(a,b)    ((void)0);
