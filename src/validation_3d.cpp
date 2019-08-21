@@ -52,12 +52,13 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
         
-        const int nglob[3]  = {size[is],size[is],2*size[is]};
-        const int nproc[3]  = {2,1,1};
-        const double L[3]   = {1.0,1.0,2.0};
+        const int nglob[3]  = {size[is],size[is],size[is]};
+        const int nproc[3]  = {2,2,1};
+        const double L[3]   = {1.0,1.0,1.0};
         const double h[3]   = {L[0]/nglob[0],L[1]/nglob[1],L[2]/nglob[2]};
         
-        const Topology* topo = new Topology(0,nglob,nproc);
+        // create a real topology
+        const Topology* topo = new Topology(0,nglob,nproc,false);
 
         const BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 
@@ -71,21 +72,24 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         /** - allocate rhs and solution */
         //-------------------------------------------------------------------------
-        double *rhs = (double *)fftw_malloc(sizeof(double *) * topo->locsize());
-        double *sol = (double *)fftw_malloc(sizeof(double *) * topo->locsize());
+        double *rhs = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+        double *sol = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 
         //-------------------------------------------------------------------------
         /** - fill the rhs and the solution */
         //-------------------------------------------------------------------------
-        const double sigma = 0.15;
+        const double sigma = 0.05;
         const double oosigma = 1.0 / (sigma);
         const double oosigma2 = 1.0 / (sigma * sigma);
         const double oosigma3 = 1.0 / (sigma * sigma * sigma);
         const double center[3] = {0.5, 0.5, 0.5};
 
         int istart[3];
-        topo->get_idstart_glob(istart);
+        get_idstart_glob(istart,topo);
 
+        /**
+         * @todo change that to axis-based loops
+         */
         for (int i2 = 0; i2 < topo->nloc(2); i2++)
         {
             for (int i1 = 0; i1 < topo->nloc(1); i1++)
@@ -97,14 +101,14 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
                     double z = (istart[2] + i2 + 0.5) * h[2] - L[2] * center[2];
                     double rho2 = (x * x + y * y + z * z) * oosigma2;
                     double rho = sqrt(rho2);
-                    const size_t id = localindex(i0,i1,i2,topo);
+                    const size_t id = localindex_xyz(i0,i1,i2,topo);
                     // Gaussian
                     rhs[id] = +c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
                     sol[id] = +c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
                 }
             }
         }
-
+        // read the source term and the solution
         xmf_write(topo,"rhs","data");
         hdf5_write(topo,"rhs","data",rhs);
 
@@ -120,13 +124,16 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         double lerri = 0.0;
         double gap = 0.0;
 
+        /**
+         * @todo change that to axis-based loops
+         */
         for (int i2 = 0; i2 < topo->nloc(2); i2++)
         {
             for (int i1 = 0; i1 < topo->nloc(1); i1++)
             {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++)
                 {
-                    const size_t id = localindex(i0,i1,i2,topo);
+                    const size_t id = localindex_xyz(i0,i1,i2,topo);
                     const double err = sol[id] - rhs[id];
 
                     lerri = max(lerri, abs(err));
@@ -157,7 +164,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
 
         fftw_free(sol);
         fftw_free(rhs);
-        delete (mysolver);
+        // delete (mysolver);
         delete (topo);
     }
 }

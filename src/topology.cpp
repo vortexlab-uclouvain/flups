@@ -18,14 +18,25 @@
  * @param axis the dimension of the fastest rotating index (eg: 0, 1 or 2)
  * @param nglob the global size per dim
  * @param nproc the number of proc per dim
+ * @param isComplex indicate if the Topology uses complex indexing or not
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3])
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3],const bool isComplex)
 {
+    BEGIN_FUNC
 
     MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &_comm_size);
 
+    //-------------------------------------------------------------------------
+    /** - get memory axis and complex information  */
+    //-------------------------------------------------------------------------
     _axis = axis;
+    _isComplex = isComplex;
+    if (!_isComplex)
+        _nf = 1;
+    else
+        _nf = 2;
+
 
     //-------------------------------------------------------------------------
     /** - get the rankd for input and output  */
@@ -62,6 +73,9 @@ Topology::~Topology(){}
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other,int start[3],int end[3]) const
 {
+    BEGIN_FUNC
+    UP_CHECK0(_isComplex == other->isComplex(),"The two topo have to be both complex or real");
+
     for (int id = 0; id < 3; id++)
     {
         const int onglob = other->nglob(id);
@@ -94,6 +108,7 @@ void Topology::disp() const
     INFO4(" - nproc = %d %d %d\n",_nproc[0],_nproc[1],_nproc[2]);
     INFO4(" - rankd = %d %d %d\n",_rankd[0],_rankd[1],_rankd[2]);
     INFO4(" - nbyproc = %d %d %d\n",_nbyproc[0],_nbyproc[1],_nbyproc[2]);
+    INFO2(" - isComplex = %d\n",_isComplex);
     // INFO4(" - h = %f %f %f\n",_h[0],_h[1],_h[2]);
     // INFO4(" - L = %f %f %f\n",_L[0],_L[1],_L[2]);
     INFO ("------------------------------------------\n");

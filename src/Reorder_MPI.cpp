@@ -22,16 +22,19 @@
 //     return rankd[0] + nproc[0] * (rankd[1] + nproc[1] * rankd[2]);
 // }
 
-Reorder_MPI::Reorder_MPI(const int nf,const Topology* topo_input,const Topology* topo_output, const int shift[3])
+Reorder_MPI::Reorder_MPI(const Topology* topo_input,const Topology* topo_output, const int shift[3])
 {
+    BEGIN_FUNC
+
+    // UP_CHECK0(topo_input->globmemsize() == topo_output->globmemsize(),"global memory size have to match between topos");
+    UP_CHECK0(topo_input->isComplex() == topo_output->isComplex(),"both topologies have to be the same kind");
+
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
     _topo_in = topo_input;
     _topo_out = topo_output;
-
-    _nf = nf;
 
     //-------------------------------------------------------------------------
     /** - allocate the size arrays */
@@ -79,7 +82,7 @@ Reorder_MPI::Reorder_MPI(const int nf,const Topology* topo_input,const Topology*
             {
                 dest_rankd[0] = _topo_in->cmpt_matchrank(0,_topo_out,i0+_ishift[0]);
                 // add one info to the destination index
-                _nsend[rankindex(dest_rankd,_topo_out)] += _nf;
+                _nsend[rankindex(dest_rankd,_topo_out)] += _topo_in->nf();
             }
         }
     }
@@ -97,8 +100,8 @@ Reorder_MPI::Reorder_MPI(const int nf,const Topology* topo_input,const Topology*
     //-------------------------------------------------------------------------
     /** - allocate the buffer if needed */
     //-------------------------------------------------------------------------
-    _bufsend = (double *)fftw_malloc(sizeof(double) * _nf * _topo_in->locsize());
-    _bufrecv = (double *)fftw_malloc(sizeof(double) * _nf * _topo_out->locsize());
+    _bufsend = (double *)fftw_malloc(sizeof(double) * _topo_in->locmemsize());
+    _bufrecv = (double *)fftw_malloc(sizeof(double) * _topo_out->locmemsize());
 
     UP_CHECK1(UP_ISALIGNED(_bufsend),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
     UP_CHECK1(UP_ISALIGNED(_bufrecv),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
@@ -201,32 +204,64 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
         UP_CHECK0(false, "the sign is not FFTW_FORWARD nor FFTW_BACKWARD");
     }
 
+    INFOLOG5("previous topo: %d,%d,%d axis=%d\n",topo_in->nglob(0),topo_in->nglob(1),topo_in->nglob(2),topo_in->axis());
+    INFOLOG5("new topo: %d,%d,%d  axis=%d\n",topo_out->nglob(0),topo_out->nglob(1),topo_out->nglob(2),topo_out->axis());
+
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
     std::memset(count, 0, sizeof(int) * comm_size);
 
     int dest_rankd[3];
-    for (int i2 = istart[2]; i2 < iend[2]; ++i2)
+
+    if (topo_in->nf() == 1)
     {
-        dest_rankd[2] = topo_in->cmpt_matchrank(2,topo_out,i2+ishift[2]);
-        for (int i1 = istart[1]; i1 < iend[1]; ++i1)
+        for (int i2 = istart[2]; i2 < iend[2]; ++i2)
         {
-            dest_rankd[1] = topo_in->cmpt_matchrank(1,topo_out,i1+ishift[1]);
-            for (int i0 = istart[0]; i0 < iend[0]; ++i0)
+            dest_rankd[2] = topo_in->cmpt_matchrank(2, topo_out, i2 + ishift[2]);
+            for (int i1 = istart[1]; i1 < iend[1]; ++i1)
             {
-                dest_rankd[0] = topo_in->cmpt_matchrank(0,topo_out,i0+ishift[0]);
-                // add one info to the destination index
-                const int dest_rank = rankindex(dest_rankd,topo_out);
-                const int buf_idx   = ssend[dest_rank] + count[dest_rank];
-                const int my_idx    = localindex(i0, i1, i2, topo_in);
+                dest_rankd[1] = topo_in->cmpt_matchrank(1, topo_out, i1 + ishift[1]);
+                for (int i0 = istart[0]; i0 < iend[0]; ++i0)
+                {
+                    dest_rankd[0] = topo_in->cmpt_matchrank(0, topo_out, i0 + ishift[0]);
+                    // add one info to the destination index
+                    const int dest_rank = rankindex(dest_rankd, topo_out);
+                    const int buf_idx = ssend[dest_rank] + count[dest_rank];
+                    const int my_idx = localindex_xyz(i0, i1, i2, topo_in);
 
-                for (int i = 0; i < _nf; i++)
-                    sendbuf[buf_idx + i] = v[my_idx + i];
-
-                count[dest_rank] += _nf;
+                    sendbuf[buf_idx] = v[my_idx];
+                    count[dest_rank] += 1;
+                }
             }
         }
+    }
+    else if (topo_in->nf() == 2)
+    {
+        for (int i2 = istart[2]; i2 < iend[2]; ++i2)
+        {
+            dest_rankd[2] = topo_in->cmpt_matchrank(2, topo_out, i2 + ishift[2]);
+            for (int i1 = istart[1]; i1 < iend[1]; ++i1)
+            {
+                dest_rankd[1] = topo_in->cmpt_matchrank(1, topo_out, i1 + ishift[1]);
+                for (int i0 = istart[0]; i0 < iend[0]; ++i0)
+                {
+                    dest_rankd[0] = topo_in->cmpt_matchrank(0, topo_out, i0 + ishift[0]);
+                    // add one info to the destination index
+                    const int dest_rank = rankindex(dest_rankd, topo_out);
+                    const int buf_idx = ssend[dest_rank] + count[dest_rank];
+                    const int my_idx = localindex_xyz(i0, i1, i2, topo_in);
+
+                    sendbuf[buf_idx + 0] = v[my_idx + 0];
+                    sendbuf[buf_idx + 1] = v[my_idx + 1];
+                    count[dest_rank] += 2;
+                }
+            }
+        }
+    }
+    else
+    {
+        UP_CHECK0(false, "size of Topological nf not supported");
     }
 
     // for(int ip=0; ip<4; ip++){
@@ -250,28 +285,52 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     //-------------------------------------------------------------------------
     std::memset(count, 0, sizeof(int) * comm_size);
 
-    printf("going from %d %d %d to %d %d %d\n",ostart[0],ostart[1],ostart[2],oend[0],oend[1],oend[2]);
-
     int orig_rankd[3];
-    for (int i2 = ostart[2]; i2 < oend[2]; ++i2)
-    {
-        orig_rankd[2] = topo_out->cmpt_matchrank(2,topo_in,i2+oshift[2]);
-        for (int i1 = ostart[1]; i1 < oend[1]; ++i1)
+    if(topo_out->nf() == 1){
+        for (int i2 = ostart[2]; i2 < oend[2]; ++i2)
         {
-            orig_rankd[1] = topo_out->cmpt_matchrank(1,topo_in,i1+oshift[1]);
-            for (int i0 = ostart[0]; i0 < oend[0]; ++i0)
+            orig_rankd[2] = topo_out->cmpt_matchrank(2,topo_in,i2+oshift[2]);
+            for (int i1 = ostart[1]; i1 < oend[1]; ++i1)
             {
-                orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
+                orig_rankd[1] = topo_out->cmpt_matchrank(1,topo_in,i1+oshift[1]);
+                for (int i0 = ostart[0]; i0 < oend[0]; ++i0)
+                {
+                    orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
 
-                const int orig_rank = rankindex(orig_rankd,topo_in);
-                const int buf_idx   = srecv[orig_rank] + count[orig_rank];
-                const int my_idx    = localindex(i0, i1, i2, topo_out);
+                    const int orig_rank = rankindex(orig_rankd,topo_in);
+                    const int buf_idx   = srecv[orig_rank] + count[orig_rank];
+                    const int my_idx    = localindex_xyz(i0, i1, i2, topo_out);
 
-                for (int i = 0; i < _nf; i++)
-                    v[my_idx + i] = recvbuf[buf_idx + i];
-
-                count[orig_rank] += _nf;
+                    v[my_idx] = recvbuf[buf_idx];
+                    count[orig_rank] += 1;
+                }
             }
         }
+    }
+    else if(topo_out->nf() == 2){
+        for (int i2 = ostart[2]; i2 < oend[2]; ++i2)
+        {
+            orig_rankd[2] = topo_out->cmpt_matchrank(2,topo_in,i2+oshift[2]);
+            for (int i1 = ostart[1]; i1 < oend[1]; ++i1)
+            {
+                orig_rankd[1] = topo_out->cmpt_matchrank(1,topo_in,i1+oshift[1]);
+                for (int i0 = ostart[0]; i0 < oend[0]; ++i0)
+                {
+                    orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
+
+                    const int orig_rank = rankindex(orig_rankd,topo_in);
+                    const int buf_idx   = srecv[orig_rank] + count[orig_rank];
+                    const int my_idx    = localindex_xyz(i0, i1, i2, topo_out);
+
+                    v[my_idx+0] = recvbuf[buf_idx+0];
+                    v[my_idx+1] = recvbuf[buf_idx+1];
+                    count[orig_rank] += 2;
+                }
+            }
+        }
+    }
+    else
+    {
+        UP_CHECK0(false, "size of Topological nf not supported");
     }
 }

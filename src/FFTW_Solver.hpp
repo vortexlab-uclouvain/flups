@@ -19,7 +19,8 @@
 #include "green_functions_2d.hpp"
 #include "green_functions_3d.hpp"
 //#include "fftw3.h"
-#include "fftw3-mpi.h"
+// #include "fftw3-mpi.h"
+#include "hdf5_io.hpp"
 
 #include "tools.hpp"
 #include "Reorder_MPI.hpp"
@@ -142,7 +143,7 @@ protected:
      * 
      * @{
      */
-    void _cmptGreenFunction(const Topology* const topo[3], double *green, FFTW_plan_dim *planmap[3]);
+    void _cmptGreenFunction(Topology* topo[3], double *green, FFTW_plan_dim *planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
     void _scaleGreenFunction(const Topology* topo, double* data);
     /**@} */

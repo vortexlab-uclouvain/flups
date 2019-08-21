@@ -309,7 +309,7 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     }
     else{
         _n_in  = size[_dimID]; // takes n real
-        _n_out = 2*(_n_in/2+1); // return n_in/2 + 1 complex
+        _n_out = _n_in/2+1; // return n_in/2 + 1 complex
 
         _switch2Complex = true;
     }
@@ -365,7 +365,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     }
     else{
         _n_in  = 2*size[_dimID]; // takes 2n real
-        _n_out = 2*(_n_in/2+1); // return n_in/2 + 1 complex
+        _n_out = _n_in/2+1; // return n_in/2 + 1 complex
         
         _switch2Complex = true;
     }
@@ -562,13 +562,8 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
     
     // incomming arrays depends if we are a complex switcher or not
     if(_switch2Complex){
-        // if the data are complex we need to count twice the fastest rotating index
-        // if(_isDataComplex) for(int id=1; id<DIM; id++) sizemult[id]*= 2;
-        // if(_isDataComplex && _orderID>0) _howmany *= 2;
-
-        UP_CHECK0(odist%2==0,"odist has to be multiple of 2");
-        odist = odist/2;
-        
+        // idist has been obtained from a complex size = size_ordered since we are inplace
+        idist *=2;       
 
         INFOLOG ("------------------------------------------\n");
         if      (_type == PERPER) {INFO2("## R2C plan created for plan periodic-periodic (=%d)\n",_type);}

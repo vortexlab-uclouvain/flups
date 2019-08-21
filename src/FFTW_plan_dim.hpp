@@ -90,15 +90,17 @@ public:
      * 
      */
     /**@{ */
-    inline bool   dospectral() const{return _dospectral;}
-    inline int    dimID()      const{return _dimID;}
-    inline int    imult()      const{return _imult;}
-    inline int    shiftgreen() const{return _shiftgreen;}
-    inline int    type()       const{return _type;}
-    inline int    symstart()   const{return _symstart;}
-    inline double normfact()   const{return _normfact; }
-    inline double volfact()    const{return _volfact; }
-    inline double kfact()      const{return _kfact; }
+    inline bool   dospectral()      const{return _dospectral;}
+    inline bool   switch2Complex()  const{return _switch2Complex; }
+    inline int    dimID()           const{return _dimID;}
+    inline int    imult()           const{return _imult;}
+    inline int    shiftgreen()      const{return _shiftgreen;}
+    inline int    type()            const{return _type;}
+    inline int    symstart()        const{return _symstart;}
+    inline double normfact()        const{return _normfact; }
+    inline double volfact()         const{return _volfact; }
+    inline double kfact()           const{return _kfact; }
+    
     
     inline void get_outsize    (int* size ) const {size[_dimID] = _n_out;};
     inline void get_fieldstart (int* start) const {start[_dimID] = _fieldstart;};

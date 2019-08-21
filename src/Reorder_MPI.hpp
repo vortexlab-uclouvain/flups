@@ -22,7 +22,7 @@ class Reorder_MPI
 {
 
 protected:
-    int _nf   ;
+    // int _nf   ;
 
     int _ishift[3];
     int _oshift[3];
@@ -46,7 +46,7 @@ protected:
 
 public:
     // Reorder_MPI(const int mynf, const int nglob[3], const int inproc[3], int myaxis0, int onproc[3], int myaxis1);
-    Reorder_MPI(const int nf,const Topology* topo_input,const Topology* topo_output, const int shift[3]);
+    Reorder_MPI(const Topology* topo_input,const Topology* topo_output, const int shift[3]);
     ~Reorder_MPI();
 
     void execute(opt_double_ptr v,const int sign);

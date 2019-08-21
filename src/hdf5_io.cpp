@@ -51,10 +51,14 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     hid_t plist_id;  /* property list identifier */
     herr_t status;   // error code
 
-    string extFilename = filename + ".h5";
+    string extFilename = "data/"+ filename + ".h5";
 
     // compression level
     int complevel = 0;
+
+    const int ax0 = topo->axis();
+    const int ax1 = (ax0+1)%3;
+    const int ax2 = (ax0+2)%3;
 
     //-------------------------------------------------------------------------
     /** - Create a new file collectively  */
@@ -72,12 +76,11 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     /** - Create the dataspace (defines the organization of the elements) for the file and for the chunks  */
     //-------------------------------------------------------------------------
     // the memory information is given by local size
-    // hsize_t chunk_dims[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
-    hsize_t chunk_dims[3] = {topo->nloc(2), topo->nloc(1), topo->nloc(0)};
-    memspace = H5Screate_simple(3, chunk_dims, NULL);
+    hsize_t memsize[3] = {topo->nloc(ax2), topo->nloc(ax1), topo->nloc(ax0)};
+    memspace = H5Screate_simple(3, memsize, NULL);
+
     // the file information is given by the global size
-    // hsize_t field_dims[3] = {topo->nglob(0), topo->nglob(1), topo->nglob(2)}; // field global dimensions
-    hsize_t field_dims[3] = {topo->nglob(2), topo->nglob(1), topo->nglob(0)}; // field global dimensions
+    hsize_t field_dims[3] = {topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0)}; // field global dimensions
     filespace = H5Screate_simple(3, field_dims, NULL);
 
     //-------------------------------------------------------------------------
@@ -86,6 +89,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     // setup the property list = option list
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
     // update the property with the chunk dimensions and the rank
+    hsize_t chunk_dims[3] = {8,8,8};
     H5Pset_chunk(plist_id, 3, chunk_dims);
     // set ZLIB / DEFLATE compression using compression level
     // H5Pset_deflate(plist_id, complevel);
@@ -102,13 +106,13 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // get the offset from topo
     int topo_offset[3];
-    topo->get_idstart_glob(topo_offset);
+    get_memstart_glob(topo_offset,topo);
 
     // compute some memory quantities
-    hsize_t block[3] = {topo->nloc(2), topo->nloc(1), topo->nloc(0)}; // the block size = the chunk size
-    hsize_t count[3] = {1, 1, 1};                                     // howmany blocks is to write
-    hsize_t stride[3] = {1, 1, 1};                                    // we take every element
-    hsize_t offset[3] = {(hsize_t)topo_offset[2], (hsize_t)topo_offset[1], (hsize_t)topo_offset[0]}; // offset in memory
+    hsize_t count[3] = {1, 1, 1};  // howmany blocks is to write
+    hsize_t stride[3] = {1, 1, 1}; // we take every element
+    hsize_t block[3] = {topo->nloc(ax2), topo->nloc(ax1), topo->nloc(ax0)}; // the block size = the chunk size
+    hsize_t offset[3] = {(hsize_t)topo_offset[ax2], (hsize_t)topo_offset[ax1], (hsize_t)topo_offset[ax0]}; // offset in memory
 
     // get the hyperslab within the dataset
     filespace = H5Dget_space(dset_id);
@@ -152,8 +156,14 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    const int ax0 = topo->axis();
+    const int ax1 = (ax0+1)%3;
+    const int ax2 = (ax0+2)%3;
+
     FILE *xmf = 0;
-    string extFilename = filename + ".xmf";
+    string extFilename = "data/" + filename + ".xmf";
+
+    printf("writting file to %s\n",extFilename.c_str());
     
     if (rank == 0)
     {
@@ -168,7 +178,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
         fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
 
         // the sizxe of the grid has to be +1 since the 3DCoRectMesh is defined as vertex-centered
-        fprintf(xmf, "     <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\"%d %d %d\"/>\n", topo->nglob(2)+1, topo->nglob(1)+1, topo->nglob(0)+1);
+        fprintf(xmf, "     <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\"%d %d %d\"/>\n", topo->nglob(ax2)+1, topo->nglob(ax1)+1, topo->nglob(ax0)+1);
 
         fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
         fprintf(xmf, "           <DataItem Name=\"Origin\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
@@ -180,7 +190,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
         fprintf(xmf, "     </Geometry>\n");
 
         fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Scalar\" Center=\"Cell\">\n", attribute.c_str());
-        fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->nglob(2), topo->nglob(1), topo->nglob(0));
+        fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0));
         fprintf(xmf, "        %s.h5:/data\n", filename.c_str()); //<-------------------------------
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "     </Attribute>\n");
