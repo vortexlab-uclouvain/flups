@@ -11,6 +11,20 @@
 
 #include "hdf5_io.hpp"
 
+/**
+ * @brief writes the hdf5 file referenced in an xmf file
+ * 
+ * @param topo topology of data being exported
+ * @param filename the filename for export without its extension
+ * @param attribute the name of the attribute to be added
+ * @param data the array containing the data associated to the #topo
+ * 
+ * ---------------------------------------
+ * Inspired from https://portal.hdfgroup.org/display/HDF5/Writing+by+Chunk+in+PHDF5
+ * 
+ * We do the following steps:
+ * 
+ */
 void hdf5_write(const Topology *topo, const string filename, const string attribute, const double *data)
 {
     BEGIN_FUNC
@@ -29,7 +43,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     string extFilename = filename + ".h5";
 
     //-------------------------------------------------------------------------
-    /** - Create a new file collectively and release property list identifier  */
+    /** - Create a new file collectively  */
     //-------------------------------------------------------------------------
     // setup the property list for file access (property list = option list)
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -41,7 +55,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     H5Pclose(plist_id);
 
     //-------------------------------------------------------------------------
-    /** - Create the dataspace (defines the organization of the elements) for the field dataset and for the chunks  */
+    /** - Create the dataspace (defines the organization of the elements) for the file and for the chunks  */
     //-------------------------------------------------------------------------
     // the memory information is given by local size
     // hsize_t chunk_dims[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
@@ -73,11 +87,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     topo->get_idstart_glob(topo_offset);
 
     // compute some memory quantities
-    // hsize_t block[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};                                // the block size = the chunk size
     hsize_t block[3] = {topo->nloc(2), topo->nloc(1), topo->nloc(0)}; // the block size = the chunk size
     hsize_t count[3] = {1, 1, 1};                                     // howmany blocks is to write
     hsize_t stride[3] = {1, 1, 1};                                    // we take every element
-    // hsize_t offset[3] = {(hsize_t)topo_offset[0], (hsize_t)topo_offset[1], (hsize_t)topo_offset[2]}; // offset in memory
     hsize_t offset[3] = {(hsize_t)topo_offset[2], (hsize_t)topo_offset[1], (hsize_t)topo_offset[0]}; // offset in memory
 
     // get the hyperslab within the dataset
@@ -104,30 +116,24 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     return;
 }
 
-//==========================================================================================
-//==========================================================================================
-//==========================================================================================
-
 /**
  * @brief writes a xmf file, readable by a XDMF viewer
  * 
  * @param topo topology of data being exported
  * @param filename the filename for export without its extension
+ * @param attribute the name of the attribute to be added
+ * 
+ * -----------------------------
+ * inspired from http://visitusers.org/index.php?title=Using_XDMF_to_read_HDF5
  */
 void xmf_write(const Topology *topo, const string filename, const string attribute)
 {
-    FILE *xmf = 0;
-    string extFilename = filename + ".xmf";
-
-    /*
-     * Open the file and write the XML description of the mesh.
-     */
-
-    //inspired from http://visitusers.org/index.php?title=Using_XDMF_to_read_HDF5
-
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    FILE *xmf = 0;
+    string extFilename = filename + ".xmf";
+    
     if (rank == 0)
     {
         xmf = fopen(extFilename.c_str(), "w");
@@ -140,9 +146,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
         fprintf(xmf, " <Domain>\n");
         fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
 
-        /**
-         * @todo I don't know why but we have to increment the size by one point
-         */
+        // the sizxe of the grid has to be +1 since the 3DCoRectMesh is defined as vertex-centered
         fprintf(xmf, "     <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\"%d %d %d\"/>\n", topo->nglob(2)+1, topo->nglob(1)+1, topo->nglob(0)+1);
 
         fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
