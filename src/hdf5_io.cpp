@@ -23,6 +23,16 @@
  * ---------------------------------------
  * Inspired from https://portal.hdfgroup.org/display/HDF5/Writing+by+Chunk+in+PHDF5
  * 
+ * The compression used is GNU gzip. The compression is characterize by the level of compression:
+ * 
+ * - `0`: No compression
+ * - `1`: Best compression speed, least compression ratio
+ * - `2` to `8`: compression speed degrades, compression ratio improves
+ * - `9`: Slowest compression speed, best compression ratio
+ * 
+ * @todo
+ * for the moment no compression is set since it fails when changing the type from double to float
+ * 
  * We do the following steps:
  * 
  */
@@ -42,6 +52,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     herr_t status;   // error code
 
     string extFilename = filename + ".h5";
+
+    // compression level
+    int complevel = 0;
 
     //-------------------------------------------------------------------------
     /** - Create a new file collectively  */
@@ -68,14 +81,18 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     filespace = H5Screate_simple(3, field_dims, NULL);
 
     //-------------------------------------------------------------------------
-    /** - Create the dataset for the file and set it to the "chunked state" */
+    /** - Create the compressed dataset for the file and set it to the "chunked state" */
     //-------------------------------------------------------------------------
     // setup the property list = option list
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
     // update the property with the chunk dimensions and the rank
     H5Pset_chunk(plist_id, 3, chunk_dims);
+    // set ZLIB / DEFLATE compression using compression level
+    // H5Pset_deflate(plist_id, complevel);
+    // UP_CHECK0(H5Zfilter_avail(H5Z_FILTER_DEFLATE),"Filter DEFLATE not available in HDF5 lib");
     // create the dataset (in floats!!)
     dset_id = H5Dcreate(file_id, attribute.c_str(), H5T_NATIVE_FLOAT, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+    // dset_id = H5Dcreate(file_id, attribute.c_str(), H5T_STD_I32BE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
     // close the filespace and the property list
     H5Sclose(filespace);
     H5Pclose(plist_id);
@@ -130,6 +147,8 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
  */
 void xmf_write(const Topology *topo, const string filename, const string attribute)
 {
+    BEGIN_FUNC
+
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
