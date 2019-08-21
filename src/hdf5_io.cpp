@@ -1,11 +1,12 @@
 /**
  * @file hdf5_io.cpp
- * @author Thomas Gillis
+ * @author Denis-Gabriel Caprace and Thomas Gillis
  * @brief 
  * @version
  * @date 2019-08-20
  * 
  * @copyright Copyright © UCLouvain 2019
+ * 
  * 
  */
 
@@ -125,6 +126,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
  * 
  * -----------------------------
  * inspired from http://visitusers.org/index.php?title=Using_XDMF_to_read_HDF5
+ * see also http://www.xdmf.org/index.php/XDMF_Model_and_Format
  */
 void xmf_write(const Topology *topo, const string filename, const string attribute)
 {
