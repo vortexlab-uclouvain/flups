@@ -51,12 +51,10 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         int rank, comm_size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-
-        hdf5_dumptest();
         
-        const int nglob[3]  = {size[is],size[is],size[is]};
+        const int nglob[3]  = {size[is],2*size[is],size[is]};
         const int nproc[3]  = {2,2,1};
-        const double L[3]   = {1.0,1.0,1.0};
+        const double L[3]   = {1.0,2.0,1.0};
         const double h[3]   = {L[0]/nglob[0],L[1]/nglob[1],L[2]/nglob[2]};
         
         // create a real topology
@@ -105,14 +103,14 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
                     double rho = sqrt(rho2);
                     const size_t id = localindex_xyz(i0,i1,i2,topo);
                     // Gaussian
-                    rhs[id] = +c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
+                    rhs[id] = -c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
                     sol[id] = +c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
                 }
             }
         }
         // read the source term and the solution
-        xmf_write(topo,"rhs","data");
-        hdf5_write(topo,"rhs","data",rhs);
+        hdf5_dump(topo,"rhs",rhs);
+        hdf5_dump(topo,"anal",sol);
 
         //-------------------------------------------------------------------------
         /** - solve the equations */

@@ -232,7 +232,7 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
                     // add one info to the destination index
                     const int dest_rank = rankindex(dest_rankd, topo_out);
                     const int buf_idx = ssend[dest_rank] + count[dest_rank];
-                    const int my_idx = localindex_xyz(i0, i1, i2, topo_in);
+                    const size_t my_idx = localindex_xyz(i0, i1, i2, topo_in);
 
                     sendbuf[buf_idx] = v[my_idx];
                     count[dest_rank] += 1;
@@ -254,7 +254,7 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
                     // add one info to the destination index
                     const int dest_rank = rankindex(dest_rankd, topo_out);
                     const int buf_idx = ssend[dest_rank] + count[dest_rank];
-                    const int my_idx = localindex_xyz(i0, i1, i2, topo_in);
+                    const size_t my_idx = localindex_xyz(i0, i1, i2, topo_in);
 
                     sendbuf[buf_idx + 0] = v[my_idx + 0];
                     sendbuf[buf_idx + 1] = v[my_idx + 1];
@@ -300,8 +300,8 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
                     orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
 
                     const int orig_rank = rankindex(orig_rankd,topo_in);
-                    const int buf_idx   = srecv[orig_rank] + count[orig_rank];
-                    const int my_idx    = localindex_xyz(i0, i1, i2, topo_out);
+                    const size_t buf_idx   = srecv[orig_rank] + count[orig_rank];
+                    const size_t my_idx    = localindex_xyz(i0, i1, i2, topo_out);
 
                     v[my_idx] = recvbuf[buf_idx];
                     count[orig_rank] += 1;
@@ -320,9 +320,9 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
                 {
                     orig_rankd[0] = topo_out->cmpt_matchrank(0,topo_in,i0+oshift[0]);
 
-                    const int orig_rank = rankindex(orig_rankd,topo_in);
-                    const int buf_idx   = srecv[orig_rank] + count[orig_rank];
-                    const int my_idx    = localindex_xyz(i0, i1, i2, topo_out);
+                    const int orig_rank  = rankindex(orig_rankd,topo_in);
+                    const size_t buf_idx = srecv[orig_rank] + count[orig_rank];
+                    const size_t my_idx  = localindex_xyz(i0, i1, i2, topo_out);
 
                     v[my_idx+0] = recvbuf[buf_idx+0];
                     v[my_idx+1] = recvbuf[buf_idx+1];
@@ -335,4 +335,76 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     {
         UP_CHECK0(false, "size of Topological nf not supported");
     }
+}
+
+void Reorder_MPI::disp(){
+    BEGIN_FUNC
+    INFO ("------------------------------------------\n");
+    INFO ("## Reorder MPI object\n");
+    INFO ("--- INPUT\n");
+    INFO2("  - input axis = %d\n",_topo_in->axis());
+    INFO4("  - input local = %d %d %d\n",_topo_in->nloc(0),_topo_in->nloc(1),_topo_in->nloc(2));
+    INFO4("  - input global = %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2));
+    INFO4("  - ishift = %d %d %d\n",_ishift[0],_ishift[1],_ishift[2]);
+    INFO4("  - istart = %d %d %d\n",_istart[0],_istart[1],_istart[2]);
+    INFO4("  - iend = %d %d %d\n",_iend[0],_iend[1],_iend[2]);
+    INFO ("--- OUTPUT\n");
+    INFO2("  - output axis = %d\n",_topo_out->axis());
+    INFO4("  - output local = %d %d %d\n",_topo_out->nloc(0),_topo_out->nloc(1),_topo_out->nloc(2));
+    INFO4("  - output global = %d %d %d\n",_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
+    INFO4("  - oshift = %d %d %d\n",_oshift[0],_oshift[1],_oshift[2]);
+    INFO4("  - ostart = %d %d %d\n",_ostart[0],_ostart[1],_ostart[2]);
+    INFO4("  - oend = %d %d %d\n",_oend[0],_oend[1],_oend[2]);
+    INFO ("------------------------------------------\n");
+}
+
+
+void Reorder_MPI::test(){
+    BEGIN_FUNC
+
+    int comm_size;
+    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
+
+    const int nglob[3] = {8,8,8};
+    // const int nproc[3] = {comm_size, 1, 1};
+    const int nproc[3] = {4,1, 1};
+
+    const int nglob_big[3] = {18,8,8};
+    const int nproc_big[3] = {1, 2, 2};
+
+    //===========================================================================
+    // real numbers
+    Topology *topo = new Topology(0, nglob, nproc, false);
+    Topology *topobig = new Topology(0, nglob_big, nproc_big, false);
+    
+    double *data = (double *)fftw_malloc(sizeof(double *) * topobig->locmemsize());
+
+    for (int i2 = 0; i2 < topo->nloc(2); i2++)
+    {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++)
+        {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++)
+            {
+                size_t id = localindex_xyz(i0, i1, i2, topo);
+                data[id + 0] = id;
+            }
+        }
+    }
+    // try the dump
+    hdf5_dump(topo,"test_real",data);
+
+    topobig->switch2complex();
+    topobig->switch2real();
+    
+
+    const int fieldstart[3]={0,0,0};
+    Reorder_MPI* reorder = new Reorder_MPI(topo,topobig,fieldstart);
+
+    reorder->execute(data,FFTW_FORWARD);
+
+    hdf5_dump(topobig,"test_real_padd",data);
+
+    fftw_free(data);
+    delete(topo);
+    delete(topobig);
 }

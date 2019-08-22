@@ -93,12 +93,15 @@ void FFTW_Solver::setup()
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
+    printf("allocating forward\n");
     _allocate_plan(_topo_hat, _plan_forward, _data);
+    printf("allocating backward\n");
     _allocate_plan(_topo_hat, _plan_backward, _data);
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
+    printf("allocating Green\n");
     _allocate_plan(_topo_green, _plan_green, _green);
     _cmptGreenFunction(_topo_green, _green, _plan_green);
 
@@ -387,7 +390,7 @@ void FFTW_Solver::_allocate_plan(const Topology *const topo[3], FFTW_plan_dim *p
 
     for (int ip = 0; ip < 3; ip++)
     {
-        UP_CHECK0(planmap[ip]->isr2c() && topo[ip]->isComplex(),"The topologies need to be reset to the state BEFORE the plan to have the correct sizes for allocation");
+        UP_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()),"The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)",ip,topo[ip]->isComplex());
         int size_plan[3] = {topo[ip]->nloc(0), topo[ip]->nloc(1), topo[ip]->nloc(2)};
         planmap[ip]->allocate_plan(size_plan, data);
     }
@@ -417,15 +420,6 @@ void FFTW_Solver::_allocate_data(const Topology *const topo_hat[3], double **dat
 
     INFOLOG2("Complex memory allocation, size = %ld\n", size_tot);
     (*data) = (double *)fftw_malloc(size_tot * sizeof(fftw_complex));
-
-    // if(_isComplex){
-    //     INFOLOG2("Complex memory allocation, size = %ld\n",size_tot);
-    //     (*data) =(double*) fftw_malloc(size_tot*sizeof(fftw_complex));
-    // }
-    // else{
-    //     INFOLOG2("Real memory allocation, size = %ld\n",size_tot);
-    //     (*data) =(double*) fftw_malloc(size_tot*sizeof(double));
-    // }
 
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
@@ -574,40 +568,6 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
             hdf5_write(topo[2], "green_t2_h", "data", green);
         }
     }
-
-    // //-------------------------------------------------------------------------
-    // /** - do the symmetry */
-    // //-------------------------------------------------------------------------
-
-    // // {int mysize[2] = {dsize_green[0],dsize_green[1]};
-    // // write_array(mysize,green,"green_ext");}
-
-    // // check if we have to symmetrize a direction
-
-    // int ax0 = topo[0]->axis();
-    // int ax1 = (ax0+1)%3;
-    // int ax2 = (ax0+2)%3;
-
-    // for(int i2=0; i2<topo[0]->nloc(ax2); i2++){
-    //     for(int i1=0; i1<topo[0]->nloc(ax1); i1++){
-    //         for(int i0=0; i0<topo[0]->nloc(ax0); i0++){
-
-    //             const size_t id = i0 + topo[0]->nloc(ax0)*(i1 + topo[0]->nloc(ax1)*i2);
-    //             // we have to take the symmetry around symstart: symstart - (iy - symstart) = 2 symstart - iy
-    //             // to use the abs we have to go back to integers
-    //             const int is0 = (symstart[ax0]==0 || i0 <= symstart[ax0]) ? i0 : abs(2*(int)symstart[ax0]-i0);
-    //             const int is1 = (symstart[ax1]==0 || i1 <= symstart[ax1]) ? i1 : abs(2*(int)symstart[ax1]-i1);
-    //             const int is2 = (symstart[ax2]==0 || i2 <= symstart[ax2]) ? i2 : abs(2*(int)symstart[ax2]-i2);
-
-    //             const size_t id_sym = is0 + topo[0]->nloc(ax0)*(is1 + topo[0]->nloc(ax1)*is2);
-
-    //             UP_CHECK3(id >= 0,"ID is not positive => id = %d, %d, %d",i0,i1,i2);
-    //             UP_CHECK3(id < topo[0]->nloc(ax0)*topo[0]->nloc(ax1)*topo[0]->nloc(ax2),"ID is greater than the max size => id = %d, %d, %d",i0,i1,i2);
-
-    //             green[id] = green[id_sym];
-    //         }
-    //     }
-    // }
 }
 
 /**
@@ -728,7 +688,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    // get the data pointer to double style
+    // reset at the max size
     size_t size_tot = topo->locmemsize();
     for (int id = 0; id < 3; id++)
         size_tot = std::max(_topo_hat[id]->locmemsize(), size_tot);
@@ -737,15 +697,15 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
-    INFOLOG("------------------------------------------\n");
-    INFOLOG("## memory information\n")
-    INFOLOG4("- size field   = %d %d %d\n", _size_field[0], _size_field[1], _size_field[2]);
-    INFOLOG4("- size hat     = %d %d %d\n", _size_hat[0], _size_hat[1], _size_hat[2]);
-    INFOLOG4("- dim order    = %d %d %d\n", _dimorder[0], _dimorder[1], _dimorder[2]);
-    INFOLOG4("- field start  = %d %d %d\n", _fieldstart[0], _fieldstart[1], _fieldstart[2]);
-    INFOLOG4("- dim multfact = %d %d %d\n", _dim_multfact[0], _dim_multfact[1], _dim_multfact[2]);
-    INFOLOG2("- offset       = %ld\n", _offset);
-    INFOLOG("------------------------------------------\n");
+    // INFOLOG("------------------------------------------\n");
+    // INFOLOG("## memory information\n")
+    // INFOLOG4("- size field   = %d %d %d\n", _size_field[0], _size_field[1], _size_field[2]);
+    // INFOLOG4("- size hat     = %d %d %d\n", _size_hat[0], _size_hat[1], _size_hat[2]);
+    // INFOLOG4("- dim order    = %d %d %d\n", _dimorder[0], _dimorder[1], _dimorder[2]);
+    // INFOLOG4("- field start  = %d %d %d\n", _fieldstart[0], _fieldstart[1], _fieldstart[2]);
+    // INFOLOG4("- dim multfact = %d %d %d\n", _dim_multfact[0], _dim_multfact[1], _dim_multfact[2]);
+    // INFOLOG2("- offset       = %ld\n", _offset);
+    // INFOLOG("------------------------------------------\n");
 
     int ax0 = topo->axis();
     int ax1 = (ax0 + 1) % 3;
@@ -788,6 +748,8 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         UP_CHECK0(false, "size of Topological nf not supported");
     }
 
+    hdf5_dump(topo,"rhs",mydata);
+
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
@@ -796,6 +758,12 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     {
         // go to the correct topo
         _reorder[ip]->execute(mydata, FFTW_FORWARD);
+
+        // if(ip ==0) _reorder[0]->disp();
+
+        // if(ip==0) hdf5_dump(_topo_hat[0],"rhs_t0",mydata);
+        // if(ip==1) hdf5_dump(_topo_hat[1],"rhs_t1",mydata);
+        // if(ip==2) hdf5_dump(_topo_hat[2],"rhs_t2",mydata);
         // run the FFT
         _plan_forward[ip]->execute_plan();
         // get if we are now complex
@@ -803,19 +771,24 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         {
             _topo_hat[ip]->switch2complex();
         }
+
+        // if(ip==0) hdf5_dump(_topo_hat[0],"rhs_t0h",mydata);
+        // if(ip==1) hdf5_dump(_topo_hat[1],"rhs_t1h",mydata);
+        // if(ip==2) hdf5_dump(_topo_hat[2],"rhs_t2h",mydata);
     }
+
+    hdf5_dump(_topo_hat[2],"rhs_h",mydata);
 
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
-    printf("doing the magic\n");
     if (type == UP_SRHS)
     {
-        if (!isComplex)
+        if (!_topo_hat[2]->isComplex())
         {
-            if (_nbr_imult == 0)
-                dothemagic_rhs_real();
-            else
+            // if (_nbr_imult == 0)
+            //     dothemagic_rhs_real();
+            // else
                 UP_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
         }
         else
@@ -834,17 +807,29 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         UP_CHECK1(false, "type of solver %d not implemented", type);
     }
 
+    hdf5_dump(_topo_hat[2],"sol_h",mydata);
+
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--)
     {
         _plan_backward[ip]->execute_plan();
+
+        // if(ip==0) hdf5_dump(_topo_hat[0],"sol_t0h",mydata);
+        // if(ip==1) hdf5_dump(_topo_hat[1],"sol_t1h",mydata);
+        // if(ip==2) hdf5_dump(_topo_hat[2],"sol_t2h",mydata);
         // get if we are now complex
         if (_plan_forward[ip]->isr2c())
         {
             _topo_hat[ip]->switch2real();
         }
+        
+
+        // if(ip==0) hdf5_dump(_topo_hat[0],"sol_t0",mydata);
+        // if(ip==1) hdf5_dump(_topo_hat[1],"sol_t1",mydata);
+        // if(ip==2) hdf5_dump(_topo_hat[2],"sol_t2",mydata);
+
         _reorder[ip]->execute(mydata, FFTW_BACKWARD);
     }
 
@@ -858,12 +843,14 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++)
             {
                 // comnpute the index permutation
-                const size_t id = i0 + topo->nloc(ax0) * (i1 + topo->nloc(ax1) * i2);
+                const size_t id = localindex_ao(i0, i1, i2, topo);
                 // put the data
-                myrhs[id] = mydata[id];
+                myfield[id] = mydata[id];
             }
         }
     }
+
+    hdf5_dump(topo,"sol",myfield);
 }
 
 /**
@@ -909,6 +896,8 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0()
 {
     BEGIN_FUNC
 
+    printf("doing the dothemagic_rhs_complex_nmult0\n");
+
     UP_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(),"field and Green must have the same axis");
 
     opt_double_ptr mydata = _data;
@@ -917,6 +906,9 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0()
     const int ax0 = _topo_hat[2]->axis();
     const int ax1 = (ax0+1)%3;
     const int ax2 = (ax0+2)%3;
+
+    // hdf5_dump(_topo_hat[2],"before_magic",mydata);
+    // hdf5_dump(_topo_green[2],"before_green",mygreen);
 
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2)
     {
@@ -941,6 +933,8 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0()
             }
         }
     }
+
+    // hdf5_dump(_topo_hat[2],"after_magic",mydata);
 }
 
 /**

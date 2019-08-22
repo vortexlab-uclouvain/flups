@@ -16,6 +16,7 @@
 #include "mpi.h"
 #include <cstring>
 #include "topology.hpp"
+#include "hdf5_io.hpp"
 
 
 class Reorder_MPI
@@ -50,6 +51,10 @@ public:
     ~Reorder_MPI();
 
     void execute(opt_double_ptr v,const int sign);
+
+
+    void disp();
+    void test();
 };
 
 #endif
