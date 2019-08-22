@@ -88,7 +88,7 @@ FFTW_plan_dim::~FFTW_plan_dim(){
  * - #_n_in the size that comes in the FFTW
  * - #_n_out the size that comes out of the FFTW
  * - #_fieldstart the index to start the FFTW (non zero for mixunbounded solvers)
- * - #_switch2Complex is true if this plan switches to the complex numbers
+ * - #_isr2c is true if this plan switches to the complex numbers
  * - #_imult is true if we used a DST
  * - #_kind the kind of FFTW plan to execute (for R2R and MIX plans only)
  * - #_symstart the symmetry start, for the Green's function only
@@ -139,14 +139,14 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
     assert(isComplex == false);
     
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
     _n_in       = size[_dimID];
     _n_out      = size[_dimID];
     _fieldstart = 0;
 
     // no switch to complex
-    _switch2Complex = false;
+    _isr2c = false;
     _shiftgreen     = 0;
 
     //-------------------------------------------------------------------------
@@ -222,7 +222,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
     assert(isComplex == false);
 
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
     //-------------------------------------------------------------------------
     if(!_isGreen){
         _n_in  =  2*size[_dimID];
@@ -233,7 +233,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
         _n_out =  2*size[_dimID]+1;
     }
 
-    _switch2Complex = false;
+    _isr2c = false;
 
     if (_isGreen) _fieldstart = 0;
     else if(_bc[0] == UNB) _fieldstart = size[_dimID];   // padding to the left
@@ -299,19 +299,19 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
 void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = 2*size[_dimID]; // takes n complex, return n complex
         _n_out = 2*size[_dimID];
 
-        _switch2Complex = false;
+        _isr2c = false;
     }
     else{
         _n_in  = size[_dimID]; // takes n real
         _n_out = _n_in/2+1; // return n_in/2 + 1 complex
 
-        _switch2Complex = true;
+        _isr2c = true;
     }
 
     _fieldstart = 0;
@@ -355,19 +355,19 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
 void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__switch2Complex)  */
+    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
     if(isComplex){
         _n_in  = 2*size[_dimID]; // takes 2n complex, return 2n complex
         _n_out = 2*size[_dimID];
 
-        _switch2Complex = false;
+        _isr2c = false;
     }
     else{
         _n_in  = 2*size[_dimID]; // takes 2n real
         _n_out = _n_in/2+1; // return n_in/2 + 1 complex
         
-        _switch2Complex = true;
+        _isr2c = true;
     }
 
     _fieldstart = 0;
@@ -405,7 +405,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
  * - _allocate_plan_real()
  * - _allocate_plan_complex()
  * 
- * @param size_plan the size of the transposed data
+ * @param size_plan the size of the data BEFORE THE PLAN is executed
  * @param isComplex if the transpoed data is complex or real
  * @param data the pointer to the transposed data (has to be allocated)
  */
@@ -434,12 +434,11 @@ void FFTW_plan_dim::allocate_plan(const int size_plan[DIM],double* data)
  * If there is a r2c tranform we will perfom upto 2 spurious transform.
  * This is not important since the Green's transform is only performed once
  * 
- * @param size_ordered the size of the transposed data
- * @param offset the offset in memory computed by FFW_Solver in double indexing unit
+ * @param memsize the size of the data BEFORE THE PLAN is executed
  * @param data the pointer to the transposed data (has to be allocated)
  * 
  */
-void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *data)
+void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double *data)
 {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
@@ -468,7 +467,7 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
 
     // set the sizemult array usefull for strides and dists
     // int sizemult[DIM]; sizemult[0] = 1;
-    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*size_ordered[id-1];
+    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*memsize[id-1];
     // if(_isDataComplex) for(int id=1; id<DIM; id++) sizemult[id]*= 2;
 
     // int istride = sizemult[(_orderID  )%DIM];
@@ -477,16 +476,16 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
     // int odist   = sizemult[(_orderID+1)%DIM];
     int istride = 1;
     int ostride = 1;
-    int idist   = size_ordered[_dimID];
-    int odist   = size_ordered[_dimID];
+    int idist   = memsize[_dimID];
+    int odist   = memsize[_dimID];
     
 
     //-------------------------------------------------------------------------
     /** - If is Green, compute #_howmany  */
     //-------------------------------------------------------------------------
     _howmany = 1;
-    for(int id=0         ; id<_dimID; id++) _howmany *= size_ordered[id];
-    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+    for(int id=0         ; id<_dimID; id++) _howmany *= memsize[id];
+    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= memsize[id];
 
 
     //-------------------------------------------------------------------------
@@ -499,9 +498,7 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
     INFOLOG ("------------------------------------------\n");
     if      (_type == R2R   ) {INFOLOG2("## R2R plan created for plan r2r (=%d)\n",_type);}
     else if (_type == MIX   ) {INFOLOG2("## R2R plan created for plan mix (=%d)\n",_type);}
-    // INFOLOG2("orderedID = %d\n",_orderID);
-    if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
-    else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
+    INFOLOG4("memsize = %d x %d x %d\n",memsize[0],memsize[1],memsize[2]);
     INFOLOG2("howmany   = %d\n",_howmany);
     INFOLOG2("size n    = %d\n",_n_in);
     INFOLOG3("istride (double) = %d - idist = %d\n",istride,idist);
@@ -522,10 +519,10 @@ void FFTW_plan_dim::_allocate_plan_real(const int size_ordered[DIM], double *dat
  * This is not important since the Green's transform is only performed once
  * 
  * 
- * @param size_ordered 
- * @param data 
+ * @param memsize the size of the data BEFORE THE PLAN is executed
+ * @param data memory
  */
-void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* data){
+void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM],double* data){
     BEGIN_FUNC
 
     assert(data != NULL);
@@ -545,25 +542,25 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
 
     // if we are green we need to recompute howmany
     _howmany = 1;
-    for(int id=0         ; id<_dimID; id++) _howmany *= size_ordered[id];
-    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= size_ordered[id];
+    for(int id=0         ; id<_dimID; id++) _howmany *= memsize[id];
+    for(int id=_dimID+1; id<DIM     ; id++) _howmany *= memsize[id];
 
     // set the sizemult array usefull for strides and dists
     // int sizemult[DIM]; sizemult[0] = 1;
-    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*size_ordered[id-1];
+    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*memsize[id-1];
     
 
     // ostrid = complex
     int istride = 1;
     int ostride = 1;
-    int idist   = size_ordered[_dimID];
-    int odist   = size_ordered[_dimID];
+    int idist   = memsize[_dimID];
+    int odist   = memsize[_dimID];
     
     
     // incomming arrays depends if we are a complex switcher or not
-    if(_switch2Complex){
-        // idist has been obtained from a complex size = size_ordered since we are inplace
-        idist *=2;       
+    if(_isr2c){
+        // idist has been obtained from a complex size = memsize since we are inplace
+        odist /=2;
 
         INFOLOG ("------------------------------------------\n");
         if      (_type == PERPER) {INFO2("## R2C plan created for plan periodic-periodic (=%d)\n",_type);}
@@ -571,8 +568,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
         // INFOLOG2("orderedID = %d\n",_orderID);
         if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
         else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
-        if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
-        else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
+        INFOLOG4("memsize = %d x %d x %d\n",memsize[0],memsize[1],memsize[2]);
         INFOLOG2("dimID     = %d\n",_dimID);
         INFOLOG2("howmany   = %d\n",_howmany);
         INFOLOG2("size n    = %d\n",_n_in);
@@ -600,20 +596,19 @@ void FFTW_plan_dim::_allocate_plan_complex(const int size_ordered[DIM],double* d
                                     (fftw_complex*) data,NULL,istride,idist,
                                     (fftw_complex*) data,NULL,ostride,odist,_sign,FFTW_FLAG);
 
-        INFOLOG ("------------------------------------------\n");
-        if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
-        else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
-        // INFOLOG2("orderedID = %d\n",_orderID);
-        if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
-        else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
-        if      (DIM == 2) {INFOLOG3("size = %d x %d\n",size_ordered[0],size_ordered[1]);}
-        else if (DIM == 3) {INFOLOG4("size = %d x %d x %d\n",size_ordered[0],size_ordered[1],size_ordered[2]);}
-        INFOLOG2("dimID     = %d\n",_dimID);
-        INFOLOG2("howmany = %d\n",_howmany);
-        INFOLOG2("size n = %d\n",_n_in);
-        INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
-        INFOLOG3("ostride (complex) = %d - odist = %d\n",ostride,odist);
-        INFOLOG ("------------------------------------------\n");
+        // INFOLOG ("------------------------------------------\n");
+        // if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
+        // else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
+        // // INFOLOG2("orderedID = %d\n",_orderID);
+        // if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
+        // else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
+        // INFOLOG4("size = %d x %d x %d\n",memsize[0],memsize[1],memsize[2]);
+        // INFOLOG2("dimID = %d\n",_dimID);
+        // INFOLOG2("howmany = %d\n",_howmany);
+        // INFOLOG2("size n = %d\n",_n_in);
+        // INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
+        // INFOLOG3("ostride (complex) = %d - odist = %d\n",ostride,odist);
+        // INFOLOG ("------------------------------------------\n");
     }
 }
 
@@ -663,7 +658,7 @@ void FFTW_plan_dim::disp(){
     }
     INFO2("- dimID      = %d\n",_dimID);
     INFO2("- is Green   ? %d\n",_isGreen);
-    INFO2("- s2Complex  ? %d\n",_switch2Complex);
+    INFO2("- s2Complex  ? %d\n",_isr2c);
     INFO2("- n_in       = %d\n",_n_in);
     INFO2("- n_out      = %d\n",_n_out);
     INFO2("- howmany    = %d\n",_howmany);

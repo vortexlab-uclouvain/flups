@@ -257,30 +257,39 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
         planmap[ip]->init(size_tmp, isComplex);
         // update the size_tmp variable and get the complex information
         planmap[ip]->get_outsize(size_tmp);
-        // we store the temp topologies for non-Green plans
+        // virtually execute the plan
+        planmap[ip]->get_isNowComplex(&isComplex);
+
+        // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && reorder != NULL)
         {
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
             // get the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
-            // create the new topology
+            // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
             // get the fieldstart = the point where the old topo has to begin in the new
             int fieldstart[3] = {0};
             planmap[ip]->get_fieldstart(fieldstart);
-            // create the reorderMPI to change topology
-            reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
-            // virtually execute the plan...
-            // if the data is now complex, update and change the topo
-            if (planmap[ip]->switch2Complex())
+            // compute the transfert between the current topo and the new one
+            // if the topo was real before the plan and is now complex
+            if (planmap[ip]->isr2c())
             {
-                isComplex = true;
+                topomap[ip]->switch2real();
+                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
                 topomap[ip]->switch2complex();
             }
-            // update the current topo
+            else
+            {
+                // create the reorderMPI to change topology
+                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+            }
+            // update the current topo to the new one
             current_topo = topomap[ip];
         }
+        
+        planmap[ip]->disp();
     }
 
     //-------------------------------------------------------------------------
@@ -291,28 +300,46 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
     {
         for (int ip = 0; ip < 3; ip++)
         {
+            // virtually execute the plan
+            planmap[ip]->get_isNowComplex(&isComplex);
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
             // get the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
-            // create the new topology
+            // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
             // get the fieldstart = the point where the old topo has to begin in the new
             int fieldstart[3] = {0};
             planmap[ip]->get_fieldstart(fieldstart);
-            // create the reorderMPI to change topology
-            reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
-            // virtually execute the plan...
-            // if the data is now complex, update and change the topo
-            if (planmap[ip]->switch2Complex())
+            // compute the transfert between the current topo and the new one
+            // if the topo was real before the plan and is now complex
+            if (planmap[ip]->isr2c())
             {
-                isComplex = true;
+                topomap[ip]->switch2real();
+                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
                 topomap[ip]->switch2complex();
             }
-            // update the current topo
+            else
+            {
+                // create the reorderMPI to change topology
+                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+            }
+            // update the current topo to the new one
             current_topo = topomap[ip];
         }
     }
+
+    //-------------------------------------------------------------------------
+    /** - reset the topologies to real if needed  */
+    //-------------------------------------------------------------------------
+    for (int ip = 0; ip < 3; ip++)
+    {
+        if(planmap[ip]->isr2c() && topomap != NULL){
+            topomap[ip]->switch2real();
+        }
+    }
+
+
     // if(isGreen && topomap != NULL)
     // {
 
@@ -360,6 +387,7 @@ void FFTW_Solver::_allocate_plan(const Topology *const topo[3], FFTW_plan_dim *p
 
     for (int ip = 0; ip < 3; ip++)
     {
+        UP_CHECK0(planmap[ip]->isr2c() && topo[ip]->isComplex(),"The topologies need to be reset to the state BEFORE the plan to have the correct sizes for allocation");
         int size_plan[3] = {topo[ip]->nloc(0), topo[ip]->nloc(1), topo[ip]->nloc(2)};
         planmap[ip]->allocate_plan(size_plan, data);
     }
@@ -455,32 +483,15 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
     //-------------------------------------------------------------------------
-    /** - set the Green function to real if needed */
-    //-------------------------------------------------------------------------
-    bool firstTopoIsComplex = topo[0]->isComplex();
-    if(firstTopoIsComplex) topo[0]->switch2real();
-
-    //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
     if (nbr_spectral == 0)
     {
         INFOLOG(">> using Green function 3 dir unbounded\n");
-        // if(DIM==2){
-        //     if     (_greenorder == CHAT_2) Green_3D_3dirunbounded_0dirspectral_chat2(topo[0],hfact,green);
-        //     else if(_greenorder == HEJ_2 ) Green_3D_3dirunbounded_0dirspectral_hej2 (topo[0],hfact,green,_greenalpha);
-        //     else if(_greenorder == HEJ_4 ) Green_3D_3dirunbounded_0dirspectral_hej4 (topo[0],hfact,green,_greenalpha);
-        //     else UP_CHECK2(false,"Green Function = %d  unknow for nbr_spectral = %d",_greenorder,nbr_spectral);
-        // }
         if (DIM == 3)
         {
-            // if (_greenorder == CHAT_2)
-            //     Green_3D_3dirunbounded_0dirspectral_chat2(topo[0], hfact, symstart, green);
-            // else
             if (_greenorder == HEJ_2)
                 Green_3D_3dirunbounded_0dirspectral_hej2(topo[0], hfact, symstart, green, _greenalpha);
-            // else if (_greenorder == HEJ_4)
-            //     // Green_3D_3dirunbounded_0dirspectral_hej4(topo[0], hfact, green, _greenalpha);
             else
                 UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _greenorder, nbr_spectral);
         }
@@ -504,12 +515,6 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _greenorder, nbr_spectral);
     }
 
-    // int rank;
-    // MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    // printf("[%d] topo is of size %d %d %d in axis %d\n",rank,topo[0]->nglob(0),topo[0]->nglob(1),topo[0]->nglob(2),topo[0]->axis());
-    // printf("[%d] topo is of size %d %d %d in axis %d\n",rank,topo[0]->nloc(0),topo[0]->nloc(1),topo[0]->nloc(2),topo[0]->axis());
-
-    
     xmf_write(topo[0], "green", "data");
     hdf5_write(topo[0], "green", "data",green);
 
@@ -548,6 +553,10 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
 
         // execute the plan
         _plan_green[ip]->execute_plan();
+
+        if(_plan_green[ip]->isr2c()){
+            topo[ip]->switch2complex();
+        }
 
         if (ip == 0)
         {
@@ -790,7 +799,10 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         // run the FFT
         _plan_forward[ip]->execute_plan();
         // get if we are now complex
-        _plan_forward[ip]->get_isNowComplex(&isComplex);
+        if (_plan_forward[ip]->isr2c())
+        {
+            _topo_hat[ip]->switch2complex();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -828,6 +840,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     for (int ip = 2; ip >= 0; ip--)
     {
         _plan_backward[ip]->execute_plan();
+        // get if we are now complex
+        if (_plan_forward[ip]->isr2c())
+        {
+            _topo_hat[ip]->switch2real();
+        }
         _reorder[ip]->execute(mydata, FFTW_BACKWARD);
     }
 

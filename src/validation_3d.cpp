@@ -51,6 +51,8 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         int rank, comm_size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+        hdf5_dumptest();
         
         const int nglob[3]  = {size[is],size[is],size[is]};
         const int nproc[3]  = {2,2,1};

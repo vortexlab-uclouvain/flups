@@ -56,7 +56,7 @@ public:
             _isComplex = false;
             _nglob[_axis] *= 2;
             _nloc[_axis]  *= 2;
-            _nbyproc[_axis] /= 2;
+            _nbyproc[_axis] *= 2;
         }
     }
 
@@ -179,17 +179,6 @@ inline static void get_idstart_glob(int istart[3], const Topology *topo)
     const int ax2 = (ax0 + 2) % 3;
 
     istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0);
-    istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
-    istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
-}
-
-inline static void get_memstart_glob(int istart[3], const Topology *topo)
-{
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0) * topo->nf();
     istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
     istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
 }

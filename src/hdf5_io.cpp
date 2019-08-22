@@ -312,8 +312,9 @@ void hdf5_dumptest()
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
 
-    const int nglob[3] = {8,8,8};
-    const int nproc[3] = {comm_size, 1, 1};
+    const int nglob[3] = {9,16,16};
+    // const int nproc[3] = {comm_size, 1, 1};
+    const int nproc[3] = {2, 2, 1};
 
     //===========================================================================
     // real numbers
@@ -351,7 +352,7 @@ void hdf5_dumptest()
             {
                 size_t id = localindex_xyz(i0, i1, i2, topo);
                 data[id + 0] = (double) id;
-                data[id + 1] = -data[id + 0];
+                data[id + 1] = 0.0;//-data[id + 0];
             }
         }
     }

@@ -127,6 +127,10 @@ Reorder_MPI::~Reorder_MPI()
 
 void Reorder_MPI::execute(opt_double_ptr v, const int sign)
 {
+    BEGIN_FUNC
+
+    UP_CHECK0(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real");
+
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);

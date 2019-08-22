@@ -54,7 +54,7 @@ protected:
     const int   _dimID;      /**< @brief the dimension of the plan in the field reference */
     const int   _sign;       /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool    _switch2Complex = false;    /**< @brief is this plan the one that changes to complex?*/
+    bool    _isr2c = false;    /**< @brief is this plan the one that changes to complex?*/
     bool    _imult          = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     bool    _dospectral     = false;    /**< @brief indicate if the Green's function has to be done spectrally */
     // int     _orderID        = -1;       /**< @brief ID in the !!ordered!! dimension*/
@@ -91,7 +91,7 @@ public:
      */
     /**@{ */
     inline bool   dospectral()      const{return _dospectral;}
-    inline bool   switch2Complex()  const{return _switch2Complex; }
+    inline bool   isr2c()           const{return _isr2c; }
     inline int    dimID()           const{return _dimID;}
     inline int    imult()           const{return _imult;}
     inline int    shiftgreen()      const{return _shiftgreen;}
@@ -104,7 +104,7 @@ public:
     
     inline void get_outsize    (int* size ) const {size[_dimID] = _n_out;};
     inline void get_fieldstart (int* start) const {start[_dimID] = _fieldstart;};
-    inline void get_isNowComplex  (bool* isComplex) const {(*isComplex) = (*isComplex) || _switch2Complex;};
+    inline void get_isNowComplex  (bool* isComplex) const {(*isComplex) = (*isComplex) || _isr2c;};
     /**@} */
 
     // /**
