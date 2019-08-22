@@ -278,16 +278,14 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     //-------------------------------------------------------------------------
     /** - Send it */
     //-------------------------------------------------------------------------
-    if(sign == FFTW_FORWARD)
-        MPI_Alltoallv(sendbuf, nsend, ssend, MPI_DOUBLE, recvbuf, nrecv, srecv, MPI_DOUBLE, MPI_COMM_WORLD);
-    else
-        MPI_Alltoallv(recvbuf, nrecv, srecv, MPI_DOUBLE, sendbuf, nsend, ssend, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Alltoallv(sendbuf, nsend, ssend, MPI_DOUBLE, recvbuf, nrecv, srecv, MPI_DOUBLE, MPI_COMM_WORLD);
     
 
     //-------------------------------------------------------------------------
     /** - Fill the memory */
     //-------------------------------------------------------------------------
-    std::memset(count, 0, sizeof(int) * comm_size);
+    std::memset(count, 0, sizeof(int) * comm_size); // reset counters
+    std::memset(v, 0, sizeof(double) * topo_out->locmemsize()); // reset datas
 
     int orig_rankd[3];
     if(topo_out->nf() == 1){
