@@ -309,8 +309,11 @@ void hdf5_dumptest()
 {
     BEGIN_FUNC
 
+    int comm_size;
+    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
+
     const int nglob[3] = {8,8,8};
-    const int nproc[3] = {2, 2, 1};
+    const int nproc[3] = {comm_size, 1, 1};
 
     //===========================================================================
     // real numbers
