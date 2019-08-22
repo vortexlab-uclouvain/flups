@@ -76,11 +76,11 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     /** - Create the dataspace (defines the organization of the elements) for the file and for the chunks  */
     //-------------------------------------------------------------------------
     // the memory information is given by local size
-    hsize_t memsize[3] = {topo->nloc(ax2), topo->nloc(ax1), topo->nloc(ax0)};
+    hsize_t memsize[3] = {(hsize_t)topo->nloc(ax2),(hsize_t)topo->nloc(ax1),(hsize_t)topo->nloc(ax0)};
     memspace = H5Screate_simple(3, memsize, NULL);
 
     // the file information is given by the global size
-    hsize_t field_dims[3] = {topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0)}; // field global dimensions
+    hsize_t field_dims[3] = {(hsize_t)topo->nglob(ax2),(hsize_t)topo->nglob(ax1),(hsize_t)topo->nglob(ax0)}; // field global dimensions
     filespace = H5Screate_simple(3, field_dims, NULL);
 
     //-------------------------------------------------------------------------
@@ -111,7 +111,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     // compute some memory quantities
     hsize_t count[3] = {1, 1, 1};  // howmany blocks is to write
     hsize_t stride[3] = {1, 1, 1}; // we take every element
-    hsize_t block[3] = {topo->nloc(ax2), topo->nloc(ax1), topo->nloc(ax0)}; // the block size = the chunk size
+    hsize_t block[3] = {(hsize_t)topo->nloc(ax2),(hsize_t)topo->nloc(ax1),(hsize_t)topo->nloc(ax0)}; // the block size = the chunk size
     hsize_t offset[3] = {(hsize_t)topo_offset[ax2], (hsize_t)topo_offset[ax1], (hsize_t)topo_offset[ax0]}; // offset in memory
 
     // get the hyperslab within the dataset
