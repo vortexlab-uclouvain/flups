@@ -44,8 +44,8 @@
     #define INFOLOG4(a,b,c,d) printf(a,b,c,d);
     #define INFOLOG5(a,b,c,d,e) printf(a,b,c,d,e);
 
-    #define BEGIN_FUNC ((void)0); 
-    // #define BEGIN_FUNC {INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);}
+    // #define BEGIN_FUNC ((void)0); 
+    #define BEGIN_FUNC {INFOLOG4(">>entering %s from %s at line %d\n",__func__,__FILE__,__LINE__);}
 #else
     #define INFOLOG(a)    ((void)0);
     #define INFOLOG2(a,b)    ((void)0);
@@ -57,14 +57,14 @@
 
 //-----------------------------------------------------------------------------
 #ifndef NDEBUG
-    // #define UP_ERROR(a) {\
+    /* #define UP_ERROR(a) {\
     //                     printf("ERROR - %s\n",a);\
     //                     void* callstack[128];\
     //                     int i, frames = backtrace(callstack, 128);\
     //                     char** strs = backtrace_symbols(callstack, frames);\
     //                     for (i = 0; i < frames; ++i) printf("   %s\n", strs[i]);\
     //                     free(strs);\
-    //                 }
+    //                 }*/
 
     #define UP_ERROR(a) { char msg_error[1024]; sprintf(msg_error,"ERROR - %s - in %s from %s at line %d\n",a,__func__,__FILE__,__LINE__); printf(msg_error); fflush(stdout); exit(0);}
 
@@ -93,15 +93,16 @@ typedef int* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_int_ptr ;
 typedef double* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned (UP_ALIGNMENT))) opt_complex_ptr;
 
-static const double c_1opi  = 1.0/(1.0*M_PI);
-static const double c_1o2pi = 1.0/(2.0*M_PI);
-static const double c_1o4pi = 1.0/(4.0*M_PI);
-static const double c_1o2   = 1.0/2.0;
-static const double c_1o4   = 1.0/4.0;
+static const double c_1opi     = 1.0/(1.0*M_PI);
+static const double c_1o2pi    = 1.0/(2.0*M_PI);
+static const double c_1o4pi    = 1.0/(4.0*M_PI);
+static const double c_1osqrtpi = 1.0/sqrt(M_PI);
+static const double c_1o2      = 1.0/2.0;
+static const double c_1o4      = 1.0/4.0;
 
-static const double c_1osqrt2 = 1.0/M_SQRT2;
+static const double c_1osqrt2  = 1.0/M_SQRT2;
 
-static const double c_2pi = 2.0*M_PI;
+static const double c_2pi      = 2.0*M_PI;
 
 
 #endif

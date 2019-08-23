@@ -110,7 +110,7 @@ void Green_3D_3dirunbounded_0dirspectral_hej2(const Topology *topo, const double
  * @param alpha the smoothing parameter
  * 
  */
-void Green_3D_3dirunbounded_0dirspectral_hej4(const Topology *topo, const double hfact[3], double *green, const double alpha)
+void Green_3D_3dirunbounded_0dirspectral_hej4(const Topology *topo, const double hfact[3], const int symstart[3], double *green, const double alpha)
 {
     BEGIN_FUNC
 
