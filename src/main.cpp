@@ -16,17 +16,15 @@
 #include "tools.hpp"
 
 #include "FFTW_Solver.hpp"
+#include "SwitchTopo.hpp"
 #include "validation_2d.hpp"
 #include "validation_3d.hpp"
-#include "SwitchTopo.hpp"
 
 #include "mpi.h"
 
 typedef double pos[4];
 
-int main(int argc, char *argv[])
-{
-
+int main(int argc, char *argv[]) {
 #if (DIM == 2)
     // int nsample = 2; int size[2] = {64,128};
     int nsample = 3;
@@ -57,13 +55,18 @@ int main(int argc, char *argv[])
     validation_2d_OU_UU(nsample, size, UP_SRHS, HEJ_4);
 #elif (DIM == 3)
 
-    MPI_Init(&argc,&argv);
+    MPI_Init(&argc, &argv);
     // int nsample = 3; int size[3] = {16, 32, 64};
-    int nsample = 4; int size[4] = {16, 32, 64,128};
+    // int nsample = 4; int size[4] = {16, 32, 64,128};
     // int nsample = 3; int size[3] = {64,128,256};
-    // int nsample = 1; int size[1] = {8};
-    validation_3d_UU_UU_UU(nsample,size,UP_SRHS,HEJ_2);
-    validation_3d_UU_UU_UU(nsample,size,UP_SRHS,HEJ_4);
+    int nsample = 1;
+    int size[1] = {16};
+    validation_3d_UU_UU_UU(nsample, size, UP_SRHS, HEJ_2);
+    validation_3d_UU_UU_UU(nsample, size, UP_SRHS, HEJ_4);
+
+    validation_3d_EU_UU_UU(nsample, size, UP_SRHS, HEJ_2);
+    validation_3d_OU_UU_UU(nsample, size, UP_SRHS, HEJ_2);
+    validation_3d_UU_OU_UU(nsample, size, UP_SRHS, HEJ_2);
 
     MPI_Finalize();
 #endif

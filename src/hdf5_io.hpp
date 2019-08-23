@@ -12,8 +12,8 @@
 #ifndef HDF5_IO_HPP
 #define HDF5_IO_HPP
 
-#include "hdf5.h"
 #include "defines.hpp"
+#include "hdf5.h"
 #include "topology.hpp"
 
 using namespace std;
@@ -23,6 +23,5 @@ void hdf5_dump(const Topology *topo, const string filename, const double *data);
 
 void xmf_write(const Topology *topo, const string filename, const string attribute);
 void hdf5_write(const Topology *topo, const string filename, const string attribute, const double *data);
-
 
 #endif
