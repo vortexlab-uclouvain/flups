@@ -20,5 +20,5 @@
 // void Green_3D_3dirunbounded_0dirspectral_chat2(const Topology* topo,const double hfact[3],double* green);
 // void Green_2D_3dirunbounded_0dirspectral_lgf2 (const size_t size[3],const double hfact[3],double* green);
 void Green_3D_3dirunbounded_0dirspectral_hej2(const Topology *topo, const double hfact[3], const int symstart[3], double *green, const double alpha);
-// void Green_3D_3dirunbounded_0dirspectral_hej4(const Topology* topo,const double hfact[3],double* green,const double alpha);
+void Green_3D_3dirunbounded_0dirspectral_hej4(const Topology *topo, const double hfact[3], const int symstart[3], double *green, const double alpha);
 /**@} */

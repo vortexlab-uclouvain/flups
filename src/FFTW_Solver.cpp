@@ -486,6 +486,8 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
         {
             if (_greenorder == HEJ_2)
                 Green_3D_3dirunbounded_0dirspectral_hej2(topo[0], hfact, symstart, green, _greenalpha);
+            else if (_greenorder == HEJ_4)
+                Green_3D_3dirunbounded_0dirspectral_hej4(topo[0], hfact, symstart, green, _greenalpha);
             else
                 UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _greenorder, nbr_spectral);
         }
