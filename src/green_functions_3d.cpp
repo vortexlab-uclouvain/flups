@@ -60,7 +60,6 @@ void Green_3D_3dirunbounded_0dirspectral_hej2(const Topology *topo, const double
     int ax2 = (ax0 + 2) % 3;
 
     const double eps = alpha * hfact[0];
-    const double oo2eps2 = 1.0 / (2.0 * eps * eps);
 
     int istart[3];
     get_idstart_glob(istart,topo);
@@ -155,9 +154,10 @@ void Green_3D_3dirunbounded_0dirspectral_hej4(const Topology *topo, const double
                 // green function value
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
-                const double Rm = r;
+                const double rho = r/eps;
+                const double Rm = rho;
                 const size_t id = i0 + topo->nloc(ax0) * (i1 + i2 * topo->nloc(ax1));
-                green[id] = -c_1o4pi * 1.0 / r * ( c_1osqrt2 * c_1osqrtpi  * Rm * exp(-r2 * oo2eps2) + erf(r * c_1osqrt2 / eps));
+                green[id] = -c_1o4pi * 1.0 / r * ( c_1osqrt2 * c_1osqrtpi  * Rm * exp(-r2 * oo2eps2) + erf(rho * c_1osqrt2));
             }
         }
     }
