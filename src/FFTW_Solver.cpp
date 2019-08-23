@@ -253,6 +253,19 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
   }
 
   //-------------------------------------------------------------------------
+  /** - Do the magic trick  */
+  //-------------------------------------------------------------------------
+  // reset the correct input size for Green if the plan is R2C
+  // only the R2C changes the size between INPUT and OUTPUT
+  // this change has to be done ONLY if the first transform is real <=> is not R2C
+  if (isGreen) {
+      for (int ip = 0; ip < 3; ip++) {
+          int dimID = planmap[ip]->dimID();
+          if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) size_tmp[dimID] *= 2;
+      }
+  }
+
+  //-------------------------------------------------------------------------
   /** - For Green we need to compute the topologies using the full size of the domain  */
   //-------------------------------------------------------------------------
   isComplex = false;
@@ -400,8 +413,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
   }
 
-  xmf_write(topo[0], "green", "data");
-  hdf5_write(topo[0], "green", "data", green);
+  hdf5_dump(topo[0], "green", green);
 
   //-------------------------------------------------------------------------
   /** - scale the Green data using #_volfact */
