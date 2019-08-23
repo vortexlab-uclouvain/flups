@@ -78,7 +78,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         /** - fill the rhs and the solution */
         //-------------------------------------------------------------------------
-        const double sigma = 0.05;
+        const double sigma = 0.1;
         const double oosigma = 1.0 / (sigma);
         const double oosigma2 = 1.0 / (sigma * sigma);
         const double oosigma3 = 1.0 / (sigma * sigma * sigma);
@@ -122,7 +122,6 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         //-------------------------------------------------------------------------
         double lerr2 = 0.0;
         double lerri = 0.0;
-        double gap = 0.0;
 
         /**
          * @todo change that to axis-based loops
@@ -137,7 +136,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
                     const double err = sol[id] - rhs[id];
 
                     lerri = max(lerri, abs(err));
-                    lerr2 += (err * err) * h[0] * h[1];
+                    lerr2 += (err * err) * h[0] * h[1] * h[2];
                 }
             }
         }

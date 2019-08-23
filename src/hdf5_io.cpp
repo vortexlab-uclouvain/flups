@@ -59,7 +59,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 {
     BEGIN_FUNC
 
-    int mpi_size, mpi_rank, info;
+    int mpi_size, mpi_rank;
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
@@ -73,7 +73,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     string extFilename = "data/"+ filename + ".h5";
 
     // compression level
-    int complevel = 0;
+    // int complevel = 0;
 
     const int ax0 = topo->axis();
     const int ax1 = (ax0+1)%3;

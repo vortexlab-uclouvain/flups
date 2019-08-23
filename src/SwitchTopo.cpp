@@ -1,5 +1,5 @@
 /**
- * @file Reorder_MPI.cpp
+ * @file SwitchTopo.cpp
  * @author Thomas Gillis
  * @brief 
  * @version
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "Reorder_MPI.hpp"
+#include "SwitchTopo.hpp"
 
 // inline static size_t localindex(const int i[3], const int n[3], const int axis)
 // {
@@ -22,7 +22,7 @@
 //     return rankd[0] + nproc[0] * (rankd[1] + nproc[1] * rankd[2]);
 // }
 
-Reorder_MPI::Reorder_MPI(const Topology* topo_input,const Topology* topo_output, const int shift[3])
+SwitchTopo::SwitchTopo(const Topology* topo_input,const Topology* topo_output, const int shift[3])
 {
     BEGIN_FUNC
 
@@ -107,7 +107,7 @@ Reorder_MPI::Reorder_MPI(const Topology* topo_input,const Topology* topo_output,
     UP_CHECK1(UP_ISALIGNED(_bufrecv),"FFTW alignement not compatible with UP_ALIGNMENT (=%d)",UP_ALIGNMENT);
 }
 
-Reorder_MPI::~Reorder_MPI()
+SwitchTopo::~SwitchTopo()
 {
     if (_nsend != NULL)
         fftw_free(_nsend);
@@ -125,7 +125,7 @@ Reorder_MPI::~Reorder_MPI()
         fftw_free(_bufrecv);
 }
 
-void Reorder_MPI::execute(opt_double_ptr v, const int sign)
+void SwitchTopo::execute(opt_double_ptr v, const int sign)
 {
     BEGIN_FUNC
 
@@ -337,10 +337,10 @@ void Reorder_MPI::execute(opt_double_ptr v, const int sign)
     }
 }
 
-void Reorder_MPI::disp(){
+void SwitchTopo::disp(){
     BEGIN_FUNC
     INFO ("------------------------------------------\n");
-    INFO ("## Reorder MPI object\n");
+    INFO ("## Topo Swticher MPI\n");
     INFO ("--- INPUT\n");
     INFO2("  - input axis = %d\n",_topo_in->axis());
     INFO4("  - input local = %d %d %d\n",_topo_in->nloc(0),_topo_in->nloc(1),_topo_in->nloc(2));
@@ -359,7 +359,7 @@ void Reorder_MPI::disp(){
 }
 
 
-void Reorder_MPI::test(){
+void SwitchTopo::test(){
     BEGIN_FUNC
 
     int comm_size;
@@ -398,9 +398,9 @@ void Reorder_MPI::test(){
     
 
     const int fieldstart[3]={0,0,0};
-    Reorder_MPI* reorder = new Reorder_MPI(topo,topobig,fieldstart);
+    SwitchTopo* switchtopo = new SwitchTopo(topo,topobig,fieldstart);
 
-    reorder->execute(data,FFTW_FORWARD);
+    switchtopo->execute(data,FFTW_FORWARD);
 
     hdf5_dump(topobig,"test_real_padd",data);
 

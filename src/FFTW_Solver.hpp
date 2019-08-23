@@ -23,7 +23,7 @@
 #include "hdf5_io.hpp"
 
 #include "tools.hpp"
-#include "Reorder_MPI.hpp"
+#include "SwitchTopo.hpp"
 
 
 using namespace std;
@@ -62,26 +62,18 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
-    // int    _type;                       /**< @brief the type of the solver, see #SolverType */
-    int    _nbr_imult       = 0;        /**< @brief the number of time we have applied a DST transform */
-    int    _dimorder    [3] = {0,1,2};  /**< @brief the transposed order of the dimension as used throughout the transforms*/
-    int    _size_field  [3] = {1,1,1};  /**< @brief the size of the field that comes in in double indexing unit  */
-    int    _fieldstart  [3] = {0,0,0};  /**< @brief the place in memory (in double indexing unit) where we start copying the rhs and the source terms in the extended domain */
-    int    _size_hat    [3] = {1,1,1};  /**< @brief the size of the transform in double indexing unit!! */
-    int    _dim_multfact[3] = {1,1,1};  /**< @brief the multiplication factors used to transpose the data. */
-    // bool   _isComplex       = false;    /**< @brief boolean to indicate if the transfrom data is complex (true) or not */
-    size_t _offset          = 0;        /**< @brief the offset in memory in double indexing unit due to #_fieldstart (only used for a R2R transfrom!)*/
-
-    double _hgrid [3] = {0.0};  /**< @brief grid spacing in the tranposed directions */
-    double* _data     = NULL;   /**< @brief data pointer to the transposed memory */
+    int    _nbr_imult = 0;        /**< @brief the number of time we have applied a DST transform */
+    
     double _normfact  = 1.0;    /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double _volfact   = 1.0;    /**< @brief volume factor due to the convolution computation */
+    double _hgrid [3] = {0.0};  /**< @brief grid spacing in the tranposed directions */
+    double* _data     = NULL;   /**< @brief data pointer to the transposed memory */
+    
 
     FFTW_plan_dim* _plan_forward[3];    /**< @brief map containing the plan forward  */
     FFTW_plan_dim* _plan_backward[3];   /**< @brief map containing the plan backward */
-    Topology* _topo_hat[3] = {NULL,NULL,NULL};
-    Reorder_MPI* _reorder [3] = {NULL,NULL,NULL}; /**< @brief reorder for the forward transform*/
-    double* mybufs[2] = {NULL,NULL}; /**< @brief reorder buffers*/
+    Topology* _topo_hat[3]   = {NULL,NULL,NULL};
+    SwitchTopo* _switchtopo[3] = {NULL,NULL,NULL}; /**< @brief switch the topologies for the forward transform*/
     
     /**
      * @name Green's function 
@@ -89,15 +81,13 @@ protected:
      */
     /**@{ */
     int     _shiftgreen     [3] = {0,0,0};  /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
-    int     _size_hat_green [3] = {1,1,1};  /**< @brief the size of the Green's transformed in fftw_complex indexing unit if the #_isComplex is true, in double indexing unit otherwize */
     double _greenalpha          = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
     double* _green              = NULL; /**< @brief data pointer to the transposed memory for Green */
     
     OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
     OrderDiff _greendiff  = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
-    Reorder_MPI* _reorder_green [3]= {NULL,NULL,NULL}; /**< @brief reorder for the forward transform*/
+    SwitchTopo* _switchtopo_green [3]= {NULL,NULL,NULL}; /**< @brief switchtopo for the forward transform*/
     Topology* _topo_green[3]= {NULL,NULL,NULL};
-    double* mybufs_green[2] = {NULL,NULL}; /**< @brief reorder buffers*/
     
     FFTW_plan_dim* _plan_green[3];      /**< @brief map containing the plan for the Green's function */
     /**@} */
@@ -111,7 +101,7 @@ protected:
      * @{
      */
     void _allocate_data(const Topology* const topo[3],double** data);
-    void _delete_reorder(Reorder_MPI *reorder[3]);
+    void _delete_switchtopo(SwitchTopo *switchtopo[3]);
     void _delete_topology(Topology *topo[3]);
     /**@}  */
 
@@ -121,7 +111,7 @@ protected:
      * @{
      */
     void _sort_plan(FFTW_plan_dim* plan[3]);
-    void _init_plan(const Topology *topo, Topology* topomap[3],Reorder_MPI* reorder[3], FFTW_plan_dim* planmap[3], bool isGreen);
+    void _init_plan(const Topology *topo, Topology* topomap[3],SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
     void _allocate_plan(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void _delete_plan(FFTW_plan_dim *planmap[3]);
     /**@} */
@@ -160,11 +150,7 @@ public:
      * 
      * @{
      */
-    // void solve(double* field, double* rhs);
-    // void solve(const Topology* topo,double * field, double * rhs);
     void solve(const Topology* topo,double * field, double * rhs,const SolverType type);
-    // void solve_rotrhs(double* field, double* rhs);
-    // void solve_div_rhs(double* field, double* rhs);
     /**@} */
 
     /**
@@ -180,6 +166,13 @@ public:
 };
 
 
+/**
+ * @brief compute the pencil layout given the pencil direction
+ * 
+ * @param id the pencil direction
+ * @param nproc the number of proc in each direction
+ * @param comm_size the total communicator size
+ */
 static inline void _pencil_nproc(const int id, int nproc[3],const int comm_size)
 {
     const int id1 = (id+1)%3;
@@ -193,8 +186,8 @@ static inline void _pencil_nproc(const int id, int nproc[3],const int comm_size)
         n1 *= 2.0;
         n2 /= 2.0;
     }
-    nproc[id1] = n1;
-    nproc[id2] = n2;
+    nproc[id1] = (int) n1;
+    nproc[id2] = (int) n2;
 
     UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == comm_size,"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],comm_size);
 }

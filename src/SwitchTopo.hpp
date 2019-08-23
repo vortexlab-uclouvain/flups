@@ -1,5 +1,5 @@
 /**
- * @file Reorder_MPI.hpp
+ * @file SwitchTopo.hpp
  * @author Thomas Gillis
  * @brief 
  * @version
@@ -19,12 +19,10 @@
 #include "hdf5_io.hpp"
 
 
-class Reorder_MPI
+class SwitchTopo
 {
 
 protected:
-    // int _nf   ;
-
     int _ishift[3];
     int _oshift[3];
 
@@ -46,9 +44,8 @@ protected:
     const Topology* _topo_out;
 
 public:
-    // Reorder_MPI(const int mynf, const int nglob[3], const int inproc[3], int myaxis0, int onproc[3], int myaxis1);
-    Reorder_MPI(const Topology* topo_input,const Topology* topo_output, const int shift[3]);
-    ~Reorder_MPI();
+    SwitchTopo(const Topology* topo_input,const Topology* topo_output, const int shift[3]);
+    ~SwitchTopo();
 
     void execute(opt_double_ptr v,const int sign);
 

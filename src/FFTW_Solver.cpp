@@ -48,9 +48,9 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
     //-------------------------------------------------------------------------
     /** - Initialise the plans and get the sizes */
     //-------------------------------------------------------------------------
-    _init_plan(topo, _topo_hat, _reorder, _plan_forward, false);
+    _init_plan(topo, _topo_hat, _switchtopo, _plan_forward, false);
     _init_plan(topo, NULL, NULL, _plan_backward, false);
-    _init_plan(topo, _topo_green, _reorder_green, _plan_green, true);
+    _init_plan(topo, _topo_green, _switchtopo_green, _plan_green, true);
 
     //-------------------------------------------------------------------------
     /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_nbr_imult */
@@ -93,41 +93,20 @@ void FFTW_Solver::setup()
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
-    printf("allocating forward\n");
     _allocate_plan(_topo_hat, _plan_forward, _data);
-    printf("allocating backward\n");
     _allocate_plan(_topo_hat, _plan_backward, _data);
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
-    printf("allocating Green\n");
     _allocate_plan(_topo_green, _plan_green, _green);
     _cmptGreenFunction(_topo_green, _green, _plan_green);
-
-    // // attention on doit recalculer les topos des Green sur les tailles FULL
-    // // car on ne sait pas gagner comme on le fait pour les fields avec les 0
-
-    // //-------------------------------------------------------------------------
-    // /** - do the forward transfrom for green*/
-    // //-------------------------------------------------------------------------
-    // for(int ip=0; ip<3;ip++)
-    // {
-    //     // go to the topology for the plan
-    //     _reorder_green[ip]->execute(_green,FFTW_FORWARD);
-
-    //     // do a symmetry if needed
-    //     cmptGreenSymmetry(_topo_green,_green);
-
-    //     // execute the plan
-    //     _plan_green[ip]->execute_plan();
-    // }
 
     //-------------------------------------------------------------------------
     /** - delete the useless data for Green */
     //-------------------------------------------------------------------------
     _delete_plan(_plan_green);
-    _delete_reorder(_reorder_green);
+    _delete_switchtopo(_switchtopo_green);
 }
 
 /**
@@ -147,11 +126,11 @@ FFTW_Solver::~FFTW_Solver()
     if (_data != NULL)
         fftw_free(_data);
 
-    // delete reorder
+    // delete switchtopo
     for (int id = 0; id < 3; id++)
     {
-        if (_reorder[id] != NULL)
-            delete _reorder[id];
+        if (_switchtopo[id] != NULL)
+            delete _switchtopo[id];
     }
 
     //cleanup
@@ -173,14 +152,14 @@ void FFTW_Solver::_delete_plan(FFTW_plan_dim *planmap[3])
     }
 }
 
-void FFTW_Solver::_delete_reorder(Reorder_MPI *reorder[3])
+void FFTW_Solver::_delete_switchtopo(SwitchTopo *switchtopo[3])
 {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++)
     {
-        delete reorder[ip];
-        reorder[ip] = NULL;
+        delete switchtopo[ip];
+        switchtopo[ip] = NULL;
     }
 }
 void FFTW_Solver::_delete_topology(Topology *topo[3])
@@ -229,11 +208,11 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3])
  * 
  * @param topo the starting topology
  * @param topomap the topology array to go through each dim ( may be NULL) it corresponds to the topology AFTER the plan
- * @param reorder the reordering array to switch between topologies (may be NULL)
+ * @param switchtopo the switchtopoing array to switch between topologies (may be NULL)
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder_MPI *reorder[3], FFTW_plan_dim *planmap[3], bool isGreen)
+void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen)
 {
     BEGIN_FUNC
 
@@ -264,7 +243,7 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
         planmap[ip]->get_isNowComplex(&isComplex);
 
         // we store a new topology BEFORE the plan is executed
-        if (!isGreen && topomap != NULL && reorder != NULL)
+        if (!isGreen && topomap != NULL && switchtopo != NULL)
         {
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
@@ -280,13 +259,13 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
             if (planmap[ip]->isr2c())
             {
                 topomap[ip]->switch2real();
-                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
                 topomap[ip]->switch2complex();
             }
             else
             {
-                // create the reorderMPI to change topology
-                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+                // create the switchtopoMPI to change topology
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
@@ -299,7 +278,7 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
     /** - For Green we need to compute the topologies using the full size of the domain  */
     //-------------------------------------------------------------------------
     isComplex = false;
-    if (isGreen && topomap != NULL && reorder != NULL)
+    if (isGreen && topomap != NULL && switchtopo != NULL)
     {
         for (int ip = 0; ip < 3; ip++)
         {
@@ -319,13 +298,13 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
             if (planmap[ip]->isr2c())
             {
                 topomap[ip]->switch2real();
-                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
                 topomap[ip]->switch2complex();
             }
             else
             {
-                // create the reorderMPI to change topology
-                reorder[ip] = new Reorder_MPI(current_topo, topomap[ip], fieldstart);
+                // create the switchtopoMPI to change topology
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
@@ -341,48 +320,6 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], Reorder
             topomap[ip]->switch2real();
         }
     }
-
-
-    // if(isGreen && topomap != NULL)
-    // {
-
-    //     for(int ip=0; ip<3;ip++)
-    //     {
-    //         // // initialize the plan
-    //         // planmap[ip]->init(size_tmp,isComplex);
-    //         // // update the size
-    //         // // planmap[ip]->get_outsize(size_tmp); // update the size for the next plans, keep order unchanged
-    //         // planmap[ip]->get_isNowComplex(&isComplex);
-    //         // get the fastest rotating index
-    //         int dimID = planmap[ip]->dimID(); // store the correspondance of the transposition
-
-    //         /**
-    //          * @todo
-    //          *
-    //          * the plans in planmap have been created on the wrong sizes... is it an issue?
-    //          */
-
-    //         // get the number of procs
-    //         int nproc[3];
-    //         _pencil_nproc(dimID,nproc,topo->comm_size());
-    //         UP_CHECK4(nproc[0]*nproc[1]*nproc[2] == topo->comm_size(),"the number of proc %d %d %d does not match the comm size %d",nproc[0],nproc[1],nproc[2],topo->comm_size());
-
-    //         // create the new topology with the size_tmp = the final size
-    //         topomap[ip] = new Topology(dimID, size_tmp, nproc);
-
-    //         if (reorder != NULL)
-    //         {
-    //             // get the fieldstart = the point where the old topo has to begin in the new
-    //             int fieldstart[3] = {0};
-    //             planmap[ip]->get_fieldstart(fieldstart);
-    //             // create the reorderMPI to change topology
-    //             printf("\ncreating reorder for Green with fieldstart = %d %d %d\n\n\n",fieldstart[0],fieldstart[1],fieldstart[2]);
-    //             reorder[ip] = new Reorder_MPI(1, current_topo, topomap[ip], fieldstart);
-    //         }
-
-    //         current_topo = topomap[ip];
-    //     }
-    // }
 }
 void FFTW_Solver::_allocate_plan(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data)
 {
@@ -444,7 +381,6 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
     //-------------------------------------------------------------------------
     /** - get the direction where we need to do spectral diff and count them */
     //-------------------------------------------------------------------------
-    int order[3];
     bool dospectral[3] = {false};
 
     double hfact[3];
@@ -522,127 +458,28 @@ void FFTW_Solver::_cmptGreenFunction(Topology * topo[3], double *green, FFTW_pla
     //-------------------------------------------------------------------------
     /** - compute a symmetry and do the forward transform*/
     //-------------------------------------------------------------------------
-    bool isComplex = false;
     for (int ip = 0; ip < 3; ip++)
     {
         // go to the topology for the plan
         if (ip > 0)
         {
-            _reorder_green[ip]->execute(_green, FFTW_FORWARD);
+            _switchtopo_green[ip]->execute(_green, FFTW_FORWARD);
         }
-
-        if (ip == 0)
-        {
-            xmf_write(topo[0],  "green_t0", "data");
-            hdf5_write(topo[0], "green_t0", "data", green);
-        }
-        else if (ip == 1)
-        {
-            xmf_write(topo[1],  "green_t1", "data");
-            hdf5_write(topo[1], "green_t1", "data", green);
-        }
-        else if (ip == 2)
-        {
-            xmf_write(topo[2],  "green_t2", "data");
-            hdf5_write(topo[2], "green_t2", "data", green);
-        }
-
         // execute the plan
         _plan_green[ip]->execute_plan();
 
         if(_plan_green[ip]->isr2c()){
             topo[ip]->switch2complex();
         }
-
-        if (ip == 0)
-        {
-            xmf_write(topo[0],  "green_t0_h", "data");
-            hdf5_write(topo[0], "green_t0_h", "data", green);
-        }
-        else if (ip == 1)
-        {
-            xmf_write(topo[1],  "green_t1_h", "data");
-            hdf5_write(topo[1], "green_t1_h", "data", green);
-        }
-        else if (ip == 2)
-        {
-            xmf_write(topo[2],  "green_t2_h", "data");
-            hdf5_write(topo[2], "green_t2_h", "data", green);
-        }
     }
 }
 
 /**
- * @brief compute the Green's function symmetry along the fastest rotating index
+ * @brief scales the Green's function given the #_volfact factor
  * 
- * We take the symmetry around sym_idx: sym_idx - (i0 - sym_idx) = 2 sym_idx - i0
- * 
- * @warning The padding starts at sym_idx+1 due to the vertex-centered data of the Green's function
- * 
- * @param topo the topology we are currently on
- * @param sym_idx the index of symmetry: data(sym_idx+1) is padded
- * @param data the data storage
- * @param isComplex boolean to indicate if the data is
+ * @param topo the current topo
+ * @param data the Green's function
  */
-// void FFTW_Solver::_cmptGreenSymmetry(const Topology *topo, const int sym_idx, double *data, const bool isComplex)
-// {
-//     BEGIN_FUNC
-
-//     // if no symmetry is required, we stop
-//     if (sym_idx == 0)
-//         return;
-
-//     // the symmetry is done along the fastest rotating index
-//     const int ax0 = topo->axis();
-//     const int ax1 = (ax0 + 1) % 3;
-//     const int ax2 = (ax0 + 2) % 3;
-
-//     printf("\n");
-//     printf("doing the symmetry along axis %d around id %d\n",topo->axis(),sym_idx);
-
-//     if (!isComplex)
-//     {
-//         for (int i2 = 0; i2 < topo->nloc(ax2); i2++)
-//         {
-//             for (int i1 = 0; i1 < topo->nloc(ax1); i1++)
-//             {
-//                 // this direction is continuous in memory hence no idstart is required
-//                 for (int i0 = sym_idx + 1; i0 < topo->nloc(ax0); i0++)
-//                 {
-
-//                     const size_t id = i0 + topo->nloc(ax0) * (i1 + topo->nloc(ax1) * i2);
-//                     const size_t id_sym = abs(2 * (int)sym_idx - i0) + topo->nloc(ax0) * (i1 + topo->nloc(ax1) * i2);
-
-//                     UP_CHECK3(id >= 0, "ID is not positive => id = %d, %d, %d", i0, i1, i2);
-//                     UP_CHECK3(id < topo->nloc(ax0) * topo->nloc(ax1) * topo->nloc(ax2), "ID is greater than the max size => id = %d, %d, %d", i0, i1, i2);
-
-//                     data[id] = data[id_sym];
-//                 }
-//             }
-//         }
-//     }
-//     else
-//     {
-//         for (int i2 = 0; i2 < topo->nloc(ax2); i2++)
-//         {
-//             for (int i1 = 0; i1 < topo->nloc(ax1); i1++)
-//             {
-//                 for (int i0 = sym_idx + 1; i0 < topo->nloc(ax0); i0 += 2)
-//                 {
-
-//                     const size_t id = i0 + topo->nloc(ax0) * (i1 + topo->nloc(ax1) * i2);
-//                     const size_t id_sym = abs(2 * (int)sym_idx - i0) + topo->nloc(ax0) * (i1 + topo->nloc(ax1) * i2);
-
-//                     UP_CHECK3(id >= 0, "ID is not positive => id = %d, %d, %d", i0, i1, i2);
-//                     UP_CHECK3(id < topo->nloc(ax0) * topo->nloc(ax1) * topo->nloc(ax2), "ID is greater than the max size => id = %d, %d, %d", i0, i1, i2);
-
-//                     data[id] = data[id_sym];
-//                     data[id + 1] = data[id_sym + 1];
-//                 }
-//             }
-//         }
-//     }
-// }
 void FFTW_Solver::_scaleGreenFunction(const Topology *topo, double *data)
 {
     // the symmetry is done along the fastest rotating index
@@ -755,17 +592,10 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
-    bool isComplex = false;
     for (int ip = 0; ip < 3; ip++)
     {
         // go to the correct topo
-        _reorder[ip]->execute(mydata, FFTW_FORWARD);
-
-        // if(ip ==0) _reorder[0]->disp();
-
-        // if(ip==0) hdf5_dump(_topo_hat[0],"rhs_t0",mydata);
-        // if(ip==1) hdf5_dump(_topo_hat[1],"rhs_t1",mydata);
-        // if(ip==2) hdf5_dump(_topo_hat[2],"rhs_t2",mydata);
+        _switchtopo[ip]->execute(mydata, FFTW_FORWARD);
         // run the FFT
         _plan_forward[ip]->execute_plan();
         // get if we are now complex
@@ -773,10 +603,6 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         {
             _topo_hat[ip]->switch2complex();
         }
-
-        // if(ip==0) hdf5_dump(_topo_hat[0],"rhs_t0h",mydata);
-        // if(ip==1) hdf5_dump(_topo_hat[1],"rhs_t1h",mydata);
-        // if(ip==2) hdf5_dump(_topo_hat[2],"rhs_t2h",mydata);
     }
 
     hdf5_dump(_topo_hat[2],"rhs_h",mydata);
@@ -817,22 +643,12 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     for (int ip = 2; ip >= 0; ip--)
     {
         _plan_backward[ip]->execute_plan();
-
-        // if(ip==0) hdf5_dump(_topo_hat[0],"sol_t0h",mydata);
-        // if(ip==1) hdf5_dump(_topo_hat[1],"sol_t1h",mydata);
-        // if(ip==2) hdf5_dump(_topo_hat[2],"sol_t2h",mydata);
         // get if we are now complex
         if (_plan_forward[ip]->isr2c())
         {
             _topo_hat[ip]->switch2real();
         }
-        
-
-        // if(ip==0) hdf5_dump(_topo_hat[0],"sol_t0",mydata);
-        // if(ip==1) hdf5_dump(_topo_hat[1],"sol_t1",mydata);
-        // if(ip==2) hdf5_dump(_topo_hat[2],"sol_t2",mydata);
-
-        _reorder[ip]->execute(mydata, FFTW_BACKWARD);
+        _switchtopo[ip]->execute(mydata, FFTW_BACKWARD);
     }
 
     //-------------------------------------------------------------------------
@@ -868,7 +684,6 @@ void FFTW_Solver::dothemagic_rhs_real()
     opt_double_ptr mydata = _data;
     const opt_double_ptr mygreen = _green;
 
-    size_t id = 0;
     const int ax0 = _topo_hat[2]->axis();
     const int ax1 = (ax0+1)%3;
     const int ax2 = (ax0+2)%3;
@@ -1035,3 +850,4 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult3()
     //     }
     // }
 }
+
