@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
     int nsample = 4; int size[4] = {16, 32, 64,128};
     // int nsample = 3; int size[3] = {64,128,256};
     // int nsample = 1; int size[1] = {8};
-    validation_3d_UU_UU(nsample,size,UP_SRHS,HEJ_2);
-    validation_3d_UU_UU(nsample,size,UP_SRHS,HEJ_4);
+    validation_3d_UU_UU_UU(nsample,size,UP_SRHS,HEJ_2);
+    validation_3d_UU_UU_UU(nsample,size,UP_SRHS,HEJ_4);
 
     MPI_Finalize();
 #endif

@@ -13,20 +13,20 @@
 
 #include "defines.hpp"
 
-/**
- * @brief The type of Green's function used for the Poisson solver
- * 
- * For the moment, only the Green's functions from Chatelain et al. (CHAT2) support #_dospectral = true
- */
-enum OrderDiff{
-    CHAT_2, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    DIF_2,  /**< @brief finite difference order 2 for the spectral diff */
-    DIF_4,  /**< @brief finite difference order 4 for the spectral diff */
-    DIF_INF /**< @brief finite difference order infinite (=spectral) for the spectral diff */
-};
+// /**
+//  * @brief The type of Green's function used for the Poisson solver
+//  * 
+//  * For the moment, only the Green's functions from Chatelain et al. (CHAT2) support #_dospectral = true
+//  */
+// enum OrderDiff{
+//     CHAT_2, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
+//     LGF_2,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
+//     HEJ_2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
+//     HEJ_4,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
+//     DIF_2,  /**< @brief finite difference order 2 for the spectral diff */
+//     DIF_4,  /**< @brief finite difference order 4 for the spectral diff */
+//     DIF_INF /**< @brief finite difference order infinite (=spectral) for the spectral diff */
+// };
 
 
 /**

@@ -23,7 +23,7 @@
  * 
  */
 /**@{ */
-void validation_3d_UU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_3d_UU_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
 /**@} */
 
 /**
@@ -31,10 +31,10 @@ void validation_3d_UU_UU(const int nsample, const int* size, const SolverType ty
  * 
  */
 /**@{ */
-void validation_3d_UU_UE(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_UU_EU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_EU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_UE_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_3d_UU_UE(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_UU_EU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_EU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_UE_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
 /**@} */
 
 /**
@@ -42,10 +42,10 @@ void validation_3d_UE_UU(const int nsample, const int* size, const SolverType ty
  * 
  */
 /**@{ */
-void validation_3d_UU_UO(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_UU_OU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_OU_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
-void validation_3d_UO_UU(const int nsample, const int* size, const SolverType type, const OrderDiff orderdiff);
+void validation_3d_UU_UO(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_UU_OU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_OU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d_UO_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
 /**@} */
 
 #endif

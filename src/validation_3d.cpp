@@ -17,7 +17,7 @@
  * @param type 
  * @param orderdiff 
  */
-void validation_3d_UU_UU(const int nsample, const int *size, const SolverType type, const OrderDiff orderdiff)
+void validation_3d_UU_UU_UU(const int nsample, const int *size, const SolverType type, const GreenType typeGreen)
 {
 
     // int size[2] = {1024,2048};
@@ -29,7 +29,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     char filename[512];
-    sprintf(filename, "./data/%s-type=%d-orderdiff=%d.error", __func__, type, orderdiff);
+    sprintf(filename, "./data/%s-type=%d-typeGreen=%d.error", __func__, type, typeGreen);
 
     if (rank == 0)
     {
@@ -66,7 +66,7 @@ void validation_3d_UU_UU(const int nsample, const int *size, const SolverType ty
         /** - Initialize the solver */
         //-------------------------------------------------------------------------
         FFTW_Solver *mysolver = new FFTW_Solver(topo, mybc,h,L);
-        mysolver->set_GreenType(orderdiff);
+        mysolver->set_GreenType(typeGreen);
         mysolver->setup();
 
         //-------------------------------------------------------------------------

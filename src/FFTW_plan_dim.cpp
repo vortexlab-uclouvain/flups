@@ -153,16 +153,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM],const bool isComplex)
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0; // if no symmetry is needed, set to 0
-
-    //-------------------------------------------------------------------------
-    /** - get #_howmany if we are not a Green function */
-    //-------------------------------------------------------------------------
-    // if(!_isGreen){
-    //     _howmany = 1;
-    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    // }
-
+    
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
@@ -243,21 +234,10 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM],const bool isComplex){
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0; // if no symmetry is needed, set to 0
-
-    //-------------------------------------------------------------------------
-    /** - get #_howmany if we are not a Green function */
-    //-------------------------------------------------------------------------
-    // if(!_isGreen){
-    //     _howmany = 1;
-    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    // }
-
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(4.0*size[_dimID]);
-    
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms, #_imult and #_shiftgreen */
     //-------------------------------------------------------------------------
@@ -321,21 +301,10 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM],const bool isComplex){
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0; // if no symmetry is needed, set to 0
-
-    //-------------------------------------------------------------------------
-    /** - get #_howmany if we are not a Green function */
-    //-------------------------------------------------------------------------
-    // if(!_isGreen){
-    //     _howmany = 1;
-    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    // }
-
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(size[_dimID]);
-
     //-------------------------------------------------------------------------
     /** - Get the #_imult factor */
     //-------------------------------------------------------------------------
@@ -372,26 +341,14 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM],const bool isComplex){
 
     _fieldstart = 0;
     _shiftgreen = 0;
-
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = size[_dimID];
-    
-    //-------------------------------------------------------------------------
-    /** - get howmany if we are not a Green function */
-    //-------------------------------------------------------------------------
-    // if(!_isGreen){
-    //     _howmany = 1;
-    //     for(int id=0       ; id<_dimID; id++) _howmany *= size[id];
-    //     for(int id=_dimID+1; id<DIM   ; id++) _howmany *= size[id];
-    // }
-
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0/(2*size[_dimID]);
-
     //-------------------------------------------------------------------------
     /** - Get the #_imult */
     //-------------------------------------------------------------------------
@@ -463,17 +420,7 @@ void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double *data)
     //-------------------------------------------------------------------------
     // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
-    int rank = 1;
-
-    // set the sizemult array usefull for strides and dists
-    // int sizemult[DIM]; sizemult[0] = 1;
-    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*memsize[id-1];
-    // if(_isDataComplex) for(int id=1; id<DIM; id++) sizemult[id]*= 2;
-
-    // int istride = sizemult[(_orderID  )%DIM];
-    // int idist   = sizemult[(_orderID+1)%DIM];
-    // int ostride = sizemult[(_orderID  )%DIM];
-    // int odist   = sizemult[(_orderID+1)%DIM];
+    int rank    = 1;
     int istride = 1;
     int ostride = 1;
     int idist   = memsize[_dimID];
@@ -536,30 +483,22 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM],double* data){
         return;
     }
 
-    // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
-
     // if we are green we need to recompute howmany
     _howmany = 1;
     for(int id=0         ; id<_dimID; id++) _howmany *= memsize[id];
     for(int id=_dimID+1; id<DIM     ; id++) _howmany *= memsize[id];
-
-    // set the sizemult array usefull for strides and dists
-    // int sizemult[DIM]; sizemult[0] = 1;
-    // for(int id=1; id<DIM; id++) sizemult[id]=sizemult[id-1]*memsize[id-1];
     
-
-    // ostrid = complex
+    // strides
     int istride = 1;
     int ostride = 1;
     int idist   = memsize[_dimID];
     int odist   = memsize[_dimID];
     
-    
     // incomming arrays depends if we are a complex switcher or not
     if(_isr2c){
-        // idist has been obtained from a complex size = memsize since we are inplace
+        // idist has been obtained from a the incomming size
         odist /=2;
 
         INFOLOG ("------------------------------------------\n");

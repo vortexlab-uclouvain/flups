@@ -5,8 +5,8 @@ Run the validation testcases
 clear all; close all; clc;
 
 
-run_valid('3d_UU_UU-type=0-orderdiff=2',2);
-run_valid('3d_UU_UU-type=0-orderdiff=3',4);
+run_valid('3d_UU_UU_UU-type=0-typeGreen=2',2);
+run_valid('3d_UU_UU_UU-type=0-typeGreen=3',4);
 
 % run_valid('2d_UU_UU-type=0-orderdiff=2',2);
 % run_valid('2d_UU_UU-type=0-orderdiff=3',4);

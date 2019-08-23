@@ -54,19 +54,18 @@ protected:
     const int   _dimID;      /**< @brief the dimension of the plan in the field reference */
     const int   _sign;       /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool    _isr2c = false;    /**< @brief is this plan the one that changes to complex?*/
-    bool    _imult          = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
-    bool    _dospectral     = false;    /**< @brief indicate if the Green's function has to be done spectrally */
-    // int     _orderID        = -1;       /**< @brief ID in the !!ordered!! dimension*/
-    int     _howmany        = -1;       /**< @brief number of transfroms to perfom */
-    int     _fieldstart     = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
-    int     _n_in           = 0;        /**< @brief the number of element in the transform*/
-    int     _n_out          = 0;        /**< @brief the number of element coming out of the transform*/
-    int     _symstart       = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
-    int     _shiftgreen     = 0;        /**< @brief the shift to set in the Green's function when doing the convolution*/
-    double  _normfact       = 0.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double  _volfact        = 0.0;      /**< @brief volume factor*/
-    double  _kfact          = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
+    bool    _isr2c      = false;    /**< @brief is this plan the one that changes to complex?*/
+    bool    _imult      = false;    /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
+    bool    _dospectral = false;    /**< @brief indicate if the Green's function has to be done spectrally */
+    int     _howmany    = -1;       /**< @brief number of transfroms to perfom */
+    int     _fieldstart = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
+    int     _n_in       = 0;        /**< @brief the number of element in the transform*/
+    int     _n_out      = 0;        /**< @brief the number of element coming out of the transform*/
+    int     _symstart   = 0;        /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
+    int     _shiftgreen = 0;        /**< @brief the shift to set in the Green's function when doing the convolution*/
+    double  _normfact   = 0.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double  _volfact    = 0.0;      /**< @brief volume factor*/
+    double  _kfact      = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
     
     
     PlanType     _type;      /**< @brief type of this plan, see #PlanType*/
@@ -106,25 +105,6 @@ public:
     inline void get_fieldstart (int* start) const {start[_dimID] = _fieldstart;};
     inline void get_isNowComplex  (bool* isComplex) const {(*isComplex) = (*isComplex) || _isr2c;};
     /**@} */
-
-    // /**
-    //  * @name Getters - return the value in array[ id ]
-    //  * 
-    //  */
-    // /**@{ */
-    // void get_dimID          (const int id, int dimID[DIM]) const;
-    // void get_outsize        (const int id, int size [DIM]) const;
-    // void get_outsize_double (const int id, int size [DIM]) const;
-    // void get_fieldstart     (const int id, int start[DIM]) const;
-    // /**@} */
-    
-    // /**
-    //  * @name Setters
-    //  * 
-    //  */
-    // /**@{ */
-    // void set_order(const int id);
-    // /**@} */
 
     void disp();
 

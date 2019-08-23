@@ -62,7 +62,8 @@ class FFTW_Solver{
     // even is the dimension is 2, we allocate arrays of dimension 3
 
 protected:
-    int    _nbr_imult = 0;        /**< @brief the number of time we have applied a DST transform */
+    int _orderdiff    = 0; /**< @brief the order of derivative (spectral = 0)  */
+    int    _nbr_imult = 0; /**< @brief the number of time we have applied a DST transform */
     
     double _normfact  = 1.0;    /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double _volfact   = 1.0;    /**< @brief volume factor due to the convolution computation */
@@ -81,11 +82,10 @@ protected:
      */
     /**@{ */
     int     _shiftgreen     [3] = {0,0,0};  /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
-    double _greenalpha          = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
+    double _alphaGreen          = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
     double* _green              = NULL; /**< @brief data pointer to the transposed memory for Green */
     
-    OrderDiff _greenorder = CHAT_2; /**< @brief order and type of the Green function, see #OrderGreen */
-    OrderDiff _greendiff  = DIF_2; /**< @brief order of the spectral differentiation, see #OrderGreen */
+    GreenType _typeGreen = CHAT_2; /**< @brief the type of Green's function */
     SwitchTopo* _switchtopo_green [3]= {NULL,NULL,NULL}; /**< @brief switchtopo for the forward transform*/
     Topology* _topo_green[3]= {NULL,NULL,NULL};
     
@@ -144,6 +144,7 @@ public:
     ~FFTW_Solver();
 
     void setup();
+    void set_OrderDiff(const int order) {_orderdiff = order;}
 
     /**
      * @name Solver use
@@ -158,9 +159,8 @@ public:
      * 
      * @{
      */
-    void set_GreenType(const OrderDiff order) {_greenorder = order;}
-    void set_GreenDiff(const OrderDiff order) {_greendiff = order;}
-    void set_alpha(const double alpha){_greenalpha = alpha;}
+    void set_GreenType(const GreenType type) {_typeGreen = type;}
+    void set_alpha(const double alpha){_alphaGreen = alpha;}
     /**@} */
 
 };
