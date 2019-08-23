@@ -384,12 +384,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
   if (nbr_spectral == 0) {
     INFOLOG(">> using Green function 3 dir unbounded\n");
     if (DIM == 3) {
-      if (_typeGreen == HEJ_2)
-        Green_3D_3dirunbounded_0dirspectral_hej2(topo[0], hfact, symstart, green, _alphaGreen);
-      else if (_typeGreen == HEJ_4)
-        Green_3D_3dirunbounded_0dirspectral_hej4(topo[0], hfact, symstart, green, _alphaGreen);
-      else
-        UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
+        Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
     }
   } else if (nbr_spectral == 1) {
     INFOLOG(">> using Green function 2 dir unbounded - 1 dir spectral\n");
