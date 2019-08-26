@@ -23,19 +23,6 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    char filename[512];
-    sprintf(filename, "./data/%s-type=%d-typeGreen=%d.error", __func__, type, typeGreen);
-
-    //why opening this file and reopening it in a+ after??
-    // if (rank == 0) {
-    //     FILE * = fopen(filename, "w+");
-    //     if (myfile != NULL) {
-    //         fclose(myfile);
-    //     } else {
-    //         UP_CHECK1(false, "unable to open file %s", filename);
-    //     }
-    // }
-
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
@@ -142,6 +129,12 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //-------------------------------------------------------------------------
     mysolver->solve(topo, rhs, rhs, UP_SRHS);
 
+#ifdef DUMP_H5
+    // write the source term and the solution
+    sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
+    hdf5_dump(topo, msg, rhs);
+#endif    
+
     //-------------------------------------------------------------------------
     /** - compute the error */
     //-------------------------------------------------------------------------
@@ -168,6 +161,9 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     MPI_Allreduce(&lerri, &erri, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
     err2 = sqrt(err2);
+
+    char filename[512];
+    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.err",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
 
     if (rank == 0) {
         FILE *myfile = fopen(filename, "a+");

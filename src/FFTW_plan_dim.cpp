@@ -126,7 +126,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    assert(isComplex == false);
+    UP_CHECK0(isComplex == false,"the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -195,7 +195,7 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM], const bool isComplex) 
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    assert(isComplex == false);
+    UP_CHECK0(isComplex == false,"the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
