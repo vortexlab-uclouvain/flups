@@ -40,14 +40,14 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double 
     //-------------------------------------------------------------------------
     // Get type and mult factors
     //-------------------------------------------------------------------------
-    if (mytype <= R2R) {
-        _type     = R2R;
+    if (mytype <= SYMSYM) {
+        _type     = SYMSYM;
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         if (_isGreen) _dospectral = true;
-    } else if (mytype <= MIX) {
-        _type     = MIX;
+    } else if (mytype <= MIXUNB) {
+        _type     = MIXUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (4.0 * L[_dimID]);
@@ -84,7 +84,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * - #_fieldstart the index to start the FFTW (non zero for mixunbounded solvers)
  * - #_isr2c is true if this plan switches to the complex numbers
  * - #_imult is true if we used a DST
- * - #_kind the kind of FFTW plan to execute (for R2R and MIX plans only)
+ * - #_kind the kind of FFTW plan to execute (for SYMSYM and MIXUNB plans only)
  * - #_symstart the symmetry start, for the Green's function only
  * 
  * @param size the current size that will come in (hence already partially transformed)
@@ -100,9 +100,9 @@ void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
     //-------------------------------------------------------------------------
     // redirect to the corresponding subfunction
     //-------------------------------------------------------------------------
-    if (_type == R2R) {
+    if (_type == SYMSYM) {
         _init_real2real(size, isComplex);
-    } else if (_type == MIX) {
+    } else if (_type == MIXUNB) {
         // _n = 2*size[dimID]; // we have to double the size
         _init_mixpoisson(size, isComplex);
     } else if (_type == PERPER) {
@@ -353,7 +353,7 @@ void FFTW_plan_dim::allocate_plan(const int size_plan[DIM], double* data) {
     //-------------------------------------------------------------------------
     // allocate the plan
     //-------------------------------------------------------------------------
-    if (_type == R2R || _type == MIX) {
+    if (_type == SYMSYM || _type == MIXUNB) {
         _allocate_plan_real(size_plan, data);
     } else if (_type == PERPER || _type == UNBUNB) {
         _allocate_plan_complex(size_plan, data);
@@ -383,9 +383,9 @@ void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double* data) {
     assert(data != NULL);
 
     //-------------------------------------------------------------------------
-    /** - If is Green and #_type is R2R, exit */
+    /** - If is Green and #_type is SYMSYM, exit */
     //-------------------------------------------------------------------------
-    if (_isGreen && _type == R2R) {
+    if (_isGreen && _type == SYMSYM) {
         _plan = NULL;
 
         INFOLOG("------------------------------------------\n");
@@ -420,10 +420,10 @@ void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double* data) {
                                data, NULL, ostride, odist, &_kind, FFTW_FLAG);
 
     INFOLOG("------------------------------------------\n");
-    if (_type == R2R) {
-        INFOLOG2("## R2R plan created for plan r2r (=%d)\n", _type);
-    } else if (_type == MIX) {
-        INFOLOG2("## R2R plan created for plan mix (=%d)\n", _type);
+    if (_type == SYMSYM) {
+        INFOLOG2("## SYMSYM plan created for plan r2r (=%d)\n", _type);
+    } else if (_type == MIXUNB) {
+        INFOLOG2("## SYMSYM plan created for plan mix (=%d)\n", _type);
     }
     INFOLOG4("memsize = %d x %d x %d\n", memsize[0], memsize[1], memsize[2]);
     INFOLOG2("howmany   = %d\n", _howmany);
@@ -540,9 +540,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data)
 void FFTW_plan_dim::execute_plan() {
     BEGIN_FUNC
     // run the plan
-    if (_type == R2R) {
+    if (_type == SYMSYM) {
         INFO2(">> Doing plan real2real for dim %d\n", _dimID);
-    } else if (_type == MIX) {
+    } else if (_type == MIXUNB) {
         INFO2(">> Doing plan mix for dim %d\n", _dimID);
     } else if (_type == PERPER) {
         INFO2(">> Doing plan periodic-periodic for dim %d\n", _dimID);
@@ -560,9 +560,9 @@ void FFTW_plan_dim::disp() {
     BEGIN_FUNC
     INFO("------------------------------------------\n");
     INFO2("## Plan num created for dimension %d\n", _dimID);
-    if (_type == R2R) {
+    if (_type == SYMSYM) {
         INFO2("- type = real2real (=%d)\n", _type);
-    } else if (_type == MIX) {
+    } else if (_type == MIXUNB) {
         INFO2("- type = mix (=%d)\n", _type);
     } else if (_type == PERPER) {
         INFO2("- type = periodic-periodic (=%d)\n", _type);
@@ -587,7 +587,7 @@ void FFTW_plan_dim::disp() {
     } else if (_bc[1] == PER) {
         INFO(" PER}\n");
     }
-    if (_type == R2R || _type == MIX) {
+    if (_type == SYMSYM || _type == MIXUNB) {
         if (_kind == FFTW_REDFT00) {
             INFO("- kind = REDFT00 = DCT type I\n")
         }

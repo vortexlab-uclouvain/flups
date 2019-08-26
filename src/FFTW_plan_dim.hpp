@@ -34,8 +34,8 @@ enum BoundaryType {
  * This order is chosen in order to reduce the computational cost.
  */
 enum PlanType {
-    R2R    = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
-    MIX    = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
+    SYMSYM = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
+    MIXUNB = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
     PERPER = 6, /**< type periodic - periodic: PERPER (6) */
     UNBUNB = 8  /**< type fully unbounded UU (8) */
 };
