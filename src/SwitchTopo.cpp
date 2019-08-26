@@ -161,7 +161,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     opt_double_ptr recvbuf;
     opt_double_ptr sendbuf;
 
-    if (sign == FFTW_FORWARD) {
+    if (sign == UP_FORWARD) {
         topo_in  = _topo_in;
         topo_out = _topo_out;
 
@@ -181,7 +181,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         nrecv   = _nrecv;
         sendbuf = _bufsend;
         recvbuf = _bufrecv;
-    } else if (sign == FFTW_BACKWARD) {
+    } else if (sign == UP_BACKWARD) {
         topo_in  = _topo_out;
         topo_out = _topo_in;
 
@@ -202,7 +202,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         sendbuf = _bufrecv;
         recvbuf = _bufsend;
     } else {
-        UP_CHECK0(false, "the sign is not FFTW_FORWARD nor FFTW_BACKWARD");
+        UP_CHECK0(false, "the sign is not UP_FORWARD nor UP_BACKWARD");
     }
 
     INFOLOG5("previous topo: %d,%d,%d axis=%d\n", topo_in->nglob(0),
@@ -380,7 +380,7 @@ void SwitchTopo::test() {
     const int   fieldstart[3] = {0, 0, 0};
     SwitchTopo* switchtopo    = new SwitchTopo(topo, topobig, fieldstart);
 
-    switchtopo->execute(data, FFTW_FORWARD);
+    switchtopo->execute(data, UP_FORWARD);
 
     hdf5_dump(topobig, "test_real_padd", data);
 

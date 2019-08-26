@@ -17,7 +17,7 @@
  * @param h the grid spacing
  * @param L the lenght of the computational domain
  * @param mybc the boundary condition to use for this plan
- * @param sign the sign of the plan (FFTW_FORWARD or FFTW_BACKWARD)
+ * @param sign the sign of the plan (UP_FORWARD or UP_BACKWARD)
  * @param isGreen boolean to indicate if the plan is intended for Green's function
  */
 FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double L[DIM], const BoundaryType mybc[2], const int sign, const bool isGreen) : _dimID(dimID),
@@ -159,22 +159,22 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
         _imult = false;  // we do NOT have to multiply by i=sqrt(-1)
 
         if (_bc[1] == EVEN) {
-            if (_sign == FFTW_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_REDFT01;
+            if (_sign == UP_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01;
         } else if (_bc[1] == ODD) {
-            if (_sign == FFTW_FORWARD) _kind = FFTW_REDFT01;  // DCT type III
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_REDFT10;
+            if (_sign == UP_FORWARD) _kind = FFTW_REDFT01;  // DCT type III
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT10;
         }
     } else if (_bc[0] == ODD) {  // We have a DST
 
         _imult = true;  // we DO have to multiply by -i=-sqrt(-1)
 
         if (_bc[1] == ODD) {
-            if (_sign == FFTW_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+            if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
+            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01;
         } else if (_bc[1] == EVEN) {
-            if (_sign == FFTW_FORWARD) _kind = FFTW_REDFT11;  // DST type IV
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_REDFT11;
+            if (_sign == UP_FORWARD) _kind = FFTW_REDFT11;  // DST type IV
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT11;
         }
     } else {
         UP_ERROR("unable to init the solver required\n")
@@ -232,19 +232,19 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM], const bool isComplex) 
         _imult      = false;
         _shiftgreen = 0;
         // The Green function is ALWAYS EVEN - EVEN
-        if (_sign == FFTW_FORWARD) _kind = FFTW_REDFT00;  // DCT type I
-        if (_sign == FFTW_BACKWARD) _kind = FFTW_REDFT00;
+        if (_sign == UP_FORWARD) _kind = FFTW_REDFT00;  // DCT type I
+        if (_sign == UP_BACKWARD) _kind = FFTW_REDFT00;
     } else {
         if ((_bc[0] == EVEN && _bc[1] == UNB) || (_bc[0] == UNB && _bc[1] == EVEN)) {  // We have a DCT - we are EVEN - EVEN
             _imult      = false;
             _shiftgreen = 0;
-            if (_sign == FFTW_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_REDFT01;
+            if (_sign == UP_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01;
         } else if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {  // We have a DCT - we are EVEN - ODD
             _imult      = true;
             _shiftgreen = 1;
-            if (_sign == FFTW_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == FFTW_BACKWARD) _kind = FFTW_RODFT01;
+            if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
+            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01;
         } else {
             UP_ERROR("unable to init the solver required\n")
         }
@@ -487,9 +487,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data)
             INFO2("## R2C plan created for plan unbounded (=%d)\n", _type);
         }
         // INFOLOG2("orderedID = %d\n",_orderID);
-        if (_sign == FFTW_FORWARD) {
+        if (_sign == UP_FORWARD) {
             INFOLOG("FORWARD transfrom\n");
-        } else if (_sign == FFTW_BACKWARD) {
+        } else if (_sign == UP_BACKWARD) {
             INFOLOG("BACKWARD transfrom\n");
         }
         INFOLOG4("memsize = %d x %d x %d\n", memsize[0], memsize[1], memsize[2]);
@@ -501,7 +501,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data)
         INFOLOG("------------------------------------------\n");
 
         // set the plan - there is no offset in r2c or c2c possible
-        if (_sign == FFTW_FORWARD) {
+        if (_sign == UP_FORWARD) {
             _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), _howmany,
                                            data, NULL, istride, idist,
                                            (fftw_complex*)data, NULL, ostride, odist, FFTW_FLAG);
@@ -521,8 +521,8 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data)
         // if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
         // else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
         // // INFOLOG2("orderedID = %d\n",_orderID);
-        // if      (_sign == FFTW_FORWARD){ INFOLOG("FORWARD transfrom\n");}
-        // else if (_sign == FFTW_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
+        // if      (_sign == UP_FORWARD){ INFOLOG("FORWARD transfrom\n");}
+        // else if (_sign == UP_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
         // INFOLOG4("size = %d x %d x %d\n",memsize[0],memsize[1],memsize[2]);
         // INFOLOG2("dimID = %d\n",_dimID);
         // INFOLOG2("howmany = %d\n",_howmany);
@@ -622,9 +622,9 @@ void FFTW_plan_dim::disp() {
     INFO2("- fieldstart = %d\n", _fieldstart);
     INFO2("- shiftgreen = %d\n", _shiftgreen);
     INFO2("- dospectral ? %d\n", _dospectral);
-    if (_sign == FFTW_FORWARD) {
+    if (_sign == UP_FORWARD) {
         INFO("- FORWARD plan\n");
-    } else if (_sign == FFTW_BACKWARD) {
+    } else if (_sign == UP_BACKWARD) {
         INFO("- BACKWARD plan\n");
     }
 

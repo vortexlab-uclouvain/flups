@@ -34,9 +34,9 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
         _hgrid[id] = h[id];
 
     for (int id = 0; id < DIM; id++) {
-        _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], FFTW_FORWARD, false);
-        _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], FFTW_BACKWARD, false);
-        _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], FFTW_FORWARD, true);
+        _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, false);
+        _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], UP_BACKWARD, false);
+        _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, true);
     }
 
     _sort_plan(_plan_forward);
@@ -426,7 +426,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     for (int ip = 0; ip < 3; ip++) {
         // go to the topology for the plan
         if (ip > 0) {
-            _switchtopo_green[ip]->execute(_green, FFTW_FORWARD);
+            _switchtopo_green[ip]->execute(_green, UP_FORWARD);
         }
         // execute the plan
         _plan_green[ip]->execute_plan();
@@ -541,7 +541,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < 3; ip++) {
         // go to the correct topo
-        _switchtopo[ip]->execute(mydata, FFTW_FORWARD);
+        _switchtopo[ip]->execute(mydata, UP_FORWARD);
         // run the FFT
         _plan_forward[ip]->execute_plan();
         // get if we are now complex
@@ -585,7 +585,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2real();
         }
-        _switchtopo[ip]->execute(mydata, FFTW_BACKWARD);
+        _switchtopo[ip]->execute(mydata, UP_BACKWARD);
     }
 
     //-------------------------------------------------------------------------

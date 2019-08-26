@@ -114,6 +114,9 @@
 
 #define GAMMA 0.5772156649015328606
 
+#define UP_FORWARD -1 // = FFTW_FORWARD
+#define UP_BACKWARD 1 // = FFTW_BACKWARD
+
 #define UP_ALIGNMENT 16
 #define UP_ISALIGNED(a) \
     { ((uintptr_t)(const void*)a) % UP_ALIGNMENT == 0; }
