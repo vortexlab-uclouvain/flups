@@ -25,6 +25,8 @@
 #include "SwitchTopo.hpp"
 #include "tools.hpp"
 
+#include "Profiler.hpp"
+
 using namespace std;
 
 /**
@@ -88,6 +90,9 @@ class FFTW_Solver {
 
     FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
     /**@} */
+
+    // time the solve
+    Profiler* _prof = NULL;
 
    protected:
     /**
