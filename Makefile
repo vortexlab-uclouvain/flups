@@ -12,11 +12,8 @@ TARGET := poisson
 CC = mpiicc
 CXX = mpiicpc
 
-# CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
-CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
-
-# define some options
-DEF := -DDUMP_H5
+CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
+# CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 
 # linker specific flags
 LDFLAGS := 
