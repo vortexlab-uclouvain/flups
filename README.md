@@ -2,13 +2,28 @@
 
 ## Example
 
-## Implementation details
-### C++ use
+### Implementation details
+#### C++ use
 We use the C++ language in a very limited way, on purpose.
 The features used are the object oriented layout and some usefull features of the standard library.
 
-### Memory layout
+#### Conventions
 
+- Put a ```BEGIN_FUNC``` at the begining of each function
+- how to name an action? ```action_mySuperFunction``` where ```action``` = ```set```, ```get```, ```execute```, ```switch```, ```cmpt```
+- how to name a function? ```mySuperFunction```
+- how to name an class? ```MyClass```
+- how to name an type? ```MyType```
+
+#### Format Guide
+We follow the Google formating rules, see https://google.github.io/styleguide/cppguide.html for more details
+
+To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
+Set then the value: ```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignements: true, AlignConsecutiveDeclarations: true }```.
+
+Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
+
+#### Memory layout
 In this project we choose to handle the memory in a **Fortran** way of doing iven if we are in C/C++.
 So, the memory is aligned as a single row of size `n[0] * n[1] * n[2]`.
 The fastest rotating index is set to be `n[0]` then `n[1]` and finally `n[2]`.
