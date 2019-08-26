@@ -179,7 +179,7 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3]) {
         FFTW_plan_dim *temp_plan = plan[2];
         plan[2]                  = plan[1];
         plan[1]                  = temp_plan;
-        if (priority[0] > priority[1]) {
+        if (priority[0] > priority[2]) {
             FFTW_plan_dim *temp_plan = plan[1];
             plan[1]                  = plan[0];
             plan[0]                  = temp_plan;
