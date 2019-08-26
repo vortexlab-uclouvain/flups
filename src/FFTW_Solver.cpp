@@ -479,7 +479,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     UP_CHECK1(UP_ISALIGNED(rhs), "pointer no aligned to UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
 
     opt_double_ptr       myfield = field;
-    opt_double_ptr       mydata  = (double *)_data;
+    opt_double_ptr       mydata  = _data;
     const opt_double_ptr myrhs   = rhs;
 
     //-------------------------------------------------------------------------
@@ -507,33 +507,20 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     int ax0 = topo->axis();
     int ax1 = (ax0 + 1) % 3;
     int ax2 = (ax0 + 2) % 3;
-    if (topo->nf() == 1) {
-        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                    // comnpute the index permutation
-                    const size_t id = localindex_ao(i0, i1, i2, topo);
-                    // put the data
-                    mydata[id] = myrhs[id];
-                }
-            }
-        }
-    } else if (topo->nf() == 2) {
-        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                    // comnpute the index permutation
-                    const size_t id = localindex_ao(i0, i1, i2, topo);
-                    // put the data
-                    mydata[id + 0] = myrhs[id + 0];
-                    mydata[id + 1] = myrhs[id + 1];
-                }
-            }
-        }
-    } else {
-        UP_CHECK0(false, "size of Topological nf not supported");
-    }
 
+    UP_CHECK0(!topo->isComplex(), "The RHS topology cannot be complex");
+    
+    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+            // comnpute the index permutation
+            size_t id= localindex_ao(0, i1, i2, topo);
+            // the last direction is continuous in memory
+            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) { 
+                mydata[id] = myrhs[id];
+                id ++;
+            }
+        }
+    }
     hdf5_dump(topo, "rhs", mydata);
 
     //-------------------------------------------------------------------------
@@ -593,15 +580,15 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                // comnpute the index permutation
-                const size_t id = localindex_ao(i0, i1, i2, topo);
-                // put the data
+            // comnpute the index permutation
+            size_t id= localindex_ao(0, i1, i2, topo);
+            // the last direction is continuous in memory
+            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) { 
                 myfield[id] = mydata[id];
+                id ++;
             }
         }
     }
-
     hdf5_dump(topo, "sol", myfield);
 }
 
