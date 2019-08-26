@@ -1,6 +1,6 @@
 /**
  * @file green_functions_3d.cpp
- * @author Thomas Gillis
+ * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
  * @date 2019-07-22

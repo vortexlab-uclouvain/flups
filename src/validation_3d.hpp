@@ -1,6 +1,6 @@
 /**
  * @file validation.hpp
- * @author Thomas Gillis
+ * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
  * @date 2019-07-19
@@ -19,33 +19,24 @@
 #include "mpi.h"
 
 /**
- * @name Fully unbounded
+ * @brief everything required to characterize the computational domain and initial condition 
  * 
  */
-/**@{ */
-void validation_3d_UU_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-/**@} */
+struct DomainDescr {
+    int          nglob[3]   = {64, 64, 64};
+    int          nproc[3]   = {2, 2, 1};
+    double       L[3]       = {1.0, 1.0, 1.0};
+    double       sigma      = 0.1;              // smoothing length scale of the blob
+    double       center[3]  = {0.5, 0.5, 0.5};  //center of the blob (in % of L)
+    BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+};
 
 /**
- * @name Unbounded Even
+ * @name validation of the solver using a gaussian blob
  * 
  */
 /**@{ */
-void validation_3d_UU_UE_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_UU_EU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_EU_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_UE_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-/**@} */
-
-/**
- * @name Unbounded Even
- * 
- */
-/**@{ */
-void validation_3d_UU_UO_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_UU_OU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_OU_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
-void validation_3d_UO_UU_UU(const int nsample, const int* size, const SolverType type, const GreenType typeGreen);
+void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen);
 /**@} */
 
 #endif
