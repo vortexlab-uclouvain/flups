@@ -413,7 +413,11 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
     }
 
-    hdf5_dump(topo[0], "green", green);
+#ifdef DUMP_H5
+    char msg[512];
+    sprintf(msg, "green_%d%d%d_%dx%dx%d", planmap[0]->type(), planmap[1]->type(), planmap[2]->type(), topo[0]->nglob(0), topo[0]->nglob(1), topo[0]->nglob(2));
+    hdf5_dump(topo[0], msg, green);
+#endif
 
     //-------------------------------------------------------------------------
     /** - scale the Green data using #_volfact */

@@ -128,12 +128,14 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
         }
     }
 
+#ifdef DUMP_H5
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
     hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
     hdf5_dump(topo, msg, sol);
+#endif
 
     //-------------------------------------------------------------------------
     /** - solve the equations */

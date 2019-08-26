@@ -16,7 +16,7 @@ CXX = mpiicpc
 CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 
 # define some options
-DEF :=
+DEF := -DDUMP_H5
 
 # linker specific flags
 LDFLAGS := 
