@@ -11,12 +11,17 @@
 
 #include "SwitchTopo.hpp"
 
+/**
+ * @brief Construct a Switch Topo object
+ * 
+ * @param topo_input the input topology
+ * @param topo_output the output topology 
+ * @param shift the shift to set in the output topology to match 0,0,0 in the current topology
+ */
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
                        const int shift[3]) {
     BEGIN_FUNC
 
-    // UP_CHECK0(topo_input->globmemsize() == topo_output->globmemsize(),"global
-    // memory size have to match between topos");
     UP_CHECK0(topo_input->isComplex() == topo_output->isComplex(),
               "both topologies have to be the same kind");
 
@@ -58,7 +63,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     std::memset(_count, 0, sizeof(int) * comm_size);
 
     //-------------------------------------------------------------------------
-    /** - Compute the axis for loop go through */
+    /** - Compute the naxis for loop go through */
     //-------------------------------------------------------------------------
     const int ax0 = _topo_in->axis();
     const int ax1 = (ax0 + 1) % 3;
