@@ -83,6 +83,7 @@ class Topology {
     inline size_t locmemsize() const { return _nloc[0] * _nloc[1] * _nloc[2] * _nf; }
     inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
     void          cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
+    void          cmpt_intersect_naxis(const Topology* other, const int istart[3],const int iend[3], int* naxis) const;
     // inline int  get_idstart_glob(const int dim) const { return _rankd[dim] * _nbyproc[dim]; }
 
     /**
@@ -173,12 +174,18 @@ inline static size_t localindex_ao(const int i0, const int i1, const int i2, con
  * @return size_t 
  */
 inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
-    int i[3];
-    i[axis]           = i0;
-    i[(axis + 1) % 3] = i1;
-    i[(axis + 2) % 3] = i2;
+    const int nf  = topo->nf();
+    const int i[3] = {i0,i1,i2};
+    // compute the shift to perform from the axis reference to 
+    const int dax0  = (3+topo->axis()-axis)%3;
+    const int dax1  = (dax0 + 1) % 3;
+    const int dax2  = (dax0 + 2) % 3;
 
-    return localindex_xyz(i[0], i[1], i[2], topo);
+    const int ax0  = topo->axis();
+    const int ax1  = (ax0 + 1) % 3;
+
+    // return localindex_xyz(i[0], i[1], i[2], topo);
+    return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
 }
 
 inline static void get_idstart_glob(int istart[3], const Topology *topo) {
@@ -189,6 +196,17 @@ inline static void get_idstart_glob(int istart[3], const Topology *topo) {
     istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0);
     istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
     istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
+}
+
+/**
+ * @brief return the number of local point for the proc index iproc in the dimension id 
+ * 
+ * @param id the dimension ID
+ * @param iproc the id of the proc in the direction id
+ * @param topo the topology
+ */
+inline static int get_nloc(const int id, const int iproc,const Topology* topo){
+    return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 
 #endif

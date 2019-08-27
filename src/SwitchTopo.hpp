@@ -33,6 +33,10 @@ class SwitchTopo {
     int *_ssend = NULL;  // start index in my memory to send to each proc
     int *_srecv = NULL;  // start index in my memory to receive from each proc
     int *_count = NULL;
+    int *_naxis_i2o_send = NULL;
+    int *_naxis_o2i_send = NULL;
+    int *_naxis_i2o_recv = NULL;
+    int *_naxis_o2i_recv = NULL;
 
     double *_bufsend = NULL;
     double *_bufrecv = NULL;
@@ -48,6 +52,9 @@ class SwitchTopo {
 
     void disp();
     void test();
+
+protected:
+    void _compute_naxis(const Topology* topo_other,int *naxis);
 };
 
 #endif
