@@ -162,6 +162,25 @@ inline static size_t localindex_ao(const int i0, const int i1, const int i2, con
     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
 }
 
+/**
+ * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
+ *
+ * @param axis index of the axis corresponding to i0
+ * @param ix index in the X direction
+ * @param iy index in the Y direction
+ * @param iz index in the Z direction
+ * @param topo 
+ * @return size_t 
+ */
+inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
+    int i[3];
+    i[axis]           = i0;
+    i[(axis + 1) % 3] = i1;
+    i[(axis + 2) % 3] = i2;
+
+    return localindex_xyz(i[0], i[1], i[2], topo);
+}
+
 inline static void get_idstart_glob(int istart[3], const Topology *topo) {
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
