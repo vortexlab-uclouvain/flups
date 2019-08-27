@@ -45,7 +45,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double 
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (2.0 * L[_dimID]);
-        if (_isGreen) _dospectral = true;
+        if (_isGreen) _isSpectral = true;
     } else if (mytype <= MIXUNB) {
         _type     = MIXUNB;
         _normfact = 1.0;
@@ -56,12 +56,14 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double 
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (L[_dimID]);
-        if (_isGreen) _dospectral = true;
+        if (_isGreen) _isSpectral = true;
     } else if (mytype == UNBUNB) {
         _type     = UNBUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
+    } else {
+        UP_ERROR("Invalid combination of BCs")
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim() {
@@ -74,20 +76,20 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * 
  * The function redirects to one of the init functions depending on the type:
  * - _init_real2real()
- * - _init_mixpoisson()
+ * - _init_mixunbounded()
  * - _init_periodic()
  * - _init_unbounded()
  * 
  * Each of the sub-function initializes the following variables
- * - #_n_in the size that comes in the FFTW
- * - #_n_out the size that comes out of the FFTW
+ * - #_n_in the size of data provided as input to the FFTW (i.e. the number of real or complex numbers)
+ * - #_n_out the size of data that comes out of the FFTW
  * - #_fieldstart the index to start the FFTW (non zero for mixunbounded solvers)
  * - #_isr2c is true if this plan switches to the complex numbers
  * - #_imult is true if we used a DST
  * - #_kind the kind of FFTW plan to execute (for SYMSYM and MIXUNB plans only)
  * - #_symstart the symmetry start, for the Green's function only
  * 
- * @param size the current size that will come in (hence already partially transformed)
+ * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data
  */
 void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
@@ -104,7 +106,7 @@ void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
         _init_real2real(size, isComplex);
     } else if (_type == MIXUNB) {
         // _n = 2*size[dimID]; // we have to double the size
-        _init_mixpoisson(size, isComplex);
+        _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
         _init_periodic(size, isComplex);
     } else if (_type == UNBUNB) {
@@ -190,7 +192,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
  * ----------------------------------------
  * We do the following operations
  */
-void FFTW_plan_dim::_init_mixpoisson(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -204,6 +206,8 @@ void FFTW_plan_dim::_init_mixpoisson(const int size[DIM], const bool isComplex) 
         _n_in  = 2 * size[_dimID];
         _n_out = 2 * size[_dimID];
     } else if (_isGreen) {
+        //Different because the Green's function is to be seen as "vertex centered",
+        //as opposed to data which are "cell cenetered".
         _n_in  = 2 * size[_dimID] + 1;
         _n_out = 2 * size[_dimID] + 1;
     }
@@ -315,7 +319,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM], const bool isComplex) {
 
         _isr2c = false;
     } else {
-        _n_in  = 2 * size[_dimID];  // takes 2n real
+        _n_in  = 2 * size[_dimID];  // takes 2n real (because of the padding)
         _n_out = _n_in / 2 + 1;     // return n_in/2 + 1 complex
 
         _isr2c = true;
@@ -621,7 +625,7 @@ void FFTW_plan_dim::disp() {
     INFO2("- howmany    = %d\n", _howmany);
     INFO2("- fieldstart = %d\n", _fieldstart);
     INFO2("- shiftgreen = %d\n", _shiftgreen);
-    INFO2("- dospectral ? %d\n", _dospectral);
+    INFO2("- isSpectral ? %d\n", _isSpectral);
     if (_sign == UP_FORWARD) {
         INFO("- FORWARD plan\n");
     } else if (_sign == UP_BACKWARD) {

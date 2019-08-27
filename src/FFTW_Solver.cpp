@@ -12,12 +12,12 @@
 #include "FFTW_Solver.hpp"
 
 /**
- * @brief Construct a fftw Poisson solver
+ * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
- * @param topo the current topology of the data
- * @param mybc the boundary conditions of the solver
+ * @param topo the input topology of the data (in physical space)
+ * @param mybc the boundary conditions of the computational domain, the first index corresponds to the dimension, the second is left (0) or right (1) side
  * @param h the grid spacing
- * @param L 
+ * @param L the domain size
  */
 FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], const double h[3], const double L[3]) {
     BEGIN_FUNC
@@ -39,16 +39,16 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, true);
     }
 
-    _sort_plan(_plan_forward);
-    _sort_plan(_plan_backward);
-    _sort_plan(_plan_green);
+    _sort_plans(_plan_forward);
+    _sort_plans(_plan_backward);
+    _sort_plans(_plan_green);
 
     //-------------------------------------------------------------------------
     /** - Initialise the plans and get the sizes */
     //-------------------------------------------------------------------------
-    _init_plan(topo, _topo_hat, _switchtopo, _plan_forward, false);
-    _init_plan(topo, NULL, NULL, _plan_backward, false);
-    _init_plan(topo, _topo_green, _switchtopo_green, _plan_green, true);
+    _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
+    _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
+    _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
 
     //-------------------------------------------------------------------------
     /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_nbr_imult */
@@ -89,20 +89,20 @@ void FFTW_Solver::setup() {
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
-    _allocate_plan(_topo_hat, _plan_forward, _data);
-    _allocate_plan(_topo_hat, _plan_backward, _data);
+    _allocate_plans(_topo_hat, _plan_forward, _data);
+    _allocate_plans(_topo_hat, _plan_backward, _data);
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
-    _allocate_plan(_topo_green, _plan_green, _green);
+    _allocate_plans(_topo_green, _plan_green, _green);
     _cmptGreenFunction(_topo_green, _green, _plan_green);
 
     //-------------------------------------------------------------------------
     /** - delete the useless data for Green */
     //-------------------------------------------------------------------------
-    _delete_plan(_plan_green);
-    _delete_switchtopo(_switchtopo_green);
+    _delete_plans(_plan_green);
+    _delete_switchtopos(_switchtopo_green);
 }
 
 /**
@@ -112,8 +112,8 @@ void FFTW_Solver::setup() {
 FFTW_Solver::~FFTW_Solver() {
     BEGIN_FUNC
     // delete plans
-    _delete_plan(_plan_forward);
-    _delete_plan(_plan_backward);
+    _delete_plans(_plan_forward);
+    _delete_plans(_plan_backward);
 
     // delete datas
     if (_green != NULL)
@@ -135,7 +135,7 @@ FFTW_Solver::~FFTW_Solver() {
  * 
  * @param planmap 
  */
-void FFTW_Solver::_delete_plan(FFTW_plan_dim *planmap[3]) {
+void FFTW_Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -144,7 +144,7 @@ void FFTW_Solver::_delete_plan(FFTW_plan_dim *planmap[3]) {
     }
 }
 
-void FFTW_Solver::_delete_switchtopo(SwitchTopo *switchtopo[3]) {
+void FFTW_Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -152,7 +152,7 @@ void FFTW_Solver::_delete_switchtopo(SwitchTopo *switchtopo[3]) {
         switchtopo[ip] = NULL;
     }
 }
-void FFTW_Solver::_delete_topology(Topology *topo[3]) {
+void FFTW_Solver::_delete_topologies(Topology *topo[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -161,7 +161,12 @@ void FFTW_Solver::_delete_topology(Topology *topo[3]) {
     }
 }
 
-void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3]) {
+/**
+ * @brief smartly determines in which order the FFTs will be executed
+ * 
+ * @param plan the list of plan, which will be reordered
+ */
+void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
     int priority[3];
 
     for (int id = 0; id < 3; id++)
@@ -173,7 +178,7 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3]) {
         plan[1]                  = plan[0];
         plan[0]                  = temp_plan;
     }
-    // we are sure to have the first to sorted
+    // we are sure to have the first being sorted
     // if the last one is smaller than the second one, we change, if not, it is also bigger than the first one
     if (priority[1] > priority[2]) {
         FFTW_plan_dim *temp_plan = plan[2];
@@ -188,15 +193,15 @@ void FFTW_Solver::_sort_plan(FFTW_plan_dim *plan[3]) {
 }
 
 /**
- * @brief Initialize a set of 3 plans by doing a dry run through the plans
+ * @brief Initializes a set of 3 plans by doing a dry run through the plans
  * 
  * @param topo the starting topology
  * @param topomap the topology array to go through each dim ( may be NULL) it corresponds to the topology AFTER the plan
- * @param switchtopo the switchtopoing array to switch between topologies (may be NULL)
+ * @param switchtopo the switchtopo array to switch between topologies (may be NULL, if so it is not computed)
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
     BEGIN_FUNC
 
     //-------------------------------------------------------------------------
@@ -207,56 +212,65 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
     //-------------------------------------------------------------------------
     /** - Get the sizes to start with */
     //-------------------------------------------------------------------------
+    // The size is initilized to that of the physical space. Then, with the 
+    // dry run, it will grow/shrink in every dimension, and this will be used
+    // as the size for the intermediate topos.
+    // Eventually, the finial size of the data will be that of the largest 
+    // topo.
     int size_tmp[DIM];
-    for (int id = 0; id < DIM; id++)
-        size_tmp[id] = topo->nglob(id);
+    for (int id = 0; id < DIM; id++) size_tmp[id] = topo->nglob(id);
 
     //-------------------------------------------------------------------------
-    /** - create the plan (and the topologies if not Green) */
+    /** - creates the plans and the intermediate topologies (if not Green).
+     *    This performs a dry run in order to determine the final amount of 
+     *    memmory required. It also prepares switchtopo which allows to switch
+     *    between two successive topologies.   */
     //-------------------------------------------------------------------------
-    bool isComplex = false;
+    bool isComplex = false; //this refers to the "current state" of the data during dry run
     int  nproc[3];
     for (int ip = 0; ip < 3; ip++) {
         // initialize the plan
         planmap[ip]->init(size_tmp, isComplex);
         // update the size_tmp variable and get the complex information
         planmap[ip]->get_outsize(size_tmp);
-        // virtually execute the plan
+        // virtually execute the plan and determine the output
         planmap[ip]->get_isNowComplex(&isComplex);
 
         // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
-            // get the fastest rotating index
+            // determines the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
-            // get the proc repartition
+            // determines the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
-            // create the new topology in the output layout (size and isComplex)
+            // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
-            // get the fieldstart = the point where the old topo has to begin in the new
+            // determines fieldstart = the point where the old topo has to begin in the new one
+            // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
             planmap[ip]->get_fieldstart(fieldstart);
-            // compute the transfert between the current topo and the new one
+            // compute the Switch between the current topo (the one from which we come) and the new one (the one we just created).
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
-                topomap[ip]->switch2real();
+                topomap[ip]->switch2real(); //switching back tentatively, as when the switch will be executed, the transform did not occur yet.
                 switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
                 topomap[ip]->switch2complex();
             } else {
-                // create the switchtopoMPI to change topology
                 switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
+
+            current_topo->disp();
         }
 
         planmap[ip]->disp();
     }
 
     //-------------------------------------------------------------------------
-    /** - Do the magic trick  */
+    /** - Do some magic trick to obtain the right size for Green */
     //-------------------------------------------------------------------------
     // reset the correct input size for Green if the plan is R2C
-    // only the R2C changes the size between INPUT and OUTPUT
+    // only the R2C changes size between INPUT and OUTPUT
     // this change has to be done ONLY if the first transform is real <=> is not R2C
     if (isGreen) {
         for (int ip = 0; ip < 3; ip++) {
@@ -265,9 +279,12 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
         }
     }
 
+    printf("CURRENT SIZE_TMP IS %d,%d,%d \n ",size_tmp[0],size_tmp[1],size_tmp[2]);
+
     //-------------------------------------------------------------------------
     /** - For Green we need to compute the topologies using the full size of the domain  */
     //-------------------------------------------------------------------------
+    //the full size of the domain is that of size_tmp
     isComplex = false;
     if (isGreen && topomap != NULL && switchtopo != NULL) {
         for (int ip = 0; ip < 3; ip++) {
@@ -294,11 +311,13 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
+
+            current_topo->disp();
         }
     }
 
     //-------------------------------------------------------------------------
-    /** - reset the topologies to real if needed  */
+    /** - reset the topologies to real if needed, in order to prepare them for their execution  */
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < 3; ip++) {
         if (planmap[ip]->isr2c() && topomap != NULL) {
@@ -306,23 +325,31 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
         }
     }
 }
-void FFTW_Solver::_allocate_plan(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
+
+/**
+ * @brief allocates the plans in planmap according to that computed during the dry run, see \ref _init_plansAndTopos
+ * 
+ * @param topo the map of topos that will be applied to data
+ * @param planmap the list of plans that we need to allocate
+ * @param data pointer to data (on which the FFTs will be applied in place)
+ */
+void FFTW_Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
     BEGIN_FUNC
 
     for (int ip = 0; ip < 3; ip++) {
         UP_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
-        int size_plan[3] = {topo[ip]->nloc(0), topo[ip]->nloc(1), topo[ip]->nloc(2)};
+        int size_plan[3] = {topo[ip]->nloc(0), topo[ip]->nloc(1), topo[ip]->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
         planmap[ip]->allocate_plan(size_plan, data);
     }
 }
 
 /**
- * @brief 
+ * @brief allocates memory depending on the requirements for the combination of topos in topo_hat
  * 
- * @param topo_hat the topologies of the pencils
- * @param data 
+ * @param topo the map of successive topos that will be applied to data
+ * @param data poiter to the pointer to data
  */
-void FFTW_Solver::_allocate_data(const Topology *const topo_hat[3], double **data) {
+void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Sanity checks */
@@ -332,10 +359,10 @@ void FFTW_Solver::_allocate_data(const Topology *const topo_hat[3], double **dat
     //-------------------------------------------------------------------------
     /** - Do the memory allocation */
     //-------------------------------------------------------------------------
-    // the bigger size will be in the pencils
+    // the biggest size will be along the pencils
     size_t size_tot = 1;
     for (int id = 0; id < 3; id++)
-        size_tot = std::max(topo_hat[id]->locmemsize(), size_tot);
+        size_tot = std::max(topo[id]->locmemsize(), size_tot);
 
     INFOLOG2("Complex memory allocation, size = %ld\n", size_tot);
     (*data) = (double *)fftw_malloc(size_tot * sizeof(fftw_complex));
@@ -362,7 +389,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     //-------------------------------------------------------------------------
     /** - get the direction where we need to do spectral diff and count them */
     //-------------------------------------------------------------------------
-    bool dospectral[3] = {false};
+    bool isSpectral[3] = {false};
 
     double hfact[3];
     double kfact[3];
@@ -371,12 +398,12 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     for (int ip = 0; ip < 3; ip++) {
         const int dimID = planmap[ip]->dimID();
         // get usefull datas
-        dospectral[dimID] = planmap[ip]->dospectral();
+        isSpectral[dimID] = planmap[ip]->isSpectral();
         symstart[dimID]   = planmap[ip]->symstart();
         hfact[dimID]      = _hgrid[dimID];
         kfact[dimID]      = 0.0;
 
-        if (dospectral[dimID]) {
+        if (isSpectral[dimID]) {
             hfact[dimID] = 0.0;
             kfact[dimID] = planmap[ip]->kfact();
         }
@@ -385,32 +412,42 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     // count the number of spectral dimensions
     int nbr_spectral = 0;
     for (int id = 0; id < 3; id++)
-        if (dospectral[id])
+        if (isSpectral[id])
             nbr_spectral++;
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    if (DIM == 2) {
+        UP_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
+    }
+
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
     if (nbr_spectral == 0) {
-        INFOLOG(">> using Green function 3 dir unbounded\n");
+        INFOLOG2(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
         if (DIM == 3) {
             Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
         }
     } else if (nbr_spectral == 1) {
-        INFOLOG(">> using Green function 2 dir unbounded - 1 dir spectral\n");
+        INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
+        if (_typeGreen != CHAT_2)
+            UP_ERROR("Sorry, the requested GreenType is not supported for domains with 1 dir unbounded.");
         // _compute_Green_2dirunbounded_1dirspectral
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
     } else if (nbr_spectral == 2) {
-        INFOLOG(">> using Green function 1 dir unbounded - 2 dir spectral\n");
+        INFOLOG2(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
+        if (_typeGreen != CHAT_2)
+            UP_ERROR("Sorry, the requested GreenType is not supported for domains with 1 dir unbounded.");
         // _compute_Green_1dirunbounded_2dirspectral
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
     } else if (nbr_spectral == 3) {
-        INFOLOG(">> using Green function 3 dir spectral\n");
-        // _compute_Green_0dirunbounded_3dirspectral
+        INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
+        if (DIM == 3) {
+            Green_3D_0dirunbounded_3dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
+        }
     }
 
 #ifdef DUMP_H5

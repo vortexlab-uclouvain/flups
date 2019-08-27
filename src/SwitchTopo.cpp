@@ -129,6 +129,12 @@ SwitchTopo::~SwitchTopo() {
     if (_bufrecv != NULL) fftw_free(_bufrecv);
 }
 
+/**
+ * @brief executes the toposwitch and changes the layout in memmory of v by communicating 
+ * 
+ * @param v ptr to the data to be ordered in memmory
+ * @param sign UP_FORWARD | UP_BACKWARD
+ */
 void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC
 

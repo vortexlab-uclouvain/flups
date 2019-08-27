@@ -41,9 +41,11 @@ enum SolverType {
 /**
  * @brief The Poisson solver
  * 
- * 
- * A collection of 2 or 3 FFTW_plan_dim and a Green's function to solve the Poisson equation.
- * The tranformation are done in-place in each direction successively
+ * A collection of 3 FFTW_plan_dim for the forward and backward FFT transform of
+ * data, plus the transformed required for the Green's function to solve the Poisson equation.
+ * The tranforms are done in-place in each direction successively. Between each transform, data
+ * are remapped (i.e. transposed) in order to have the memory aligned with the direction of the
+ * transform. This is done using SwitchTopo which changes the layout of data between 2 topos.
  * 
  * @warning
  * The memory alignement follows the rules explained on the mainpage.
@@ -68,25 +70,30 @@ class FFTW_Solver {
     double  _hgrid[3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
     double* _data     = NULL;  /**< @brief data pointer to the transposed memory */
 
-    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plan forward  */
-    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plan backward */
-    Topology*      _topo_hat[3]   = {NULL, NULL, NULL};
-    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switch the topologies for the forward transform*/
+    /**
+     * @name Forward and backward 
+     * transforms related objects
+     */
+    /**@{ */
+    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
+    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    /**@} */
 
     /**
-     * @name Green's function 
+     * @name Green's function (and corresponding forward transform) related vars and objects
      * 
      */
     /**@{ */
     int     _shiftgreen[3] = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
     double  _alphaGreen    = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
     double* _green         = NULL;      /**< @brief data pointer to the transposed memory for Green */
-
-    GreenType   _typeGreen           = CHAT_2;             /**< @brief the type of Green's function */
-    SwitchTopo* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switchtopo for the forward transform*/
-    Topology*   _topo_green[3]       = {NULL, NULL, NULL};
+    GreenType   _typeGreen = CHAT_2;             /**< @brief the type of Green's function */
 
     FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
+    Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
+    SwitchTopo* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
     /**@} */
 
    protected:
@@ -96,8 +103,8 @@ class FFTW_Solver {
      * @{
      */
     void _allocate_data(const Topology* const topo[3], double** data);
-    void _delete_switchtopo(SwitchTopo* switchtopo[3]);
-    void _delete_topology(Topology* topo[3]);
+    void _delete_switchtopos(SwitchTopo* switchtopo[3]);
+    void _delete_topologies(Topology* topo[3]);
     /**@}  */
 
     /**
@@ -105,10 +112,10 @@ class FFTW_Solver {
      * 
      * @{
      */
-    void _sort_plan(FFTW_plan_dim* plan[3]);
-    void _init_plan(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
-    void _allocate_plan(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
-    void _delete_plan(FFTW_plan_dim* planmap[3]);
+    void _sort_plans(FFTW_plan_dim* plan[3]);
+    void _init_plansAndTopos(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
+    void _allocate_plans(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
+    void _delete_plans(FFTW_plan_dim* planmap[3]);
     /**@} */
 
     /**

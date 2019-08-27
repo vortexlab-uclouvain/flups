@@ -52,7 +52,7 @@ class FFTW_plan_dim {
 
     bool   _isr2c      = false; /**< @brief is this plan the one that changes to complex?*/
     bool   _imult      = false; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
-    bool   _dospectral = false; /**< @brief indicate if the Green's function has to be done spectrally */
+    bool   _isSpectral = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
     int    _howmany    = -1;    /**< @brief number of transfroms to perfom */
     int    _fieldstart = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
     int    _n_in       = 0;     /**< @brief the number of element in the transform*/
@@ -83,7 +83,7 @@ class FFTW_plan_dim {
      * 
      */
     /**@{ */
-    inline bool   dospectral() const { return _dospectral; }
+    inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
     inline int    dimID() const { return _dimID; }
     inline int    imult() const { return _imult; }
@@ -107,7 +107,7 @@ class FFTW_plan_dim {
      */
     /**@{ */
     void _init_real2real(const int size[DIM], bool isComplex);
-    void _init_mixpoisson(const int size[DIM], bool isComplex);
+    void _init_mixunbounded(const int size[DIM], bool isComplex);
     void _init_periodic(const int size[DIM], bool isComplex);
     void _init_unbounded(const int size[DIM], bool isComplex);
     /**@} */

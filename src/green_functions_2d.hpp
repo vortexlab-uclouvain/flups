@@ -16,7 +16,7 @@
 // /**
 //  * @brief The type of Green's function used for the Poisson solver
 //  * 
-//  * For the moment, only the Green's functions from Chatelain et al. (CHAT2) support #_dospectral = true
+//  * For the moment, only the Green's functions from Chatelain et al. (CHAT2) support #_isSpectral = true
 //  */
 // enum OrderDiff{
 //     CHAT_2, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
