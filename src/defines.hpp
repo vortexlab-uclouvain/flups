@@ -19,7 +19,7 @@
 #include <execinfo.h>
 #include "fftw3.h"
 
-#define DIM 3
+#define GREEN_DIM 3
 
 
 // #define DUMP_H5

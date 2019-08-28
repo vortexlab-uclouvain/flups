@@ -15,6 +15,7 @@
 #include <string>
 
 #include "mpi.h"
+#include "defines.hpp"
 
 using namespace std;
 

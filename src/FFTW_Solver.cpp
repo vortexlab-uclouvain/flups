@@ -19,7 +19,7 @@
  * @param h the grid spacing
  * @param L 
  */
-FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], const double h[3], const double L[3]) {
+FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -33,7 +33,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
     for (int id = 0; id < 3; id++)
         _hgrid[id] = h[id];
 
-    for (int id = 0; id < DIM; id++) {
+    for (int id = 0; id < 3; id++) {
         _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, false);
         _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], UP_BACKWARD, false);
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, true);
@@ -212,8 +212,8 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
     //-------------------------------------------------------------------------
     /** - Get the sizes to start with */
     //-------------------------------------------------------------------------
-    int size_tmp[DIM];
-    for (int id = 0; id < DIM; id++)
+    int size_tmp[3];
+    for (int id = 0; id < 3; id++)
         size_tmp[id] = topo->nglob(id);
 
     //-------------------------------------------------------------------------
@@ -401,7 +401,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     //-------------------------------------------------------------------------
     if (nbr_spectral == 0) {
         INFOLOG(">> using Green function 3 dir unbounded\n");
-        if (DIM == 3) {
+        if (GREEN_DIM == 3) {
             Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
         }
     } else if (nbr_spectral == 1) {

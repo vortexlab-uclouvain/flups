@@ -139,8 +139,8 @@ class FFTW_Solver {
     /**@} */
 
    public:
-    FFTW_Solver(const Topology* topo, const BoundaryType mybc[DIM][2], const double h[3], const double L[3]);
-    // FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[DIM][2]);
+    FFTW_Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]);
+    // FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
     ~FFTW_Solver();
 
     void setup();
