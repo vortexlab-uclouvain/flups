@@ -63,7 +63,7 @@ class Topology {
      * @{
      */
     void cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
-    void cmpt_intersect_naxis(const Topology *other, const int istart[3], const int iend[3], int *naxis) const;
+    void cmpt_intersect_naxis(const Topology *other, const int istart[3], const int iend[3], const int ishift[3], int *naxis) const;
     /**@} */
 
     /**

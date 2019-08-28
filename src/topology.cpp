@@ -114,7 +114,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
  * @param iend the end index of the current proc data (using #cmpt_intersect_id)
  * @param naxis array of the length from this proc to any other proc in the other topology
  */
-void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], const int iend[3], int* naxis) const {
+void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], const int iend[3], const int ishift[3], int* naxis) const {
     int in_idStart[3];
     get_idstart_glob(in_idStart, this);
     in_idStart[0] = in_idStart[0] + istart[0];
@@ -131,7 +131,7 @@ void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], 
                 int intersectVol[3];
                 for (int id = 0; id < 3; id++) {
                     // left limit of the intersection
-                    int in_idleft  = _rankd[id] * _nbyproc[id] + istart[id];
+                    int in_idleft  = _rankd[id] * _nbyproc[id] + istart[id] + ishift[id];
                     int out_idleft = p[id] * other->nbyproc(id);
                     int limleft    = std::max(in_idleft, out_idleft);
                     // right limit of the intersection

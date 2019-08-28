@@ -108,8 +108,8 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     /** - for each proc get its naxis */
     //-------------------------------------------------------------------------
     // get the global id of start for the current proc
-    _topo_in->cmpt_intersect_naxis(_topo_out, _istart, _iend, _naxis_i2o_send);
-    _topo_out->cmpt_intersect_naxis(_topo_in, _ostart, _oend, _naxis_o2i_send);
+    _topo_in->cmpt_intersect_naxis(_topo_out, _istart, _iend, _ishift, _naxis_i2o_send);
+    _topo_out->cmpt_intersect_naxis(_topo_in, _ostart, _oend, _oshift, _naxis_o2i_send);
 
     //-------------------------------------------------------------------------
     /** - for each data get its destination rank */
@@ -288,6 +288,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
+    printf("writting into bufs\n");
     std::memset(count, 0, sizeof(int) * comm_size);
 
     int dest_rankd[3];
@@ -337,10 +338,13 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         UP_CHECK0(false, "size of Topological nf not supported");
     }
 
+    printf("ready to send\n");
     //-------------------------------------------------------------------------
     /** - Send it */
     //-------------------------------------------------------------------------
     MPI_Alltoallv(sendbuf, nsend, ssend, MPI_DOUBLE, recvbuf, nrecv, srecv, MPI_DOUBLE, MPI_COMM_WORLD);
+
+    printf("recv finished\n");
     //-------------------------------------------------------------------------
     /** - Fill the memory */
     //-------------------------------------------------------------------------
