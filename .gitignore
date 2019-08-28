@@ -1,5 +1,6 @@
 data
 build
+prof
 .vscode
 doc/html
 doc/latex

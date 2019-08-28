@@ -24,7 +24,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
-    _prof = new Profiler();
+    _prof = new Profiler("FFTW_Solver");
     _prof->create("init");
     _prof->start("init");
     //-------------------------------------------------------------------------
