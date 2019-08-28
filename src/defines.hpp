@@ -22,7 +22,7 @@
 #define GREEN_DIM 3
 
 
-// #define DUMP_H5
+#define DUMP_H5
 // #undef DUMP_H5
 
 #define FFTW_FLAG FFTW_MEASURE

@@ -21,6 +21,7 @@
 /**
  * @brief Do the switch between to different topologies
  * 
+ * The switch between two topologies is driven by the shift between the topologies.
  * 
  */
 class SwitchTopo {

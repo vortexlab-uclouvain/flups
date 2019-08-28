@@ -26,7 +26,7 @@ class Topology {
     int _rank;       /**<@brief rank of the current process */
     int _comm_size;  /**<@brief size of the communicator */
     int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (always x,y,z)  */
+    int _nglob[3];   /**<@brief number of unknows per dim, global (always XYZ)  */
     int _nloc[3];    /**<@brief real number of unknows perd dim, local  */
     int _nproc[3];   /**<@brief number of procs per dim  */
     int _rankd[3];   /**<@brief rank of the current process per dim  */
@@ -86,7 +86,7 @@ class Topology {
     /**
      * @brief compute the rank in the other topology of the processor containing the data i
      * 
-     * @param dim the dimension along which i is measured
+     * @param dim the dimension along which i is measured in the (indexing of the other topology!)
      * @param other the other topo
      * @param i the global index in the current topo
      * @return int 
@@ -129,7 +129,7 @@ class Topology {
  * 
  * @param rank the rank of the proc (from MPI)
  * @param nproc the number of procs along each direction
- * @param rankd the rank per dimension in x,y,z format
+ * @param rankd the rank per dimension in XYZ format
  */
 inline static void ranksplit(const int rank, const int nproc[3], int rankd[3]) {
     rankd[0] = rank % nproc[0];
@@ -140,7 +140,7 @@ inline static void ranksplit(const int rank, const int nproc[3], int rankd[3]) {
 /**
  * @brief get the rank from the rank per dimension
  * 
- * @param rankd the rank in x,y,z format
+ * @param rankd the rank in XYZ format
  * @param topo the topology
  * @return int 
  */

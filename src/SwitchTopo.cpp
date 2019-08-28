@@ -14,9 +14,34 @@
 /**
  * @brief Construct a Switch Topo object
  * 
+ * Let us consider the switch from the TOPO_IN to the TOPO_OUT.
+ *
+ * ```
+ * +------------------------------------+
+ * |  TOPO_OUT  |                       |
+ * |            |                       |
+ * |            |  n=5                  |
+ * |            |                       |
+ * |            v                       |
+ * |  --------> +-------------+         |
+ * |    n=3     | TOPO_IN     |         |
+ * |            |             |         |
+ * |            |             |         |
+ * |            |             |         |
+ * |            +-------------+         |
+ * |                                    |
+ * |                                    |
+ * |                                    |
+ * +------------------------------------+
+ * ```
+ * 
+ * The shift argument will then be (3,5) since we need to add (3,5) points in the topo_output
+ * to reach the (0,0,0) point in the topo_input.
+ * 
+ * 
  * @param topo_input the input topology
  * @param topo_output the output topology 
- * @param shift the shift to set in the output topology to match 0,0,0 in the current topology
+ * @param shift the shift to set in the output topology to match 0,0,0 in the input topology (given in XYZ) indexing
  */
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
                        const int shift[3]) {
@@ -141,6 +166,34 @@ SwitchTopo::~SwitchTopo() {
     if (_naxis_o2i_recv != NULL) fftw_free(_naxis_o2i_recv);
 }
 
+/**
+ * @brief execute the switch from one topo to another
+ * 
+ * #### Buffer writting
+ * The buffer memory writting is done according to the axis of the input topologies.
+ * This allows to have a continuous memory access while filling the buffer.
+ * 
+ * Moreover, using naxis, we know that one a data has to be send to a proc P,
+ * the following (naxis-1) have the same proc P as destination.
+ * So, we are able to write chunks of size naxis-1
+ * 
+ * Since the writting of buffers is aligned with the topo_in axis, the loops are continuous in memory and fully vectorizable.
+ * 
+ * #### Buffer reading
+ * The buffer reading has to follow the same order as in the buffer writting, so the axis of the topo_in in the inner loop.
+ * Similarly to the writting case, when one data comes from proc P, the naxis-1 following data comes from the same proc.
+ * 
+ * The reading of the buffer is hence continuous but the writting inside the memory has an apriori unkown stride.
+ * The stride may be computed using the difference of axis between the two topologies.
+ * Hence the reading will be a bit slower since the writting due to memory discontinuities
+ * 
+ * 
+ * @param v the memory to switch from one topo to another. It has to be large enough to contain both local data's
+ * @param sign if the switch is forward (UP_FORWARD) or backward (UP_BACKWARD) w.r.t. the order defined at init.
+ * 
+ * -----------------------------------------------
+ * We do the following:
+ */
 void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC
 

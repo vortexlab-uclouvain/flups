@@ -1,6 +1,41 @@
 # An unbounded-periodic Poisson solver
 
-## Example
+### How to use a solver?
+
+To use the solver, you first need to create a topology
+```cpp
+int  axis      = 0;              // aligned along the first dimension
+int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
+int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
+bool isComplex = false;          // real data
+
+Topology *topo = new Topology(axis, nglob, nproc, isComplex);
+
+// define additional quantities
+double L = {1.0, 2.0, 1.0};
+double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+```
+
+Then, you can define a new solver and it's boundary condition
+```cpp
+// define the solver
+const BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
+FFTW_Solver *      mysolver   = new FFTW_Solver(topo, mybc, h, L);
+
+// setup the solver
+mysolver->set_GreenType(HEJ2);
+mysolver->setup();
+```
+
+To solve a field `rhs` that has been defined on the topology, use
+```cpp
+mysolver->solve(topo, rhs, rhs, UP_SRHS);
+```
+
+Then, destroy the solver
+```
+delete (mysolver);
+```
 
 ### Implementation details
 #### C++ use
@@ -19,7 +54,9 @@ The features used are the object oriented layout and some usefull features of th
 We follow the Google formating rules, see https://google.github.io/styleguide/cppguide.html for more details
 
 To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
-Set then the value: ```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignements: true, AlignConsecutiveDeclarations: true }```.
+
+Set then the value:
+```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignements: true, AlignConsecutiveDeclarations: true }```.
 
 Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
 
