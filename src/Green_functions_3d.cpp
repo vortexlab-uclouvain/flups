@@ -1,5 +1,5 @@
 /**
- * @file green_functions_3d.cpp
+ * @file Green_functions_3d.cpp
  * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
@@ -23,7 +23,7 @@
  * 
  */
 
-#include "green_functions_3d.hpp"
+#include "Green_functions_3d.hpp"
 
 void Green_3D_3dirunbounded_0dirspectral_chat2(const Topology *topo, const double hfact[3], double *green)
 {

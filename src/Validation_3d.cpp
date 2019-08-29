@@ -1,5 +1,5 @@
 /**
- * @file validation.cpp
+ * @file Validation_3d.cpp
  * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "validation_3d.hpp"
+#include "Validation_3d.hpp"
 
 /**
  * @brief computes the reference solution and the numerical one, outputs errors in a file
@@ -59,7 +59,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     const double oosigma3 = 1.0 / (sigma * sigma * sigma);
 
     int istart[3];
-    get_idstart_glob(istart, topo);
+    get_istart_glob(istart, topo);
 
     /**
          * @todo change that to axis-based loops
@@ -115,6 +115,41 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
         }
     }
 
+    
+
+    // // hin for per
+    // for (int j2 = -3; j2<4 ; j2++){
+    //     for (int j1 = -3; j1<4 ; j1++){
+    //         for (int j0 = -3; j0<4 ; j0++){
+    //         double sign         = 1.0;
+
+    //         double centerPos[3];
+    //         centerPos[0] = (center[0] + j0) *L[0];
+    //         centerPos[1] = (center[1] + j1) *L[1];
+    //         centerPos[2] = (center[2] + j2) *L[2];
+
+
+    // double lIs = 1.e10, gIs = 0.0;
+    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
+    //             // lIs += sol[id];
+    //             lIs = min(sol[id],lIs);
+    //         }
+    //     }
+    // }
+    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    // // gIs *= (h[0]*h[1]*h[2]);
+    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
+    //             sol[id] -= gIs;
+    //         }
+    //     }
+    // }
+
 #ifdef DUMP_H5
     char msg[512];
     // write the source term and the solution
@@ -128,6 +163,28 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     /** - solve the equations */
     //-------------------------------------------------------------------------
     mysolver->solve(topo, rhs, rhs, UP_SRHS);
+
+
+    // lIs = 1.e10, gIs = 0.0;
+    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
+    //             // lIs += rhs[id];
+    //             lIs = min(rhs[id],lIs);
+    //         }
+    //     }
+    // }
+    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    // // gIs *= (h[0]*h[1]*h[2]);
+    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
+    //             rhs[id] -= gIs;
+    //         }
+    //     }
+    // }
 
 #ifdef DUMP_H5
     // write the source term and the solution

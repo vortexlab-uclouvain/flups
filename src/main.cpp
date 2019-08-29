@@ -17,8 +17,8 @@
 
 #include "FFTW_Solver.hpp"
 #include "SwitchTopo.hpp"
-#include "validation_2d.hpp"
-#include "validation_3d.hpp"
+#include "Validation_2d.hpp"
+#include "Validation_3d.hpp"
 
 #include "mpi.h"
 
