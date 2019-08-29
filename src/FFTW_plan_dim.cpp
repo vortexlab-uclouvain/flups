@@ -239,16 +239,17 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex
         if (_sign == UP_FORWARD) _kind = FFTW_REDFT00;  // DCT type I
         if (_sign == UP_BACKWARD) _kind = FFTW_REDFT00;
     } else {
-        if ((_bc[0] == EVEN && _bc[1] == UNB) || (_bc[0] == UNB && _bc[1] == EVEN)) {  // We have a DCT - we are EVEN - EVEN
+        if ((_bc[0] == EVEN && _bc[1] == UNB) || (_bc[0] == UNB && _bc[1] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
             _imult      = false;
             _shiftgreen = 0;
             if (_sign == UP_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01;
-        } else if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {  // We have a DCT - we are EVEN - ODD
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01; // DCT type III
+        } else if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
             _imult      = true;
             _shiftgreen = 1;
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01;
+            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01; // DST type III
+//DG TODO: FOR EVEN-EVEN, ODD-ODD the shift might be 2 ?    mmmh no, the shift in 1, but we have N-2 pts        
         } else {
             UP_ERROR("unable to init the solver required\n")
         }
@@ -270,8 +271,8 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        _n_in  = 2 * size[_dimID];  // takes n complex, return n complex
-        _n_out = 2 * size[_dimID];
+        _n_in  = size[_dimID];  // takes n complex, return n complex
+        _n_out = size[_dimID];
 
         _isr2c = false;
     } else {
@@ -288,6 +289,9 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0;  // if no symmetry is needed, set to 0
+    if(isComplex)
+        _symstart = size[_dimID]/2;
+
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
@@ -543,6 +547,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data)
  */
 void FFTW_plan_dim::execute_plan() {
     BEGIN_FUNC
+
+    UP_CHECK0(!_isSpectral,"Trying to execute a plan for data which is already spectral");
+
     // run the plan
     if (_type == SYMSYM) {
         INFO2(">> Doing plan real2real for dim %d\n", _dimID);

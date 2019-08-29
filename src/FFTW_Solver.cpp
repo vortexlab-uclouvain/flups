@@ -376,9 +376,13 @@ void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
 /**
  * @brief compute the Green's function
  * 
- * @param topo 
- * @param green 
- * @param planmap 
+ * The Green function is always stored as a complex number (even if its complex part is 0).
+ * This means that the all topos are turned to complex by this function (including the last one e.g.
+ * for the case of a 3dirspectral).
+ * 
+ * @param topo the list of successive topos for the Green function
+ * @param green ptr to the green function
+ * @param planmap the list of successive maps to bring the Green function to full spectral
  * 
  * -----------------------------------
  * We do the following operations
@@ -422,13 +426,15 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         UP_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
     }
 
+    const int id_topo_start = std::min(nbr_spectral,2); //the id of the topo in which we fill the green function
+
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
     if (nbr_spectral == 0) {
         INFOLOG2(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
         if (DIM == 3) {
-            Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
+            cmpt_Green_3D_3dirunbounded_0dirspectral(topo[id_topo_start], hfact, symstart, green, _typeGreen, _alphaGreen);
         }
     } else if (nbr_spectral == 1) {
         INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
@@ -444,16 +450,16 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
     } else if (nbr_spectral == 3) {
         INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);
-        UP_CHECK2(false, "Green Function = %d  unknow for nbr_spectral = %d", _typeGreen, nbr_spectral);
         if (DIM == 3) {
-            Green_3D_0dirunbounded_3dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
+            topo[id_topo_start]->switch2complex(); //forcing the Green function to be written in complex, for cases of sym-sym-per
+            cmpt_Green_3D_0dirunbounded_3dirspectral(topo[id_topo_start], kfact, symstart, green, _typeGreen, _alphaGreen);
         }
     }
 
 #ifdef DUMP_H5
     char msg[512];
     sprintf(msg, "green_%d%d%d_%dx%dx%d", planmap[0]->type(), planmap[1]->type(), planmap[2]->type(), topo[0]->nglob(0), topo[0]->nglob(1), topo[0]->nglob(2));
-    hdf5_dump(topo[0], msg, green);
+    hdf5_dump(topo[id_topo_start], msg, green);
 #endif
 
     //-------------------------------------------------------------------------
@@ -464,7 +470,8 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     //-------------------------------------------------------------------------
     /** - compute a symmetry and do the forward transform*/
     //-------------------------------------------------------------------------
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = nbr_spectral; ip < 3; ip++) {
+
         // go to the topology for the plan
         if (ip > 0) {
             _switchtopo_green[ip]->execute(_green, UP_FORWARD);
@@ -585,6 +592,8 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     if (type == UP_SRHS) {
         if (!_topo_hat[2]->isComplex()) {
+            //CAUTION: I chose to always write my Green function as a complex...
+            //-> there is only the case of 3dirDCT and simplePoisson in which we could stay real for the whole process
             // if (_nbr_imult == 0)
             //     dothemagic_rhs_real();
             // else

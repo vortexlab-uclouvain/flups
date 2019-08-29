@@ -33,6 +33,8 @@ class Topology {
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
+    // -> We got rid of these, as L changes during a transform occuring in the associated topo, and the computation of h would also
+    //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
    public:
     Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
@@ -83,7 +85,7 @@ class Topology {
     inline size_t locmemsize() const { return _nloc[0] * _nloc[1] * _nloc[2] * _nf; }
     inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
     void          cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
-    // inline int  get_idstart_glob(const int dim) const { return _rankd[dim] * _nbyproc[dim]; }
+    // inline int  get_istart_glob(const int dim) const { return _rankd[dim] * _nbyproc[dim]; }
 
     /**
      * @brief compute the rank in the other topology of the data "i"
@@ -146,11 +148,11 @@ inline static size_t localindex_xyz(const int ix, const int iy, const int iz, co
 }
 
 /**
- * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis
+ * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
  * 
- * @param ix index in the X direction
- * @param iy index in the Y direction
- * @param iz index in the Z direction
+ * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
+ * @param i1 index along the ax1 direction
+ * @param i2 index along the ax2 direction
  * @param topo 
  * @return size_t 
  */
@@ -162,7 +164,13 @@ inline static size_t localindex_ao(const int i0, const int i1, const int i2, con
     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
 }
 
-inline static void get_idstart_glob(int istart[3], const Topology *topo) {
+/**
+ * @brief Get the istart in global indexing
+ * 
+ * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
+ * @param topo 
+ */
+inline static void get_istart_glob(int istart[3], const Topology *topo) {
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
