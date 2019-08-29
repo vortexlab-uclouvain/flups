@@ -50,6 +50,8 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //-------------------------------------------------------------------------
     double *rhs = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
     double *sol = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
+    std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
 
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
@@ -62,72 +64,52 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     get_istart_glob(istart, topo);
 
     /**
-         * @todo change that to axis-based loops
-         */
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                double       x    = (istart[0] + i0 + 0.5) * h[0] - L[0] * center[0];
-                double       y    = (istart[1] + i1 + 0.5) * h[1] - L[1] * center[1];
-                double       z    = (istart[2] + i2 + 0.5) * h[2] - L[2] * center[2];
-                double       rho2 = (x * x + y * y + z * z) * oosigma2;
-                double       rho  = sqrt(rho2);
-                const size_t id   = localindex_xyz(i0, i1, i2, topo);
-                // Gaussian
-                rhs[id] = -c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
-                sol[id] = +c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
-            }
-        }
-    }
+     * also accounting for various symmetry conditions. CAUTION: the solution for the Gaussian blob does not go to 0 fast enough
+     * for `anal` to be used as a reference solution for cases where there is at least 1 symmetric (left AND right) or periodic direction
+     */
+    for (int j2 = -1; j2 < 2; j2++) {
+        if (j2 != 0 && mybc[2][(j2 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+        for (int j1 = -1; j1 < 2; j1++) {
+            if (j1 != 0 && mybc[1][(j1 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+            for (int j0 = -1; j0 < 2; j0++) {
+                if (j0 != 0 && mybc[0][(j0 + 1) / 2] == UNB) continue;  //skip unbounded dirs
 
-    // add contribution from symmetry conditions
-    for (int dir = 0; dir < 3; dir++) {
-        for (int lr = 0; lr < 2; lr++) {
-            double centerPos[3] = {L[0] * center[0], L[1] * center[1], L[2] * center[2]};
-            double sign         = 1.0;
-            if (mybc[dir][lr] == PER) {
-                centerPos[dir] = L[dir] * center[dir] + (2 * lr - 1) * L[dir];
-            } else if (mybc[dir][lr] == EVEN) {
-                centerPos[dir] = -L[dir] * center[dir] + 2 * L[dir] * lr;
-            } else if (mybc[dir][lr] == ODD) {
-                centerPos[dir] = -L[dir] * center[dir] + 2 * L[dir] * lr;
-                sign           = -1.0;
-            } else {
-                continue;
-            }
+                double sign = 1.0;
+                double centerPos[3];
+                double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  //inner left corner of the current block i'm looking at
 
-            for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-                for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-                    for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                        double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
-                        double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
-                        double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
-                        double       rho2 = (x * x + y * y + z * z) * oosigma2;
-                        double       rho  = sqrt(rho2);
-                        const size_t id   = localindex_xyz(i0, i1, i2, topo);
+                sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
 
-                        // Gaussian
-                        rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
-                        sol[id] += sign * c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
+                centerPos[0] = orig[0] + ((j0 != 0) && (mybc[0][(j0 + 1) / 2] != PER) ? (1.0 - center[0]) * L[0] : (center[0] * L[0]));
+                centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
+                centerPos[2] = orig[2] + ((j2 != 0) && (mybc[2][(j2 + 1) / 2] != PER) ? (1.0 - center[2]) * L[2] : (center[2] * L[2]));
+
+                // printf("CENTER HERE IS: %d,%d,%d -- %lf,%lf,%lf -- %lf,%lf,%lf ++ %lf,%lf,%lf ** %lf\n",j0,j1,j2,orig[0],orig[1],orig[2],centerPos[0],centerPos[1],centerPos[2],\
+                ( (j0!=0)&&(mybc[0][(j0+1)/2]!=PER )) ? (1.0-center[0])*L[0] : (center[0]*L[0]),\
+                ( (j1!=0)&&(mybc[1][(j1+1)/2]!=PER )) ? (1.0-center[1])*L[1] : (center[1]*L[1]),\
+                ( (j2!=0)&&(mybc[2][(j2+1)/2]!=PER )) ? (1.0-center[2])*L[2] : (center[2]*L[2]), sign);
+
+                for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+                    for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+                        for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                            double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
+                            double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
+                            double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
+                            double       rho2 = (x * x + y * y + z * z) * oosigma2;
+                            double       rho  = sqrt(rho2);
+                            const size_t id   = localindex_xyz(i0, i1, i2, topo);
+
+                            // Gaussian
+                            rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
+                            sol[id] += sign * c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
+                        }
                     }
                 }
             }
         }
     }
-
-    
-
-    // // hin for per
-    // for (int j2 = -3; j2<4 ; j2++){
-    //     for (int j1 = -3; j1<4 ; j1++){
-    //         for (int j0 = -3; j0<4 ; j0++){
-    //         double sign         = 1.0;
-
-    //         double centerPos[3];
-    //         centerPos[0] = (center[0] + j0) *L[0];
-    //         centerPos[1] = (center[1] + j1) *L[1];
-    //         centerPos[2] = (center[2] + j2) *L[2];
-
 
     // double lIs = 1.e10, gIs = 0.0;
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {

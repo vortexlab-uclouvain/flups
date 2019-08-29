@@ -63,9 +63,9 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
         _shiftgreen[_plan_forward[ip]->dimID()] = _plan_forward[ip]->shiftgreen();
 
         if (_plan_forward[ip]->imult())
-            _nbr_imult++;
+            _nbr_imult++; //we multiply by i
         if (_plan_backward[ip]->imult())
-            _nbr_imult--;
+            _nbr_imult--; //we devide by i
         if (_plan_green[ip]->imult())
             _nbr_imult++;
     }
@@ -451,7 +451,8 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     } else if (nbr_spectral == 3) {
         INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);
         if (DIM == 3) {
-            topo[id_topo_start]->switch2complex(); //forcing the Green function to be written in complex, for cases of sym-sym-per
+            if (planmap[id_topo_start]->isr2c())
+                topo[id_topo_start]->switch2complex(); //forcing the Green function to be written in complex, for cases of sym-sym-per
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[id_topo_start], kfact, symstart, green, _typeGreen, _alphaGreen);
         }
     }
@@ -592,12 +593,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     if (type == UP_SRHS) {
         if (!_topo_hat[2]->isComplex()) {
-            //CAUTION: I chose to always write my Green function as a complex...
-            //-> there is only the case of 3dirDCT and simplePoisson in which we could stay real for the whole process
-            // if (_nbr_imult == 0)
-            //     dothemagic_rhs_real();
-            // else
-            UP_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
+            //-> there is only the case of 3dirSYM in which we could stay real for the whole process
+            if (_nbr_imult == 0)
+                dothemagic_rhs_real();
+            else
+                UP_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
         } else {
             if (_nbr_imult == 0)
                 dothemagic_rhs_complex_nmult0();
@@ -650,6 +650,7 @@ void FFTW_Solver::dothemagic_rhs_real() {
     BEGIN_FUNC
 
     UP_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
+    UP_CHECK0(!_topo_hat[2]->isComplex() && !_topo_green[2]->isComplex(), "field and Green must be in real topos");
 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
@@ -661,12 +662,9 @@ void FFTW_Solver::dothemagic_rhs_real() {
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(_shiftgreen[ax0], i1 + _shiftgreen[ax1], i2 + _shiftgreen[ax2], _topo_green[2]);
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
-                mydata[id] *= _normfact * mygreen[id_green];
-
+                mydata[id] *= _normfact * mygreen[id];
                 ++id;
-                ++id_green;
             }
         }
     }

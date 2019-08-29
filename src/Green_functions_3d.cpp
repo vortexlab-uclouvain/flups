@@ -171,8 +171,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
 {
     BEGIN_FUNC
 
-    UP_CHECK0((topo->isComplex()),"Green topology must be complex");
-
     // assert that the green spacing is not 0.0 everywhere
     UP_CHECK0(kfact[0] != 0.0, "grid spacing cannot be 0");
     UP_CHECK0(kfact[1] != 0.0, "grid spacing cannot be 0");
@@ -190,21 +188,22 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     GreenKernel G;
 
     switch (typeGreen) {
-        // case HEJ_2:
-        //     G  = &_hej_2;
-        //     break;
-        // case HEJ_4:
-        //     G  = &_hej_4;
-        //     break;
-        // case HEJ_6:
-        //     G  = &_hej_6;
-        //     break;
+        case HEJ_2:
+            UP_ERROR("HEJ kernels not implemented in full spectral.");
+            // To do this, you need to have the FT of the regularization kernel and divide it by k^2
+            break;
+        case HEJ_4:
+            UP_ERROR("HEJ kernels not implemented in full spectral.");
+            break;
+        case HEJ_6:
+            UP_ERROR("HEJ kernels not implemented in full spectral.");
+            break;
         case CHAT_2:
-            G  = &_chat_2;
+            // UP_ERROR("HEJ kernels not implemented in full spectral.");
+            INFOLOG("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
             break;
         case LGF_2:
             UP_ERROR("Lattice Green Function not implemented yet.");
-            //please add the parameters you need to params
             break;
         default:
             UP_ERROR("Green Function type unknow.");
@@ -213,48 +212,83 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     int istart[3];
     get_istart_glob(istart,topo);
 
-    printf("symstarts: %d,%d,%d\n",symstart[ax0],symstart[ax1],symstart[ax2]);
+    if (topo->nf() == 2) { //i.e. the topo is complex
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                //local indexes start
+                size_t id = localindex_ao(0, i1, i2, topo);
 
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            //local indexes start
-            size_t id = localindex_ao(0, i1, i2, topo);
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    // global indexes
+                    const int ie0 = (istart[ax0] + i0);
+                    const int ie1 = (istart[ax1] + i1);
+                    const int ie2 = (istart[ax2] + i2);
 
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                // global indexes
-                const int ie0 = (istart[ax0] + i0);
-                const int ie1 = (istart[ax1] + i1);
-                const int ie2 = (istart[ax2] + i2);
+                    // symmetrize indexes if required (theoretically never for 3dirspectral)
+                    const int is0 = (symstart[ax0] == 0 || ie0 <= symstart[ax0]) ? ie0 : std::min(-2 * (int)symstart[ax0] + ie0, -1);
+                    const int is1 = (symstart[ax1] == 0 || ie1 <= symstart[ax1]) ? ie1 : std::min(-2 * (int)symstart[ax1] + ie1, -1);
+                    const int is2 = (symstart[ax2] == 0 || ie2 <= symstart[ax2]) ? ie2 : std::min(-2 * (int)symstart[ax2] + ie2, -1);
+                    // Caution: not the same kind of symmetry as for unbounded! Here, indices restart from -symstart toward 0
 
-                // symmetrize indexes if required (theoretically never for 3dirspectral)
-                const int is0 = (symstart[ax0] == 0 || ie0 <= symstart[ax0]) ? ie0 : std::min(-2 * (int)symstart[ax0] + ie0, -1);
-                const int is1 = (symstart[ax1] == 0 || ie1 <= symstart[ax1]) ? ie1 : std::min(-2 * (int)symstart[ax1] + ie1, -1);
-                const int is2 = (symstart[ax2] == 0 || ie2 <= symstart[ax2]) ? ie2 : std::min(-2 * (int)symstart[ax2] + ie2, -1);
-                // Caution: not the same kind of symmetry as for unbounded! Here, indices restart from -symstart toward 0
+                    // (symmetrized) wave number
+                    const double k0 = (is0)*kfact[ax0];
+                    const double k1 = (is1)*kfact[ax1];
+                    const double k2 = (is2)*kfact[ax2];
 
-                // (symmetrized) wave number
-                const double k0 = (is0)*kfact[ax0];
-                const double k1 = (is1)*kfact[ax1];
-                const double k2 = (is2)*kfact[ax2];
+                    // green function value
+                    const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
+                    const double k    = sqrt(ksqr);
 
-                // green function value
-                const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
-                const double k    = sqrt(ksqr);
+                    // const double tmp[2] = {r,eps};
+                    const double ooksqr = 1 / ksqr;
+                    
+                    mygreen[id + 0]     = -ooksqr;  //G( tmp );
+                    mygreen[id + 1]     = 0.0;  //G( tmp );
 
-                // const double tmp[2] = {r,eps};
-                const double ooksqr = 1 / ksqr;
-                mygreen[id + 0]     = -ooksqr;  //G( tmp );
-                mygreen[id + 1]     = 0.0;  //G( tmp );
-
-                id += 2;
+                    id += 2;
+                }
             }
         }
-    }
-    // reset the value in 0.0
-    if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        size_t id = localindex_ao(0, 0, 0, topo);
-        printf("local index of id0 on this proc is %lu", id);
-        mygreen[0] = -G0;
-        mygreen[1] = -G0;
+        // reset the value in 0.0
+        if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+            mygreen[0] = -G0;
+            mygreen[1] = 0.0;
+        }
+    } else { //this happens when all BCs are symmetry conditions
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    // global indexes
+                    const int ie0 = (istart[ax0] + i0);
+                    const int ie1 = (istart[ax1] + i1);
+                    const int ie2 = (istart[ax2] + i2);
+
+                    // symmetrize indexes if required (theoretically never for 3dirspectral)
+                    const int is0 = (symstart[ax0] == 0 || ie0 <= symstart[ax0]) ? ie0 : std::min(-2 * (int)symstart[ax0] + ie0, -1);
+                    const int is1 = (symstart[ax1] == 0 || ie1 <= symstart[ax1]) ? ie1 : std::min(-2 * (int)symstart[ax1] + ie1, -1);
+                    const int is2 = (symstart[ax2] == 0 || ie2 <= symstart[ax2]) ? ie2 : std::min(-2 * (int)symstart[ax2] + ie2, -1);
+                    // Caution: not the same kind of symmetry as for unbounded! Here, indices restart from -symstart toward 0
+
+                    // (symmetrized) wave number
+                    const double k0 = (is0)*kfact[ax0];
+                    const double k1 = (is1)*kfact[ax1];
+                    const double k2 = (is2)*kfact[ax2];
+
+                    // green function value
+                    const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
+                    const double k    = sqrt(ksqr);
+                    const size_t id = i0 + topo->nloc(ax0) * (i1 + i2 * topo->nloc(ax1));
+
+                    // const double tmp[2] = {r,eps};
+                    const double ooksqr = 1 / ksqr;
+
+                    mygreen[id]     = -ooksqr;  //G( tmp );
+                }
+            }
+        }
+        // reset the value in 0.0
+        if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+            mygreen[0] = -G0;
+        }
     }
 }
