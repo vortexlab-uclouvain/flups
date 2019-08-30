@@ -55,7 +55,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 default: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
 
 test:
 	@echo $(SRC)
