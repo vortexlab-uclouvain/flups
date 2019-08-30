@@ -21,13 +21,13 @@
 //     MPI_Comm_rank(MPI_COMM_WORLD,(int*) &rank);
 
 //     // compute pencil start and pencil end for each dim
-//     for(int id=0; id<DIM; id++){
+//     for(int id=0; id<3; id++){
 //         // data is aligned in the id direction
 //         _size[id][id] = global_size[id];
 
 //         size_t sizemult=1;
 //         for(int sid=0;      sid<id; sid++) sizemult *= global_size[sid];
-//         for(int sid=id+1;   sid<DIM;sid++) sizemult *= global_size[sid];
+//         for(int sid=id+1;   sid<3;sid++) sizemult *= global_size[sid];
 
 //         // divide the sizemult by nproc - we prefer that one proc waits for everybody
 //         // if I can remove one proc and obtain the correct number, I overload the last proc
@@ -40,8 +40,8 @@
 //     }
 
 //     // compute how to go to the next one
-//     for(int id=0; id<DIM; id++){
-//         const int next = (id+1)%DIM;
+//     for(int id=0; id<3; id++){
+//         const int next = (id+1)%3;
 //         // each element in a pencil in the next dimension corresponds to global_size[id] memory
 //         size_t mem_min = _pencil_start[next]*global_size[next] * global_size[id];
 //         size_t mem_max = _pencil_end  [next]*global_size[next] * global_size[id];

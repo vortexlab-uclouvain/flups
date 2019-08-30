@@ -18,27 +18,37 @@
 #include "mpi.h"
 #include "topology.hpp"
 
+/**
+ * @brief Do the switch between to different topologies
+ * 
+ * The switch between two topologies is driven by the shift between the topologies.
+ * 
+ */
 class SwitchTopo {
    protected:
-    int _ishift[3];
-    int _oshift[3];
+    const Topology *_topo_in;  /**<@brief input topology  */
+    const Topology *_topo_out; /**<@brief  output topology */
 
-    int _istart[3];
-    int _iend[3];
-    int _ostart[3];
-    int _oend[3];
+    int _ishift[3]; /**<@brief the shift index for #_topo_in to match coordinate (0,0,0) in #__topo_out   */
+    int _oshift[3]; /**<@brief the shift index for #_topo_out to match coordinate (0,0,0) in #_topo_in*/
 
-    int *_nsend = NULL;  // number of unknowns send to each proc
-    int *_nrecv = NULL;  // number of unknowns received from each proc
-    int *_ssend = NULL;  // start index in my memory to send to each proc
-    int *_srecv = NULL;  // start index in my memory to receive from each proc
-    int *_count = NULL;
+    int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
+    int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
+    int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
+    int _oend[3];   /**<@brief the ending index for #_topo_out to be inside #_topo_in  */
 
-    double *_bufsend = NULL;
-    double *_bufrecv = NULL;
+    int *_nsend          = NULL; /**<@brief number of unknowns to send to each proc  */
+    int *_nrecv          = NULL; /**<@brief number of unknowns to receiv from each proc */
+    int *_ssend          = NULL; /**<@brief start index in the buffer memory for data to send to each proc */
+    int *_srecv          = NULL; /**<@brief start index in the buffer memory for data to receive from each proc */
+    int *_count          = NULL; /**<@brief counter to know where to put the current readen data  */
+    int *_naxis_i2o_send = NULL; /**<@brief naxis when sending from the _topo_in to _topo_out  */
+    int *_naxis_o2i_send = NULL; /**<@brief naxis when sending from the _topo_out to _topo_in */
+    int *_naxis_i2o_recv = NULL; /**<@brief naxis when receiving from the _topo_in to _topo_out  */
+    int *_naxis_o2i_recv = NULL; /**<@brief naxis when receiving from the _topo_out to _topo_in */
 
-    const Topology *_topo_in;
-    const Topology *_topo_out;
+    double *_bufsend = NULL; /**<@brief buffer to send data */
+    double *_bufrecv = NULL; /**<@brief buffer to receive data */
 
    public:
     SwitchTopo(const Topology *topo_input, const Topology *topo_output, const int shift[3]);
