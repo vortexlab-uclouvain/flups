@@ -267,11 +267,19 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     }
 
     //-------------------------------------------------------------------------
-    /** - Do some magic trick to obtain the right size for Green */
+    /** - Switching back the size computed in the dry run to "real numbering".   */
+    //    As from here, size_tmp will be expressed in "double indexing", 
+    //    and no more in "complex indexing".
     //-------------------------------------------------------------------------
-    // reset the correct input size for Green if the plan is R2C
-    // only the R2C changes size between INPUT and OUTPUT
-    // this change has to be done ONLY if the first transform is real <=> is not R2C
+    // So far, size_tmp is the required output size of Green_hat (after all transforms)
+    // This is what we want to use to initialize the size of all topos (because we 
+    // always initialize the topos based on output size). However, we need to adjust that size
+    // as we will now assign the topos for Green. 
+    // Indeed, for every topo before the r2c, the ouput size in the r2c direction 
+    // is twice the size currently stored in size_tmp (precisely because
+    // the r2c will do ( /2+1). We thus proceed to the multiplication (we could actually do (-1*2)
+    // but this ain't change nothin).
+    // We will need to devide manually hereunder to balance.
     if (isGreen) {
         for (int ip = 0; ip < 3; ip++) {
             int dimID = planmap[ip]->dimID();
@@ -294,6 +302,13 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
             // get the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
+            // CAREFUL: the Green's function does not require padding ! We already doubled it's size
+            // because we had to fill it with the proper symmetry condition. Therefore, the
+            // output size of the topo associated to r2c must be devided by 2 ! This is because, so far,
+            // size_tmp was expressing "the number of real", and after the r2c, it counts the "number of complex".
+            // If you forget to do it, when we do the switch to real, the topo will be twice larger.
+            if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) 
+                size_tmp[dimID] /= 2; //manually switching back to complex indexing.
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
             // get the fieldstart = the point where the old topo has to begin in the new
@@ -395,8 +410,8 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     //-------------------------------------------------------------------------
     bool isSpectral[3] = {false};
 
-    double hfact[3];
-    double kfact[3];
+    double hfact[3]; // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
+    double kfact[3]; // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
     int    symstart[3];
 
     for (int ip = 0; ip < 3; ip++) {
@@ -671,7 +686,7 @@ void FFTW_Solver::dothemagic_rhs_real() {
 }
 
 /**
- * @brief Do the convolution between complex data and complex Green's function
+ * @brief Do the convolution between complex data and complex Green's function in spectral space
  * 
  */
 void FFTW_Solver::dothemagic_rhs_complex_nmult0() {
