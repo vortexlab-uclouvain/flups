@@ -95,11 +95,11 @@ static inline int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
 }
 
-static inline void cmpt_exchangedSize(const Topology* topo_in, const Topology* topo_out, int exchangeSize[3]){
-    exchangeSize[0] = std::min(topo_in->nglob(0),topo_out->nglob(0));
-    exchangeSize[1] = std::min(topo_in->nglob(1),topo_out->nglob(1));
-    exchangeSize[2] = std::min(topo_in->nglob(2),topo_out->nglob(2));
-}
+// static inline void cmpt_exchangedSize(const Topology* topo_in, const Topology* topo_out, int exchangeSize[3]){
+//     exchangeSize[0] = std::min(topo_in->nglob(0),topo_out->nglob(0));
+//     exchangeSize[1] = std::min(topo_in->nglob(1),topo_out->nglob(1));
+//     exchangeSize[2] = std::min(topo_in->nglob(2),topo_out->nglob(2));
+// }
 
 // /**
 //  * @brief Compute the mean number by block given the current and the other topology

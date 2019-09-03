@@ -126,7 +126,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     for(int id=0; id<3; id++){
         // get the gcd between send and receive
         int  npoints = gcd(_iend[id] - _istart[id], _oend[id] - _ostart[id]);
-        printf("npoints = %d from in: %d %d - out: %d %d\n",npoints,_istart[id],_iend[id],_ostart[id],_oend[id]);
+        // printf("npoints = %d from in: %d %d - out: %d %d\n",npoints,_istart[id],_iend[id],_ostart[id],_oend[id]);
         // gather on each proc the gcd
         MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, MPI_COMM_WORLD);
         // get the Greatest Common Divider among every process
@@ -142,9 +142,9 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     }
     fftw_free(onProc);
     
-    printf("send topo: nloc = %d %d %d \n",_topo_in->nloc(0),_topo_in->nloc(1),_topo_in->nloc(2));
-    printf("recv topo: nloc = %d %d %d \n",_topo_out->nloc(0),_topo_out->nloc(1),_topo_out->nloc(2));
-    printf("\nnByBlock = %d %d %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2]);
+    // printf("send topo: nloc = %d %d %d \n",_topo_in->nloc(0),_topo_in->nloc(1),_topo_in->nloc(2));
+    // printf("recv topo: nloc = %d %d %d \n",_topo_out->nloc(0),_topo_out->nloc(1),_topo_out->nloc(2));
+    // printf("\nnByBlock = %d %d %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2]);
 
     //-------------------------------------------------------------------------
     /** - get the starting index of the block 0,0,0 for input and output */
@@ -156,8 +156,8 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     cmpt_blockIndexes(_ostart,_oend,_nByBlock,_topo_out,_onBlock,_oblockIDStart,onBlockEachProc);
     
 
-    printf("the proc has %d %d %d blocks in INPUT conf\n",_inBlock[0],_inBlock[1],_inBlock[2]);
-    printf("the proc has %d %d %d blocks in OUTPUT conf\n",_onBlock[0],_onBlock[1],_onBlock[2]);
+    // printf("the proc has %d %d %d blocks in INPUT conf\n",_inBlock[0],_inBlock[1],_inBlock[2]);
+    // printf("the proc has %d %d %d blocks in OUTPUT conf\n",_onBlock[0],_onBlock[1],_onBlock[2]);
 
     //-------------------------------------------------------------------------
     /** - allocate the arrays */
@@ -195,7 +195,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
                 
                 // get the local block index
                 const size_t send_bid = blockID(ib0, ib1, ib2, _inBlock);
-                printf("sending block %d to proc %d with tag %d\n",send_bid,_i2o_destRank[send_bid],_i2o_destTag[send_bid]);
+                // printf("sending block %d to proc %d with tag %d\n",send_bid,_i2o_destRank[send_bid],_i2o_destTag[send_bid]);
                 // allocate at the correct size
                 _sendBuf[send_bid] = (double*) fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
                 UP_CHECK1(UP_ISALIGNED(_sendBuf[send_bid]), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
@@ -207,7 +207,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
             for (int ib0 = 0; ib0 < _onBlock[0]; ib0++) {
                 // get the local block index
                 const size_t recv_bid = blockID(ib0, ib1, ib2, _onBlock);
-                printf("recving block %d from proc %d with tag %d\n",recv_bid,_o2i_destRank[recv_bid],_o2i_destTag[recv_bid]);
+                // printf("recving block %d from proc %d with tag %d\n",recv_bid,_o2i_destRank[recv_bid],_o2i_destTag[recv_bid]);
                 // allocate at the correct size
                 _recvBuf[recv_bid] = (double*) fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
                 UP_CHECK1(UP_ISALIGNED(_recvBuf[recv_bid]), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
@@ -473,8 +473,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             oend[id]   = _oend[id];
             // oshift[id] = _oshift[id];
 
-            inloc[id] = topo_in->nloc(id);
-            onloc[id] = topo_out->nloc(id);
+            inloc[id] = _topo_in->nloc(id);
+            onloc[id] = _topo_out->nloc(id);
 
             // send_nBlockByProc[id] = _send_nBlockByProc[id];
             // recv_nBlockByProc[id] = _recv_nBlockByProc[id];
@@ -516,8 +516,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
         for (int id = 0; id < 3; id++) {
 
-            send_nBlock[id] = _inBlock[id];
-            recv_nBlock[id] = _onBlock[id];
+            send_nBlock[id] = _onBlock[id];
+            recv_nBlock[id] = _inBlock[id];
             // // input parameters
             istart[id] = _ostart[id];
             iend[id]   = _oend[id];
@@ -526,8 +526,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             ostart[id] = _istart[id];
             oend[id]   = _iend[id];
 
-            inloc[id] = topo_out->nloc(id);
-            onloc[id] = topo_in->nloc(id);
+            inloc[id] = _topo_out->nloc(id);
+            onloc[id] = _topo_in->nloc(id);
             // oshift[id] = _ishift[id];
 
             // send_nBlockByProc[id] = _recv_nBlockByProc[id];
@@ -563,10 +563,10 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     const int ax2 = (ax0 + 2) % 3;
     const int nf  = topo_in->nf();
 
-    printf("-------- BEGIN ----------\n");
+    // printf("-------- BEGIN ----------\n");
 
-    printf("sending %d blocks\n",send_nBlock[0]*send_nBlock[1]*send_nBlock[2]);
-    printf("recving %d blocks\n",recv_nBlock[0]*recv_nBlock[1]*recv_nBlock[2]);
+    // printf("sending %d blocks\n",send_nBlock[0]*send_nBlock[1]*send_nBlock[2]);
+    // printf("recving %d blocks\n",recv_nBlock[0]*recv_nBlock[1]*recv_nBlock[2]);
     
 
     //-------------------------------------------------------------------------
@@ -593,25 +593,28 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     for (int ib2 = 0; ib2 < send_nBlock[ax2]; ib2++) {
         for (int ib1 = 0; ib1 < send_nBlock[ax1]; ib1++) {
             for (int ib0 = 0; ib0 < send_nBlock[ax0]; ib0++) {
-                const int bid = localIndex(ax0,ib0,ib1,ib2,0,send_nBlock,1);
+                const int      bid  = localIndex(ax0, ib0, ib1, ib2, 0, send_nBlock, 1);
                 opt_double_ptr data = sendBuf[bid];
 
                 // go inside the block
                 for (int i2 = 0; i2 < _nByBlock[ax2]; i2++) {
                     for (int i1 = 0; i1 < _nByBlock[ax1]; i1++) {
                         // get the starting id for the buffer
-                        const size_t buf_idx = localIndex(ax0,0,i1,i2,ax0,_nByBlock,nf);
+                        const size_t buf_idx = localIndex(ax0, 0, i1, i2, ax0, _nByBlock, nf);
                         // get the starting id for the domain
-                        const int loci0 = istart[ax0] + ib0 * _nByBlock[ax0] + 0;
-                        const int loci1 = istart[ax1] + ib1 * _nByBlock[ax1] + i1;
-                        const int loci2 = istart[ax2] + ib2 * _nByBlock[ax2] + i2;
-                        const size_t my_idx = localIndex(ax0,loci0,loci1,loci2,ax0,inloc,nf);
+                        const int    loci0  = istart[ax0] + ib0 * _nByBlock[ax0] + 0;
+                        const int    loci1  = istart[ax1] + ib1 * _nByBlock[ax1] + i1;
+                        const int    loci2  = istart[ax2] + ib2 * _nByBlock[ax2] + i2;
+                        const size_t my_idx = localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
+                        // get the max counter
+                        const size_t nmax = _nByBlock[ax0] * nf;
                         // do the copy
-                        for (size_t i0 = 0; i0 < _nByBlock[ax0] * nf; i0++) {
-                            data[buf_idx+i0] = v[my_idx+i0];
+                        for (size_t i0 = 0; i0 < nmax; i0++) {
+                            data[buf_idx + i0] = v[my_idx + i0];
                         }
                     }
                 }
+                // printf("sending block %d to proc %d with tag %d\n",bid,destRank[bid],destTag[bid]);
                 // send the block and continue
                 const int datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * topo_in->nf();
                 MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
@@ -628,17 +631,13 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     const int nblocks = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     int request_index;
     MPI_Status status;
-
-    printf("I have to receive %d blocks\n",nblocks);
     
     for(int count=0; count<nblocks; count++){
         // wait for a block
-        printf("waiting for a block\n");
         MPI_Waitany(nblocks, recvRequest, &request_index,&status);
         
         // get the block id = the tag
         int bid = status.MPI_TAG;
-        printf("received block %d\n",bid);
         // get the indexing of the block in 012-indexing
         int ibv[3];
         localSplit(bid,recv_nBlock,0,ibv);
@@ -650,6 +649,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         // const bcoord blockSize = {recv_blockSize[recv_bid][0],recv_blockSize[recv_bid][1],recv_blockSize[recv_bid][2]};
         // get the starting id in memory
         // const size_t start_idx  = localIndex_withBlock_ao(0, 0, 0, topo_out, recv_ibv, _nByBlock);
+
+        // printf("doing block %d with nf=%d\n",bid,nf);
 
         // go inside the block using the axis of the topo_in
         for (int i2 = 0; i2 < _nByBlock[ax2]; i2++) {
@@ -663,16 +664,22 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 const size_t my_idx = localIndex(ax0, loci0, loci1, loci2, topo_out->axis(), onloc, nf);
                 const size_t stride = localIndex(ax0, 1, 0, 0, topo_out->axis(), onloc, nf);
 
+
+                // UP_CHECK2((my_idx < onloc[0]*onloc[1]*onloc[2]),"myidx out of scope (%d/%d)",my_idx, _nByBlock[0]*_nByBlock[1]*_nByBlock[2]);
+
                 // printf("doing the copy with my_idx = %d and stride = %d\n",my_idx,stride);
                 // do the copy
                 if (nf == 1) {
                     for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
+                        // UP_CHECK4((my_idx + i0 * stride >= 0),"index out of scope (%d/%d): i0=%d, stride=%d",my_idx + i0 * stride , 0,i0,stride);
+                        // UP_CHECK4((my_idx + i0 * stride < onloc[0]*onloc[1]*onloc[2]),"index out of scope (%d/%d): i0=%d, stride=%d",my_idx + i0 * stride , onloc[0]*onloc[1]*onloc[2],i0,stride);
+                        // UP_CHECK3((buf_idx + i0 < _nByBlock[0]*_nByBlock[1]*_nByBlock[2]),"index out of scope (%d/%d): i0=%d",buf_idx + i0 , _nByBlock[0]*_nByBlock[1]*_nByBlock[2],i0);
                         v[my_idx + i0 * stride] = data[buf_idx + i0];
                     }
                 } else if (nf == 2) {
                     for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
-                        v[my_idx + i0 * stride + 0] = data[buf_idx + i0 + 0];
-                        v[my_idx + i0 * stride + 1] = data[buf_idx + i0 + 1];
+                        v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
+                        v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
                     }
                 }
                 else{
@@ -682,7 +689,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     // int dest_rankd[3];
     // for (int i2 = istart[ax2]; i2 < iend[ax2]; ++i2) {
@@ -807,17 +815,17 @@ void SwitchTopo_test() {
     const int nproc[3] = {2, 2, 1};
 
     const int nglob_big[3] = {17, 8, 8};
-    const int nproc_big[3] = {1, 2, 2};
+    const int nproc_big[3] = {2, 2, 1};
 
     //===========================================================================
     // real numbers
     Topology* topo    = new Topology(0, nglob, nproc, false);
-    Topology* topobig = new Topology(2, nglob_big, nproc_big, false);
+    Topology* topobig = new Topology(0, nglob_big, nproc_big, false);
 
     // printf("nloc topo = %d %d %d\n",topo->nloc(0),topo->nloc(1),topo->nloc(2));
     // printf("nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
-    double* data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
+    double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(),topobig->locmemsize()));
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
@@ -835,15 +843,68 @@ void SwitchTopo_test() {
     // topobig->switch2real();
     // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
-    const int   fieldstart[3] = {4, 0, 0};
-    printf("\n=============================\n");
+    const int   fieldstart[3] = {0, 0, 0};
+    printf("\n\n=============================\n");
     SwitchTopo* switchtopo    = new SwitchTopo(topo, topobig, fieldstart);
 
+    printf("\n\n============ FORWARD =================\n");
     switchtopo->execute(data, UP_FORWARD);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
+    printf("\n\n============ BACKWARD =================\n");
+    switchtopo->execute(data, UP_BACKWARD);
+
+    hdf5_dump(topo, "test_real_returned", data);
+
     fftw_free(data);
+    delete (switchtopo);
     delete (topo);
     delete (topobig);
+    
+
+    //===========================================================================
+    // complex numbers
+    topo    = new Topology(0, nglob, nproc, true);
+    topobig = new Topology(2, nglob_big, nproc_big, true);
+
+    // printf("nloc topo = %d %d %d\n",topo->nloc(0),topo->nloc(1),topo->nloc(2));
+    // printf("nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+
+    data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
+
+    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                size_t id    = localindex_xyz(i0, i1, i2, topo);
+                data[id + 0] = 0;
+                data[id + 1] = id;
+            }
+        }
+    }
+    // try the dump
+    hdf5_dump(topo, "test_complex", data);
+
+    // topobig->switch2complex();
+    // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+    // topobig->switch2real();
+    // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+
+    const int   fieldstart2[3] = {4, 0, 0};
+    printf("\n=============================\n");
+    switchtopo    = new SwitchTopo(topo, topobig, fieldstart2);
+
+    switchtopo->execute(data, UP_FORWARD);
+
+    hdf5_dump(topobig, "test_complex_padd", data);
+
+    switchtopo->execute(data, UP_BACKWARD);
+
+    hdf5_dump(topo, "test_complex_returned", data);
+
+    fftw_free(data);
+    delete (switchtopo);
+    delete (topo);
+    delete (topobig);
+    
 }
