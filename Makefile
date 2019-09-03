@@ -31,7 +31,7 @@ INC := -I$(SRC_DIR)
 #---- FFTW
 FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3_mpi -lfftw3
+LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath=$(FFTWDIR)/lib
 
 #---- HDF5
 HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
