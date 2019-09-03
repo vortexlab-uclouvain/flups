@@ -166,7 +166,8 @@ SwitchTopo::~SwitchTopo() {
         for (int ib1 = 0; ib1 < _inBlock[1]; ib1++) {
             for (int ib0 = 0; ib0 < _inBlock[0]; ib0++) {
                 // get the local block index
-                const size_t send_bid = blockID(ib0, ib1, ib2, _inBlock);
+                // const size_t send_bid = blockID(ib0, ib1, ib2, _inBlock);
+                const size_t send_bid = localIndex(0, ib0, ib1, ib2, 0, _inBlock, 1);
                 if (_sendBuf[send_bid] != NULL) fftw_free(_sendBuf[send_bid]);
             }
         }
@@ -175,7 +176,8 @@ SwitchTopo::~SwitchTopo() {
         for (int ib1 = 0; ib1 < _onBlock[1]; ib1++) {
             for (int ib0 = 0; ib0 < _onBlock[0]; ib0++) {
                 // get the local block index
-                const size_t recv_bid = blockID(ib0, ib1, ib2, _onBlock);
+                // const size_t recv_bid = blockID(ib0, ib1, ib2, _onBlock);
+                const size_t recv_bid = localIndex(0, ib0, ib1, ib2, 0, _onBlock, 1);
                 if (_recvBuf[recv_bid] != NULL) fftw_free(_recvBuf[recv_bid]);
             }
         }

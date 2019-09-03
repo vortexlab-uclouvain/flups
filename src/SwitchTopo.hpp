@@ -77,20 +77,6 @@ static inline int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
 }
 
-
-/**
- * @brief return the local block index from the splitted indexing (012-indexing)
- * 
- * @param ib0 block index in the 0 direction
- * @param ib1 block index in the 1 direction
- * @param ib2 block index in the 2 direction
- * @param nBlock the local number of blocks
- * @return int 
- */
-static inline int blockID(const int ib0, const int ib1, const int ib2, const int nBlock[3]) {
-    return ib0 + nBlock[0] * (ib1 + nBlock[1] * ib2);
-}
-
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
  * 
@@ -129,69 +115,6 @@ static inline void localSplit(const int id, const int size[3], const int axtrg, 
     idv[ax0] = id % size[ax0];
     idv[ax1] = (id % (size[0] * size[ax1])) / size[ax0];
     idv[ax2] = id / (size[ax0] * size[ax1]);
-}
-
-static inline void blocksplit(const int bid, const int nBlock[3], int blockid[3]) {
-    blockid[0] = bid % nBlock[0];
-    blockid[1] = (bid % (nBlock[0] * nBlock[1])) / nBlock[0];
-    blockid[2] = bid / (nBlock[0] * nBlock[1]);
-}
-
-inline static size_t localIndex_withBlock_ao(const int i0, const int i1, const int i2, const Topology *topo, const int blockID[3], const int nByBlock[3]) {
-    const int nf     = topo->nf();
-    const int ax0    = topo->axis();
-    const int ax1    = (ax0 + 1) % 3;
-    const int ax2    = (ax0 + 2) % 3;
-    const int loc_i0 = nByBlock[ax0] * blockID[ax0] + i0;
-    const int loc_i1 = nByBlock[ax1] * blockID[ax1] + i1;
-    const int loc_i2 = nByBlock[ax2] * blockID[ax2] + i2;
-
-    return loc_i0 * nf + topo->nloc(ax0) * nf * (loc_i1 + topo->nloc(ax1) * loc_i2);
-}
-
-inline static size_t localindex_withBlock(const int axis, const int i0, const int i1, const int i2, const Topology *topo, const int blockID[3], const int nByBlock[3]) {
-    const int nf = topo->nf();
-
-    // compute the shift to perform from the axis reference to
-    const int dax0 = (3 + topo->axis() - axis) % 3;
-    const int dax1 = (dax0 + 1) % 3;
-    const int dax2 = (dax0 + 2) % 3;
-
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    const int loc_i[3] = {nByBlock[ax0] * blockID[ax0] + i0, nByBlock[ax1] * blockID[ax1] + i1, nByBlock[ax2] * blockID[ax2] + i2};
-
-    // return localindex_xyz(i[0], i[1], i[2], topo);
-    return loc_i[dax0] * nf + topo->nloc(ax0) * nf * (loc_i[dax1] + topo->nloc(ax1) * loc_i[dax2]);
-}
-
-inline static size_t blockLocalIndex_ao(const int i0, const int i1, const int i2, const Topology *topo, const int blockSize[3]) {
-    const int nf  = topo->nf();
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-
-    return i0 * nf + blockSize[ax0] * nf * (i1 + blockSize[ax1] * i2);
-}
-
-/**
- * @brief For a given block in the current topology compute the corresponding rank in the other topology
- * 
- * @param current the current topology
- * @param other the other topology
- * @param b_shift the position of the current topology (0,0,0) in the other topology (012-indexing)
- * @param nByBlock the mean number of points per block (012-indexing)
- * @param bid the local block id (012-indexing)
- * @return int 
- */
-static inline int cmpt_blockRank(const Topology *current, const Topology *other, const int b_shift[3], const int nBlockByProc[3], const int nByBlock[3], const int bid[3]) {
-    int rankd[3];
-    rankd[0] = ((current->rankd(0) * nBlockByProc[0] + bid[0]) * nByBlock[0] + b_shift[0]) / other->nbyproc(0);
-    rankd[1] = ((current->rankd(1) * nBlockByProc[1] + bid[1]) * nByBlock[1] + b_shift[1]) / other->nbyproc(1);
-    rankd[2] = ((current->rankd(2) * nBlockByProc[2] + bid[2]) * nByBlock[2] + b_shift[2]) / other->nbyproc(2);
-
-    return rankindex(rankd, other);
 }
 
 /**
@@ -240,13 +163,14 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
                 // get the global destination rank
                 int destrank = rankindex(destrankd, topo);
                 // get the global destination rank
-                destRank[blockID(ib0, ib1, ib2, nBlock)] = destrank;
+                int bid = localIndex(0,ib0,ib1,ib2,0,nBlock,1);
+                destRank[bid] = destrank;
                 // get the number of block in the destination rank
                 int dest_nBlock[3] = {nBlockEachProc[0 * comm_size + destrank],
                                       nBlockEachProc[1 * comm_size + destrank],
                                       nBlockEachProc[2 * comm_size + destrank]};
                 // store the destination tag = local block index in the destination rank
-                destTag[blockID(ib0, ib1, ib2, nBlock)] = blockID(local_bid[0], local_bid[1], local_bid[2], dest_nBlock);
+                destTag[bid] = localIndex(0,local_bid[0], local_bid[1], local_bid[2],0,dest_nBlock,1);
             }
         }
     }
