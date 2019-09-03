@@ -49,9 +49,7 @@ Profiler::~Profiler() {
 void Profiler::create(string name) {
     map<string, TimerAgent*>::iterator it = _timeMap.find(name);
     // if it does not already exist
-    if (it != _timeMap.end()) {
-        it->second->reset();
-    } else {
+    if (it == _timeMap.end()) {
         _timeMap[name] = new TimerAgent();
         _timeMap[name]->reset();
     }
@@ -80,7 +78,7 @@ void Profiler::disp() {
     if(rank ==0){
         printf("=============================================================================================================\n");
         printf("        PROFILER %s  \n",_name.c_str());
-        printf("\t-NAME-   \t-Total time-\t-time/call-\t-Max tot time-\t-Min tot time-\t-Mean cnt-\n");
+        printf("\t-NAME-   \t-Total time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
 
         fprintf(file,"=============================================================================================================\n");
         fprintf(file,"        PROFILER %s  \n",_name.c_str());
