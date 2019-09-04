@@ -79,8 +79,8 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
                 double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  //inner left corner of the current block i'm looking at
 
                 sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[1][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[2][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
 
                 centerPos[0] = orig[0] + ((j0 != 0) && (mybc[0][(j0 + 1) / 2] != PER) ? (1.0 - center[0]) * L[0] : (center[0] * L[0]));
                 centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
