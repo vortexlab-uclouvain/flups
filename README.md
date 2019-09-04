@@ -107,7 +107,7 @@ We follow the Google formating rules, see https://google.github.io/styleguide/cp
 To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
 
 Set then the value:
-```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignements: true, AlignConsecutiveDeclarations: true }```.
+```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignments: true, AlignConsecutiveDeclarations: true }```.
 
 Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
 
