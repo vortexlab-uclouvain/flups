@@ -92,7 +92,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data
  */
-void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::init(const int size[DIM], const bool isComplex, const bool isRefR2C) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // sanity checks
@@ -108,7 +108,8 @@ void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
         // _n = 2*size[dimID]; // we have to double the size
         _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
-        _init_periodic(size, isComplex);
+        //this is the only transform that could give a R2C on data and being spectral for green
+        _init_periodic(size, isComplex, isRefR2C); 
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
     }
@@ -133,8 +134,14 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
-    _n_in       = size[_dimID];
-    _n_out      = size[_dimID];
+    if (!_isGreen) {
+        _n_in  = size[_dimID];
+        _n_out = size[_dimID];
+    } else {
+        _n_in  = size[_dimID] + 1;
+        _n_out = size[_dimID] + 1;
+    }
+
     _fieldstart = 0;
 
     // no switch to complex
@@ -172,6 +179,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
         _imult = true;  // we DO have to multiply by -i=-sqrt(-1)
 
         if (_bc[1] == ODD) {
+            _shiftgreen = 1;
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01;
         } else if (_bc[1] == EVEN) {
@@ -265,21 +273,35 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex
  * ----------------------------------------
  * We do the following operations
  */
-void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex, const bool isRefR2C) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
-    if (isComplex) {
-        _n_in  = size[_dimID];  // takes n complex, return n complex
-        _n_out = size[_dimID];
+    if (!_isGreen){
+        if (isComplex) {
+            _n_in  = size[_dimID];  // takes n complex, return n complex
+            _n_out = size[_dimID];
 
-        _isr2c = false;
+            _isr2c = false;
+            _isInputReal = false;
+        } else {
+            _n_in  = size[_dimID];   // takes n real
+            _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
+
+            _isr2c = true;
+            _isInputReal = true;
+        }
     } else {
-        _n_in  = size[_dimID];   // takes n real
-        _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
-
-        _isr2c = true;
+        _isr2c = false;  //the per-per dir is spectral. There will never be a spectral r2c direction.
+        
+        if (!isRefR2C) {
+            _n_in  = size[_dimID];  // takes n complex, return n complex
+            _n_out = size[_dimID];
+        } else {
+            _n_in  = size[_dimID];   // takes n real
+            _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
+        }
     }
 
     _fieldstart = 0;
@@ -289,9 +311,9 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0;  // if no symmetry is needed, set to 0
-    if(isComplex)
+    if(isComplex || (_isGreen && !isRefR2C))
         _symstart = size[_dimID]/2;
-
+    
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
