@@ -1,21 +1,18 @@
 ################################################################################
-# 
-#-----------------------------------------------------------------------------
-# machine dependent file: define INC_DIR ; LIB_DIR ; LIB
-#include make_arch/make.VVPM
-#include make.zenobe
+# ARCH DEPENDENT VARIABLES
+include make_arch/make.vagrant_intel
 
-TARGET := poisson
+################################################################################
+# FROM HERE, DO NOT TOUCH
+#-----------------------------------------------------------------------------
+NAME := flups
+TARGET_EXE := $(NAME)
+TARGET_LIB := build/lib$(NAME).so
+
+PREFIX ?= ./
 
 #-----------------------------------------------------------------------------
 # COMPILER AND OPT/DEBUG FLAGS
-CC = mpiicc
-CXX = mpiicpc
-
-CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
-# CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
-
-# linker specific flags
 LDFLAGS := 
 
 #-----------------------------------------------------------------------------
@@ -27,20 +24,18 @@ OBJ_DIR := ./build
 INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
-
 #---- FFTW
-FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 INC += -I$(FFTWDIR)/include
 LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath=$(FFTWDIR)/lib
 
 #---- HDF5
-HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
 INC += -I$(HDF5DIR)/include
 LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath=$(HDF5DIR)/lib
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
+HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 
 ## generate object list
 OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
@@ -51,24 +46,36 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
+default: $(TARGET_EXE)
 
-default: $(TARGET)
-
-$(TARGET): $(OBJ)
+$(TARGET_EXE): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB): $(OBJ)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+install: $(TARGET_LIB)
+	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/include
+	cp $(TARGET_LIB) $(PREFIX)/lib
+	cp $(HEAD) $(PREFIX)/include
 
 test:
 	@echo $(SRC)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
-	rm -f $(TARGET)
+	rm -f $(TARGET_EXE)
+	rm -f $(TARGET_LIB)
 
 destroy:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(OBJ_DIR)/*.d
-	rm -f $(TARGET)
+	rm -f $(TARGET_EXE)
+	rm -f $(TARGET_LIB)
 	rm -f $(OBJ_DIR)/*
+	rm -f include/*
+	rm -f lib/*
 
 info:
 	$(info SRC = $(SRC))
