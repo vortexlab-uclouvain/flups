@@ -1,4 +1,4 @@
-# An unbounded-periodic Poisson solver
+# FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
 ### Installation
 #### 1. Dependencies
