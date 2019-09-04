@@ -62,8 +62,9 @@ class FFTW_Solver {
     // even is the dimension is 2, we allocate arrays of dimension 3
 
    protected:
-    int _orderdiff = 0; /**< @brief the order of derivative (spectral = 0)  */
-    int _nbr_imult = 0; /**< @brief the number of time we have applied a DST transform */
+    int _orderdiff    = 0; /**< @brief the order of derivative (spectral = 0)  */
+    int _nbr_imult    = 0; /**< @brief the number of time we have applied a DST transform */
+    int _nbr_spectral = 0; /** @brief the number of spectral directions involved     */
 
     double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */
@@ -86,10 +87,11 @@ class FFTW_Solver {
      * 
      */
     /**@{ */
-    int     _shiftgreen[3] = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
-    double  _alphaGreen    = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
-    double* _green         = NULL;      /**< @brief data pointer to the transposed memory for Green */
-    GreenType   _typeGreen = CHAT_2;             /**< @brief the type of Green's function */
+    int       _iTopo_fillGreen = -1;        /**< @brief the id of the topo in which we fill the green function */
+    int       _shiftgreen[3]   = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
+    double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
+    double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
+    GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
 
     FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
     Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
@@ -137,7 +139,7 @@ class FFTW_Solver {
      */
     void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
-    void _scaleGreenFunction(const Topology* topo, double* data);
+    void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
     /**@} */
 
    public:

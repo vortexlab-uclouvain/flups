@@ -92,7 +92,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data
  */
-void FFTW_plan_dim::init(const int size[DIM], const bool isComplex, const bool isRefR2C) {
+void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // sanity checks
@@ -109,7 +109,7 @@ void FFTW_plan_dim::init(const int size[DIM], const bool isComplex, const bool i
         _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
         //this is the only transform that could give a R2C on data and being spectral for green
-        _init_periodic(size, isComplex, isRefR2C); 
+        _init_periodic(size, isComplex); 
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
     }
@@ -273,37 +273,25 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex
  * ----------------------------------------
  * We do the following operations
  */
-void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex, const bool isRefR2C) {
+void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
-    if (!_isGreen){
-        if (isComplex) {
-            _n_in  = size[_dimID];  // takes n complex, return n complex
-            _n_out = size[_dimID];
+    if (isComplex) {
+        _n_in  = size[_dimID];  // takes n complex, return n complex
+        _n_out = size[_dimID];
 
-            _isr2c = false;
-            _isInputReal = false;
-        } else {
-            _n_in  = size[_dimID];   // takes n real
-            _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
-
-            _isr2c = true;
-            _isInputReal = true;
-        }
+        _isr2c = false;
+        _isInputReal = false;
     } else {
-        _isr2c = false;  //the per-per dir is spectral. There will never be a spectral r2c direction.
-        
-        if (!isRefR2C) {
-            _n_in  = size[_dimID];  // takes n complex, return n complex
-            _n_out = size[_dimID];
-        } else {
-            _n_in  = size[_dimID];   // takes n real
-            _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
-        }
-    }
+        _n_in  = size[_dimID];   // takes n real
+        _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
 
+        _isr2c = true;
+        _isInputReal = true;
+    }
+    
     _fieldstart = 0;
     _shiftgreen = 0;
 
@@ -311,7 +299,7 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex, co
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0;  // if no symmetry is needed, set to 0
-    if(isComplex || (_isGreen && !isRefR2C))
+    if(isComplex )
         _symstart = size[_dimID]/2;
     
     //-------------------------------------------------------------------------
@@ -378,15 +366,15 @@ void FFTW_plan_dim::_init_unbounded(const int size[DIM], const bool isComplex) {
  * @param isComplex if the transpoed data is complex or real
  * @param data the pointer to the transposed data (has to be allocated)
  */
-void FFTW_plan_dim::allocate_plan(const int size_plan[DIM], double* data) {
+void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // allocate the plan
     //-------------------------------------------------------------------------
     if (_type == SYMSYM || _type == MIXUNB) {
-        _allocate_plan_real(size_plan, data);
+        _allocate_plan_real(topo, data);
     } else if (_type == PERPER || _type == UNBUNB) {
-        _allocate_plan_complex(size_plan, data);
+        _allocate_plan_complex(topo, data);
     }
 }
 
@@ -405,12 +393,14 @@ void FFTW_plan_dim::allocate_plan(const int size_plan[DIM], double* data) {
  * @param data the pointer to the transposed data (has to be allocated)
  * 
  */
-void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double* data) {
+void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
     assert(data != NULL);
+
+    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     //-------------------------------------------------------------------------
     /** - If is Green and #_type is SYMSYM, exit */
@@ -430,10 +420,12 @@ void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double* data) {
     // the array has to be (n[3] x n[2] x n[1])
     // the jth element of transform k is at k*idist+j*istride
     int rank    = 1;
-    int istride = 1;
-    int ostride = 1;
-    int idist   = memsize[_dimID];
-    int odist   = memsize[_dimID];
+    int istride = topo->nf() ;
+    int ostride = topo->nf() ;
+    int idist   = memsize[_dimID]*topo->nf();
+    int odist   = memsize[_dimID]*topo->nf();
+
+    printf("stride should be at 2\n",topo->nf());
 
     //-------------------------------------------------------------------------
     /** - If is Green, compute #_howmany  */
@@ -478,10 +470,12 @@ void FFTW_plan_dim::_allocate_plan_real(const int memsize[DIM], double* data) {
  * @param memsize the size of the data BEFORE THE PLAN is executed
  * @param data memory
  */
-void FFTW_plan_dim::_allocate_plan_complex(const int memsize[DIM], double* data) {
+void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     BEGIN_FUNC
 
     assert(data != NULL);
+
+    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     if (_isGreen && _type == PERPER) {
         _plan = NULL;

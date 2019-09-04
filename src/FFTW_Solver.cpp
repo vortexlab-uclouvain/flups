@@ -42,6 +42,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
     _sort_plans(_plan_forward);
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
+    INFOLOG4("I will proceed with forward transforms in the following direction order: %d, %d, %d\n",_plan_forward[0]->dimID(),_plan_forward[1]->dimID(),_plan_forward[2]->dimID());
 
     //-------------------------------------------------------------------------
     /** - Initialise the plans and get the sizes */
@@ -238,7 +239,7 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     int  nproc[3];
     for (int ip = 0; ip < 3; ip++) {
         // initialize the plan (for Green only, using info from _plan_forward)
-        planmap[ip]->init(size_tmp, isComplex, _plan_forward[ip]->isr2c());
+        planmap[ip]->init(size_tmp, isComplex);
         // update the size_tmp variable and get the complex information
         planmap[ip]->get_outsize(size_tmp);
         // virtually execute the plan and determine the output
@@ -291,7 +292,7 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     if (isGreen) {
         for (int ip = 0; ip < 3; ip++) {
             int dimID = planmap[ip]->dimID();
-            if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) size_tmp[dimID] *= 2;
+            // if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) size_tmp[dimID] *= 2;
 
             // count the number of spectral dimensions
             // Could have been done in cmpt_green but I need it here...
@@ -318,11 +319,15 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
         }
     }
 
+    _iTopo_fillGreen = 0; 
+
+    current_topo = NULL;
+
     //-------------------------------------------------------------------------
     /** - For Green we need to compute the topologies using the full size of the domain  */
     //-------------------------------------------------------------------------
-    //the full size of the domain is that of size_tmp
-    isComplex = false; //Change this for Helmolz: we will always need to fill Green in complex
+    // //the full size of the domain is that of size_tmp
+    // isComplex = false; //Change this for Helmolz: we will always need to fill Green in complex
 
     // check if there is a r2c in the 
 
@@ -333,57 +338,67 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     // 3) the size of the Green function after all transforms (only C2C!) ans switchTopo must be the same 
     //    as the output size of field, so I guess it must be the same when you fill Green.
     if (isGreen && topomap != NULL && switchtopo != NULL) {
-        for (int ip = 0; ip < 3; ip++) {
-            // virtually execute the plan
-            planmap[ip]->get_isNowComplex(&isComplex);
+        for (int ip = 2; ip >= 0; ip--) {
+    // // virtually execute the plan
+    // planmap[ip]->get_isNowComplex(&isComplex);
+            
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
             // get the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
-            // CAREFUL: the Green's function does not require padding ! We already doubled it's size
-            // because we had to fill it with the proper symmetry condition. Therefore, the
-            // output size of the topo associated to r2c must be devided by 2 ! This is because, so far,
-            // size_tmp was expressing "the number of real", and after the r2c, it counts the "number of complex".
-            // If you forget to do it, when we do the switch to real, the topo will be twice larger.
-            if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) 
-                size_tmp[dimID] /= 2; //manually switching back to complex indexing.
-
-            // If the data is already complex in the topo in which I fill the (real) Green kernel,
-            // I will have to switch the corresponding topo to complex, and thus we anticipate here
-            // for the size.
-            if (ip == _iTopo_fillGreen && (!_plan_forward[ip]->isInputReal() || _plan_forward[ip]->isr2c())) {
-                size_tmp[dimID] *= 2;
-            }
 
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
             // get the fieldstart = the point where the old topo has to begin in the new
-            int fieldstart[3] = {0};
-            planmap[ip]->get_fieldstart(fieldstart);
-            // compute the transfert between the current topo and the new one
-            // if the topo was real before the plan and is now complex
-            if (planmap[ip]->isr2c()) {
-                topomap[ip]->switch2real();
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
-                topomap[ip]->switch2complex();
-            } else {
-                // create the switchtopoMPI to change topology
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+
+
+            // // If the data is already complex in the topo in which I fill the (real) Green kernel,
+            // // I will have to switch the corresponding topo to complex, and thus we anticipate here
+            // // for the size.
+            // if (ip == _iTopo_fillGreen && (!_plan_forward[ip]->isInputReal() || _plan_forward[ip]->isr2c())) {
+            //     size_tmp[dimID] *= 2;
+            // }
+
+            
+            if (ip < 2){
+                int fieldstart[3] = {0};
+                planmap[ip]->get_fieldstart(fieldstart);
+                // compute the transfert between the current topo and the new one
+                // if the topo was real before the plan and is now complex
+                // if (planmap[ip]->isr2c()) {
+                //     topomap[ip]->switch2real();
+                //     switchtopo[ip] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
+                //     topomap[ip]->switch2complex();
+                // } else {
+                    // create the switchtopoMPI to change topology
+                    switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
+                // }
             }
+
+            printf("isr2cDoneFFT? %d\n",planmap[ip]->isr2cDoneByFFT());
+            //Virtually executing the fft 
+            if (planmap[ip]->isr2cDoneByFFT() ){
+                topomap[ip]->switch2real();
+                size_tmp[dimID] *= 2; 
+                isComplex = false;
+            }
+
+
             // update the current topo to the new one
             current_topo = topomap[ip];
 
             current_topo->disp();
         }
-        if ((!_plan_forward[_iTopo_fillGreen]->isInputReal()|| _plan_forward[_iTopo_fillGreen]->isr2c() ))
-            topomap[_iTopo_fillGreen]->switch2complex(); //forcing the Green function to be written in complex, for cases with per dir
+
+        // if ((!_plan_forward[_iTopo_fillGreen]->isInputReal()|| _plan_forward[_iTopo_fillGreen]->isr2c() ))
+        //     topomap[_iTopo_fillGreen]->switch2complex(); //forcing the Green function to be written in complex, for cases with per dir
     }
 
     //-------------------------------------------------------------------------
     /** - reset the topologies to real if needed, in order to prepare them for their execution  */
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < 3; ip++) {
-        if (planmap[ip]->isr2c() && topomap != NULL) {
+        if (!isGreen && planmap[ip]->isr2c() && topomap != NULL) {
             topomap[ip]->switch2real();
         }
     }
@@ -400,9 +415,8 @@ void FFTW_Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *
     BEGIN_FUNC
 
     for (int ip = 0; ip < 3; ip++) {
-        UP_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
-        int size_plan[3] = {topo[ip]->nloc(0), topo[ip]->nloc(1), topo[ip]->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
-        planmap[ip]->allocate_plan(size_plan, data);
+        // UP_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
+        planmap[ip]->allocate_plan(topo[ip], data);
     }
 }
 
@@ -428,7 +442,9 @@ void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
         size_tot = std::max(topo[id]->locmemsize(), size_tot);
 
     INFOLOG2("Complex memory allocation, size = %ld\n", size_tot);
-    (*data) = (double *)fftw_malloc(size_tot * sizeof(fftw_complex));
+    (*data) = (double *)fftw_malloc(size_tot * sizeof(double));
+
+    std::memset(*data,0, size_tot * sizeof(double));
 
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
@@ -518,6 +534,9 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         // go to the topology for the plan, if we are not already on it
         if (ip > _iTopo_fillGreen) {
             _switchtopo_green[ip]->execute(green, UP_FORWARD);
+
+            sprintf(msg, "green_h%d",ip);
+            hdf5_dump(topo[ip], msg, green);
         }
 
         // execute the plan, if not already spectral
@@ -535,9 +554,12 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
             {
                 printf("G_hat(%d) = %lf + i* %lf\n",k,mygreen[2*k],mygreen[2*k+1]);
             }
+
+            sprintf(msg, "green_h%d_h",ip);
+            hdf5_dump(topo[ip], msg, green);
         }
 
-        if (_plan_green[ip]->isr2c()) {
+        if (_plan_green[ip]->isr2cDoneByFFT()) {
             topo[ip]->switch2complex();
         }
         
@@ -697,6 +719,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     for (int ip = 0; ip < 3; ip++) {
         // go to the correct topo
         _switchtopo[ip]->execute(mydata, UP_FORWARD);
+
+        char msg[512];
+        sprintf(msg,"rhs_t%d",ip);
+        hdf5_dump(_topo_hat[ip], msg, mydata);
+
         // run the FFT
         _plan_forward[ip]->execute_plan();
         // get if we are now complex
@@ -706,6 +733,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     }
 
     hdf5_dump(_topo_hat[2], "rhs_h", mydata);
+
+    // ax0 = _topo_hat[2]->axis();
+    // ax1 = (ax0 + 1) % 3;
+    // ax2 = (ax0 + 2) % 3;
+    INFOLOG4("I will shift the Green by this much: %d,%d,%d\n",_shiftgreen[0],_shiftgreen[1],_shiftgreen[2]);
 
     //-------------------------------------------------------------------------
     /** - Perform the magic */
@@ -741,6 +773,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2real();
         }
+        
+        char msg[512];
+        sprintf(msg,"sol_t%d",ip);
+        hdf5_dump(_topo_hat[ip], msg, mydata);
+        
         _switchtopo[ip]->execute(mydata, UP_BACKWARD);
     }
 

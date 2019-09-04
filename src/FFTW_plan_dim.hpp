@@ -12,6 +12,7 @@
 #define FFTW_PLAN_DIM_HPP
 
 #include "defines.hpp"
+#include "topology.hpp"
 #include "fftw3.h"
 
 /**
@@ -76,7 +77,7 @@ class FFTW_plan_dim {
 
     void init(const int size[DIM], const bool isComplex, const bool isRefR2C);
 
-    void allocate_plan(const int size_plan[DIM], double* data);
+    void allocate_plan(const Topology *topo, double* data);
     void execute_plan();
 
     /**
@@ -87,6 +88,7 @@ class FFTW_plan_dim {
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isInputReal() const { return _isInputReal; }
     inline bool   isr2c() const { return _isr2c; }
+    inline bool   isr2cDoneByFFT() const { return _isr2c && (!_isSpectral || !_isGreen) ; }
     inline int    dimID() const { return _dimID; }
     inline int    imult() const { return _imult; }
     inline int    shiftgreen() const { return _shiftgreen; }
@@ -118,8 +120,8 @@ class FFTW_plan_dim {
      * @name Plan allocation
      */
     /**@{ */
-    void _allocate_plan_real(const int size_ordered[DIM], double* data);
-    void _allocate_plan_complex(const int size_ordered[DIM], double* data);
+    void _allocate_plan_real(const Topology *topo, double* data);
+    void _allocate_plan_complex(const Topology *topo, double* data);
     /**@} */
 };
 
