@@ -167,27 +167,33 @@ void FFTW_Solver::_delete_topologies(Topology *topo[3]) {
  * @param plan the list of plan, which will be reordered
  */
 void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
+    int id_min, val_min=INT_MAX;
     int priority[3];
 
-    for (int id = 0; id < 3; id++)
+    for (int id = 0; id < 3; id++) {
         priority[id] = plan[id]->type();
-
-    // do the sort by hand...
-    if (priority[0] > priority[1]) {
-        FFTW_plan_dim *temp_plan = plan[1];
-        plan[1]                  = plan[0];
-        plan[0]                  = temp_plan;
+        if (priority[id] < val_min) {
+            id_min = id;
+            val_min = priority[id];
+        }
     }
-    // we are sure to have the first being sorted
-    // if the last one is smaller than the second one, we change, if not, it is also bigger than the first one
-    if (priority[1] > priority[2]) {
-        FFTW_plan_dim *temp_plan = plan[2];
-        plan[2]                  = plan[1];
-        plan[1]                  = temp_plan;
-        if (priority[0] > priority[2]) {
-            FFTW_plan_dim *temp_plan = plan[1];
-            plan[1]                  = plan[0];
-            plan[0]                  = temp_plan;
+
+    if (id_min == 0) {
+        if (priority[1] > priority[2]) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
+        }
+    } else {
+        // do the sort by hand...
+        FFTW_plan_dim *temp_plan = plan[id_min];
+        plan[id_min]             = plan[0];
+        plan[0]                  = temp_plan;
+
+        if (priority[0] > priority[3-id_min] && id_min==1) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
         }
     }
 }
