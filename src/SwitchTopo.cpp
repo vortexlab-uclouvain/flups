@@ -38,10 +38,17 @@
  * The shift argument will then be (3,5) since we need to add (3,5) points in the topo_output
  * to reach the (0,0,0) point in the topo_input.
  * 
+ * The switch between topologies works using blocks. 
+ * A block is defined as a memory block on one proc that goes on another proc.
+ * The size of the block will always have the same size on every process.
+ * The number of block changes from one process to another.
+ * Therefore we have to initialize the block structure and then use it during the execute.
+ * 
  * 
  * @param topo_input the input topology
  * @param topo_output the output topology 
  * @param shift the shift is the position of the (0,0,0) of topo_input in the topo_output indexing (in XYZ-indexing)
+ * @param prof the profiler to use to profile the execution of the SwitchTopo
  */
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC
@@ -69,7 +76,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     _topo_out->cmpt_intersect_id(_ob2i_shift, _topo_in, _ostart, _oend);
 
     //-------------------------------------------------------------------------
-    /** - get the block size as the GCD among every process between send and receive*/
+    /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
     int* onProc = (int*)fftw_malloc(comm_size * sizeof(int));
     for (int id = 0; id < 3; id++) {
@@ -149,7 +156,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
         }
     }
     //-------------------------------------------------------------------------
-    /** - setup the profiler*/
+    /** - setup the profiler    */
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
         _prof->create("reorder_mem2buf");
@@ -158,6 +165,10 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     }
 }
 
+/**
+ * @brief Destroy the Switch Topo
+ * 
+ */
 SwitchTopo::~SwitchTopo() {
     if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
     if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
@@ -196,20 +207,20 @@ SwitchTopo::~SwitchTopo() {
  * The buffer memory writting is done according to the axis of the input topologies.
  * This allows to have a continuous memory access while filling the buffer.
  * 
- * Moreover, using naxis, we know that one a data has to be send to a proc P,
- * the following (naxis-1) have the same proc P as destination.
- * So, we are able to write chunks of size naxis-1
- * 
+ * We go through each block and we fill it using the local memory.
+ * After a block has been filled it is send using the non-blocking send.
  * Since the writting of buffers is aligned with the topo_in axis, the loops are continuous in memory and fully vectorizable.
  * 
+ * @warning
+ * Let us note that the block is send with a tag which is its local index in the destination proc.
+ * 
  * #### Buffer reading
+ * We wait to receive one block of memory. Once one has been received, we do the copy.
  * The buffer reading has to follow the same order as in the buffer writting, so the axis of the topo_in in the inner loop.
- * Similarly to the writting case, when one data comes from proc P, the naxis-1 following data comes from the same proc.
  * 
  * The reading of the buffer is hence continuous but the writting inside the memory has an apriori unkown stride.
  * The stride may be computed using the difference of axis between the two topologies.
  * Hence the reading will be a bit slower since the writting due to memory discontinuities
- * 
  * 
  * @param v the memory to switch from one topo to another. It has to be large enough to contain both local data's
  * @param sign if the switch is forward (UP_FORWARD) or backward (UP_BACKWARD) w.r.t. the order defined at init.
