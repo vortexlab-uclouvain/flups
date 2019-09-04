@@ -58,6 +58,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
     std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
 
+#ifndef MANUFACTURED_SOLUTION
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
     //-------------------------------------------------------------------------
@@ -116,18 +117,21 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
         }
     }
 
-    // double lIs = 1.e10, gIs = 0.0;
-    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
-    //             // lIs += sol[id];
-    //             lIs = min(sol[id],lIs);
-    //         }
-    //     }
-    // }
+    // double lIs = 1.e10, 
+    double gIs = 0.0;
+    double lIs = 0.0;
+    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                const size_t id   = localindex_xyz(i0, i1, i2, topo);
+                lIs += sol[id];
+                // lIs = min(sol[id],lIs);
+            }
+        }
+    }
     // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    // // gIs *= (h[0]*h[1]*h[2]);
+    MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    gIs *= (h[0]*h[1]*h[2]);
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
@@ -136,6 +140,89 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //         }
     //     }
     // }
+    printf("Integral sol : %lf\n",gIs);
+#else
+    //-------------------------------------------------------------------------
+    /** - fill the rhs and the solution */
+    //-------------------------------------------------------------------------
+
+    int istart[3];
+    get_istart_glob(istart, topo);
+
+
+    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                const size_t id   = localindex_xyz(i0, i1, i2, topo);
+                sol[id] = 1.0;
+            }
+        }
+    }
+
+    manuF manuRHS[3] ;
+    manuF manuSol[3] ;
+    
+    struct manuParams params[3]; 
+    params[0].freq = 1;
+    params[1].freq = 2;
+    params[2].freq = 4;
+
+    // Selecting manufactured solution compatible with the BCs
+    for (int dir = 0; dir < 3; dir++) {
+        if (mybc[dir][0] == PER && mybc[dir][1] == PER) {
+            manuRHS[dir] = &d2dx2_fOddOdd;
+            manuSol[dir] = &fOddOdd;
+            if (params[dir].freq < 1) params[dir].freq = 1;
+        } else if (mybc[dir][0] == ODD && mybc[dir][1] == ODD) {
+            manuRHS[dir] = &d2dx2_fOddOdd;
+            manuSol[dir] = &fOddOdd;
+        } else if (mybc[dir][0] == EVEN && mybc[dir][1] == EVEN) {
+            manuRHS[dir] = &d2dx2_fEvenEven;
+            manuSol[dir] = &fEvenEven;
+        } else if (mybc[dir][0] == UNB) {
+            if (mybc[dir][1] == ODD) {
+                params[dir].sign[1] = -1;
+            } else if (mybc[dir][1] == EVEN) {
+                params[dir].sign[1] = +1;
+            }
+            manuRHS[dir] = &d2dx2_fUnb;
+            manuSol[dir] = &fUnb;
+        } else if (mybc[dir][1] == UNB) {
+            if (mybc[dir][0] == ODD) {
+                params[dir].sign[0] = -1;
+            } else if (mybc[dir][0] == EVEN) {
+                params[dir].sign[0] = +1;
+            }
+            manuRHS[dir] = &d2dx2_fUnb;
+            manuSol[dir] = &fUnb;
+        }  else {
+            UP_ERROR("I don''t know how to generate an analytical solution for this combination of BC.")
+        }
+    }
+
+    // Obtaining the reference sol and rhs
+    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                const double x[3] = {(istart[0] + i0 + 0.5) * h[0],
+                                     (istart[1] + i1 + 0.5) * h[1],
+                                     (istart[2] + i2 + 0.5) * h[2]};
+
+                const size_t id = localindex_xyz(i0, i1, i2, topo);
+
+                for (int dir = 0; dir < 3; dir++) {
+                    const int dir2 = (dir + 1) % 3;
+                    const int dir3 = (dir + 2) % 3;
+                    sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
+                    rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                }
+            }
+        }
+    }
+
+#endif
+
+
 
 #ifdef DUMP_H5
     char msg[512];

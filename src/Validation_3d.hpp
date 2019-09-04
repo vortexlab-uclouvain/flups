@@ -18,6 +18,8 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 
+#define MANUFACTURED_SOLUTION
+
 /**
  * @brief everything required to characterize the computational domain and initial condition 
  * 
@@ -39,5 +41,46 @@ struct DomainDescr {
 void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen);
 void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve);
 /**@} */
+
+
+#ifdef MANUFACTURED_SOLUTION
+
+
+struct manuParams {
+    double       freq    = 1; //an integer or 0.5
+    double       sign[2] = {0, 0};
+    double       sigma   = 0.15;
+};
+
+typedef double (*manuF)(const double, const double, const manuParams);
+
+
+static inline double fOddOdd(const double x, const double L, const manuParams params) {
+    return sin((c_2pi / L * params.freq) * x);
+}
+static inline double d2dx2_fOddOdd(const double x, const double L, const manuParams params) {
+    return -(c_2pi / L * params.freq) * (c_2pi / L * params.freq) * sin((c_2pi / L * params.freq) * x);
+}
+
+static inline double fEvenEven(const double x, const double L, const manuParams params) {
+    return cos((c_2pi / L * params.freq) * x);
+}
+static inline double d2dx2_fEvenEven(const double x, const double L, const manuParams params) {
+    return -(c_2pi / L * params.freq) * (c_2pi / L * params.freq) * cos((c_2pi / L * params.freq) * x);
+}
+
+static inline double fUnb(const double x, const double L, const manuParams params) {
+    return                   exp(-(x - .5 * L) * (x - .5 * L) / (params.sigma * params.sigma)) + \
+            params.sign[0] * exp(-(x + .5 * L) * (x + .5 * L) / (params.sigma * params.sigma)) + \
+            params.sign[1] * exp(-(x -1.5 * L) * (x -1.5 * L) / (params.sigma * params.sigma)) ;
+}
+static inline double d2dx2_fUnb(const double x, const double L, const manuParams params) {
+    return                   -2. / (params.sigma * params.sigma) * exp(-(x - .5*L) * (x - .5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x - .5*L) * (x - .5*L) / (params.sigma * params.sigma))) + \
+            params.sign[0] * -2. / (params.sigma * params.sigma) * exp(-(x + .5*L) * (x + .5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x + .5*L) * (x + .5*L) / (params.sigma * params.sigma))) + \
+            params.sign[1] * -2. / (params.sigma * params.sigma) * exp(-(x -1.5*L) * (x -1.5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x -1.5*L) * (x -1.5*L) / (params.sigma * params.sigma))) ;
+}
+
+#endif
+
 
 #endif
