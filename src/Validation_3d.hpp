@@ -37,6 +37,7 @@ struct DomainDescr {
  */
 /**@{ */
 void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen);
+void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve);
 /**@} */
 
 #endif

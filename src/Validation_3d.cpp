@@ -11,14 +11,19 @@
 
 #include "Validation_3d.hpp"
 
+void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen) {
+    validation_3d(myCase, type, typeGreen, 1);
+}
+
 /**
  * @brief computes the reference solution and the numerical one, outputs errors in a file
  * 
  * @param myCase description of the domain and initial condition
  * @param type type of solver
  * @param typeGreen type of Green function
+ * @param nSolve number of times we call the same solver (for timing)
  */
-void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen) {
+void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve) {
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
