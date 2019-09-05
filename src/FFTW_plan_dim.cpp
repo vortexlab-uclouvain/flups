@@ -265,7 +265,6 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex
             _shiftgreen = 1;
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01; // DST type III
-//DG TODO: FOR EVEN-EVEN, ODD-ODD the shift might be 2 ?    mmmh no, the shift in 1, but we have N-2 pts        
         } else {
             UP_ERROR("unable to init the solver required\n")
         }
@@ -432,8 +431,6 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     int ostride = topo->nf() ;
     int idist   = memsize[_dimID]*topo->nf();
     int odist   = memsize[_dimID]*topo->nf();
-
-    printf("stride should be at 2\n",topo->nf());
 
     //-------------------------------------------------------------------------
     /** - If is Green, compute #_howmany  */

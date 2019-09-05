@@ -276,71 +276,29 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     }
 
     //-------------------------------------------------------------------------
-    /** - Switching back the size computed in the dry run to "real numbering".   */
-    //    As from here, size_tmp will be expressed in "double indexing", 
-    //    and no more in "complex indexing".
+    /** - Preparing the allocation of topos for Green (if needed).   */
     //-------------------------------------------------------------------------
-    // So far, size_tmp is the required output size of Green_hat (after all transforms)
-    // This is what we want to use to initialize the size of all topos (because we 
-    // always initialize the topos based on output size). However, we need to adjust that size
-    // as we will now assign the topos for Green. 
-    // Indeed, for every topo before the r2c, the ouput size in the r2c direction 
-    // is twice the size currently stored in size_tmp (precisely because
-    // the r2c will do ( /2+1). We thus proceed to the multiplication (we could actually do (-1*2)
-    // but this ain't change nothin).
-    // We will need to devide manually hereunder to balance.
-    if (isGreen) {
-        for (int ip = 0; ip < 3; ip++) {
-            int dimID = planmap[ip]->dimID();
-            // if (!planmap[0]->isr2c() && planmap[ip]->isr2c()) size_tmp[dimID] *= 2;
-
-            // count the number of spectral dimensions
-            // Could have been done in cmpt_green but I need it here...
-            if (planmap[ip]->isSpectral())
-                _nbr_spectral++;
-        }
-
-        // Now specifying in which topo we want to fill the Green function. 
-        // This is an arbitrary choice, yet highly motivated by the expression of the kernel.
-        if (_nbr_spectral == 0) {
-            _iTopo_fillGreen = 0;
-        } else if (_nbr_spectral == 1) {
-            for (int ip = 0; ip < 3; ip++) {
-                if (planmap[ip]->isSpectral())
-                    _iTopo_fillGreen = ip;  //FRI is aligned with the only spectral = non-spacial dir
-            }
-        } else if (_nbr_spectral == 2) {
-            for (int ip = 0; ip < 3; ip++) {
-                if (!planmap[ip]->isSpectral())
-                    _iTopo_fillGreen = ip;  //FRI is aligned with the only non-spectral = spacial dir
-            }
-        } else if (_nbr_spectral == 3) {
-            _iTopo_fillGreen = 2;
-        }
-    }
-
-    _iTopo_fillGreen = 0; 
+    
+    _iTopo_fillGreen = 0; //finally, we decide that we will always fill Freen in the 0th topo
 
     current_topo = NULL;
 
+    // -- at this point, size_tmp is the size that I need for the Green function in
+    //    the last topo, and isComplex describes if the Green function in that topo is
+    //    expressed in Complex or not.
+
     //-------------------------------------------------------------------------
-    /** - For Green we need to compute the topologies using the full size of the domain  */
+    /** - For Green we need to compute the topologies using the full size of the domain.
+     *    We proceed backward (from the last to the first topo), and we adapt the size
+     *    in case of r2c, in order to obtain the correct size of Green in topo[0], which
+     *    is the topo in which we fill the Green function.      */
     //-------------------------------------------------------------------------
+    
     // //the full size of the domain is that of size_tmp
     // isComplex = false; //Change this for Helmolz: we will always need to fill Green in complex
-
-    // check if there is a r2c in the 
-
-    // Implementation Note:
-    // If you want to do Helmoltz, you will have to fill a complex Green function:
-    // 1) there will be no r2c at all: might be fixed in plan_dim::init
-    // 2) need to ensure that topo[_iTopo_fillGreen] is switched to complex at the end of this function
-    // 3) the size of the Green function after all transforms (only C2C!) ans switchTopo must be the same 
-    //    as the output size of field, so I guess it must be the same when you fill Green.
+    
     if (isGreen && topomap != NULL && switchtopo != NULL) {
         for (int ip = 2; ip >= 0; ip--) {
-    // // virtually execute the plan
-    // planmap[ip]->get_isNowComplex(&isComplex);
             
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
@@ -349,50 +307,38 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
 
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
-            // get the fieldstart = the point where the old topo has to begin in the new
-
-
-            // // If the data is already complex in the topo in which I fill the (real) Green kernel,
-            // // I will have to switch the corresponding topo to complex, and thus we anticipate here
-            // // for the size.
-            // if (ip == _iTopo_fillGreen && (!_plan_forward[ip]->isInputReal() || _plan_forward[ip]->isr2c())) {
-            //     size_tmp[dimID] *= 2;
-            // }
-
             
+            //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2){
+                // get the fieldstart = the point where the old topo has to begin in the new
                 int fieldstart[3] = {0};
                 planmap[ip]->get_fieldstart(fieldstart);
-                // compute the transfert between the current topo and the new one
-                // if the topo was real before the plan and is now complex
-                // if (planmap[ip]->isr2c()) {
-                //     topomap[ip]->switch2real();
-                //     switchtopo[ip] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
-                //     topomap[ip]->switch2complex();
-                // } else {
-                    // create the switchtopoMPI to change topology
-                    switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
-                // }
+                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
             }
 
-            printf("isr2cDoneFFT? %d\n",planmap[ip]->isr2cDoneByFFT());
-            //Virtually executing the fft 
-            if (planmap[ip]->isr2cDoneByFFT() ){
+            //Reverting what the FFT will do
+            if (planmap[ip]->isr2c_green() ){
                 topomap[ip]->switch2real();
                 size_tmp[dimID] *= 2; 
                 isComplex = false;
             }
-
-
-            // update the current topo to the new one
+            // update the "current topo", which we need to define the switchtopo
             current_topo = topomap[ip];
 
             current_topo->disp();
         }
-
-        // if ((!_plan_forward[_iTopo_fillGreen]->isInputReal()|| _plan_forward[_iTopo_fillGreen]->isr2c() ))
-        //     topomap[_iTopo_fillGreen]->switch2complex(); //forcing the Green function to be written in complex, for cases with per dir
     }
+
+    // Implementation Note:
+    // If you want to do Helmoltz, you will always have to fill a complex Green function:
+    // - we need to ignore all r2cs (bypass the condition on isr2c_green)
+    // - as there will be only C2C transforms, the size obtained after the init of plans
+    //   is already the correct size for Green.
+    // -> we need to be able to do SYMSYM directions on a complex number... meaning that we
+    //    will need to adapt the plan so that when it needs to do a "real2real" transform on
+    //    a complex input, it actually does it separately on the real and imaginary part.
+    // - if there are SYMSYM only, the last topo of fiels remains Real while I will have a 
+    //   complex green function. Need to handle that in solve() ?
 
     //-------------------------------------------------------------------------
     /** - reset the topologies to real if needed, in order to prepare them for their execution  */
@@ -495,6 +441,12 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         }
     }
 
+    // count the number of spectral dimensions
+    int nbr_spectral = 0;
+    for (int id = 0; id < 3; id++)
+        if (isSpectral[id])
+            nbr_spectral++;
+
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -508,16 +460,16 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     // Implementation note: 
     // For Helmolz, we need Green to be complex. The topo we use to fill Green 
     // (_iTopo_fillGreen) must allow for C2C
-    if (_nbr_spectral == 0) {
+    if (nbr_spectral == 0) {
         INFOLOG2(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
         cmpt_Green_3D_3dirunbounded_0dirspectral(topo[_iTopo_fillGreen], hfact, symstart, green, _typeGreen, _alphaGreen);
-    } else if (_nbr_spectral == 1) {
+    } else if (nbr_spectral == 1) {
         INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
         cmpt_Green_3D_2dirunbounded_1dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
-    } else if (_nbr_spectral == 2) {
+    } else if (nbr_spectral == 2) {
         INFOLOG2(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
         cmpt_Green_3D_1dirunbounded_2dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
-    } else if (_nbr_spectral == 3) {
+    } else if (nbr_spectral == 3) {
         INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
         cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
     }
@@ -537,57 +489,29 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         // go to the topology for the plan, if we are not already on it
         if (ip > _iTopo_fillGreen) {
             _switchtopo_green[ip]->execute(green, UP_FORWARD);
-
-            sprintf(msg, "green_h%d",ip);
-            hdf5_dump(topo[ip], msg, green);
         }
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]){
-            printf("Here is what i''m gonna do\n");
-            _plan_green[ip]->disp();
-            for(int k = 0; k<32;k++)
-            {
-                printf("G(%d) = %lf\n",k,green[k]);
-            }
             _plan_green[ip]->execute_plan();
-
-            opt_double_ptr mygreen = green;
-            for(int k = 0; k<32;k++)
-            {
-                printf("G_hat(%d) = %lf + i* %lf\n",k,mygreen[2*k],mygreen[2*k+1]);
-            }
-
-            sprintf(msg, "green_h%d_h",ip);
-            hdf5_dump(topo[ip], msg, green);
         }
 
-        if (_plan_green[ip]->isr2cDoneByFFT()) {
+        if (_plan_green[ip]->isr2c_green()) {
             topo[ip]->switch2complex();
         }
-        
-        printf("outNGLOB: %d,%d,%d\n",topo[ip]->nglob(0),topo[ip]->nglob(1),topo[ip]->nglob(2));
     }
 
     //-------------------------------------------------------------------------
     /** - scale the Green data using #_volfact */
-    /** - Explixitely destroying mode 0 */
     //-------------------------------------------------------------------------
-    bool killModeZero = true;
-    for (int i = 0; i<3;i++ ){
-        //If there is an ODD-ODD direction, the Green mode 0 is obviously 0
-        //If there is an EVEN-EVEN direction, the Green mode 0 can be different from 0. However, the solution is defined
-        //up to a constant, so we decide here to select C = 0. 
-        //Notice that this mode is defined on the doubled domain if there are unbounded directions! Meaning that setting this
-        //constant to 0 does not mean that the volume integral of the solution is 0 (if there are unbounded directions).
-        if ( planmap[i]->type() == SYMSYM )
-            killModeZero = true;
-    }
-
-    killModeZero = false;
+    // - Explixitely destroying mode 0 ? no need to do that: we impose Green[0] is 0
+    //   in full spectral. */
+    bool killModeZero = false;
     _scaleGreenFunction(topo[2], green, killModeZero);
 
+#ifdef DUMP_H5
     hdf5_dump(topo[2], "green_h", green);
+#endif
 }
 
 /**
@@ -714,18 +638,15 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             }
         }
     }
+#ifdef DUMP_H5
     hdf5_dump(topo, "rhs", mydata);
-
+#endif
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < 3; ip++) {
         // go to the correct topo
         _switchtopo[ip]->execute(mydata, UP_FORWARD);
-
-        char msg[512];
-        sprintf(msg,"rhs_t%d",ip);
-        hdf5_dump(_topo_hat[ip], msg, mydata);
 
         // run the FFT
         _plan_forward[ip]->execute_plan();
@@ -734,14 +655,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             _topo_hat[ip]->switch2complex();
         }
     }
-
+#ifdef DUMP_H5
     hdf5_dump(_topo_hat[2], "rhs_h", mydata);
-
-    // ax0 = _topo_hat[2]->axis();
-    // ax1 = (ax0 + 1) % 3;
-    // ax2 = (ax0 + 2) % 3;
-    INFOLOG4("I will shift the Green by this much: %d,%d,%d\n",_shiftgreen[0],_shiftgreen[1],_shiftgreen[2]);
-
+#endif
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
@@ -764,9 +680,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     } else {
         UP_CHECK1(false, "type of solver %d not implemented", type);
     }
-
+#ifdef DUMP_H5
     hdf5_dump(_topo_hat[2], "sol_h", mydata);
-
+#endif
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
@@ -776,10 +692,6 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2real();
         }
-        
-        char msg[512];
-        sprintf(msg,"sol_t%d",ip);
-        hdf5_dump(_topo_hat[ip], msg, mydata);
         
         _switchtopo[ip]->execute(mydata, UP_BACKWARD);
     }
@@ -798,7 +710,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             }
         }
     }
+#ifdef DUMP_H5    
     hdf5_dump(topo, "sol", myfield);
+#endif
 }
 
 /**
