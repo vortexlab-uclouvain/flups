@@ -59,12 +59,12 @@ class FFTW_plan_dim {
     int    _fieldstart = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
     int    _n_in       = 0;     /**< @brief the number of element in the transform*/
     int    _n_out      = 0;     /**< @brief the number of element coming out of the transform*/
-    int    _symstart   = 0;     /**< @brief the starting index for the symmetry of the Green's function, set to 0 if no symmetry is needed*/
-    int    _shiftgreen = 0;     /**< @brief the shift to set in the Green's function when doing the convolution*/
-    double _normfact   = 0.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double _volfact    = 0.0;   /**< @brief volume factor*/
-    double _kfact      = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
-    double _koffset    = 0.0;   /**< @brief additive factor to have the correct k numbers*/
+    int    _shiftgreen = 0;   /**< @brief the shift to set in the Green's function when doing the convolution*/
+    double _symstart   = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
+    double _normfact   = 0.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact    = 0.0; /**< @brief volume factor*/
+    double _kfact      = 0.0; /**< @brief multiplication factor to have the correct k numbers*/
+    double _koffset    = 0.0; /**< @brief additive factor to have the correct k numbers*/
 
     PlanType     _type;  /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
@@ -94,7 +94,7 @@ class FFTW_plan_dim {
     inline int    imult() const { return _imult; }
     inline int    shiftgreen() const { return _shiftgreen; }
     inline int    type() const { return _type; }
-    inline int    symstart() const { return _symstart; }
+    inline double symstart() const { return _symstart; }
     inline double normfact() const { return _normfact; }
     inline double volfact() const { return _volfact; }
     inline double kfact() const { return _kfact; }

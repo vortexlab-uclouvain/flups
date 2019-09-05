@@ -91,7 +91,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * - #_isr2c is true if this plan switches to the complex numbers
  * - #_imult is true if we used a DST
  * - #_kind the kind of FFTW plan to execute (for SYMSYM and MIXUNB plans only)
- * - #_symstart the symmetry start, for the Green's function only
+ * - #_symstart the symmetry start = plan of symmetry, for the Green's function only
  * 
  * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data

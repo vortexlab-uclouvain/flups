@@ -429,7 +429,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     double hfact[3];    // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
     double kfact[3];    // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
     double koffset[3];  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
-    int    symstart[3];
+    double symstart[3];
 
     for (int ip = 0; ip < 3; ip++) {
         const int dimID = planmap[ip]->dimID();
