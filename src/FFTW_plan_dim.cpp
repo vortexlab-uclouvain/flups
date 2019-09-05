@@ -27,8 +27,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    assert(dimID < 3);
-    assert(dimID >= 0);
+    UP_CHECK0(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
 
     //-------------------------------------------------------------------------
     // Initialisation of the sizes and types
@@ -91,7 +90,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * - #_isr2c is true if this plan switches to the complex numbers
  * - #_imult is true if we used a DST
  * - #_kind the kind of FFTW plan to execute (for SYMSYM and MIXUNB plans only)
- * - #_symstart the symmetry start = plan of symmetry, for the Green's function only
+ * - #_symstart the symmetry start = id of symmetry, for the Green's function only
  * 
  * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data
@@ -109,7 +108,6 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
     if (_type == SYMSYM) {
         _init_real2real(size, isComplex);
     } else if (_type == MIXUNB) {
-        // _n = 2*size[dimID]; // we have to double the size
         _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
         //this is the only transform that could give a R2C on data and being spectral for green
@@ -166,8 +164,10 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     /** - Get the #_kind of Fourier transforms and #_imult */
     //-------------------------------------------------------------------------
     if (_isGreen) {
-        if (_bc[0] != _bc[1])
+        // if we are doing odd-even we have to use shifted FFTW plans
+        if (_bc[0] != _bc[1]){
             _koffset = 0.5;
+        }
         return;
     } else if (_bc[0] == EVEN) {  // We have a DCT
 
@@ -290,13 +290,11 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
         _n_out = size[_dimID];
 
         _isr2c = false;
-        _isInputReal = false;
     } else {
         _n_in  = size[_dimID];   // takes n real
         _n_out = _n_in / 2 + 1;  // return n_in/2 + 1 complex
 
         _isr2c = true;
-        _isInputReal = true;
     }
     
     _fieldstart = 0;
@@ -306,8 +304,9 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0;  // if no symmetry is needed, set to 0
-    if(isComplex )
-        _symstart = size[_dimID]/2;
+    if(isComplex ){
+        _symstart = size[_dimID]/2.0;
+    }
     
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -355,7 +354,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
-    _normfact *= 1.0 / (2 * size[_dimID]);
+    _normfact *= 1.0 / (2.0 * size[_dimID]);
     //-------------------------------------------------------------------------
     /** - Get the #_imult */
     //-------------------------------------------------------------------------
@@ -450,7 +449,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     if (_type == SYMSYM) {
         INFOLOG2("## SYMSYM plan created for plan r2r (=%d)\n", _type);
     } else if (_type == MIXUNB) {
-        INFOLOG2("## SYMSYM plan created for plan mix (=%d)\n", _type);
+        INFOLOG2("## MIXUNB plan created for plan mix (=%d)\n", _type);
     }
     INFOLOG4("memsize = %d x %d x %d\n", memsize[0], memsize[1], memsize[2]);
     INFOLOG2("howmany   = %d\n", _howmany);

@@ -240,9 +240,9 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
                 if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*.2 )
                     green[id + i0*topo->nf()] = c_1o2pi * log(r);  //caution: mistake in [Chatelain2010]
                 else if (r <= (hfact[ax0]+hfact[ax1]+hfact[ax2])*.2 )
-                    green[id + i0*topo->nf()] = -(1.0 - k * r_eq2D );//* std::cyl_bessel_k(1.0, k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
+                    green[id + i0*topo->nf()] = -(1.0 - k * r_eq2D * besselk1(k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
                 else
-                    green[id + i0*topo->nf()] = -c_1o2pi ;//* std::cyl_bessel_k(0.0, abs(k) * r);  
+                    green[id + i0*topo->nf()] = -c_1o2pi * besselk0(abs(k) * r);  
 
                 //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
                 //notice that bessel_k has been introduced in c++17
@@ -387,11 +387,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     printf("kfact : %lf,%lf,%lf \n",kfact[ax0],kfact[ax1],kfact[ax2]);
     printf("koff  : %lf,%lf,%lf \n",koffset[ax0],koffset[ax1],koffset[ax2]);   
 
-    // const double eps     = alpha * hfact[0];
-    
-    double      G0 = 0.0;  //value of G in k=0. By convention, we here chose that the mode 0 is killed by the Poisson solver.
-    GreenKernel G;
-
     switch (typeGreen) {
         case HEJ_2:
             UP_ERROR("HEJ kernels not implemented in full spectral.");
@@ -437,17 +432,14 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
 
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
-                // const double k    = sqrt(ksqr);
-
-                // const double tmp[2] = {r,eps};
-                const double ooksqr = 1 / ksqr;
+                const double ooksqr = 1.0 / ksqr;
                 
-                green[id + i0*topo->nf()] = -ooksqr;  //G( tmp );
+                green[id + i0*topo->nf()] = -ooksqr;
             }
         }
     }
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 && koffset[0]+koffset[1]+koffset[2]<0.2) {
-        green[0] = -G0;
+        green[0] = -0.0;
     }
 }

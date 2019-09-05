@@ -11,6 +11,7 @@
 
 #include "defines.hpp"
 #include "topology.hpp"
+#include "bessel.hpp"
 
 /**
  * @brief The type of Green's function used for the Poisson solver
