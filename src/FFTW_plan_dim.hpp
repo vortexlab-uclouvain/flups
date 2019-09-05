@@ -73,10 +73,10 @@ class FFTW_plan_dim {
     fftw_plan     _plan = NULL; /**< @brief the actual FFTW plan*/
 
    public:
-    FFTW_plan_dim(const int dimID, const double h[DIM], const double L[DIM], const BoundaryType mybc[2], const int sign, const bool isGreen);
+    FFTW_plan_dim(const int dimID, const double h[3], const double L[3], const BoundaryType mybc[2], const int sign, const bool isGreen);
     ~FFTW_plan_dim();
 
-    void init(const int size[DIM], const bool isComplex);
+    void init(const int size[3], const bool isComplex);
 
     void allocate_plan(const Topology *topo, double* data);
     void execute_plan();
@@ -112,10 +112,10 @@ class FFTW_plan_dim {
      * @name Initialization
      */
     /**@{ */
-    void _init_real2real(const int size[DIM], bool isComplex);
-    void _init_mixunbounded(const int size[DIM], bool isComplex);
-    void _init_periodic(const int size[DIM], bool isComplex);
-    void _init_unbounded(const int size[DIM], bool isComplex);
+    void _init_real2real(const int size[3], bool isComplex);
+    void _init_mixunbounded(const int size[3], bool isComplex);
+    void _init_periodic(const int size[3], bool isComplex);
+    void _init_unbounded(const int size[3], bool isComplex);
     /**@} */
 
     /**

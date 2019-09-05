@@ -20,14 +20,14 @@
  * @param sign the sign of the plan (UP_FORWARD or UP_BACKWARD)
  * @param isGreen boolean to indicate if the plan is intended for Green's function
  */
-FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double L[DIM], const BoundaryType mybc[2], const int sign, const bool isGreen) : _dimID(dimID),
+FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[3], const BoundaryType mybc[2], const int sign, const bool isGreen) : _dimID(dimID),
                                                                                                                                                           _sign(sign),
                                                                                                                                                           _isGreen(isGreen) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    assert(dimID < DIM);
+    assert(dimID < 3);
     assert(dimID >= 0);
 
     //-------------------------------------------------------------------------
@@ -96,7 +96,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * @param size the current size of data in during dry run (hence already partially transformed)
  * @param isComplex the current complex state of the data
  */
-void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     // sanity checks
@@ -128,7 +128,7 @@ void FFTW_plan_dim::init(const int size[DIM], const bool isComplex) {
  * -------------------------------------
  * We do the following operations:
  */
-void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -208,7 +208,7 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
  * ----------------------------------------
  * We do the following operations
  */
-void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -280,7 +280,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[DIM], const bool isComplex
  * ----------------------------------------
  * We do the following operations
  */
-void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -329,7 +329,7 @@ void FFTW_plan_dim::_init_periodic(const int size[DIM], const bool isComplex) {
  *--------------------------------------
  * We do the following operations:
  */
-void FFTW_plan_dim::_init_unbounded(const int size[DIM], const bool isComplex) {
+void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -437,7 +437,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     _howmany = 1;
     for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
-    for (int id = _dimID + 1; id < DIM; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
@@ -496,7 +496,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     // if we are green we need to recompute howmany
     _howmany = 1;
     for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
-    for (int id = _dimID + 1; id < DIM; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
 
     // strides
     int istride = 1;

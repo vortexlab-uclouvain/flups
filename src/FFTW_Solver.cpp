@@ -19,21 +19,21 @@
  * @param h the grid spacing
  * @param L the domain size
  */
-FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], const double h[3], const double L[3]) {
+FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
-    /** - Store the field size */
+    /** - Create the timer */
     //-------------------------------------------------------------------------
-    // for(int id=0; id<DIM; id++) _size_field[id] = topo->nglob(id);
-    // topo->disp();
-
+    _prof = new Profiler("FFTW_Solver");
+    _prof->create("init");
+    _prof->start("init");
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans and sort them type */
     //-------------------------------------------------------------------------
     for (int id = 0; id < 3; id++)
         _hgrid[id] = h[id];
 
-    for (int id = 0; id < DIM; id++) {
+    for (int id = 0; id < 3; id++) {
         _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, false);
         _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], UP_BACKWARD, false);
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, true);
@@ -70,6 +70,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
         if (_plan_green[ip]->imult())
             _nbr_imult++;
     }
+    _prof->stop("init");
 }
 
 /**
@@ -81,6 +82,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[DIM][2], 
  * We do the following operations
  */
 void FFTW_Solver::setup() {
+    _prof->start("init");
     //-------------------------------------------------------------------------
     /** - allocate the data for the field and Green */
     //-------------------------------------------------------------------------
@@ -102,8 +104,9 @@ void FFTW_Solver::setup() {
     //-------------------------------------------------------------------------
     /** - delete the useless data for Green */
     //-------------------------------------------------------------------------
-    _delete_plans(_plan_green);
-    _delete_switchtopos(_switchtopo_green);
+    _delete_plan(_plan_green);
+    _delete_switchtopo(_switchtopo_green);
+    _prof->stop("init");
 }
 
 /**
@@ -127,6 +130,8 @@ FFTW_Solver::~FFTW_Solver() {
         if (_switchtopo[id] != NULL)
             delete _switchtopo[id];
     }
+
+    if(_prof!=NULL) delete(_prof);
 
     //cleanup
     fftw_cleanup();
@@ -226,8 +231,9 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     // as the size for the intermediate topos.
     // Eventually, the finial size of the data will be that of the largest 
     // topo.
-    int size_tmp[DIM];
-    for (int id = 0; id < DIM; id++) size_tmp[id] = topo->nglob(id);
+    int size_tmp[3];
+    for (int id = 0; id < 3; id++)
+        size_tmp[id] = topo->nglob(id);
 
     //-------------------------------------------------------------------------
     /** - creates the plans and the intermediate topologies (if not Green).
@@ -460,18 +466,20 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     // Implementation note: 
     // For Helmolz, we need Green to be complex. The topo we use to fill Green 
     // (_iTopo_fillGreen) must allow for C2C
-    if (nbr_spectral == 0) {
-        INFOLOG2(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
-        cmpt_Green_3D_3dirunbounded_0dirspectral(topo[_iTopo_fillGreen], hfact, symstart, green, _typeGreen, _alphaGreen);
-    } else if (nbr_spectral == 1) {
-        INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
-        cmpt_Green_3D_2dirunbounded_1dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
-    } else if (nbr_spectral == 2) {
-        INFOLOG2(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
-        cmpt_Green_3D_1dirunbounded_2dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
-    } else if (nbr_spectral == 3) {
-        INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
-        cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+    if (GREEN_DIM == 3) {
+        if (nbr_spectral == 0) {
+            INFOLOG2(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
+            cmpt_Green_3D_3dirunbounded_0dirspectral(topo[_iTopo_fillGreen], hfact, symstart, green, _typeGreen, _alphaGreen);
+        } else if (nbr_spectral == 1) {
+            INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
+            cmpt_Green_3D_2dirunbounded_1dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+        } else if (nbr_spectral == 2) {
+            INFOLOG2(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
+            cmpt_Green_3D_1dirunbounded_2dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+        } else if (nbr_spectral == 3) {
+            INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
+            cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+        }
     }
 
 #ifdef DUMP_H5
@@ -599,6 +607,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr myrhs   = rhs;
 
+    _prof->create("solve_total");
+    _prof->start("solve_total");
+
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
@@ -626,7 +637,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     int ax2 = (ax0 + 2) % 3;
 
     UP_CHECK0(!topo->isComplex(), "The RHS topology cannot be complex");
-    
+
+    _prof->create("solve_copy");
+    _prof->start("solve_copy");
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             // comnpute the index permutation
@@ -638,18 +651,27 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             }
         }
     }
+
+    _prof->stop("solve_copy");
+
 #ifdef DUMP_H5
     hdf5_dump(topo, "rhs", mydata);
 #endif
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
+    _prof->create("solve_fftw");
+    _prof->create("solve_reorder");
     for (int ip = 0; ip < 3; ip++) {
         // go to the correct topo
+        
+        _prof->start("solve_reorder");
         _switchtopo[ip]->execute(mydata, UP_FORWARD);
-
+        _prof->stop("solve_reorder");
         // run the FFT
+        _prof->start("solve_fftw");
         _plan_forward[ip]->execute_plan();
+        _prof->stop("solve_fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2complex();
@@ -661,6 +683,9 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
+    
+    _prof->create("solve_domagic");
+    _prof->start("solve_domagic");
     if (type == UP_SRHS) {
         if (!_topo_hat[2]->isComplex()) {
             //-> there is only the case of 3dirSYM in which we could stay real for the whole process
@@ -680,6 +705,8 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     } else {
         UP_CHECK1(false, "type of solver %d not implemented", type);
     }
+
+    _prof->stop("solve_domagic");
 #ifdef DUMP_H5
     hdf5_dump(_topo_hat[2], "sol_h", mydata);
 #endif
@@ -687,18 +714,22 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     /** - go back to reals */
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--) {
+        _prof->start("solve_fftw");
         _plan_backward[ip]->execute_plan();
+        _prof->stop("solve_fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2real();
         }
-        
+        _prof->start("solve_reorder");
         _switchtopo[ip]->execute(mydata, UP_BACKWARD);
+        _prof->stop("solve_reorder");
     }
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
+    _prof->start("solve_copy");
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             // comnpute the index permutation
@@ -713,6 +744,14 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
 #ifdef DUMP_H5    
     hdf5_dump(topo, "sol", myfield);
 #endif
+
+    _prof->start("solve_copy");
+
+    hdf5_dump(topo, "sol", myfield);
+
+    _prof->stop("solve_total");
+
+    _prof->disp();
 }
 
 /**

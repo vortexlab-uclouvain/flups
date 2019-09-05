@@ -11,24 +11,42 @@
 
 #include "SwitchTopo.hpp"
 
-// inline static size_t localindex(const int i[3], const int n[3], const int
-// axis)
-// {
-//     int axis1 = (axis + 1) % 3;
-//     int axis2 = (axis + 2) % 3;
-//     return i[axis] + n[axis] * (i[axis1] + n[axis1] * i[axis2]);
-// }
-// inline static int rankindex(const int rankd[3], const int nproc[3])
-// {
-//     return rankd[0] + nproc[0] * (rankd[1] + nproc[1] * rankd[2]);
-// }
-
+/**
+ * @brief Construct a Switch Topo object
+ * 
+ * Let us consider the switch from the TOPO_IN to the TOPO_OUT.
+ *
+ * ```
+ * +------------------------------------+
+ * |  TOPO_OUT  |                       |
+ * |            |                       |
+ * |            |  n=5                  |
+ * |            |                       |
+ * |            v                       |
+ * |  --------> +-------------+         |
+ * |    n=3     | TOPO_IN     |         |
+ * |            |             |         |
+ * |            |             |         |
+ * |            |             |         |
+ * |            +-------------+         |
+ * |                                    |
+ * |                                    |
+ * |                                    |
+ * +------------------------------------+
+ * ```
+ * 
+ * The shift argument will then be (3,5) since we need to add (3,5) points in the topo_output
+ * to reach the (0,0,0) point in the topo_input.
+ * 
+ * 
+ * @param topo_input the input topology
+ * @param topo_output the output topology 
+ * @param shift the shift to set in the output topology to match 0,0,0 in the input topology (given in XYZ) indexing
+ */
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
                        const int shift[3]) {
     BEGIN_FUNC
 
-    // UP_CHECK0(topo_input->globmemsize() == topo_output->globmemsize(),"global
-    // memory size have to match between topos");
     UP_CHECK0(topo_input->isComplex() == topo_output->isComplex(),
               "both topologies have to be the same kind");
 
@@ -47,28 +65,34 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     _ssend = (int*)fftw_malloc(comm_size * sizeof(int));
     _srecv = (int*)fftw_malloc(comm_size * sizeof(int));
     _count = (int*)fftw_malloc(comm_size * sizeof(int));
+    // n axis arrays
+    _naxis_i2o_send = (int*)fftw_malloc(comm_size * sizeof(int));
+    _naxis_o2i_send = (int*)fftw_malloc(comm_size * sizeof(int));
+    _naxis_i2o_recv = (int*)fftw_malloc(comm_size * sizeof(int));
+    _naxis_o2i_recv = (int*)fftw_malloc(comm_size * sizeof(int));
 
-    UP_CHECK1(UP_ISALIGNED(_nsend),
-              "FFTW alignement not compatible with UP_ALIGNMENT (=%d)",
-              UP_ALIGNMENT);
-    UP_CHECK1(UP_ISALIGNED(_nrecv),
-              "FFTW alignement not compatible with UP_ALIGNMENT (=%d)",
-              UP_ALIGNMENT);
-    UP_CHECK1(UP_ISALIGNED(_ssend),
-              "FFTW alignement not compatible with UP_ALIGNMENT (=%d)",
-              UP_ALIGNMENT);
-    UP_CHECK1(UP_ISALIGNED(_srecv),
-              "FFTW alignement not compatible with UP_ALIGNMENT (=%d)",
-              UP_ALIGNMENT);
-    UP_CHECK1(UP_ISALIGNED(_count),
-              "FFTW alignement not compatible with UP_ALIGNMENT (=%d)",
-              UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_nsend), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_nrecv), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_ssend), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_srecv), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_count), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_naxis_i2o_send), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_naxis_o2i_send), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_naxis_i2o_recv), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    UP_CHECK1(UP_ISALIGNED(_naxis_o2i_recv), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
 
     std::memset(_nsend, 0, sizeof(int) * comm_size);
     std::memset(_nrecv, 0, sizeof(int) * comm_size);
     std::memset(_ssend, 0, sizeof(int) * comm_size);
     std::memset(_srecv, 0, sizeof(int) * comm_size);
     std::memset(_count, 0, sizeof(int) * comm_size);
+
+    //-------------------------------------------------------------------------
+    /** - Compute the naxis for loop go through */
+    //-------------------------------------------------------------------------
+    const int ax0 = _topo_in->axis();
+    const int ax1 = (ax0 + 1) % 3;
+    const int ax2 = (ax0 + 2) % 3;
 
     //-------------------------------------------------------------------------
     /** - for each dimension, get the shared zone */
@@ -81,15 +105,22 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
     _topo_out->cmpt_intersect_id(_oshift, _topo_in, _ostart, _oend);
 
     //-------------------------------------------------------------------------
+    /** - for each proc get its naxis */
+    //-------------------------------------------------------------------------
+    // get the global id of start for the current proc
+    _topo_in->cmpt_intersect_naxis(_topo_out, _istart, _iend, _ishift, _naxis_i2o_send);
+    _topo_out->cmpt_intersect_naxis(_topo_in, _ostart, _oend, _oshift, _naxis_o2i_send);
+
+    //-------------------------------------------------------------------------
     /** - for each data get its destination rank */
     //-------------------------------------------------------------------------
     int dest_rankd[3];
-    for (int i2 = _istart[2]; i2 < _iend[2]; ++i2) {
-        dest_rankd[2] = _topo_in->cmpt_matchrank(2, _topo_out, i2 + _ishift[2]);
-        for (int i1 = _istart[1]; i1 < _iend[1]; ++i1) {
-            dest_rankd[1] = _topo_in->cmpt_matchrank(1, _topo_out, i1 + _ishift[1]);
-            for (int i0 = _istart[0]; i0 < _iend[0]; ++i0) {
-                dest_rankd[0] = _topo_in->cmpt_matchrank(0, _topo_out, i0 + _ishift[0]);
+    for (int i2 = _istart[ax2]; i2 < _iend[ax2]; ++i2) {
+        dest_rankd[ax2] = _topo_in->cmpt_matchrank(ax2, _topo_out, i2 + _ishift[ax2]);
+        for (int i1 = _istart[ax1]; i1 < _iend[ax1]; ++i1) {
+            dest_rankd[ax1] = _topo_in->cmpt_matchrank(ax1, _topo_out, i1 + _ishift[ax1]);
+            for (int i0 = _istart[ax0]; i0 < _iend[ax0]; ++i0) {
+                dest_rankd[ax0] = _topo_in->cmpt_matchrank(ax0, _topo_out, i0 + _ishift[ax0]);
                 // add one info to the destination index
                 _nsend[rankindex(dest_rankd, _topo_out)] += _topo_in->nf();
             }
@@ -104,6 +135,8 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output,
         _ssend[i] = _ssend[i - 1] + _nsend[i - 1];
         _srecv[i] = _srecv[i - 1] + _nrecv[i - 1];
     }
+    MPI_Alltoall(_naxis_i2o_send, 1, MPI_INT, _naxis_i2o_recv, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Alltoall(_naxis_o2i_send, 1, MPI_INT, _naxis_o2i_recv, 1, MPI_INT, MPI_COMM_WORLD);
 
     //-------------------------------------------------------------------------
     /** - allocate the buffer if needed */
@@ -127,13 +160,39 @@ SwitchTopo::~SwitchTopo() {
     if (_srecv != NULL) fftw_free(_count);
     if (_bufsend != NULL) fftw_free(_bufsend);
     if (_bufrecv != NULL) fftw_free(_bufrecv);
+    if (_naxis_i2o_send != NULL) fftw_free(_naxis_i2o_send);
+    if (_naxis_o2i_send != NULL) fftw_free(_naxis_o2i_send);
+    if (_naxis_i2o_recv != NULL) fftw_free(_naxis_i2o_recv);
+    if (_naxis_o2i_recv != NULL) fftw_free(_naxis_o2i_recv);
 }
 
 /**
- * @brief executes the toposwitch and changes the layout in memmory of v by communicating 
+ * @brief execute the switch from one topo to another
  * 
- * @param v ptr to the data to be ordered in memmory
- * @param sign UP_FORWARD | UP_BACKWARD
+ * #### Buffer writting
+ * The buffer memory writting is done according to the axis of the input topologies.
+ * This allows to have a continuous memory access while filling the buffer.
+ * 
+ * Moreover, using naxis, we know that one a data has to be send to a proc P,
+ * the following (naxis-1) have the same proc P as destination.
+ * So, we are able to write chunks of size naxis-1
+ * 
+ * Since the writting of buffers is aligned with the topo_in axis, the loops are continuous in memory and fully vectorizable.
+ * 
+ * #### Buffer reading
+ * The buffer reading has to follow the same order as in the buffer writting, so the axis of the topo_in in the inner loop.
+ * Similarly to the writting case, when one data comes from proc P, the naxis-1 following data comes from the same proc.
+ * 
+ * The reading of the buffer is hence continuous but the writting inside the memory has an apriori unkown stride.
+ * The stride may be computed using the difference of axis between the two topologies.
+ * Hence the reading will be a bit slower since the writting due to memory discontinuities
+ * 
+ * 
+ * @param v the memory to switch from one topo to another. It has to be large enough to contain both local data's
+ * @param sign if the switch is forward (UP_FORWARD) or backward (UP_BACKWARD) w.r.t. the order defined at init.
+ * 
+ * -----------------------------------------------
+ * We do the following:
  */
 void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC
@@ -167,6 +226,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     opt_double_ptr recvbuf;
     opt_double_ptr sendbuf;
 
+    opt_int_ptr naxis_send;
+    opt_int_ptr naxis_recv;
+
     if (sign == UP_FORWARD) {
         topo_in  = _topo_in;
         topo_out = _topo_out;
@@ -181,12 +243,15 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             oend[id]   = _oend[id];
             oshift[id] = _oshift[id];
         }
-        ssend   = _ssend;
-        srecv   = _srecv;
-        nsend   = _nsend;
-        nrecv   = _nrecv;
-        sendbuf = _bufsend;
-        recvbuf = _bufrecv;
+        ssend      = _ssend;
+        srecv      = _srecv;
+        nsend      = _nsend;
+        nrecv      = _nrecv;
+        sendbuf    = _bufsend;
+        recvbuf    = _bufrecv;
+        naxis_send = _naxis_i2o_send;
+        naxis_recv = _naxis_i2o_recv;
+
     } else if (sign == UP_BACKWARD) {
         topo_in  = _topo_out;
         topo_out = _topo_in;
@@ -201,60 +266,71 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             oend[id]   = _iend[id];
             oshift[id] = _ishift[id];
         }
-        ssend   = _srecv;
-        srecv   = _ssend;
-        nsend   = _nrecv;
-        nrecv   = _nsend;
-        sendbuf = _bufrecv;
-        recvbuf = _bufsend;
+        ssend      = _srecv;
+        srecv      = _ssend;
+        nsend      = _nrecv;
+        nrecv      = _nsend;
+        sendbuf    = _bufrecv;
+        recvbuf    = _bufsend;
+        naxis_send = _naxis_o2i_send;
+        naxis_recv = _naxis_o2i_recv;
     } else {
         UP_CHECK0(false, "the sign is not UP_FORWARD nor UP_BACKWARD");
     }
 
-    INFOLOG5("previous topo: %d,%d,%d axis=%d\n", topo_in->nglob(0),
-             topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
-    INFOLOG5("new topo: %d,%d,%d  axis=%d\n", topo_out->nglob(0),
-             topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
+    INFOLOG5("previous topo: %d,%d,%d axis=%d\n", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
+    INFOLOG5("new topo: %d,%d,%d  axis=%d\n", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
+
+    const int ax0 = topo_in->axis();
+    const int ax1 = (ax0 + 1) % 3;
+    const int ax2 = (ax0 + 2) % 3;
 
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
+    printf("writting into bufs\n");
     std::memset(count, 0, sizeof(int) * comm_size);
 
     int dest_rankd[3];
 
     if (topo_in->nf() == 1) {
-        for (int i2 = istart[2]; i2 < iend[2]; ++i2) {
-            dest_rankd[2] = topo_in->cmpt_matchrank(2, topo_out, i2 + ishift[2]);
-            for (int i1 = istart[1]; i1 < iend[1]; ++i1) {
-                dest_rankd[1] = topo_in->cmpt_matchrank(1, topo_out, i1 + ishift[1]);
-                for (int i0 = istart[0]; i0 < iend[0]; ++i0) {
-                    dest_rankd[0] = topo_in->cmpt_matchrank(0, topo_out, i0 + ishift[0]);
+        for (int i2 = istart[ax2]; i2 < iend[ax2]; ++i2) {
+            dest_rankd[ax2] = topo_in->cmpt_matchrank(ax2, topo_out, i2 + ishift[ax2]);
+            for (int i1 = istart[ax1]; i1 < iend[ax1]; ++i1) {
+                dest_rankd[ax1] = topo_in->cmpt_matchrank(ax1, topo_out, i1 + ishift[ax1]);
+                for (int i0 = istart[ax0]; i0 < iend[ax0]; ++i0) {
+                    dest_rankd[ax0] = topo_in->cmpt_matchrank(ax0, topo_out, i0 + ishift[ax0]);
                     // add one info to the destination index
                     const int    dest_rank = rankindex(dest_rankd, topo_out);
                     const int    buf_idx   = ssend[dest_rank] + count[dest_rank];
-                    const size_t my_idx    = localindex_xyz(i0, i1, i2, topo_in);
+                    const size_t my_idx    = localindex_ao(i0, i1, i2, topo_in);
 
-                    sendbuf[buf_idx] = v[my_idx];
-                    count[dest_rank] += 1;
+                    for (int ib = 0; ib < naxis_send[dest_rank]; ib++) {
+                        sendbuf[buf_idx + ib] = v[my_idx + ib];
+                    }
+                    count[dest_rank] += naxis_send[dest_rank];
+                    i0 = i0 + naxis_send[dest_rank] - 1;
                 }
             }
         }
     } else if (topo_in->nf() == 2) {
-        for (int i2 = istart[2]; i2 < iend[2]; ++i2) {
-            dest_rankd[2] = topo_in->cmpt_matchrank(2, topo_out, i2 + ishift[2]);
-            for (int i1 = istart[1]; i1 < iend[1]; ++i1) {
-                dest_rankd[1] = topo_in->cmpt_matchrank(1, topo_out, i1 + ishift[1]);
-                for (int i0 = istart[0]; i0 < iend[0]; ++i0) {
-                    dest_rankd[0] = topo_in->cmpt_matchrank(0, topo_out, i0 + ishift[0]);
+        for (int i2 = istart[ax2]; i2 < iend[ax2]; ++i2) {
+            dest_rankd[ax2] = topo_in->cmpt_matchrank(ax2, topo_out, i2 + ishift[ax2]);
+            for (int i1 = istart[ax1]; i1 < iend[ax1]; ++i1) {
+                dest_rankd[ax1] = topo_in->cmpt_matchrank(ax1, topo_out, i1 + ishift[ax1]);
+                for (int i0 = istart[ax0]; i0 < iend[ax0]; ++i0) {
+                    dest_rankd[ax0] = topo_in->cmpt_matchrank(ax0, topo_out, i0 + ishift[ax0]);
+
                     // add one info to the destination index
                     const int    dest_rank = rankindex(dest_rankd, topo_out);
                     const int    buf_idx   = ssend[dest_rank] + count[dest_rank];
-                    const size_t my_idx    = localindex_xyz(i0, i1, i2, topo_in);
+                    const size_t my_idx    = localindex_ao(i0, i1, i2, topo_in);
 
-                    sendbuf[buf_idx + 0] = v[my_idx + 0];
-                    sendbuf[buf_idx + 1] = v[my_idx + 1];
-                    count[dest_rank] += 2;
+                    for (int ib = 0; ib < naxis_send[dest_rank] * 2; ib++) {
+                        sendbuf[buf_idx + ib] = v[my_idx + ib];
+                    }
+                    count[dest_rank] += naxis_send[dest_rank] * 2;
+                    i0 = i0 + naxis_send[dest_rank] - 1;
                 }
             }
         }
@@ -262,21 +338,13 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         UP_CHECK0(false, "size of Topological nf not supported");
     }
 
-    // for(int ip=0; ip<4; ip++){
-    //     printf("rank %d send %d vs %d data to rank
-    //     %d\n",rank,count[ip],nsend[ip],ip);
-    // }
-    // for(int ip=0; ip<4; ip++){
-    //     printf("rank %d recv %d vs %d data from rank
-    //     %d\n",rank,0,nrecv[ip],ip);
-    // }
-
+    printf("ready to send\n");
     //-------------------------------------------------------------------------
     /** - Send it */
     //-------------------------------------------------------------------------
-    MPI_Alltoallv(sendbuf, nsend, ssend, MPI_DOUBLE, recvbuf, nrecv, srecv,
-                  MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Alltoallv(sendbuf, nsend, ssend, MPI_DOUBLE, recvbuf, nrecv, srecv, MPI_DOUBLE, MPI_COMM_WORLD);
 
+    printf("recv finished\n");
     //-------------------------------------------------------------------------
     /** - Fill the memory */
     //-------------------------------------------------------------------------
@@ -285,37 +353,51 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
     int orig_rankd[3];
     if (topo_out->nf() == 1) {
-        for (int i2 = ostart[2]; i2 < oend[2]; ++i2) {
-            orig_rankd[2] = topo_out->cmpt_matchrank(2, topo_in, i2 + oshift[2]);
-            for (int i1 = ostart[1]; i1 < oend[1]; ++i1) {
-                orig_rankd[1] = topo_out->cmpt_matchrank(1, topo_in, i1 + oshift[1]);
-                for (int i0 = ostart[0]; i0 < oend[0]; ++i0) {
-                    orig_rankd[0] = topo_out->cmpt_matchrank(0, topo_in, i0 + oshift[0]);
+        for (int i2 = ostart[ax2]; i2 < oend[ax2]; ++i2) {
+            orig_rankd[ax2] = topo_out->cmpt_matchrank(ax2, topo_in, i2 + oshift[ax2]);
+            for (int i1 = ostart[ax1]; i1 < oend[ax1]; ++i1) {
+                orig_rankd[ax1] = topo_out->cmpt_matchrank(ax1, topo_in, i1 + oshift[ax1]);
+                for (int i0 = ostart[ax0]; i0 < oend[ax0]; ++i0) {
+                    orig_rankd[ax0] = topo_out->cmpt_matchrank(ax0, topo_in, i0 + oshift[ax0]);
 
                     const int    orig_rank = rankindex(orig_rankd, topo_in);
                     const size_t buf_idx   = srecv[orig_rank] + count[orig_rank];
-                    const size_t my_idx    = localindex_xyz(i0, i1, i2, topo_out);
+                    // get the starting index and the stride obtained when adding one point in i0
+                    const size_t my_idx = localindex(topo_in->axis(), i0, i1, i2, topo_out);
+                    const size_t stride = localindex(topo_in->axis(), 1, 0, 0, topo_out);
 
-                    v[my_idx] = recvbuf[buf_idx];
-                    count[orig_rank] += 1;
+                    for (int ib = 0; ib < naxis_recv[orig_rank]; ib++) {
+                        v[my_idx + ib * stride] = recvbuf[buf_idx + ib];
+                    }
+                    count[orig_rank] += naxis_recv[orig_rank];
+
+                    i0 = i0 + naxis_recv[orig_rank] - 1;
                 }
             }
         }
     } else if (topo_out->nf() == 2) {
-        for (int i2 = ostart[2]; i2 < oend[2]; ++i2) {
-            orig_rankd[2] = topo_out->cmpt_matchrank(2, topo_in, i2 + oshift[2]);
-            for (int i1 = ostart[1]; i1 < oend[1]; ++i1) {
-                orig_rankd[1] = topo_out->cmpt_matchrank(1, topo_in, i1 + oshift[1]);
-                for (int i0 = ostart[0]; i0 < oend[0]; ++i0) {
-                    orig_rankd[0] = topo_out->cmpt_matchrank(0, topo_in, i0 + oshift[0]);
+        for (int i2 = ostart[ax2]; i2 < oend[ax2]; ++i2) {
+            orig_rankd[ax2] = topo_out->cmpt_matchrank(ax2, topo_in, i2 + oshift[ax2]);
+            for (int i1 = ostart[ax1]; i1 < oend[ax1]; ++i1) {
+                orig_rankd[ax1] = topo_out->cmpt_matchrank(ax1, topo_in, i1 + oshift[ax1]);
+                for (int i0 = ostart[ax0]; i0 < oend[ax0]; ++i0) {
+                    orig_rankd[ax0] = topo_out->cmpt_matchrank(ax0, topo_in, i0 + oshift[ax0]);
 
-                    const int    orig_rank = rankindex(orig_rankd, topo_in);
-                    const size_t buf_idx   = srecv[orig_rank] + count[orig_rank];
-                    const size_t my_idx    = localindex_xyz(i0, i1, i2, topo_out);
+                    // get the rank of origin
+                    const int orig_rank = rankindex(orig_rankd, topo_in);
+                    // get the starting buffer index
+                    const size_t buf_idx = srecv[orig_rank] + count[orig_rank];
+                    // get the starting index and the stride obtained when adding one point in i0
+                    const size_t my_idx = localindex(topo_in->axis(), i0, i1, i2, topo_out);
+                    const size_t stride = localindex(topo_in->axis(), 1, 0, 0, topo_out);
 
-                    v[my_idx + 0] = recvbuf[buf_idx + 0];
-                    v[my_idx + 1] = recvbuf[buf_idx + 1];
-                    count[orig_rank] += 2;
+                    // for every element
+                    for (int ib = 0; ib < naxis_recv[orig_rank]; ib++) {
+                        v[my_idx + ib * stride + 0] = recvbuf[buf_idx + ib * 2 + 0];
+                        v[my_idx + ib * stride + 1] = recvbuf[buf_idx + ib * 2 + 1];
+                    }
+                    count[orig_rank] += naxis_recv[orig_rank] * 2;
+                    i0 = i0 + naxis_recv[orig_rank] - 1;
                 }
             }
         }
@@ -330,19 +412,15 @@ void SwitchTopo::disp() {
     INFO("## Topo Swticher MPI\n");
     INFO("--- INPUT\n");
     INFO2("  - input axis = %d\n", _topo_in->axis());
-    INFO4("  - input local = %d %d %d\n", _topo_in->nloc(0), _topo_in->nloc(1),
-          _topo_in->nloc(2));
-    INFO4("  - input global = %d %d %d\n", _topo_in->nglob(0), _topo_in->nglob(1),
-          _topo_in->nglob(2));
+    INFO4("  - input local = %d %d %d\n", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
+    INFO4("  - input global = %d %d %d\n", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
     INFO4("  - ishift = %d %d %d\n", _ishift[0], _ishift[1], _ishift[2]);
     INFO4("  - istart = %d %d %d\n", _istart[0], _istart[1], _istart[2]);
     INFO4("  - iend = %d %d %d\n", _iend[0], _iend[1], _iend[2]);
     INFO("--- OUTPUT\n");
     INFO2("  - output axis = %d\n", _topo_out->axis());
-    INFO4("  - output local = %d %d %d\n", _topo_out->nloc(0), _topo_out->nloc(1),
-          _topo_out->nloc(2));
-    INFO4("  - output global = %d %d %d\n", _topo_out->nglob(0),
-          _topo_out->nglob(1), _topo_out->nglob(2));
+    INFO4("  - output local = %d %d %d\n", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
+    INFO4("  - output global = %d %d %d\n", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
     INFO4("  - oshift = %d %d %d\n", _oshift[0], _oshift[1], _oshift[2]);
     INFO4("  - ostart = %d %d %d\n", _ostart[0], _ostart[1], _ostart[2]);
     INFO4("  - oend = %d %d %d\n", _oend[0], _oend[1], _oend[2]);
