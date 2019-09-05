@@ -26,11 +26,11 @@ INC := -I$(SRC_DIR)
 #-----------------------------------------------------------------------------
 #---- FFTW
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath=$(FFTWDIR)/lib
+LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
 
 #---- HDF5
 INC += -I$(HDF5DIR)/include
-LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath=$(HDF5DIR)/lib
+LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
