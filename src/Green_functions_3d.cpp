@@ -67,7 +67,7 @@ static inline double _chat_2(const void* params) {
  * @param alpha the smoothing parameter (only used for HEJ kernels)
  * 
  */
-void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha){
+void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha){
     BEGIN_FUNC
 
     UP_CHECK0(!(topo->isComplex()),"Green topology cannot been complex");
@@ -123,9 +123,9 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
                 const int ie2 = (istart[ax2] + i2);
 
                 // symmetrize indexes
-                const int is0 = (symstart[ax0] == 0 || ie0 <= symstart[ax0]) ? ie0 : std::max(abs(2 * (int)symstart[ax0] - ie0), 1);
-                const int is1 = (symstart[ax1] == 0 || ie1 <= symstart[ax1]) ? ie1 : std::max(abs(2 * (int)symstart[ax1] - ie1), 1);
-                const int is2 = (symstart[ax2] == 0 || ie2 <= symstart[ax2]) ? ie2 : std::max(abs(2 * (int)symstart[ax2] - ie2), 1);
+                const int is0 = (symstart[ax0] == 0.0 || ie0 <= symstart[ax0]) ? ie0 : std::max((int)abs(2 * symstart[ax0] - ie0), 1);
+                const int is1 = (symstart[ax1] == 0.0 || ie1 <= symstart[ax1]) ? ie1 : std::max((int)abs(2 * symstart[ax1] - ie1), 1);
+                const int is2 = (symstart[ax2] == 0.0 || ie2 <= symstart[ax2]) ? ie2 : std::max((int)abs(2 * symstart[ax2] - ie2), 1);
 
                 // symmetrized position
                 const double x0 = (is0)*hfact[ax0];
@@ -160,7 +160,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
  * @param typeGreen 
  * @param alpha 
  */
-void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha) {
+void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha) {
     const int ax0 = topo->axis();  
     const int ax1 = (ax0 + 1) % 3; 
     const int ax2 = (ax0 + 2) % 3; 
@@ -218,9 +218,9 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
                 // global indexes
                 const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
 
-                const int is0 = (symstart[ax0] == 0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max(abs(2 * (int)symstart[ax0] - ie[ax0]), 1);    
-                const int is1 = (symstart[ax1] == 0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max(abs(2 * (int)symstart[ax1] - ie[ax1]), 1);    
-                const int is2 = (symstart[ax2] == 0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max(abs(2 * (int)symstart[ax2] - ie[ax2]), 1);    
+                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);    
+                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);    
+                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);    
 
                 // (symmetrized) wave number : only one kfact is non-zero
                 const double k0 = (is0 + koffset[ax0]) * kfact[ax0];
@@ -240,9 +240,9 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
                 if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*.2 )
                     green[id + i0*topo->nf()] = c_1o2pi * log(r);  //caution: mistake in [Chatelain2010]
                 else if (r <= (hfact[ax0]+hfact[ax1]+hfact[ax2])*.2 )
-                    green[id + i0*topo->nf()] = -(1.0 - k * r_eq2D * std::cyl_bessel_k(1.0, k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
+                    green[id + i0*topo->nf()] = -(1.0 - k * r_eq2D );//* std::cyl_bessel_k(1.0, k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
                 else
-                    green[id + i0*topo->nf()] = -c_1o2pi * std::cyl_bessel_k(0.0, abs(k) * r);  
+                    green[id + i0*topo->nf()] = -c_1o2pi ;//* std::cyl_bessel_k(0.0, abs(k) * r);  
 
                 //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
                 //notice that bessel_k has been introduced in c++17
@@ -269,7 +269,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
  * @param typeGreen 
  * @param alpha 
  */
-void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha) {
+void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha) {
     const int ax0 = topo->axis();  
     const int ax1 = (ax0 + 1) % 3; 
     const int ax2 = (ax0 + 2) % 3; 
@@ -329,9 +329,9 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
                 const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
 
                 //symmetries
-                const int is0 = (symstart[ax0] == 0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max(abs(2 * (int)symstart[ax0] - ie[ax0]), 1);    
-                const int is1 = (symstart[ax1] == 0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max(abs(2 * (int)symstart[ax1] - ie[ax1]), 1);    
-                const int is2 = (symstart[ax2] == 0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max(abs(2 * (int)symstart[ax2] - ie[ax2]), 1);    
+                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);
+                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);
+                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);
 
                 // (symmetrized) wave number : only 1 kfact is zero
                 const double k0 = (is0 + koffset[ax0]) * kfact[ax0];
@@ -372,7 +372,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
  * @param typeGreen 
  * @param alpha 
  */
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha){
+void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha){
     BEGIN_FUNC
 
     // assert that the green spacing is not 0.0 everywhere
@@ -423,15 +423,12 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 // global indexes
-                const int ie0 = (istart[ax0] + i0);
-                const int ie1 = (istart[ax1] + i1);
-                const int ie2 = (istart[ax2] + i2);
+                const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
 
                 // symmetrize indexes if required (theoretically never for 3dirspectral)
-                const int is0 = (symstart[ax0] == 0 || ie0 <= symstart[ax0]) ? ie0 : std::min(-2 * (int)symstart[ax0] + ie0, -1);
-                const int is1 = (symstart[ax1] == 0 || ie1 <= symstart[ax1]) ? ie1 : std::min(-2 * (int)symstart[ax1] + ie1, -1);
-                const int is2 = (symstart[ax2] == 0 || ie2 <= symstart[ax2]) ? ie2 : std::min(-2 * (int)symstart[ax2] + ie2, -1);
-                // Caution: not the same kind of symmetry as for unbounded! Here, indices restart from -symstart toward 0
+                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);
+                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);
+                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);
 
                 // (symmetrized) wave number
                 const double k0 = (is0+koffset[ax0])*kfact[ax0];
