@@ -219,7 +219,7 @@ inline static size_t localindex(const int axis, const int i0, const int i1, cons
  * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
  * @param topo 
  */
-inline static void get_idstart_glob(int istart[3], const Topology *topo) {
+inline static void get_istart_glob(int istart[3], const Topology *topo) {
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;

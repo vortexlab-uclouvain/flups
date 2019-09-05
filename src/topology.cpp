@@ -1,6 +1,6 @@
 /**
  * @file topology.cpp
- * @author Thomas Gillis
+ * @author Thomas Gillis & Denis-Gabriel Caprace
  * @brief 
  * @version
  * @date 2019-07-26
@@ -116,7 +116,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
  */
 void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], const int iend[3], const int ishift[3], int* naxis) const {
     int in_idStart[3];
-    get_idstart_glob(in_idStart, this);
+    get_istart_glob(in_idStart, this);
     in_idStart[0] = in_idStart[0] + istart[0];
     in_idStart[1] = in_idStart[1] + istart[1];
     in_idStart[2] = in_idStart[2] + istart[2];

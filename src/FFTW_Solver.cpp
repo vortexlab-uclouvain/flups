@@ -104,8 +104,8 @@ void FFTW_Solver::setup() {
     //-------------------------------------------------------------------------
     /** - delete the useless data for Green */
     //-------------------------------------------------------------------------
-    _delete_plan(_plan_green);
-    _delete_switchtopo(_switchtopo_green);
+    _delete_plans(_plan_green);
+    _delete_switchtopos(_switchtopo_green);
     _prof->stop("init");
 }
 
@@ -456,10 +456,6 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if (DIM == 2) {
-        UP_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
-    }
-
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
@@ -480,6 +476,8 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
             INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
         }
+    }  else {
+        UP_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
     }
 
 #ifdef DUMP_H5
