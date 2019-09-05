@@ -50,6 +50,7 @@ struct manuParams {
     double       freq    = 1; //an integer or 0.5
     double       sign[2] = {0, 0};
     double       sigma   = 0.15;
+    double       center  = 0.5;
 };
 
 typedef double (*manuF)(const double, const double, const manuParams);
@@ -63,21 +64,41 @@ static inline double d2dx2_fOddOdd(const double x, const double L, const manuPar
 }
 
 static inline double fEvenEven(const double x, const double L, const manuParams params) {
-    return cos((c_2pi / L * params.freq) * x);
+    return cos((M_PI / L * params.freq) * x);
 }
 static inline double d2dx2_fEvenEven(const double x, const double L, const manuParams params) {
-    return -(c_2pi / L * params.freq) * (c_2pi / L * params.freq) * cos((c_2pi / L * params.freq) * x);
+    return -(M_PI / L * params.freq) * (M_PI / L * params.freq) * cos((M_PI / L * params.freq) * x);
+}
+
+static inline double fOddEven(const double x, const double L, const manuParams params) {
+    return sin((M_PI / L * (params.freq+.5)) * x);
+}
+static inline double d2dx2_fOddEven(const double x, const double L, const manuParams params) {
+    return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * sin((M_PI / L * (params.freq+.5)) * x);
+}
+
+static inline double fEvenOdd(const double x, const double L, const manuParams params) {
+    return cos((M_PI / L * (params.freq+.5)) * x);
+}
+static inline double d2dx2_fEvenOdd(const double x, const double L, const manuParams params) {
+    return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * cos((M_PI / L * (params.freq+.5)) * x);
 }
 
 static inline double fUnb(const double x, const double L, const manuParams params) {
-    return                   exp(-(x - .5 * L) * (x - .5 * L) / (params.sigma * params.sigma)) + \
-            params.sign[0] * exp(-(x + .5 * L) * (x + .5 * L) / (params.sigma * params.sigma)) + \
-            params.sign[1] * exp(-(x -1.5 * L) * (x -1.5 * L) / (params.sigma * params.sigma)) ;
+    const double x0 = (x -       params.center  * L) / params.sigma;
+    const double x1 = (x + (1. - params.center) * L) / params.sigma;
+    const double x2 = (x - (1. + params.center) * L) / params.sigma;
+    return                   exp(-x0*x0) + \
+            params.sign[0] * exp(-x1*x1) + \
+            params.sign[1] * exp(-x2*x2) ;
 }
 static inline double d2dx2_fUnb(const double x, const double L, const manuParams params) {
-    return                   -2. / (params.sigma * params.sigma) * exp(-(x - .5*L) * (x - .5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x - .5*L) * (x - .5*L) / (params.sigma * params.sigma))) + \
-            params.sign[0] * -2. / (params.sigma * params.sigma) * exp(-(x + .5*L) * (x + .5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x + .5*L) * (x + .5*L) / (params.sigma * params.sigma))) + \
-            params.sign[1] * -2. / (params.sigma * params.sigma) * exp(-(x -1.5*L) * (x -1.5*L) / (params.sigma * params.sigma)) * (1. - 2. * ((x -1.5*L) * (x -1.5*L) / (params.sigma * params.sigma))) ;
+    const double x0 = (x -       params.center  * L) / params.sigma;
+    const double x1 = (x + (1. - params.center) * L) / params.sigma;
+    const double x2 = (x - (1. + params.center) * L) / params.sigma;
+    return                   -2. / (params.sigma * params.sigma) * exp(-x0*x0 ) * (1. - 2. * ( x0 * x0)) + \
+            params.sign[0] * -2. / (params.sigma * params.sigma) * exp(-x1*x1 ) * (1. - 2. * ( x1 * x1)) + \
+            params.sign[1] * -2. / (params.sigma * params.sigma) * exp(-x2*x2 ) * (1. - 2. * ( x2 * x2)) ;
 }
 
 #endif

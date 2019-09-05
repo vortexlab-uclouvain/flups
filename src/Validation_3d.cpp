@@ -179,7 +179,16 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
         } else if (mybc[dir][0] == EVEN && mybc[dir][1] == EVEN) {
             manuRHS[dir] = &d2dx2_fEvenEven;
             manuSol[dir] = &fEvenEven;
+        }  else if (mybc[dir][0] == ODD && mybc[dir][1] == EVEN) {
+            manuRHS[dir] = &d2dx2_fOddEven;
+            manuSol[dir] = &fOddEven;
+            if (params[dir].freq < 1) params[dir].freq = 1;
+        }  else if (mybc[dir][0] == EVEN && mybc[dir][1] == ODD) {
+            manuRHS[dir] = &d2dx2_fEvenOdd;
+            manuSol[dir] = &fEvenOdd;
+            if (params[dir].freq < 1) params[dir].freq = 1;            
         } else if (mybc[dir][0] == UNB) {
+            params[dir].center  = .8;
             if (mybc[dir][1] == ODD) {
                 params[dir].sign[1] = -1;
             } else if (mybc[dir][1] == EVEN) {
@@ -188,6 +197,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
         } else if (mybc[dir][1] == UNB) {
+            params[dir].center  = .2;
             if (mybc[dir][0] == ODD) {
                 params[dir].sign[0] = -1;
             } else if (mybc[dir][0] == EVEN) {
@@ -195,7 +205,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
             }
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
-        }  else {
+        } else {
             UP_ERROR("I don''t know how to generate an analytical solution for this combination of BC.")
         }
     }

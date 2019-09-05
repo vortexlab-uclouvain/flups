@@ -64,6 +64,7 @@ class FFTW_plan_dim {
     double _normfact   = 0.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
     double _volfact    = 0.0;   /**< @brief volume factor*/
     double _kfact      = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
+    double _koffset    = 0.0;   /**< @brief additive factor to have the correct k numbers*/
 
     PlanType     _type;  /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
@@ -75,7 +76,7 @@ class FFTW_plan_dim {
     FFTW_plan_dim(const int dimID, const double h[DIM], const double L[DIM], const BoundaryType mybc[2], const int sign, const bool isGreen);
     ~FFTW_plan_dim();
 
-    void init(const int size[DIM], const bool isComplex, const bool isRefR2C);
+    void init(const int size[DIM], const bool isComplex);
 
     void allocate_plan(const Topology *topo, double* data);
     void execute_plan();
@@ -97,6 +98,7 @@ class FFTW_plan_dim {
     inline double normfact() const { return _normfact; }
     inline double volfact() const { return _volfact; }
     inline double kfact() const { return _kfact; }
+    inline double koffset() const { return _koffset; }
 
     inline void get_outsize(int* size) const { size[_dimID] = _n_out; };
     inline void get_fieldstart(int* start) const { start[_dimID] = _fieldstart; };
@@ -112,7 +114,7 @@ class FFTW_plan_dim {
     /**@{ */
     void _init_real2real(const int size[DIM], bool isComplex);
     void _init_mixunbounded(const int size[DIM], bool isComplex);
-    void _init_periodic(const int size[DIM], bool isComplex, bool isRefR2C);
+    void _init_periodic(const int size[DIM], bool isComplex);
     void _init_unbounded(const int size[DIM], bool isComplex);
     /**@} */
 

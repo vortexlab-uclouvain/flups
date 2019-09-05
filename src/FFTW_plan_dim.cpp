@@ -45,23 +45,27 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[DIM], const double 
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (2.0 * L[_dimID]);
+        _koffset  = 0.0;
         if (_isGreen) _isSpectral = true;
     } else if (mytype <= MIXUNB) {
         _type     = MIXUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (4.0 * L[_dimID]);
+        _koffset  = 0.0;
     } else if (mytype == PERPER) {
         _type     = PERPER;
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (L[_dimID]);
+        _koffset  = 0.0;
         if (_isGreen) _isSpectral = true;
     } else if (mytype == UNBUNB) {
         _type     = UNBUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
+        _koffset  = 0.0;
     } else {
         UP_ERROR("Invalid combination of BCs")
     }
@@ -162,6 +166,8 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
     /** - Get the #_kind of Fourier transforms and #_imult */
     //-------------------------------------------------------------------------
     if (_isGreen) {
+        if (_bc[0] != _bc[1])
+            _koffset = 0.5;
         return;
     } else if (_bc[0] == EVEN) {  // We have a DCT
 
@@ -169,22 +175,24 @@ void FFTW_plan_dim::_init_real2real(const int size[DIM], const bool isComplex) {
 
         if (_bc[1] == EVEN) {
             if (_sign == UP_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01;
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01; // DCT type III
         } else if (_bc[1] == ODD) {
-            if (_sign == UP_FORWARD) _kind = FFTW_REDFT01;  // DCT type III
-            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT10;
+            if (_sign == UP_FORWARD) _kind = FFTW_REDFT11;  // DCT type IV
+            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT11; // DCT type IV
+            _koffset = 0.5;
         }
     } else if (_bc[0] == ODD) {  // We have a DST
 
         _imult = true;  // we DO have to multiply by -i=-sqrt(-1)
 
         if (_bc[1] == ODD) {
-            _shiftgreen = 1;
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01;
+            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01; // DST type III
+            _shiftgreen = 1;
         } else if (_bc[1] == EVEN) {
-            if (_sign == UP_FORWARD) _kind = FFTW_REDFT11;  // DST type IV
-            if (_sign == UP_BACKWARD) _kind = FFTW_REDFT11;
+            if (_sign == UP_FORWARD) _kind = FFTW_RODFT11;  // DST type IV
+            if (_sign == UP_BACKWARD) _kind = FFTW_RODFT11; // DST type IV
+            _koffset = 0.5;
         }
     } else {
         UP_ERROR("unable to init the solver required\n")

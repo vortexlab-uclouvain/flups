@@ -24,7 +24,7 @@ enum GreenType {
     HEJ_6,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
 };
 
-void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3],                        const int symstart[3], double *green, GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3],                                                 const int symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const int symstart[3], double *green, GreenType typeGreen, const double alpha);

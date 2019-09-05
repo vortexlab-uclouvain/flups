@@ -474,8 +474,9 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
     //-------------------------------------------------------------------------
     bool isSpectral[3] = {false};
 
-    double hfact[3]; // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
-    double kfact[3]; // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double hfact[3];    // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
+    double kfact[3];    // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3];  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
     int    symstart[3];
 
     for (int ip = 0; ip < 3; ip++) {
@@ -485,10 +486,12 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         symstart[dimID]   = planmap[ip]->symstart();
         hfact[dimID]      = _hgrid[dimID];
         kfact[dimID]      = 0.0;
+        koffset[dimID]    = 0.0;
 
         if (isSpectral[dimID]) {
-            hfact[dimID] = 0.0;
-            kfact[dimID] = planmap[ip]->kfact();
+            hfact[dimID]   = 0.0;
+            kfact[dimID]   = planmap[ip]->kfact();
+            koffset[dimID] = planmap[ip]->koffset();;
         }
     }
 
@@ -510,13 +513,13 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
         cmpt_Green_3D_3dirunbounded_0dirspectral(topo[_iTopo_fillGreen], hfact, symstart, green, _typeGreen, _alphaGreen);
     } else if (_nbr_spectral == 1) {
         INFOLOG2(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
-        cmpt_Green_3D_2dirunbounded_1dirspectral(topo[_iTopo_fillGreen], hfact, kfact, symstart, green, _typeGreen, _alphaGreen);
+        cmpt_Green_3D_2dirunbounded_1dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
     } else if (_nbr_spectral == 2) {
         INFOLOG2(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
-        cmpt_Green_3D_1dirunbounded_2dirspectral(topo[_iTopo_fillGreen], hfact, kfact, symstart, green, _typeGreen, _alphaGreen);
+        cmpt_Green_3D_1dirunbounded_2dirspectral(topo[_iTopo_fillGreen], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
     } else if (_nbr_spectral == 3) {
         INFOLOG2(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
-        cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, symstart, green, _typeGreen, _alphaGreen);
+        cmpt_Green_3D_0dirunbounded_3dirspectral(topo[_iTopo_fillGreen], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
     }
 
 #ifdef DUMP_H5
