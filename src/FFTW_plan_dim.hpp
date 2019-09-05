@@ -51,6 +51,7 @@ class FFTW_plan_dim {
     const int  _dimID;   /**< @brief the dimension of the plan in the field reference */
     const int  _sign;    /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
+    bool   _ignoreMode = false; /**< @brief do we have to ignore a mode in the output? k=0 if _shiftgreen=1 or k=end if _shiftgreen = 0*/
     bool   _isr2c      = false; /**< @brief is this plan the one that changes to complex?*/
     bool   _imult      = false; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     bool   _isSpectral = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
@@ -85,6 +86,7 @@ class FFTW_plan_dim {
      * 
      */
     /**@{ */
+    inline bool   ignoreMode() const { return _ignoreMode; }
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
     inline bool   isr2c_green() const { return _isr2c && (!_isSpectral || !_isGreen) ; }

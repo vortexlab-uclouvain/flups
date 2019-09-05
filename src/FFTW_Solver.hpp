@@ -89,7 +89,7 @@ class FFTW_Solver {
      * 
      */
     /**@{ */
-    int       _shiftgreen[3]   = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
+    // int       _shiftgreen[3]   = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
     double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
     double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
     GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */

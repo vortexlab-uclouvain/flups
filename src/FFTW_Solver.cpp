@@ -61,7 +61,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], co
         _normfact *= _plan_forward[ip]->normfact();
         _volfact *= _plan_forward[ip]->volfact();
 
-        _shiftgreen[_plan_forward[ip]->dimID()] = _plan_forward[ip]->shiftgreen();
+        // _shiftgreen[_plan_forward[ip]->dimID()] = _plan_forward[ip]->shiftgreen();
 
         if (_plan_forward[ip]->imult())
             _nbr_imult++; //we multiply by i
@@ -255,11 +255,16 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
         planmap[ip]->get_outsize(size_tmp);
         // virtually execute the plan and determine the output
         planmap[ip]->get_isNowComplex(&isComplex);
+        // determines the fastest rotating index
+        int dimID = planmap[ip]->dimID();
+
+        // if we are Green and we have to ignore one mode based on the Green's function
+        if(isGreen && planmap[ip]->ignoreMode() ){
+            size_tmp[dimID] -= 1;
+        }
 
         // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
-            // determines the fastest rotating index
-            int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
             // determines the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
@@ -286,12 +291,6 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
         planmap[ip]->disp();
     }
 
-    //-------------------------------------------------------------------------
-    /** - Preparing the allocation of topos for Green (if needed).   */
-    //-------------------------------------------------------------------------
-
-    current_topo = NULL;
-
     // -- at this point, size_tmp is the size that I need for the Green function in
     //    the last topo, and isComplex describes if the Green function in that topo is
     //    expressed in Complex or not.
@@ -302,10 +301,8 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
      *    in case of r2c, in order to obtain the correct size of Green in topo[0], which
      *    is the topo in which we fill the Green function.      */
     //-------------------------------------------------------------------------
-    
-    // //the full size of the domain is that of size_tmp
+    current_topo = NULL;
     // isComplex = false; //Change this for Helmolz: we will always need to fill Green in complex
-    
     if (isGreen && topomap != NULL && switchtopo != NULL) {
         for (int ip = 2; ip >= 0; ip--) {
             
@@ -314,18 +311,35 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
             // get the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
 
+            // if we had to forget one point for this plan, re-add it
+            if(planmap[ip]->ignoreMode() ){
+                size_tmp[dimID] += 1;
+            }
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
-            
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2){
                 // get the fieldstart = the point where the old topo has to begin in the new
                 int fieldstart[3] = {0};
-                planmap[ip]->get_fieldstart(fieldstart);
+                // it shouldn't be different from 0 for the moment
+                planmap[ip+1]->get_fieldstart(fieldstart);
+                // the shift green is taken on the new topo to write to the current_topo
+                const int shift = planmap[ip]->shiftgreen();
+                if (!planmap[ip]->ignoreMode()) {
+                    UP_CHECK0(shift == 0, "If no mode are ignored, you cannot ask for a shift!!");
+                } else {
+                    // if we aim at removing a point, we make sure to copy every mode except one
+                    UP_CHECK1((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
+                }
+
+                // store the shift and do the mapping
+                fieldstart[dimID] = -shift;
+                // we do the link between topomap[ip] and the current_topo
                 switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
             }
 
-            //Reverting what the FFT will do
+            // Go to real data if the FFT is really done on green's array.
+            // if not, keep it in complex
             if (planmap[ip]->isr2c_green() ){
                 topomap[ip]->switch2real();
                 size_tmp[dimID] *= 2; 
@@ -735,7 +749,7 @@ void FFTW_Solver::dothemagic_rhs_real() {
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(_shiftgreen[ax0], i1 + _shiftgreen[ax1], i2 + _shiftgreen[ax2], _topo_green[2]);
+            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
 
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
                 mydata[id+i0] *= _normfact * mygreen[id_green+i0];
@@ -765,7 +779,7 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0() {
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(_shiftgreen[ax0], i1 + _shiftgreen[ax1], i2 + _shiftgreen[ax2], _topo_green[2]);
+            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
 
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
                 const double a = mydata[id + 0];

@@ -140,15 +140,22 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
         _n_in  = size[_dimID];
         _n_out = size[_dimID];
     } else {
-        _n_in  = size[_dimID] + 1;
-        _n_out = size[_dimID] + 1;
+        // if ODD-EVEN or EVEN-ODD the FFT for the Green function would have been DCT Type III
+        // hence on a size of n
+        if (_bc[0] != _bc[1]) {
+            _n_in  = size[_dimID];
+            _n_out = size[_dimID];
+        } else {
+            _n_in       = size[_dimID] + 1;
+            _n_out      = size[_dimID] + 1;
+            _ignoreMode = true;
+        }
     }
 
     _fieldstart = 0;
 
     // no switch to complex
     _isr2c      = false;
-    _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -165,8 +172,12 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     if (_isGreen) {
         // if we are doing odd-even we have to use shifted FFTW plans
-        if (_bc[0] != _bc[1]){
+        if (_bc[0] != _bc[1]) {
             _koffset = 0.5;
+        }
+        if (_bc[0] == ODD && _bc[1] == ODD) {
+            // if we do a ODD ODD, we have to shift the Green's function
+            _shiftgreen = 1;
         }
         return;
     } else if (_bc[0] == EVEN) {  // We have a DCT
@@ -188,7 +199,6 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
         if (_bc[1] == ODD) {
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01; // DST type III
-            _shiftgreen = 1;
         } else if (_bc[1] == EVEN) {
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT11;  // DST type IV
             if (_sign == UP_BACKWARD) _kind = FFTW_RODFT11; // DST type IV
@@ -224,8 +234,9 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     } else if (_isGreen) {
         //Different because the Green's function is to be seen as "vertex centered",
         //as opposed to data which are "cell cenetered".
-        _n_in  = 2 * size[_dimID] + 1;
-        _n_out = 2 * size[_dimID] + 1;
+        _n_in       = 2 * size[_dimID] + 1;
+        _n_out      = 2 * size[_dimID] + 1;
+        _ignoreMode = true;
     }
 
     _isr2c = false;
@@ -249,20 +260,22 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     /** - Get the #_kind of Fourier transforms, #_imult and #_shiftgreen */
     //-------------------------------------------------------------------------
     if (_isGreen) {
-        _imult      = false;
-        _shiftgreen = 0;
+        _imult = false;
+        // set the shiftg Green to 1 if we do ODD-ODD bc
+        if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {
+            _shiftgreen = 1;
+        }
         // The Green function is ALWAYS EVEN - EVEN
         if (_sign == UP_FORWARD) _kind = FFTW_REDFT00;  // DCT type I
         if (_sign == UP_BACKWARD) _kind = FFTW_REDFT00;
+
     } else {
         if ((_bc[0] == EVEN && _bc[1] == UNB) || (_bc[0] == UNB && _bc[1] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
             _imult      = false;
-            _shiftgreen = 0;
             if (_sign == UP_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
             if (_sign == UP_BACKWARD) _kind = FFTW_REDFT01; // DCT type III
         } else if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
             _imult      = true;
-            _shiftgreen = 1;
             if (_sign == UP_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == UP_BACKWARD) _kind = FFTW_RODFT01; // DST type III
         } else {
@@ -346,7 +359,6 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     }
 
     _fieldstart = 0;
-    _shiftgreen = 0;
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------

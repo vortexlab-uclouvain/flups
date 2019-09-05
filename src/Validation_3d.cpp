@@ -31,8 +31,6 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
-    const double  sigma  = myCase.sigma;
-    const double *center = myCase.center;
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
@@ -62,9 +60,11 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
     //-------------------------------------------------------------------------
-    const double oosigma  = 1.0 / (sigma);
-    const double oosigma2 = 1.0 / (sigma * sigma);
-    const double oosigma3 = 1.0 / (sigma * sigma * sigma);
+    const double sigma     = 0.1;
+    const double center[3] = {0.5, 0.5, 0.5};
+    const double oosigma   = 1.0 / (sigma);
+    const double oosigma2  = 1.0 / (sigma * sigma);
+    const double oosigma3  = 1.0 / (sigma * sigma * sigma);
 
     int istart[3];
     get_istart_glob(istart, topo);

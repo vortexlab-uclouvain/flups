@@ -12,8 +12,8 @@ TARGET := poisson
 CC = mpiicc
 CXX = mpiicpc
 
-CXXFLAGS := -O3 -g -DNDEBUG -stdc++11 -qopt-report=5
-# CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
+# CXXFLAGS := -O3 -g -DNDEBUG -std=c++17 -qopt-report=5
+CXXFLAGS := -g -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 
 # linker specific flags
 LDFLAGS := 
@@ -31,12 +31,12 @@ INC := -I$(SRC_DIR)
 #---- FFTW
 FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3_mpi -lfftw3
+LIB += -L$(FFTWDIR)/lib -lfftw3_mpi -lfftw3 -Wl,-rpath,$(FFTWDIR)/lib
 
 #---- HDF5
 HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
 INC += -I$(HDF5DIR)/include
-LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath=$(HDF5DIR)/lib
+LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders

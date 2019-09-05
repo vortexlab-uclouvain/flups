@@ -20,16 +20,11 @@
 
 #define MANUFACTURED_SOLUTION
 
-/**
- * @brief everything required to characterize the computational domain and initial condition 
- * 
- */
+
 struct DomainDescr {
     int          nglob[3]   = {64, 64, 64};
     int          nproc[3]   = {2, 2, 1};
     double       L[3]       = {1.0, 1.0, 1.0};
-    double       sigma      = 0.1;              // smoothing length scale of the blob
-    double       center[3]  = {0.5, 0.5, 0.5};  //center of the blob (in % of L)
     BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 };
 

@@ -44,12 +44,10 @@ int main(int argc, char *argv[]) {
         valCase.nglob[1] = size[is] * valCase.L[1];
         valCase.nglob[2] = size[is] * valCase.L[2];
 
-        valCase.center[0] = .5; valCase.center[1] = .5;
-
         if(rank==0) printf("\n==============================  FULLY UNBOUNDED TEST ============================================\n");
-        valCase.mybc[0][0] = UNB; valCase.mybc[0][1] = EVEN;
+        valCase.mybc[0][0] = PER; valCase.mybc[0][1] = PER;
         valCase.mybc[1][0] = UNB; valCase.mybc[1][1] = UNB;
-        valCase.mybc[2][0] = PER; valCase.mybc[2][1] = PER;
+        valCase.mybc[2][0] = UNB; valCase.mybc[2][1] = UNB;
 
         // if(rank==0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
         // validation_3d(valCase,UP_SRHS,HEJ_2);
