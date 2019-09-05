@@ -188,20 +188,25 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
             manuSol[dir] = &fEvenOdd;
             if (params[dir].freq < 1) params[dir].freq = 1;            
         } else if (mybc[dir][0] == UNB) {
-            params[dir].center  = .8;
+            params[dir].center  = .5;
             if (mybc[dir][1] == ODD) {
-                params[dir].sign[1] = -1;
+                params[dir].center  = .7;
+                params[dir].sign[1] = -1.;
             } else if (mybc[dir][1] == EVEN) {
-                params[dir].sign[1] = +1;
+                params[dir].center  = .7;
+                params[dir].sign[1] = +1.;
             }
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
+//still blobs missing if multiple mix
         } else if (mybc[dir][1] == UNB) {
-            params[dir].center  = .2;
+            params[dir].center  = .5;
             if (mybc[dir][0] == ODD) {
-                params[dir].sign[0] = -1;
+                params[dir].center  = .3;
+                params[dir].sign[0] = -1.;
             } else if (mybc[dir][0] == EVEN) {
-                params[dir].sign[0] = +1;
+                params[dir].center  = .3;
+                params[dir].sign[0] = +1.;
             }
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
