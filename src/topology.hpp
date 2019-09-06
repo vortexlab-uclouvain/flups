@@ -240,6 +240,20 @@ inline static int get_nloc(const int id, const int iproc, const Topology *topo) 
     return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 
+/**
+ * @brief compute the global symmetrized index of a given point.
+ * 
+ * The 3 indexes are given along axsrc axis (i0,i1,i2) while the symmetrized output is given along the axtrg axis.
+ * 
+ * @param axsrc 
+ * @param i0 
+ * @param i1 
+ * @param i2 
+ * @param istart 
+ * @param symstart 
+ * @param axtrg 
+ * @param is 
+ */
 inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration
     const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
