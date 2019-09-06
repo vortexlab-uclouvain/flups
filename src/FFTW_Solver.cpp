@@ -774,7 +774,7 @@ void FFTW_Solver::dothemagic_rhs_real() {
 void FFTW_Solver::dothemagic_rhs_complex_nmult0() {
     BEGIN_FUNC
 
-    printf("doing the dothemagic_rhs_complex_nmult0\n");
+    // printf("doing the dothemagic_rhs_complex_nmult0\n");
 
     UP_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
 

@@ -159,7 +159,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     const int ax1 = (ax0 + 1) % 3; 
     const int ax2 = (ax0 + 2) % 3; 
 
-    printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
+    // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     UP_CHECK0(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
@@ -264,7 +264,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     const int ax1 = (ax0 + 1) % 3; 
     const int ax2 = (ax0 + 2) % 3; 
 
-    printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
+    // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     UP_CHECK0(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
@@ -369,8 +369,8 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
-    printf("kfact : %lf,%lf,%lf \n",kfact[ax0],kfact[ax1],kfact[ax2]);
-    printf("koff  : %lf,%lf,%lf \n",koffset[ax0],koffset[ax1],koffset[ax2]);   
+    // printf("kfact : %lf,%lf,%lf \n",kfact[ax0],kfact[ax1],kfact[ax2]);
+    // printf("koff  : %lf,%lf,%lf \n",koffset[ax0],koffset[ax1],koffset[ax2]);   
 
     switch (typeGreen) {
         case HEJ_2:

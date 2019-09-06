@@ -57,8 +57,8 @@ void Green_2D_3dirunbounded_0dirspectral_chat2(const int size[3],const double hf
     const double req = sqrt(c_1opi*hfact[0]*hfact[1]);
     green[0] = - 2.0*log(1.0+M_SQRT2)/(sqrt(M_PI*M_PI*M_PI) * req) ;
 
-    printf("G(0,0) = %f\n",green[0]);
-    printf("G(1,0) = %f\n",green[1]);
+    // printf("G(0,0) = %f\n",green[0]);
+    // printf("G(1,0) = %f\n",green[1]);
 }
 
 /**

@@ -486,15 +486,15 @@ void SwitchTopo_test() {
     hdf5_dump(topo, "test_real", data);
 
     const int fieldstart[3] = {0, 0, 0};
-    printf("\n\n=============================\n");
+    // printf("\n\n=============================\n");
     SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
 
-    printf("\n\n============ FORWARD =================\n");
+    // printf("\n\n============ FORWARD =================\n");
     switchtopo->execute(data, UP_FORWARD);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
-    printf("\n\n============ BACKWARD =================\n");
+    // printf("\n\n============ BACKWARD =================\n");
     switchtopo->execute(data, UP_BACKWARD);
 
     hdf5_dump(topo, "test_real_returned", data);
@@ -529,7 +529,7 @@ void SwitchTopo_test() {
     // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
     const int fieldstart2[3] = {4, 0, 0};
-    printf("\n=============================\n");
+    // printf("\n=============================\n");
     switchtopo = new SwitchTopo(topo, topobig, fieldstart2, NULL);
 
     switchtopo->execute(data, UP_FORWARD);
