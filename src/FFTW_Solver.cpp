@@ -284,11 +284,12 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
             // compute the Switch between the current topo (the one from which we come) and the new one (the one we just created).
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
-                topomap[ip]->switch2real(); //switching back tentatively, as when the switch will be executed, the transform did not occur yet.
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                topomap[ip]->switch2real();
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
                 topomap[ip]->switch2complex();
             } else {
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                // create the switchtopoMPI to change topology
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
@@ -343,7 +344,7 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart);
+                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart,_prof);
             }
 
             // Go to real data if the FFT is really done on green's array.

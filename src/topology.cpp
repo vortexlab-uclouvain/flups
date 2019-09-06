@@ -30,10 +30,11 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     /** - get memory axis and complex information  */
     //-------------------------------------------------------------------------
     _axis = axis;
-    if (!isComplex)
+    if (!isComplex) {
         _nf = 1;
-    else
+    } else {
         _nf = 2;
+    }
 
     //-------------------------------------------------------------------------
     /** - get the rankd for input and output  */
@@ -74,7 +75,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
         const int onglob = other->nglob(id);
 
         start[id] = 0;
-        end[id]   = 1;
+        end[id]   = 0;
         // for the input configuration
         for (int i = 0; i < _nloc[id]; ++i) {
             // get the global id in the other topology

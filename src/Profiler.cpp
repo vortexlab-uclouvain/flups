@@ -49,9 +49,7 @@ Profiler::~Profiler() {
 void Profiler::create(string name) {
     map<string, TimerAgent*>::iterator it = _timeMap.find(name);
     // if it does not already exist
-    if (it != _timeMap.end()) {
-        it->second->reset();
-    } else {
+    if (it == _timeMap.end()) {
         _timeMap[name] = new TimerAgent();
         _timeMap[name]->reset();
     }
@@ -67,30 +65,25 @@ void Profiler::stop(string name) {
 
 void Profiler::disp() {
     int commSize, rank;
-    MPI_Comm_size(MPI_COMM_WORLD,&commSize);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-     FILE* file;
-    if(rank==0){
-        string filename = "prof/"+_name+".prof";
-        file = fopen(filename.c_str(),"a+");
-        UP_CHECK0(file!=NULL,"Profiler file failed to open");
+    FILE* file;
+    if (rank == 0) {
+        string filename = "prof/" + _name + ".csv";
+        file            = fopen(filename.c_str(), "w+");
     }
-    
-    if(rank ==0){
-        printf("=============================================================================================================\n");
-        printf("        PROFILER %s  \n",_name.c_str());
-        printf("\t-NAME-   \t-Total time-\t-time/call-\t-Max tot time-\t-Min tot time-\t-Mean cnt-\n");
 
-        fprintf(file,"=============================================================================================================\n");
-        fprintf(file,"        PROFILER %s  \n",_name.c_str());
-        fprintf(file,"\t-NAME-   \t-Total time-\t-time/call-\t-Max tot time-\t-Min tot time-\t-Mean cnt-\n");
+    if (rank == 0) {
+        printf("=============================================================================================================\n");
+        printf("        PROFILER %s  \n", _name.c_str());
+        printf("\t-NAME-   \t-Total time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
     }
 
     // go through each and compute relevant info
     for (map<string, TimerAgent*>::iterator it = _timeMap.begin(); it != _timeMap.end(); it++) {
         // comnpute counter stuffs
-        double localCount =(double) it->second->count();
+        double localCount = (double)it->second->count();
         double meanCount, maxCount, minCount;
         MPI_Allreduce(&localCount, &meanCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&localCount, &maxCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -106,27 +99,23 @@ void Profiler::disp() {
         meanTime /= commSize;
 
         double meanTimePerCount;
-        double localTimePerCount = localTime/localCount;
-        MPI_Allreduce(&localTimePerCount,&meanTimePerCount,1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        double localTimePerCount = localTime / localCount;
+        MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         meanTimePerCount /= commSize;
 
-        // if(rank ==0) printf("%15.15s:  \t%02.6f\t%02.6f\t%02.6f\t%09.0f\t%09.0f\t%09.0f\n",it->first.c_str(),meanTime,minTime,maxTime,meanCount,minCount,maxCount);
-        if(rank ==0){
-            printf("%15.15s:  \t%02.6f\t%02.6f\t%02.6f\t%02.6f\t%09.0f\n",it->first.c_str(),meanTime,meanTimePerCount,minTime,maxTime,meanCount);
-            fprintf(file,"%15.15s:  \t%02.6f\t%02.6f\t%02.6f\t%02.6f\t%09.0f\n",it->first.c_str(),meanTime,meanTimePerCount,minTime,maxTime,meanCount);
+        if (rank == 0) {
+            printf("%15.15s:  \t%02.6f\t%02.6f\t%02.6f\t%02.6f\t%09.0f\n", it->first.c_str(), meanTime, meanTimePerCount, minTime, maxTime, meanCount);
+            fprintf(file, "%s;%02.6f;%02.6f;%02.6f;%02.6f;%09.0f\n", it->first.c_str(), meanTime, meanTimePerCount, minTime, maxTime, meanCount);
         }
     }
-    if(rank ==0){
+    if (rank == 0) {
         printf("=============================================================================================================\n");
-        printf("Total time - the mean of the total time spend in that timer among the processors\n");
-        printf("max time - the max total time spend in that timer among the processors\n");
+        printf("Total time - the total time spend in that timer (averaged among the processors)\n");
+        printf("Time/call - the total time spend in that timer per call of the timer (averaged among the processors)\n");
+        printf("Min time - the min total time spend in that timer among the processors\n");
+        printf("Max time - the max total time spend in that timer among the processors\n");
+        printf("Mean cnt - the total number of time the timer has been called (averaged among the processors)\n");
         printf("=============================================================================================================\n");
-
-        fprintf(file,"=============================================================================================================\n");
-        fprintf(file,"Total time - the mean of the total time spend in that timer among the processors\n");
-        fprintf(file,"max time - the max total time spend in that timer among the processors\n");
-        fprintf(file,"=============================================================================================================\n");
-
         fclose(file);
     }
 }

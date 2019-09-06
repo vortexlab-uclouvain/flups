@@ -26,11 +26,11 @@ class Topology {
     int _rank;       /**<@brief rank of the current process */
     int _comm_size;  /**<@brief size of the communicator */
     int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (always XYZ)  */
-    int _nloc[3];    /**<@brief real number of unknows perd dim, local  */
-    int _nproc[3];   /**<@brief number of procs per dim  */
-    int _rankd[3];   /**<@brief rank of the current process per dim  */
-    int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one  */
+    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -48,10 +48,18 @@ class Topology {
      */
     inline int comm_size() const { return _comm_size; }
     inline int axis() const { return _axis; }
+    inline int rank() const { return _rank; }
     inline int nf() const { return _nf; }
     inline int isComplex() const { return _nf == 2; }
+
     // inline double h(const int dim) const { return _h[dim]; }
     // inline double L(const int dim) const { return _L[dim]; }
+    // inline int* nloc() const { return _nloc; }
+    // inline int* nglob() const { return _nglob; }
+    // inline int* nproc() const { return _nproc; }
+    // inline int* rankd() const { return _rankd; }
+    // inline int* nbyproc() const { return _nbyproc; }
+
     inline int nglob(const int dim) const { return _nglob[dim]; }
     inline int nloc(const int dim) const { return _nloc[dim]; }
     inline int nproc(const int dim) const { return _nproc[dim]; }

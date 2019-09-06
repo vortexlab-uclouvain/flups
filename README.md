@@ -1,4 +1,55 @@
-# An unbounded-periodic Poisson solver
+# FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
+
+### Installation
+#### 1. Dependencies
+First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
+- FFTW (> v3.3.8) in the `fftw_prefix` dir:
+```shell
+CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-openmp --enable-avx2 --enable-shared
+```
+- HDF5 (> v1.10) in the `hdf5_prefix` dir:
+```shell
+CC=mpiicc CXX=mpiicpc FC=mpif90 ./configure --prefix=hdf5_prefix --enable-build-mode=production --enable-parallel
+```
+
+#### 2. The Library
+You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `FFTWDIR` and `HDF5DIR`.
+For example:
+```makefile
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+# specify the compiler (intel in this case, may aslo be gcc)
+CXX = mpiicpc
+
+# set the flag (optimisation or not)
+CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
+
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+FFTWDIR  := fftw_prefix
+HDF5DIR  := hdf5_prefix
+```
+Then you need to reference the created configuration file inside the `Makefile` by changing the following line:
+```makefile
+# ARCH DEPENDENT VARIABLES
+include make_arch/make.vagrant_intel
+```
+
+Finally, go to the main folder and type the compilation command.
+- Build the exe with some validation cases:
+```shell
+make -j
+```
+- Build the library
+```shell
+PREFIX=/my/lib/prefix make install
+```
+
+#### 3. The documentation
+To build the documentation, go to the `doc` subfolder and type `doxygen`.
+
 
 ### How to use a solver?
 
@@ -56,7 +107,7 @@ We follow the Google formating rules, see https://google.github.io/styleguide/cp
 To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
 
 Set then the value:
-```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignements: true, AlignConsecutiveDeclarations: true }```.
+```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignments: true, AlignConsecutiveDeclarations: true }```.
 
 Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
 
