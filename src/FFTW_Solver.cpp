@@ -244,11 +244,11 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
                 topomap[ip]->switch2complex();
             } else {
                 // create the switchtopoMPI to change topology
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];
@@ -291,11 +291,11 @@ void FFTW_Solver::_init_plan(const Topology *topo, Topology *topomap[3], SwitchT
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,NULL);
                 topomap[ip]->switch2complex();
             } else {
                 // create the switchtopoMPI to change topology
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart);
+                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,NULL);
             }
             // update the current topo to the new one
             current_topo = topomap[ip];

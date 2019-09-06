@@ -18,8 +18,6 @@
 #include "defines.hpp"
 #include "green_functions_2d.hpp"
 #include "green_functions_3d.hpp"
-//#include "fftw3.h"
-// #include "fftw3-mpi.h"
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo.hpp"
