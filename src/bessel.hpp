@@ -10,57 +10,6 @@
  */
 
 #include <cmath>
-#include <iostream>
-
-
-#define APPROX
-
-#ifdef APPROX
-static inline double besseli0(double x) {
-    const double t = fabs(x / 3.75) * fabs(x / 3.75);
-
-    if (t < 1.) {
-        return 1.0 + t * (3.5156229 + t * (3.0899424 + t * (1.2067492 + t * (0.2659732 + t * (0.360768e-1 + t * 0.45813e-2)))));
-    } else {
-        const double ax = abs(x);
-        const double y  = 3.75 / ax;
-        return (exp(ax) / sqrt(ax)) * (0.39894228 + y * (0.1328592e-1 + y * (0.225319e-2 + y * (-0.157565e-2 + y * (0.916281e-2 + y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + y * 0.392377e-2))))))));
-    }
-}
-
-static inline double besseli1(double x) {
-    const double t = fabs(x / 3.75) * fabs(x / 3.75);
-    const double ax = abs(x);
-
-    if (t < 1.) {
-        return ax * (0.5 + t * (0.87890594 + t * (0.51498869 + t * (0.15084934 + t * (0.2658733e-1 + t * (0.301532e-2 + t * 0.32411e-3))))));
-    } else {
-        const double y = 3.75 / ax;
-        return (exp(ax) / sqrt(ax)) * (0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * (0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2))))))));
-    }
-}
-
-static double besselk0(double x) {
-    if (x <= 2.0) {
-        const double y = x * x / 4.0;
-        return (-log(x / 2.0) * besseli0(x)) + (-0.57721566 + y * (0.42278420 + y * (0.23069756 + y * (0.3488590e-1 + y * (0.262698e-2 + y * (0.10750e-3 + y * 0.74e-5))))));
-    } else {
-        const double y = 2.0 / x;
-        return (exp(-x) / sqrt(x)) * (1.25331414 + y * (-0.7832358e-1 + y * (0.2189568e-1 + y * (-0.1062446e-1 + y * (0.587872e-2 + y * (-0.251540e-2 + y * 0.53208e-3))))));
-    }
-}
-
-static inline double besselk1(double x) {
-    if (x <= 2.0) {
-        const double y = x * x / 4.0;
-        return (log(x / 2.0) * besseli1(x)) + (1.0 / x) * (1.0 + y * (0.15443144 + y * (-0.67278579 + y * (-0.18156897 + y * (-0.1919402e-1 + y * (-0.110404e-2 + y * (-0.4686e-4)))))));
-    } else {
-        const double y = 2.0 / x;
-        return (exp(-x) / sqrt(x)) * (1.25331414 + y * (0.23498619 + y * (-0.3655620e-1 + y * (0.1504268e-1 + y * (-0.780353e-2 + y * (0.325614e-2 + y * (-0.68245e-3)))))));
-    }
-}
-
-#else
 
 static inline double poly(const double *coef, const int n, const double x) {
     double ans = coef[n];
@@ -135,5 +84,3 @@ static inline double besselk1(const double x) {
         return exp(-x) * poly(c_k1pp, 7, z) / (poly(c_k1qq, 7, z) * sqrt(x));
     }
 }
-
-#endif

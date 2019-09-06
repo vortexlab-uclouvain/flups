@@ -27,6 +27,7 @@
 
 
 
+
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
@@ -237,13 +238,13 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
-                if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*.2 )
-                    green[id + i0*topo->nf()] = c_1o2pi * log(r);  //caution: mistake in [Chatelain2010]
-                else if (r <= (hfact[ax0]+hfact[ax1]+hfact[ax2])*.2 )
-                    green[id + i0*topo->nf()] = -(1.0 - k * r_eq2D * besselk1(k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
-                else
-                    green[id + i0*topo->nf()] = -c_1o2pi * besselk0(abs(k) * r);  
-
+                if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
+                    green[id + i0 * topo->nf()] = c_1o2pi * log(r);  //caution: mistake in [Chatelain2010]
+                } else if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
+                    green[id + i0 * topo->nf()] = -(1.0 - k * r_eq2D * besselk1(k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
+                } else {
+                    green[id + i0 * topo->nf()] = -c_1o2pi * besselk0(fabs(k) * r);
+                }
                 //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
                 //notice that bessel_k has been introduced in c++17
             }
@@ -254,7 +255,6 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
         green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
-
 }
 
 /**
