@@ -23,7 +23,7 @@ const double c_i0pp[5] = {1.192273748120670e-1, 1.947452015979746e-1, 7.62924182
 const double c_i0qq[6] = {2.962898424533095e-1, 4.866115913196384e-1, 1.938352806477617e-1, 2.261671093400046e-2, 6.450448095075585e-4, 1.529835782400450e-6};
 
 static inline double besseli0(double x) {
-    const double ax = abs(x);
+    const double ax = fabs(x);
     if (ax < 15.0) {
         const double y = x * x;
         return poly(c_i0p, 13, y) / poly(c_i0q, 4, 225. - y);
@@ -39,7 +39,7 @@ const double c_i1pp[5] = {1.286515211317124e-1, 1.930915272916783e-1, 6.96568929
 const double c_i1qq[6] = {3.309385098860755e-1, 4.878218424097628e-1, 1.663088501568696e-1, 1.473541892809522e-2, 1.964131438571051e-4, -1.034524660214173e-6};
 
 static inline double besseli1(const double x) {
-    const double ax = abs(x);
+    const double ax = fabs(x);
     if (ax < 15.0) {
         const double y = x * x;
         return x * poly(c_i1p, 13, y) / poly(c_i1q, 4, 225. - y);

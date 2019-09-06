@@ -197,16 +197,23 @@ void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
         }
     } else {
         // do the sort by hand...
+        int temp_priority        = priority[id_min];
         FFTW_plan_dim *temp_plan = plan[id_min];
         plan[id_min]             = plan[0];
         plan[0]                  = temp_plan;
+        priority[id_min]         = priority[0];
+        priority[0]              = temp_priority;
 
-        if (priority[0] > priority[3-id_min] && id_min==1) {
+        // printf("priority now = %d %d %d -> idim = %d\n",plan[0]->type(), plan[1]->type(),plan[2]->type());
+
+        if (priority[1] > priority[2]) {
             FFTW_plan_dim *temp_plan = plan[2];
             plan[2]                  = plan[1];
             plan[1]                  = temp_plan;
         }
     }
+
+    UP_CHECK3((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type());
 }
 
 /**
@@ -237,8 +244,9 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
     // Eventually, the finial size of the data will be that of the largest 
     // topo.
     int size_tmp[3];
-    for (int id = 0; id < 3; id++)
+    for (int id = 0; id < 3; id++){
         size_tmp[id] = topo->nglob(id);
+    }
 
     //-------------------------------------------------------------------------
     /** - creates the plans and the intermediate topologies (if not Green).

@@ -296,7 +296,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
                 const size_t id  = localindex_xyz(i0, i1, i2, topo);
                 const double err = sol[id] - rhs[id];
 
-                lerri = max(lerri, abs(err));
+                lerri = max(lerri, fabs(err));
                 lerr2 += (err * err) * h[0] * h[1] * h[2];
             }
         }
