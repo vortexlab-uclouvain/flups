@@ -240,4 +240,20 @@ inline static int get_nloc(const int id, const int iproc, const Topology *topo) 
     return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 
+inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+    // get the global indexes in the axsrc configuration
+    const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
+    // cmpt the shift in axis and the axis for the symstart
+    const int dax0 = (3 + axtrg - axsrc) % 3;
+    const int dax1 = (dax0 + 1) % 3;
+    const int dax2 = (dax0 + 2) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
+    const int ax2  = (ax0 + 2) % 3;
+    // fill the array in the axtrg configuration
+    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
+    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
+    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
+
+}
 #endif

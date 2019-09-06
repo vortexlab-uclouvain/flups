@@ -71,7 +71,7 @@ static inline double _chat_2(const void* params) {
 void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha){
     BEGIN_FUNC
 
-    UP_CHECK0(!(topo->isComplex()),"Green topology cannot been complex");
+    UP_CHECK0(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral");
 
     // assert that the green spacing is not 0.0 everywhere
     UP_CHECK0(hfact[0] != 0.0, "grid spacing cannot be 0");
@@ -118,20 +118,13 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                // exact indexes in global indexing
-                const int ie0 = (istart[ax0] + i0);
-                const int ie1 = (istart[ax1] + i1);
-                const int ie2 = (istart[ax2] + i2);
-
-                // symmetrize indexes
-                const int is0 = (symstart[ax0] == 0.0 || ie0 <= symstart[ax0]) ? ie0 : std::max((int)abs(2 * symstart[ax0] - ie0), 1);
-                const int is1 = (symstart[ax1] == 0.0 || ie1 <= symstart[ax1]) ? ie1 : std::max((int)abs(2 * symstart[ax1] - ie1), 1);
-                const int is2 = (symstart[ax2] == 0.0 || ie2 <= symstart[ax2]) ? ie2 : std::max((int)abs(2 * symstart[ax2] - ie2), 1);
+                int is[3];
+                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
                 // symmetrized position
-                const double x0 = (is0)*hfact[ax0];
-                const double x1 = (is1)*hfact[ax1];
-                const double x2 = (is2)*hfact[ax2];
+                const double x0 = (is[ax0])*hfact[ax0];
+                const double x1 = (is[ax1])*hfact[ax1];
+                const double x2 = (is[ax2])*hfact[ax2];
 
                 // green function value
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
@@ -217,22 +210,19 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 
                 // global indexes
-                const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
-
-                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);    
-                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);    
-                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);    
+                int is[3];
+                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
                 // (symmetrized) wave number : only one kfact is non-zero
-                const double k0 = (is0 + koffset[ax0]) * kfact[ax0];
-                const double k1 = (is1 + koffset[ax1]) * kfact[ax1];
-                const double k2 = (is2 + koffset[ax2]) * kfact[ax2];
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
                 const double k = k0 + k1 + k2;
 
                 //(symmetrized) position : only one hfact is zero
-                const double x0 = (is0) * hfact[ax0];
-                const double x1 = (is1) * hfact[ax1];
-                const double x2 = (is2) * hfact[ax2];
+                const double x0 = (is[ax0]) * hfact[ax0];
+                const double x1 = (is[ax1]) * hfact[ax1];
+                const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
                 // green function value
@@ -277,13 +267,9 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    UP_CHECK0(kfact[ax0] == 0.0, "dk[0] must be 0"); 
-    UP_CHECK0(kfact[ax1] != 0.0, "dk[1] cannot be 0");
-    UP_CHECK0(kfact[ax2] != 0.0, "dk[2] cannot be 0");
-    
-    UP_CHECK0(hfact[ax0] != 0.0, "grid spacing[0] cannot be 0");
-    UP_CHECK0(hfact[ax1] == 0.0, "grid spacing[1] must be 0");
-    UP_CHECK0(hfact[ax2] == 0.0, "grid spacing[2] must be 0");
+    UP_CHECK0(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
+    UP_CHECK0(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]");
+    UP_CHECK0(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]");
 
     // @Todo For Helmolz, we need Green to be complex 
     // UP_CHECK0(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
@@ -326,29 +312,28 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
             size_t id = localindex_ao(0, i1, i2, topo);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
-
-                //symmetries
-                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);
-                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);
-                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);
+                int is[3];
+                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
                 // (symmetrized) wave number : only 1 kfact is zero
-                const double k0 = (is0 + koffset[ax0]) * kfact[ax0];
-                const double k1 = (is1 + koffset[ax1]) * kfact[ax1];
-                const double k2 = (is2 + koffset[ax2]) * kfact[ax2];
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
                 const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
 
                 //(symmetrized) position : only 1 hfact is non-zero
-                const double x = is0 * hfact[ax0] + is1 * hfact[ax1] + is2 * hfact[ax2];
+                const double x = is[ax0] * hfact[ax0] + is[ax1] * hfact[ax1] + is[ax2] * hfact[ax2];
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
-                if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*.2 )
-                    green[id + i0] = .5 * abs(x);  //caution: mistake in [Chatelain2010]
-                else
-                    green[id + i0] = -.5 * exp(-k * x) / k;  
+                if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*0.2 ){
+                    //caution: mistake in [Chatelain2010]
+                    green[id + i0 * topo->nf()] = .5 * fabs(x);
+                }
+                else{
+                    green[id + i0 * topo->nf()] = -.5 * exp(-k * x) / k;
+                }
 
             }
         }
@@ -417,18 +402,13 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
             size_t id = localindex_ao(0, i1, i2, topo);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                // global indexes
-                const int ie[3] = {(istart[ax0] + i0), (istart[ax1] + i1), (istart[ax2] + i2)};
-
-                // symmetrize indexes if required (theoretically never for 3dirspectral)
-                const int is0 = (symstart[ax0] == 0.0 || ie[ax0] <= symstart[ax0]) ? ie[ax0] : std::max((int)abs(2 * symstart[ax0] - ie[ax0]), 1);
-                const int is1 = (symstart[ax1] == 0.0 || ie[ax1] <= symstart[ax1]) ? ie[ax1] : std::max((int)abs(2 * symstart[ax1] - ie[ax1]), 1);
-                const int is2 = (symstart[ax2] == 0.0 || ie[ax2] <= symstart[ax2]) ? ie[ax2] : std::max((int)abs(2 * symstart[ax2] - ie[ax2]), 1);
+                int is[3];
+                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
                 // (symmetrized) wave number
-                const double k0 = (is0+koffset[ax0])*kfact[ax0];
-                const double k1 = (is1+koffset[ax1])*kfact[ax1];
-                const double k2 = (is2+koffset[ax2])*kfact[ax2];
+                const double k0 = (is[ax0]+koffset[ax0])*kfact[ax0];
+                const double k1 = (is[ax1]+koffset[ax1])*kfact[ax1];
+                const double k2 = (is[ax2]+koffset[ax2])*kfact[ax2];
 
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
