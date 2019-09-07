@@ -129,6 +129,48 @@ typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
+namespace FLUPS 
+{ 
+    /**
+     * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded
+     * 
+     */
+    enum BoundaryType {
+        EVEN = 0, /**< EVEN boundary condition = zero flux  */
+        ODD  = 1, /**< ODD boundary condition = zero value */
+        PER  = 3, /**< PERiodic boundary conditions */
+        UNB  = 4  /**< UNBounded boundary condition */
+    };
+
+    /**
+     * @brief The type of Green's function used for the Poisson solver
+     * 
+     */
+    enum GreenType {
+        CHAT_2, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
+        LGF_2,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
+        HEJ_2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
+        HEJ_4,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
+        HEJ_6,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
+    };
+
+        /**
+     * @brief Type of Poisson equation solved
+     * 
+     */
+    enum SolverType {
+        SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
+        VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
+        ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
+        DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    };
+
+    class Solver; 
+    class FFTW_plan_dim;
+    class Topology; 
+    class SwitchTopo;
+} 
+
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
 static const double c_1o4pi    = 1.0 / (4.0 * M_PI);

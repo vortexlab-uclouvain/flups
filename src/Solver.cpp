@@ -11,6 +11,8 @@
 
 #include "Solver.hpp"
 
+using namespace FLUPS;
+
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
@@ -674,7 +676,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     
     _prof->create("solve_domagic");
     _prof->start("solve_domagic");
-    if (type == FLUPS_SRHS) {
+    if (type == SRHS) {
         if (!_topo_hat[2]->isComplex()) {
             //-> there is only the case of 3dirSYM in which we could stay real for the whole process
             if (_nbr_imult == 0)

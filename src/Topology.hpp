@@ -20,7 +20,7 @@
  * A topology describes the layout of the data on the current processor.
  * 
  */
-class Topology {
+class FLUPS::Topology {
    protected:
     int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
     int _rank;       /**<@brief rank of the current process */
@@ -155,7 +155,7 @@ inline static void ranksplit(const int rank, const int nproc[3], int rankd[3]) {
  * @param topo the topology
  * @return int 
  */
-inline static int rankindex(const int rankd[3], const Topology *topo) {
+inline static int rankindex(const int rankd[3], const FLUPS::Topology *topo) {
     return rankd[0] + topo->nproc(0) * (rankd[1] + topo->nproc(1) * rankd[2]);
 }
 
@@ -168,7 +168,7 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param topo 
  * @return size_t 
  */
-inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const Topology *topo) {
+inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const FLUPS::Topology *topo) {
     const int nf = topo->nf();
 
     const int i[3] = {ix, iy, iz};
@@ -188,7 +188,7 @@ inline static size_t localindex_xyz(const int ix, const int iy, const int iz, co
  * @param topo 
  * @return size_t 
  */
-inline static size_t localindex_ao(const int i0, const int i1, const int i2, const Topology *topo) {
+inline static size_t localindex_ao(const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
     const int nf  = topo->nf();
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -206,7 +206,7 @@ inline static size_t localindex_ao(const int i0, const int i1, const int i2, con
  * @param topo 
  * @return size_t 
  */
-inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
+inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
     const int nf   = topo->nf();
     const int i[3] = {i0, i1, i2};
     // compute the shift to perform from the axis reference to
@@ -227,7 +227,7 @@ inline static size_t localindex(const int axis, const int i0, const int i1, cons
  * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
  * @param topo 
  */
-inline static void get_istart_glob(int istart[3], const Topology *topo) {
+inline static void get_istart_glob(int istart[3], const FLUPS::Topology *topo) {
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
@@ -244,7 +244,7 @@ inline static void get_istart_glob(int istart[3], const Topology *topo) {
  * @param iproc the id of the proc in the direction id
  * @param topo the topology
  */
-inline static int get_nloc(const int id, const int iproc, const Topology *topo) {
+inline static int get_nloc(const int id, const int iproc, const FLUPS::Topology *topo) {
     return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 

@@ -35,7 +35,7 @@ typedef int bcoord[3];
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class SwitchTopo {
+class FLUPS::SwitchTopo {
    protected:
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
 
@@ -141,7 +141,7 @@ static inline void localSplit(const int id, const int size[3], const int axtrg, 
  * @param nBlockOnProc the number of block on each proc in the destination topology
  * @param destRank the computed destination rank for each block
  */
-static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *nBlockEachProc,
+static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology *topo, const int *nBlockEachProc,
                                             int *destRank, int *destTag) {
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -209,7 +209,7 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
  * @param blockIDStart the starting point of the block (0,0,0)
  * @param nBlockEachProc the number of procs on each proc
  */
-static inline void cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
+static inline void cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const FLUPS::Topology *topo,
                                      int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);

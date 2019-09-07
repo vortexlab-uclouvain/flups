@@ -12,6 +12,8 @@
 
 #include "hdf5_io.hpp"
 
+using namespace FLUPS;
+
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
 #ifdef DUMP_H5
     xmf_write(topo, filename, "data");

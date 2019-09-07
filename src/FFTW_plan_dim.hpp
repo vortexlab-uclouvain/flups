@@ -16,36 +16,25 @@
 #include "fftw3.h"
 
 /**
- * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded
- * 
- */
-enum BoundaryType {
-    EVEN = 0, /**< EVEN boundary condition = zero flux  */
-    ODD  = 1, /**< ODD boundary condition = zero value */
-    PER  = 3, /**< PERiodic boundary conditions */
-    UNB  = 4  /**< UNBounded boundary condition */
-};
-
-/**
- * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
- * 
- * The integer value associated gives is the priority of processing.
- * We first have to do the real to real transforms, then the padded real to real (mix direction = unbounded + boundary condition),
- * then the periodic (DFT) directions and finally the padded periodic boundary condition.
- * This order is chosen in order to reduce the computational cost.
- */
-enum PlanType {
-    SYMSYM = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
-    MIXUNB = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
-    PERPER = 6, /**< type periodic - periodic: PERPER (6) */
-    UNBUNB = 8  /**< type fully unbounded UU (8) */
-};
-
-/**
  * @brief A FFTW plan in one dimension
  * 
  */
-class FFTW_plan_dim {
+class FLUPS::FFTW_plan_dim {
+    /**
+     * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
+     * 
+     * The integer value associated gives is the priority of processing.
+     * We first have to do the real to real transforms, then the padded real to real (mix direction = unbounded + boundary condition),
+     * then the periodic (DFT) directions and finally the padded periodic boundary condition.
+     * This order is chosen in order to reduce the computational cost.
+     */
+    enum PlanType {
+        SYMSYM = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
+        MIXUNB = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
+        PERPER = 6, /**< type periodic - periodic: PERPER (6) */
+        UNBUNB = 8  /**< type fully unbounded UU (8) */
+    };
+
    protected:
     const bool _isGreen; /**< @brief boolean is true if this plan is for a Green's function */
     const int  _dimID;   /**< @brief the dimension of the plan in the field reference */

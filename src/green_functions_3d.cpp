@@ -26,7 +26,7 @@
 #include "green_functions_3d.hpp"
 
 
-
+using namespace FLUPS;
 
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel

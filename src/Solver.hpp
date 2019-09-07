@@ -28,17 +28,6 @@
 using namespace std;
 
 /**
- * @brief Type of Poisson equation solved
- * 
- */
-enum SolverType {
-    FLUPS_SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
-    FLUPS_VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
-    FLUPS_ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    FLUPS_DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
-};
-
-/**
  * @brief The Poisson solver
  * 
  * A collection of 3 FFTW_plan_dim for the forward and backward FFT transform of
@@ -56,7 +45,7 @@ enum SolverType {
  *  
  * 
  */
-class Solver {
+class FLUPS::Solver {
     // the memory allocation is assumed to be data[iz][iy][ix]
     // so the fastest running index is n[0] then n[1] then n[2]
     // even is the dimension is 2, we allocate arrays of dimension 3

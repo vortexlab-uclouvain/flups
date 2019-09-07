@@ -44,50 +44,50 @@ int main(int argc, char *argv[]) {
         valCase.nglob[2] = size[is] * valCase.L[2];
 
         if(rank==0) printf("\n==============================  FULLY UNBOUNDED TEST ============================================\n");
-        valCase.mybc[0][0] = UNB; valCase.mybc[0][1] = EVEN;
-        valCase.mybc[1][0] = PER; valCase.mybc[1][1] = PER;
-        valCase.mybc[2][0] = UNB; valCase.mybc[2][1] = UNB;
+        valCase.mybc[0][0] = FLUPS::UNB; valCase.mybc[0][1] = FLUPS::UNB;
+        valCase.mybc[1][0] = FLUPS::UNB; valCase.mybc[1][1] = FLUPS::UNB;
+        valCase.mybc[2][0] = FLUPS::UNB; valCase.mybc[2][1] = FLUPS::UNB;
 
         if(rank==0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-        validation_3d(valCase,FLUPS_SRHS,HEJ_2);
+        validation_3d(valCase,FLUPS::SRHS,FLUPS::HEJ_2);
         if(rank==0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-        validation_3d(valCase,FLUPS_SRHS,HEJ_4);
+        validation_3d(valCase,FLUPS::SRHS,FLUPS::HEJ_4);
         if(rank==0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-        validation_3d(valCase,FLUPS_SRHS,HEJ_6);
+        validation_3d(valCase,FLUPS::SRHS,FLUPS::HEJ_6);
         if(rank==0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-        validation_3d(valCase,FLUPS_SRHS,CHAT_2);
+        validation_3d(valCase,FLUPS::SRHS,FLUPS::CHAT_2);
 
         if(rank==0) printf("\n==============================  MIX UNBOUNDED TEST ============================================\n");
         for (int id = 0; id < 3; id++) {
             for (int lr = 0; lr < 2; lr++) {
-                valCase.mybc[0][0] = UNB;
-                valCase.mybc[0][1] = UNB;
-                valCase.mybc[1][0] = UNB;
-                valCase.mybc[1][1] = UNB;
-                valCase.mybc[2][0] = UNB;
-                valCase.mybc[2][1] = UNB;
+                valCase.mybc[0][0] = FLUPS::UNB;
+                valCase.mybc[0][1] = FLUPS::UNB;
+                valCase.mybc[1][0] = FLUPS::UNB;
+                valCase.mybc[1][1] = FLUPS::UNB;
+                valCase.mybc[2][0] = FLUPS::UNB;
+                valCase.mybc[2][1] = FLUPS::UNB;
                 // set to even
-                valCase.mybc[id][lr] = EVEN;
+                valCase.mybc[id][lr] = FLUPS::EVEN;
                 if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_2);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
                 if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_4);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
                 if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_6);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
                 if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, CHAT_2);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
                 // set to odd
-                valCase.mybc[id][lr] = ODD;
+                valCase.mybc[id][lr] = FLUPS::ODD;
                 if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_2);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
                 if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_4);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
                 if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, HEJ_6);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
                 if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                validation_3d(valCase, FLUPS_SRHS, CHAT_2);
+                validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
                 // reset to unbounded
-                valCase.mybc[id][0] = UNB;
+                valCase.mybc[id][0] = FLUPS::UNB;
             }
         }
     }

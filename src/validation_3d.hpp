@@ -25,7 +25,8 @@ struct DomainDescr {
     int          nglob[3]   = {64, 64, 64};
     int          nproc[3]   = {2, 2, 1};
     double       L[3]       = {1.0, 1.0, 1.0};
-    BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+    FLUPS::BoundaryType mybc[3][2] = {{FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}};
+    // BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 };
 
 /**
@@ -33,8 +34,8 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen);
-void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve);
+void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const FLUPS::GreenType typeGreen);
+void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const FLUPS::GreenType typeGreen, const int nSolve);
 /**@} */
 
 
