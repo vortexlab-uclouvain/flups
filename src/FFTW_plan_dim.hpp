@@ -12,7 +12,7 @@
 #define FFTW_PLAN_DIM_HPP
 
 #include "defines.hpp"
-#include "topology.hpp"
+#include "Topology.hpp"
 #include "fftw3.h"
 
 /**

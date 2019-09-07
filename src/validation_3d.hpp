@@ -11,7 +11,7 @@
 #ifndef VALIDATION_3D_HPP
 #define VALIDATION_3D_HPP
 
-#include "FFTW_Solver.hpp"
+#include "Solver.hpp"
 #include "defines.hpp"
 #include "expint.hpp"
 

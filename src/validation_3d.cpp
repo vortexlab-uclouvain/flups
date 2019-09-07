@@ -1,5 +1,5 @@
 /**
- * @file Validation_3d.cpp
+ * @file validation_3d.cpp
  * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "Validation_3d.hpp"
+#include "validation_3d.hpp"
 
 void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen) {
     validation_3d(myCase, type, typeGreen, 1);
@@ -44,7 +44,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    FFTW_Solver *mysolver = new FFTW_Solver(topo, mybc, h, L);
+    Solver *mysolver = new Solver(topo, mybc, h, L);
     mysolver->set_GreenType(typeGreen);
     mysolver->setup();
 
@@ -211,7 +211,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
         } else {
-            UP_ERROR("I don''t know how to generate an analytical solution for this combination of BC.")
+            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.")
         }
     }
 
@@ -251,7 +251,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
-    mysolver->solve(topo, rhs, rhs, UP_SRHS);
+    mysolver->solve(topo, rhs, rhs, FLUPS_SRHS);
 
 
     // lIs = 1.e10, gIs = 0.0;
@@ -317,7 +317,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
             fclose(myfile);
         } else {
-            UP_CHECK1(false, "unable to open file %s", filename);
+            FLUPS_CHECK1(false, "unable to open file %s", filename);
         }
     }
 

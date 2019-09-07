@@ -1,5 +1,5 @@
 /**
- * @file FFTW_Solver.cpp
+ * @file Solver.cpp
  * @author Thomas Gillis
  * @brief 
  * @version
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "FFTW_Solver.hpp"
+#include "Solver.hpp"
 
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
@@ -19,12 +19,12 @@
  * @param h the grid spacing
  * @param L the domain size
  */
-FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]) {
+Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
-    _prof = new Profiler("FFTW_Solver");
+    _prof = new Profiler("Solver");
     _prof->create("init");
     _prof->start("init");
     //-------------------------------------------------------------------------
@@ -34,9 +34,9 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], co
         _hgrid[id] = h[id];
 
     for (int id = 0; id < 3; id++) {
-        _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, false);
-        _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], UP_BACKWARD, false);
-        _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], UP_FORWARD, true);
+        _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, false);
+        _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_BACKWARD, false);
+        _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, true);
     }
 
     _sort_plans(_plan_forward);
@@ -81,7 +81,7 @@ FFTW_Solver::FFTW_Solver(const Topology *topo, const BoundaryType mybc[3][2], co
  * -------------------------------------------
  * We do the following operations
  */
-void FFTW_Solver::setup() {
+void Solver::setup() {
     _prof->start("init");
     //-------------------------------------------------------------------------
     /** - allocate the data for the field and Green */
@@ -113,7 +113,7 @@ void FFTW_Solver::setup() {
  * @brief Destroy the fftw solver
  * 
  */
-FFTW_Solver::~FFTW_Solver() {
+Solver::~Solver() {
     BEGIN_FUNC
     // for Green
     if (_green != NULL) fftw_free(_green);
@@ -137,7 +137,7 @@ FFTW_Solver::~FFTW_Solver() {
  * 
  * @param planmap 
  */
-void FFTW_Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
+void Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -151,7 +151,7 @@ void FFTW_Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
-void FFTW_Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
+void Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -165,7 +165,7 @@ void FFTW_Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
  * 
  * @param topo 
  */
-void FFTW_Solver::_delete_topologies(Topology *topo[3]) {
+void Solver::_delete_topologies(Topology *topo[3]) {
     BEGIN_FUNC
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -179,7 +179,7 @@ void FFTW_Solver::_delete_topologies(Topology *topo[3]) {
  * 
  * @param plan the list of plan, which will be reordered
  */
-void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
+void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
     int id_min, val_min=INT_MAX;
     int priority[3];
     for (int id = 0; id < 3; id++) {
@@ -213,7 +213,7 @@ void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
         }
     }
 
-    UP_CHECK3((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type());
+    FLUPS_CHECK3((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type());
 }
 
 /**
@@ -225,7 +225,7 @@ void FFTW_Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
     BEGIN_FUNC
 
 // @Todo: check that _plan_forward exists before doing _plan_green !
@@ -335,10 +335,10 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
                 // the shift green is taken on the new topo to write to the current_topo
                 const int shift = planmap[ip]->shiftgreen();
                 if (!planmap[ip]->ignoreMode()) {
-                    UP_CHECK0(shift == 0, "If no mode are ignored, you cannot ask for a shift!!");
+                    FLUPS_CHECK0(shift == 0, "If no mode are ignored, you cannot ask for a shift!!");
                 } else {
                     // if we aim at removing a point, we make sure to copy every mode except one
-                    UP_CHECK1((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
+                    FLUPS_CHECK1((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
                 }
 
                 // store the shift and do the mapping
@@ -389,11 +389,11 @@ void FFTW_Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3]
  * @param planmap the list of plans that we need to allocate
  * @param data pointer to data (on which the FFTs will be applied in place)
  */
-void FFTW_Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
+void Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
     BEGIN_FUNC
 
     for (int ip = 0; ip < 3; ip++) {
-        // UP_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
+        // FLUPS_CHECK2(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
         planmap[ip]->allocate_plan(topo[ip], data);
     }
 }
@@ -404,12 +404,12 @@ void FFTW_Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *
  * @param topo the map of successive topos that will be applied to data
  * @param data poiter to the pointer to data
  */
-void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
+void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
-    UP_CHECK0((*data) == NULL, "Pointer has to be NULL for allocation");
+    FLUPS_CHECK0((*data) == NULL, "Pointer has to be NULL for allocation");
 
     //-------------------------------------------------------------------------
     /** - Do the memory allocation */
@@ -427,7 +427,7 @@ void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
-    UP_CHECK1(UP_ISALIGNED(*data), "FFTW alignement not compatible with UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    FLUPS_CHECK1(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
 }
 
 /**
@@ -444,7 +444,7 @@ void FFTW_Solver::_allocate_data(const Topology *const topo[3], double **data) {
  * -----------------------------------
  * We do the following operations
  */
-void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
+void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC
 
     //-------------------------------------------------------------------------
@@ -500,7 +500,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
         }
     }  else {
-        UP_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
+        FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
     }
 
     // dump the green func
@@ -516,7 +516,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            _switchtopo_green[ip]->execute(green, UP_FORWARD);
+            _switchtopo_green[ip]->execute(green, FLUPS_FORWARD);
         }
 
         // execute the plan, if not already spectral
@@ -545,7 +545,7 @@ void FFTW_Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan
  * @param topo the current topo
  * @param data the Green's function
  */
-void FFTW_Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, const bool killModeZero) {
+void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, const bool killModeZero) {
     // the symmetry is done along the fastest rotating index
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -581,15 +581,15 @@ void FFTW_Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data,
  * -----------------------------------------------
  * We perform the following operations:
  */
-void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const SolverType type) {
+void Solver::solve(const Topology *topo, double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    UP_CHECK0(field != NULL, "field is NULL");
-    UP_CHECK0(rhs != NULL, "rhs is NULL");
-    UP_CHECK1(UP_ISALIGNED(field), "pointer no aligned to UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
-    UP_CHECK1(UP_ISALIGNED(rhs), "pointer no aligned to UP_ALIGNMENT (=%d)", UP_ALIGNMENT);
+    FLUPS_CHECK0(field != NULL, "field is NULL");
+    FLUPS_CHECK0(rhs != NULL, "rhs is NULL");
+    FLUPS_CHECK1(FLUPS_ISALIGNED(field), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+    FLUPS_CHECK1(FLUPS_ISALIGNED(rhs), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
 
     opt_double_ptr       myfield = field;
     opt_double_ptr       mydata  = _data;
@@ -624,7 +624,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     int ax1 = (ax0 + 1) % 3;
     int ax2 = (ax0 + 2) % 3;
 
-    UP_CHECK0(!topo->isComplex(), "The RHS topology cannot be complex");
+    FLUPS_CHECK0(!topo->isComplex(), "The RHS topology cannot be complex");
 
     _prof->create("solve_copy");
     _prof->start("solve_copy");
@@ -654,7 +654,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
         // go to the correct topo
         
         _prof->start("solve_reorder");
-        _switchtopo[ip]->execute(mydata, UP_FORWARD);
+        _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
         _prof->stop("solve_reorder");
         // run the FFT
         _prof->start("solve_fftw");
@@ -674,13 +674,13 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
     
     _prof->create("solve_domagic");
     _prof->start("solve_domagic");
-    if (type == UP_SRHS) {
+    if (type == FLUPS_SRHS) {
         if (!_topo_hat[2]->isComplex()) {
             //-> there is only the case of 3dirSYM in which we could stay real for the whole process
             if (_nbr_imult == 0)
                 dothemagic_rhs_real();
             else
-                UP_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
+                FLUPS_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
         } else {
             if (_nbr_imult == 0)
                 dothemagic_rhs_complex_nmult0();
@@ -688,10 +688,10 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             // else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
             // else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
             else
-                UP_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
+                FLUPS_CHECK1(false, "the number of imult = %d is not supported", _nbr_imult);
         }
     } else {
-        UP_CHECK1(false, "type of solver %d not implemented", type);
+        FLUPS_CHECK1(false, "type of solver %d not implemented", type);
     }
 
     _prof->stop("solve_domagic");
@@ -710,7 +710,7 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
             _topo_hat[ip]->switch2real();
         }
         _prof->start("solve_reorder");
-        _switchtopo[ip]->execute(mydata, UP_BACKWARD);
+        _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
         _prof->stop("solve_reorder");
     }
 
@@ -742,11 +742,11 @@ void FFTW_Solver::solve(const Topology *topo, double *field, double *rhs, const 
  * @brief perform the convolution for real to real cases
  * 
  */
-void FFTW_Solver::dothemagic_rhs_real() {
+void Solver::dothemagic_rhs_real() {
     BEGIN_FUNC
 
-    UP_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
-    UP_CHECK0(!_topo_hat[2]->isComplex() && !_topo_green[2]->isComplex(), "field and Green must be in real topos");
+    FLUPS_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
+    FLUPS_CHECK0(!_topo_hat[2]->isComplex() && !_topo_green[2]->isComplex(), "field and Green must be in real topos");
 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
@@ -771,12 +771,12 @@ void FFTW_Solver::dothemagic_rhs_real() {
  * @brief Do the convolution between complex data and complex Green's function in spectral space
  * 
  */
-void FFTW_Solver::dothemagic_rhs_complex_nmult0() {
+void Solver::dothemagic_rhs_complex_nmult0() {
     BEGIN_FUNC
 
     // printf("doing the dothemagic_rhs_complex_nmult0\n");
 
-    UP_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
+    FLUPS_CHECK0(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
@@ -811,25 +811,25 @@ void FFTW_Solver::dothemagic_rhs_complex_nmult0() {
  * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
  * 
  */
-void FFTW_Solver::dothemagic_rhs_complex_nmult1() {
+void Solver::dothemagic_rhs_complex_nmult1() {
     BEGIN_FUNC
-    UP_CHECK0(false, "not implemented yet");
+    FLUPS_CHECK0(false, "not implemented yet");
 }
 
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
  * 
  */
-void FFTW_Solver::dothemagic_rhs_complex_nmult2() {
+void Solver::dothemagic_rhs_complex_nmult2() {
     BEGIN_FUNC
-    UP_CHECK0(false, "not implemented yet");
+    FLUPS_CHECK0(false, "not implemented yet");
 }
 
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
  * 
  */
-void FFTW_Solver::dothemagic_rhs_complex_nmult3() {
+void Solver::dothemagic_rhs_complex_nmult3() {
     BEGIN_FUNC
-    UP_CHECK0(false, "not implemented yet");
+    FLUPS_CHECK0(false, "not implemented yet");
 }

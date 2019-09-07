@@ -1,5 +1,5 @@
 /**
- * @file FFTW_Solver.hpp
+ * @file Solver.hpp
  * @author Thomas Gillis
  * @brief 
  * @version
@@ -16,8 +16,8 @@
 #include <map>
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
-#include "Green_functions_2d.hpp"
-#include "Green_functions_3d.hpp"
+#include "green_functions_2d.hpp"
+#include "green_functions_3d.hpp"
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo.hpp"
@@ -32,10 +32,10 @@ using namespace std;
  * 
  */
 enum SolverType {
-    UP_SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
-    UP_VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
-    UP_ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    UP_DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    FLUPS_SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
+    FLUPS_VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
+    FLUPS_ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
+    FLUPS_DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
 };
 
 /**
@@ -56,7 +56,7 @@ enum SolverType {
  *  
  * 
  */
-class FFTW_Solver {
+class Solver {
     // the memory allocation is assumed to be data[iz][iy][ix]
     // so the fastest running index is n[0] then n[1] then n[2]
     // even is the dimension is 2, we allocate arrays of dimension 3
@@ -145,9 +145,9 @@ class FFTW_Solver {
     /**@} */
 
    public:
-    FFTW_Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]);
-    // FFTW_Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
-    ~FFTW_Solver();
+    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]);
+    // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
+    ~Solver();
 
     void setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
@@ -192,7 +192,7 @@ static inline void _pencil_nproc(const int id, int nproc[3], const int comm_size
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
 
-    UP_CHECK4(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
+    FLUPS_CHECK4(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 }
 
 #endif

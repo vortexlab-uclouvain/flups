@@ -16,7 +16,7 @@
 #include "defines.hpp"
 #include "hdf5_io.hpp"
 #include "mpi.h"
-#include "topology.hpp"
+#include "Topology.hpp"
 #include "Profiler.hpp"
 
 typedef int bcoord[3];

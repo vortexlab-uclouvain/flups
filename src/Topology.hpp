@@ -1,5 +1,5 @@
 /**
- * @file topology.hpp
+ * @file Topology.hpp
  * @author Thomas Gillis & Denis-Gabriel Caprace
  * @brief 
  * @version

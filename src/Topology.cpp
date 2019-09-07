@@ -1,5 +1,5 @@
 /**
- * @file topology.cpp
+ * @file Topology.cpp
  * @author Thomas Gillis & Denis-Gabriel Caprace
  * @brief 
  * @version
@@ -9,7 +9,7 @@
  * 
  */
 
-#include "topology.hpp"
+#include "Topology.hpp"
 
 /**
  * @brief Construct a new Topology
@@ -69,7 +69,7 @@ Topology::~Topology() {}
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC
-    UP_CHECK0(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    FLUPS_CHECK0(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
 
     for (int id = 0; id < 3; id++) {
         const int onglob = other->nglob(id);

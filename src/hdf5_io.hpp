@@ -14,7 +14,7 @@
 
 #include "defines.hpp"
 #include "hdf5.h"
-#include "topology.hpp"
+#include "Topology.hpp"
 
 using namespace std;
 

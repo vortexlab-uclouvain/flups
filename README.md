@@ -71,7 +71,7 @@ Then, you can define a new solver and it's boundary condition
 ```cpp
 // define the solver
 const BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
-FFTW_Solver *      mysolver   = new FFTW_Solver(topo, mybc, h, L);
+Solver *      mysolver   = new Solver(topo, mybc, h, L);
 
 // setup the solver
 mysolver->set_GreenType(HEJ2);
@@ -80,7 +80,7 @@ mysolver->setup();
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(topo, rhs, rhs, UP_SRHS);
+mysolver->solve(topo, rhs, rhs, FLUPS_SRHS);
 ```
 
 Then, destroy the solver

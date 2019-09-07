@@ -1,5 +1,5 @@
 /**
- * @file Green_functions_3d.hpp
+ * @file green_functions_3d.hpp
  * @author Denis-Gabriel Caprace, Thomas Gillis
  * @brief 
  * @version
@@ -10,7 +10,7 @@
  */
 
 #include "defines.hpp"
-#include "topology.hpp"
+#include "Topology.hpp"
 #include "bessel.hpp"
 
 /**

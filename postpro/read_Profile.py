@@ -79,6 +79,6 @@ def plotProfiler_percent(time,name):
     plt.show()
 
 
-timer = readProfiler("FFTW_Solver_128_128_128")
-# plotProfiler_row(timer,"FFTW_Solver_128_128_128")
-plotProfiler_percent(timer,"FFTW_Solver_128_128_128")
+timer = readProfiler("Solver_128_128_128")
+# plotProfiler_row(timer,"Solver_128_128_128")
+plotProfiler_percent(timer,"Solver_128_128_128")
