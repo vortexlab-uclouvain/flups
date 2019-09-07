@@ -78,6 +78,9 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
+    // We use the greatest common divisor, because it is possible that the last proc
+    // in a given direction has a bit more data than the others (which all have
+    // _nbyproc points).
     int* onProc = (int*)fftw_malloc(comm_size * sizeof(int));
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
@@ -319,6 +322,23 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     const int ax2 = (ax0 + 2) % 3;
     const int nf  = topo_in->nf();
 
+    //-------------------------------------------------------------------------
+    /** - generate the reception requests so we are ready to receive */
+    //-------------------------------------------------------------------------
+    for (int ib2 = 0; ib2 < recv_nBlock[ax2]; ib2++) {
+        for (int ib1 = 0; ib1 < recv_nBlock[ax1]; ib1++) {
+            for (int ib0 = 0; ib0 < recv_nBlock[ax0]; ib0++) {
+                // get the block ID
+                const int      bid      = localIndex(ax0, ib0, ib1, ib2, 0, recv_nBlock, 1);
+                opt_double_ptr data     = recvBuf[bid];
+                const int      datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * nf;
+                // generate the request
+                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], MPI_ANY_TAG, MPI_COMM_WORLD, &(recvRequest[bid]));
+            }
+        }
+    }
+
+
     if (_prof != NULL) {
         _prof->start("reorder_mem2buf");
     }
@@ -357,22 +377,6 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     }
     if (_prof != NULL) {
         _prof->stop("reorder_mem2buf");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - generate the reception requests so we are ready to receive */
-    //-------------------------------------------------------------------------
-    for (int ib2 = 0; ib2 < recv_nBlock[ax2]; ib2++) {
-        for (int ib1 = 0; ib1 < recv_nBlock[ax1]; ib1++) {
-            for (int ib0 = 0; ib0 < recv_nBlock[ax0]; ib0++) {
-                // get the block ID
-                const int      bid      = localIndex(ax0, ib0, ib1, ib2, 0, recv_nBlock, 1);
-                opt_double_ptr data     = recvBuf[bid];
-                const int      datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * nf;
-                // generate the request
-                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], MPI_ANY_TAG, MPI_COMM_WORLD, &(recvRequest[bid]));
-            }
-        }
     }
 
     //-------------------------------------------------------------------------
