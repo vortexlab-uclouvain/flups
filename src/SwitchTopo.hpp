@@ -22,9 +22,17 @@
 typedef int bcoord[3];
 
 /**
- * @brief Do the switch between to different topologies
+ * @brief Takes care of the switch between to different topologies
  * 
- * The switch between two topologies is driven by the shift between the topologies.
+ * Reorganize the memory between 2 different topologies, also accounting for a
+ * "principal axis" which is aligned with the fast rotating index.
+ * 
+ * Communications are handled by packing data in blocks (i.e. chuncks). These 
+ * smaller pieces are sent and recieved asynchronesouly, in a hope for reducing
+ * the time required for communication.
+ * 
+ * The a memory shift can be specified in the switch between the topologies, when
+ * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
 class SwitchTopo {
