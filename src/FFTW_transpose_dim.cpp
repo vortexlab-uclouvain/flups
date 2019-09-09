@@ -15,7 +15,7 @@
 
 // FFTW_transpose_dim::FFTW_transpose_dim(int global_size[3],const int nproc)
 // {
-//     BEGIN_FUNC
+//     BEGIN_FUNC;
 
 //     size_t rank;
 //     MPI_Comm_rank(MPI_COMM_WORLD,(int*) &rank);

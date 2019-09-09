@@ -95,7 +95,7 @@ The features used are the object oriented layout and some usefull features of th
 
 #### Conventions
 
-- Put a ```BEGIN_FUNC``` at the begining of each function
+- Put a ```BEGIN_FUNC;``` at the begining of each function
 - how to name an action? ```action_mySuperFunction``` where ```action``` = ```set```, ```get```, ```execute```, ```switch```, ```cmpt```
 - how to name a function? ```mySuperFunction```
 - how to name an class? ```MyClass```

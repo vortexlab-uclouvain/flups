@@ -25,11 +25,11 @@ using namespace FLUPS;
 FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[3], const BoundaryType mybc[2], const int sign, const bool isGreen) : _dimID(dimID),
                                                                                                                                                           _sign(sign),
                                                                                                                                                           _isGreen(isGreen) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    FLUPS_CHECK0(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
+    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
 
     //-------------------------------------------------------------------------
     // Initialisation of the sizes and types
@@ -68,11 +68,11 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
     } else {
-        FLUPS_ERROR("Invalid combination of BCs")
+        FLUPS_ERROR("Invalid combination of BCs");
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim() {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     if (_plan != NULL) fftw_destroy_plan(_plan);
 }
 
@@ -98,7 +98,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
  * @param isComplex the current complex state of the data
  */
 void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
@@ -129,11 +129,11 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
  * We do the following operations:
  */
 void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK0(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -207,7 +207,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
             _koffset = 0.5;
         }
     } else {
-        FLUPS_ERROR("unable to init the solver required\n")
+        FLUPS_ERROR("unable to init the solver required");
     }
 }
 
@@ -221,11 +221,11 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
  * We do the following operations
  */
 void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK0(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
@@ -281,7 +281,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
         } else {
-            FLUPS_ERROR("unable to init the solver required\n")
+            FLUPS_ERROR("unable to init the solver required");
         }
     }
 }
@@ -296,7 +296,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
  * We do the following operations
  */
 void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
@@ -344,7 +344,7 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
  * We do the following operations:
  */
 void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
     //-------------------------------------------------------------------------
@@ -387,7 +387,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
  * @param data the pointer to the transposed data (has to be allocated)
  */
 void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // allocate the plan
     //-------------------------------------------------------------------------
@@ -402,8 +402,7 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
  * @brief Allocate a plan that only treats real numbers
  * 
  * @note
- * The howmany is recomputed if we consider a Green function since it has been symmetrized
- * on the entire domain
+ * The howmany is computed using the memory information provided
  * 
  * @warning
  * If there is a r2c tranform we will perfom upto 2 spurious transform.
@@ -414,7 +413,7 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
  * 
  */
 void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
@@ -428,9 +427,9 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     if (_isGreen && _type == SYMSYM) {
         _plan = NULL;
 
-        INFOLOG("------------------------------------------\n");
-        INFOLOG("## no real to real plan created for Green\n");
-        INFOLOG("------------------------------------------\n");
+        FLUPS_INFO("------------------------------------------");
+        FLUPS_INFO("## no real to real plan created for Green");
+        FLUPS_INFO("------------------------------------------");
         return;
     }
 
@@ -446,39 +445,38 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     int odist   = memsize[_dimID]*topo->nf();
 
     //-------------------------------------------------------------------------
-    /** - If is Green, compute #_howmany  */
+    /** - Compute howmany  */
     //-------------------------------------------------------------------------
-    _howmany = 1;
-    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
+    int howmany = 1;
+    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
-    _plan = fftw_plan_many_r2r(rank, (int*)(&_n_in), _howmany,
+    _plan = fftw_plan_many_r2r(rank, (int*)(&_n_in), howmany,
                                data, NULL, istride, idist,
                                data, NULL, ostride, odist, &_kind, FFTW_FLAG);
 
-    INFOLOG("------------------------------------------\n");
+    FLUPS_INFO("------------------------------------------");
     if (_type == SYMSYM) {
-        INFOLOG2("## SYMSYM plan created for plan r2r (=%d)\n", _type);
+        FLUPS_INFO("## SYMSYM plan created for plan r2r (=%d)", _type);
     } else if (_type == MIXUNB) {
-        INFOLOG2("## MIXUNB plan created for plan mix (=%d)\n", _type);
+        FLUPS_INFO("## MIXUNB plan created for plan mix (=%d)", _type);
     }
-    INFOLOG4("memsize = %d x %d x %d\n", memsize[0], memsize[1], memsize[2]);
-    INFOLOG2("howmany   = %d\n", _howmany);
-    INFOLOG2("size n    = %d\n", _n_in);
-    INFOLOG3("istride (double) = %d - idist = %d\n", istride, idist);
-    INFOLOG3("ostride (double) = %d - odist = %d\n", ostride, odist);
-    INFOLOG("------------------------------------------\n");
+    FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
+    FLUPS_INFO("howmany   = %d", howmany);
+    FLUPS_INFO("size n    = %d", _n_in);
+    FLUPS_INFO("istride (double) = %d - idist = %d", istride, idist);
+    FLUPS_INFO("ostride (double) = %d - odist = %d", ostride, odist);
+    FLUPS_INFO("------------------------------------------");
 }
 
 /**
  * @brief allocate a plan that treats complex numbers (r2c or c2c)
  * 
  * @note
- * The howmany is recomputed if we consider a Green function since it has been symmetrized
- * on the entire domain
+ * The howmany is computed using the memory information provided
  * 
  * @warning
  * If there is a r2c tranform we will perfom upto 2 spurious transform.
@@ -489,7 +487,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
  * @param data memory
  */
 void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
     assert(data != NULL);
 
@@ -498,18 +496,18 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     if (_isGreen && _type == PERPER) {
         _plan = NULL;
 
-        INFOLOG("------------------------------------------\n");
-        INFOLOG("## no DFT plan created for Green\n");
-        INFOLOG("------------------------------------------\n");
+        FLUPS_INFO("------------------------------------------");
+        FLUPS_INFO("## no DFT plan created for Green");
+        FLUPS_INFO("------------------------------------------");
         return;
     }
 
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
-    // if we are green we need to recompute howmany
-    _howmany = 1;
-    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
+    // Compute howmany
+    int howmany = 1;
+    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
 
     // strides
     int istride = 1;
@@ -522,56 +520,43 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         // idist has been obtained from a the incomming size
         odist /= 2;
 
-        INFOLOG("------------------------------------------\n");
+        FLUPS_INFO("------------------------------------------");
         if (_type == PERPER) {
-            INFO2("## R2C plan created for plan periodic-periodic (=%d)\n", _type);
+            FLUPS_INFO("## R2C plan created for plan periodic-periodic (=%d)", _type);
         } else if (_type == UNBUNB) {
-            INFO2("## R2C plan created for plan unbounded (=%d)\n", _type);
+            FLUPS_INFO("## R2C plan created for plan unbounded (=%d)", _type);
         }
-        // INFOLOG2("orderedID = %d\n",_orderID);
+        // FLUPS_INFO("orderedID = %d",_orderID);
         if (_sign == FLUPS_FORWARD) {
-            INFOLOG("FORWARD transfrom\n");
+            FLUPS_INFO("FORWARD transfrom");
         } else if (_sign == FLUPS_BACKWARD) {
-            INFOLOG("BACKWARD transfrom\n");
+            FLUPS_INFO("BACKWARD transfrom");
         }
-        INFOLOG4("memsize = %d x %d x %d\n", memsize[0], memsize[1], memsize[2]);
-        INFOLOG2("dimID     = %d\n", _dimID);
-        INFOLOG2("howmany   = %d\n", _howmany);
-        INFOLOG2("size n    = %d\n", _n_in);
-        INFOLOG3("istride (double)  = %d - idist = %d\n", istride, idist);
-        INFOLOG3("ostride (complex) = %d - odist = %d\n", ostride, odist);
-        INFOLOG("------------------------------------------\n");
+        FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
+        FLUPS_INFO("dimID     = %d", _dimID);
+        FLUPS_INFO("howmany   = %d", howmany);
+        FLUPS_INFO("size n    = %d", _n_in);
+        FLUPS_INFO("istride (double)  = %d - idist = %d", istride, idist);
+        FLUPS_INFO("ostride (complex) = %d - odist = %d", ostride, odist);
+        FLUPS_INFO("------------------------------------------");
 
         // set the plan - there is no offset in r2c or c2c possible
         if (_sign == FLUPS_FORWARD) {
-            _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), _howmany,
+            _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), howmany,
                                            data, NULL, istride, idist,
                                            (fftw_complex*)data, NULL, ostride, odist, FFTW_FLAG);
         } else {
-            _plan = fftw_plan_many_dft_c2r(rank, (int*)(&_n_in), _howmany,
+            _plan = fftw_plan_many_dft_c2r(rank, (int*)(&_n_in), howmany,
                                            (fftw_complex*)data, NULL, ostride, odist,
                                            data, NULL, istride, idist, FFTW_FLAG);
         }
 
     } else {
         // set the plan
-        _plan = fftw_plan_many_dft(rank, (int*)(&_n_in), _howmany,
+        _plan = fftw_plan_many_dft(rank, (int*)(&_n_in), howmany,
                                    (fftw_complex*)data, NULL, istride, idist,
                                    (fftw_complex*)data, NULL, ostride, odist, _sign, FFTW_FLAG);
 
-        // INFOLOG ("------------------------------------------\n");
-        // if      (_type == PERPER) {INFO2("## C2C plan created for plan periodic-periodic (=%d)\n",_type);}
-        // else if (_type == UNBUNB) {INFO2("## C2C plan created for plan unbounded (=%d)\n",_type);}
-        // // INFOLOG2("orderedID = %d\n",_orderID);
-        // if      (_sign == FLUPS_FORWARD){ INFOLOG("FORWARD transfrom\n");}
-        // else if (_sign == FLUPS_BACKWARD){ INFOLOG("BACKWARD transfrom\n");}
-        // INFOLOG4("size = %d x %d x %d\n",memsize[0],memsize[1],memsize[2]);
-        // INFOLOG2("dimID = %d\n",_dimID);
-        // INFOLOG2("howmany = %d\n",_howmany);
-        // INFOLOG2("size n = %d\n",_n_in);
-        // INFOLOG3("istride (complex) = %d - idist = %d\n",istride,idist);
-        // INFOLOG3("ostride (complex) = %d - odist = %d\n",ostride,odist);
-        // INFOLOG ("------------------------------------------\n");
     }
 }
 
@@ -580,19 +565,19 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
  * 
  */
 void FFTW_plan_dim::execute_plan() {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
-    FLUPS_CHECK0(!_isSpectral,"Trying to execute a plan for data which is already spectral");
+    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral");
 
     // run the plan
     if (_type == SYMSYM) {
-        INFO2(">> Doing plan real2real for dim %d\n", _dimID);
+        FLUPS_INFO(">> Doing plan real2real for dim %d", _dimID);
     } else if (_type == MIXUNB) {
-        INFO2(">> Doing plan mix for dim %d\n", _dimID);
+        FLUPS_INFO(">> Doing plan mix for dim %d", _dimID);
     } else if (_type == PERPER) {
-        INFO2(">> Doing plan periodic-periodic for dim %d\n", _dimID);
+        FLUPS_INFO(">> Doing plan periodic-periodic for dim %d", _dimID);
     } else if (_type == UNBUNB) {
-        INFO2(">> Doing plan unbounded for dim %d\n", _dimID);
+        FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
     }
     fftw_execute(_plan);
 }
@@ -602,76 +587,75 @@ void FFTW_plan_dim::execute_plan() {
  * 
  */
 void FFTW_plan_dim::disp() {
-    BEGIN_FUNC
-    INFO("------------------------------------------\n");
-    INFO2("## Plan num created for dimension %d\n", _dimID);
+    BEGIN_FUNC;
+    FLUPS_INFO("------------------------------------------");
+    FLUPS_INFO("## Plan num created for dimension %d", _dimID);
     if (_type == SYMSYM) {
-        INFO2("- type = real2real (=%d)\n", _type);
+        FLUPS_INFO("- type = real2real (=%d)", _type);
     } else if (_type == MIXUNB) {
-        INFO2("- type = mix (=%d)\n", _type);
+        FLUPS_INFO("- type = mix (=%d)", _type);
     } else if (_type == PERPER) {
-        INFO2("- type = periodic-periodic (=%d)\n", _type);
+        FLUPS_INFO("- type = periodic-periodic (=%d)", _type);
     } else if (_type == UNBUNB) {
-        INFO2("- type = unbounded (=%d)\n", _type);
+        FLUPS_INFO("- type = unbounded (=%d)", _type);
     }
     if (_bc[0] == EVEN) {
-        INFO("- bc = { EVEN ,");
+        FLUPS_INFO("- bc = { EVEN ,");
     } else if (_bc[0] == ODD) {
-        INFO("- bc = { ODD  ,");
+        FLUPS_INFO("- bc = { ODD  ,");
     } else if (_bc[0] == UNB) {
-        INFO("- bc = { UNB  ,");
+        FLUPS_INFO("- bc = { UNB  ,");
     } else if (_bc[0] == PER) {
-        INFO("- bc = { PER  ,");
+        FLUPS_INFO("- bc = { PER  ,");
     }
     if (_bc[1] == EVEN) {
-        INFO(" EVEN}\n");
+        FLUPS_INFO(" EVEN}");
     } else if (_bc[1] == ODD) {
-        INFO(" ODD}\n");
+        FLUPS_INFO(" ODD}");
     } else if (_bc[1] == UNB) {
-        INFO(" UNB}\n");
+        FLUPS_INFO(" UNB}");
     } else if (_bc[1] == PER) {
-        INFO(" PER}\n");
+        FLUPS_INFO(" PER}");
     }
     if (_type == SYMSYM || _type == MIXUNB) {
         if (_kind == FFTW_REDFT00) {
-            INFO("- kind = REDFT00 = DCT type I\n")
+            FLUPS_INFO("- kind = REDFT00 = DCT type I");
         }
         if (_kind == FFTW_REDFT10) {
-            INFO("- kind = REDFT10 = DCT type II\n")
+            FLUPS_INFO("- kind = REDFT10 = DCT type II");
         }
         if (_kind == FFTW_REDFT01) {
-            INFO("- kind = REDFT01 = DCT type III\n")
+            FLUPS_INFO("- kind = REDFT01 = DCT type III");
         }
         if (_kind == FFTW_REDFT11) {
-            INFO("- kind = REDFT11 = DCT type IV\n")
+            FLUPS_INFO("- kind = REDFT11 = DCT type IV");
         }
         if (_kind == FFTW_RODFT00) {
-            INFO("- kind = RODFT00 = DST type I\n")
+            FLUPS_INFO("- kind = RODFT00 = DST type I");
         }
         if (_kind == FFTW_RODFT10) {
-            INFO("- kind = RODFT10 = DST type II\n")
+            FLUPS_INFO("- kind = RODFT10 = DST type II");
         }
         if (_kind == FFTW_RODFT01) {
-            INFO("- kind = RODFT01 = DST type III\n")
+            FLUPS_INFO("- kind = RODFT01 = DST type III");
         }
         if (_kind == FFTW_RODFT11) {
-            INFO("- kind = RODFT11 = DST type IV\n")
+            FLUPS_INFO("- kind = RODFT11 = DST type IV");
         }
     }
-    INFO2("- dimID      = %d\n", _dimID);
-    INFO2("- is Green   ? %d\n", _isGreen);
-    INFO2("- s2Complex  ? %d\n", _isr2c);
-    INFO2("- n_in       = %d\n", _n_in);
-    INFO2("- n_out      = %d\n", _n_out);
-    INFO2("- howmany    = %d\n", _howmany);
-    INFO2("- fieldstart = %d\n", _fieldstart);
-    INFO2("- shiftgreen = %d\n", _shiftgreen);
-    INFO2("- isSpectral ? %d\n", _isSpectral);
+    FLUPS_INFO("- dimID      = %d", _dimID);
+    FLUPS_INFO("- is Green   ? %d", _isGreen);
+    FLUPS_INFO("- s2Complex  ? %d", _isr2c);
+    FLUPS_INFO("- n_in       = %d", _n_in);
+    FLUPS_INFO("- n_out      = %d", _n_out);
+    FLUPS_INFO("- fieldstart = %d", _fieldstart);
+    FLUPS_INFO("- shiftgreen = %d", _shiftgreen);
+    FLUPS_INFO("- isSpectral ? %d", _isSpectral);
     if (_sign == FLUPS_FORWARD) {
-        INFO("- FORWARD plan\n");
+        FLUPS_INFO("- FORWARD plan");
     } else if (_sign == FLUPS_BACKWARD) {
-        INFO("- BACKWARD plan\n");
+        FLUPS_INFO("- BACKWARD plan");
     }
 
-    INFO("------------------------------------------\n");
+    FLUPS_INFO("------------------------------------------");
 }

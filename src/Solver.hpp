@@ -181,7 +181,7 @@ static inline void _pencil_nproc(const int id, int nproc[3], const int comm_size
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
 
-    FLUPS_CHECK4(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 }
 
 #endif

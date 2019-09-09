@@ -23,7 +23,7 @@ using namespace FLUPS;
  * @param isComplex indicate if the Topology uses complex indexing or not
  */
 Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &_comm_size);
@@ -70,8 +70,8 @@ Topology::~Topology() {}
  * @param end the end index to use in the current topo
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
-    BEGIN_FUNC
-    FLUPS_CHECK0(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    BEGIN_FUNC;
+    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
 
     for (int id = 0; id < 3; id++) {
         const int onglob = other->nglob(id);
@@ -162,18 +162,18 @@ void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], 
  * 
  */
 void Topology::disp() const {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
-    INFO("------------------------------------------\n");
-    INFO3("## Topology created on proc %d/%d", _rank, _comm_size);
-    INFO2(" - axis = %d\n", _axis);
-    INFO4(" - nglob = %d %d %d\n", _nglob[0], _nglob[1], _nglob[2]);
-    INFO4(" - nloc = %d %d %d\n", _nloc[0], _nloc[1], _nloc[2]);
-    INFO4(" - nproc = %d %d %d\n", _nproc[0], _nproc[1], _nproc[2]);
-    INFO4(" - rankd = %d %d %d\n", _rankd[0], _rankd[1], _rankd[2]);
-    INFO4(" - nbyproc = %d %d %d\n", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
-    INFO2(" - isComplex = %d\n", _nf == 2);
-    // INFO4(" - h = %f %f %f\n",_h[0],_h[1],_h[2]);
-    // INFO4(" - L = %f %f %f\n",_L[0],_L[1],_L[2]);
-    INFO("------------------------------------------\n");
+    FLUPS_INFO("------------------------------------------");
+    FLUPS_INFO("## Topology created on proc %d/%d", _rank, _comm_size);
+    FLUPS_INFO(" - axis = %d", _axis);
+    FLUPS_INFO(" - nglob = %d %d %d", _nglob[0], _nglob[1], _nglob[2]);
+    FLUPS_INFO(" - nloc = %d %d %d", _nloc[0], _nloc[1], _nloc[2]);
+    FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
+    FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
+    FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
+    FLUPS_INFO(" - isComplex = %d", _nf == 2);
+    // FLUPS_INFO(" - h = %f %f %f",_h[0],_h[1],_h[2]);
+    // FLUPS_INFO(" - L = %f %f %f",_L[0],_L[1],_L[2]);
+    FLUPS_INFO("------------------------------------------");
 }

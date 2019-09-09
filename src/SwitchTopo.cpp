@@ -53,9 +53,9 @@
 using namespace FLUPS;
 
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
-    FLUPS_CHECK0(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
+    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
 
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -145,7 +145,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
                 const size_t send_bid = localIndex(0, ib0, ib1, ib2, 0, _inBlock, 1);
                 // allocate at the correct size
                 _sendBuf[send_bid] = (double*)fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
-                FLUPS_CHECK1(FLUPS_ISALIGNED(_sendBuf[send_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+                FLUPS_CHECK(FLUPS_ISALIGNED(_sendBuf[send_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
             }
         }
     }
@@ -156,7 +156,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
                 const size_t recv_bid = localIndex(0, ib0, ib1, ib2, 0, _onBlock, 1);
                 // allocate at the correct size
                 _recvBuf[recv_bid] = (double*)fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
-                FLUPS_CHECK1(FLUPS_ISALIGNED(_recvBuf[recv_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+                FLUPS_CHECK(FLUPS_ISALIGNED(_recvBuf[recv_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
             }
         }
     }
@@ -234,9 +234,9 @@ SwitchTopo::~SwitchTopo() {
  * We do the following:
  */
 void SwitchTopo::execute(opt_double_ptr v, const int sign) {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
-    FLUPS_CHECK0(_topo_in->isComplex() == _topo_out->isComplex(),
+    FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),
               "both topologies have to be complex or real");
 
     int rank, comm_size;
@@ -313,11 +313,11 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             onloc[id]       = _topo_in->nloc(id);
         }
     } else {
-        FLUPS_CHECK0(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
+        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
     }
 
-    INFOLOG5("previous topo: %d,%d,%d axis=%d\n", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
-    INFOLOG5("new topo: %d,%d,%d  axis=%d\n", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
+    FLUPS_INFO("previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
+    FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
 
     const int ax0 = topo_in->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -432,7 +432,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                         v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
                     }
                 } else {
-                    FLUPS_CHECK0(false, "the value of nf is not supported")
+                    FLUPS_CHECK(false, "the value of nf is not supported");
                 }
             }
         }
@@ -443,26 +443,26 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 }
 
 void SwitchTopo::disp() {
-    BEGIN_FUNC
-    INFO("------------------------------------------\n");
-    INFO("## Topo Swticher MPI\n");
-    INFO("--- INPUT\n");
-    INFO2("  - input axis = %d\n", _topo_in->axis());
-    INFO4("  - input local = %d %d %d\n", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
-    INFO4("  - input global = %d %d %d\n", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
-    INFO4("  - istart = %d %d %d\n", _istart[0], _istart[1], _istart[2]);
-    INFO4("  - iend = %d %d %d\n", _iend[0], _iend[1], _iend[2]);
-    INFO("--- OUTPUT\n");
-    INFO2("  - output axis = %d\n", _topo_out->axis());
-    INFO4("  - output local = %d %d %d\n", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
-    INFO4("  - output global = %d %d %d\n", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
-    INFO4("  - ostart = %d %d %d\n", _ostart[0], _ostart[1], _ostart[2]);
-    INFO4("  - oend = %d %d %d\n", _oend[0], _oend[1], _oend[2]);
-    INFO("------------------------------------------\n");
+    BEGIN_FUNC;
+    FLUPS_INFO("------------------------------------------");
+    FLUPS_INFO("## Topo Swticher MPI");
+    FLUPS_INFO("--- INPUT");
+    FLUPS_INFO("  - input axis = %d\n", _topo_in->axis());
+    FLUPS_INFO("  - input local = %d %d %d\n", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
+    FLUPS_INFO("  - input global = %d %d %d\n", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
+    FLUPS_INFO("  - istart = %d %d %d\n", _istart[0], _istart[1], _istart[2]);
+    FLUPS_INFO("  - iend = %d %d %d\n", _iend[0], _iend[1], _iend[2]);
+    FLUPS_INFO("--- OUTPUT");
+    FLUPS_INFO("  - output axis = %d\n", _topo_out->axis());
+    FLUPS_INFO("  - output local = %d %d %d\n", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
+    FLUPS_INFO("  - output global = %d %d %d\n", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
+    FLUPS_INFO("  - ostart = %d %d %d\n", _ostart[0], _ostart[1], _ostart[2]);
+    FLUPS_INFO("  - oend = %d %d %d\n", _oend[0], _oend[1], _oend[2]);
+    FLUPS_INFO("------------------------------------------");
 }
 
 void SwitchTopo_test() {
-    BEGIN_FUNC
+    BEGIN_FUNC;
 
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -492,15 +492,15 @@ void SwitchTopo_test() {
     hdf5_dump(topo, "test_real", data);
 
     const int fieldstart[3] = {0, 0, 0};
-    // printf("\n\n=============================\n");
+    // printf("\n\n=============================");
     SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
 
-    // printf("\n\n============ FORWARD =================\n");
+    // printf("\n\n============ FORWARD =================");
     switchtopo->execute(data, FLUPS_FORWARD);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
-    // printf("\n\n============ BACKWARD =================\n");
+    // printf("\n\n============ BACKWARD =================");
     switchtopo->execute(data, FLUPS_BACKWARD);
 
     hdf5_dump(topo, "test_real_returned", data);
@@ -535,7 +535,7 @@ void SwitchTopo_test() {
     // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
     const int fieldstart2[3] = {4, 0, 0};
-    // printf("\n=============================\n");
+    // printf("\n=============================");
     switchtopo = new SwitchTopo(topo, topobig, fieldstart2, NULL);
 
     switchtopo->execute(data, FLUPS_FORWARD);

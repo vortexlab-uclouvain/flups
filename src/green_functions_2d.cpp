@@ -32,13 +32,13 @@
  * @param green 
  */
 void Green_2D_3dirunbounded_0dirspectral_chat2(const int size[3],const double hfact[3],double* green){
-    BEGIN_FUNC
+    BEGIN_FUNC;
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
     assert(hfact[1] != 0.0);
     assert(hfact[2] == 0.0); // since we are 2d
 
-    INFOLOG("assigning Chatelain second order to Green function\n");
+    FLUPS_INFO("assigning Chatelain second order to Green function\n");
 
     for(int i2=0; i2<size[2]; i2++){
         for(int i1=0; i1<size[1]; i1++){
@@ -82,7 +82,7 @@ void Green_2D_3dirunbounded_0dirspectral_chat2(const int size[3],const double hf
  * @param alpha regularization parameter
  */
 void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfact[3],double* green,const double alpha){
-    BEGIN_FUNC
+    BEGIN_FUNC;
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
     assert(hfact[1] != 0.0);
@@ -134,7 +134,7 @@ void Green_2D_3dirunbounded_0dirspectral_hej2(const int size[3],const double hfa
  * @param alpha regularization parameter
  */
 void Green_2D_3dirunbounded_0dirspectral_hej4(const int size[3],const double hfact[3],double* green,const double alpha){
-    BEGIN_FUNC
+    BEGIN_FUNC;
     // assert that the green spacing is not 0.0 everywhere
     assert(hfact[0] != 0.0);
     assert(hfact[1] != 0.0);

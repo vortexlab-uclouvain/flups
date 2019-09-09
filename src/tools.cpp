@@ -26,7 +26,7 @@ void write_info(const int nx,const int ny, const string array_name)
     }
     else
     {
-        printf("WARNING couldn't open file %s!!\n",info_name.c_str());
+        printf("WARNING couldn't open file %s!!",info_name.c_str());
     }
 }
 
@@ -43,7 +43,7 @@ void write_data_real(const int nx,const int ny, const double* array, const strin
     }
     else
     {
-        printf("WARNING couldn't open file %s!!\n",data_name.c_str());
+        printf("WARNING couldn't open file %s!!",data_name.c_str());
     }
 }
 void write_data_complex(const int nx,const int ny, const fftw_complex* array, const string array_name)
@@ -68,6 +68,6 @@ void write_data_complex(const int nx,const int ny, const fftw_complex* array, co
     }
     else
     {
-        printf("WARNING couldn't open file %s or %s!!\n",data_name_real.c_str(),data_name_imag.c_str());
+        printf("WARNING couldn't open file %s or %s!!",data_name_real.c_str(),data_name_imag.c_str());
     }
 }
