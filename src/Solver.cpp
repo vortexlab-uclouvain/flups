@@ -106,7 +106,6 @@ void Solver::setup() {
     //-------------------------------------------------------------------------
     /** - delete the useless data for Green */
     //-------------------------------------------------------------------------
-    _delete_plans(_plan_green);
     _delete_switchtopos(_switchtopo_green);
     _prof->stop("init");
 }
@@ -119,6 +118,7 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) fftw_free(_green);
+    _delete_plans(_plan_green);
     _delete_topologies(_topo_green);
 
     // for the field
@@ -338,7 +338,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // the shift green is taken on the new topo to write to the current_topo
                 const int shift = planmap[ip]->shiftgreen();
                 if (!planmap[ip]->ignoreMode()) {
-                    FLUPS_CHECK(shift == 0, "If no mode are ignored, you cannot ask for a shift!!");
+                    FLUPS_CHECK(shift == 0, "If no modes are ignored, you cannot ask for a shift!!");
                 } else {
                     // if we aim at removing a point, we make sure to copy every mode except one
                     FLUPS_CHECK((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
@@ -758,11 +758,14 @@ void Solver::dothemagic_rhs_real() {
     const int ax0 = _topo_hat[2]->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
+    
+    const int shiftgreen = _plan_green[2]->shiftgreen(); 
+    //we might still need to get the right part of the green function in odd cases, if this was not done befire by a switchtopo
 
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
+            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]) + shiftgreen;
 
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
                 mydata[id+i0] *= _normfact * mygreen[id_green+i0];
