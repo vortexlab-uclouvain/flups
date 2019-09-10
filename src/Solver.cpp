@@ -120,10 +120,10 @@ void Solver::setup() {
     _cmptGreenFunction(_topo_green, _green, _plan_green);
 
     //-------------------------------------------------------------------------
-    /** - delete the useless data for Green */
+    /** - Finalize the Green's function by doing a last switch to the field
+     * topo and clean allocated topo and plans */
     //-------------------------------------------------------------------------
-    _delete_plans(_plan_green);
-    _delete_switchtopos(_switchtopo_green);
+    _finalizeGreenFunction(_topo_hat,_green,_topo_green,_switchtopo_green,_plan_green);
     _prof->stop("init");
 }
 
@@ -135,7 +135,6 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) fftw_free(_green);
-    _delete_topologies(_topo_green);
 
     // for the field
     _delete_plans(_plan_forward);
@@ -355,7 +354,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // the shift green is taken on the new topo to write to the current_topo
                 const int shift = planmap[ip]->shiftgreen();
                 if (!planmap[ip]->ignoreMode()) {
-                    FLUPS_CHECK(shift == 0, "If no mode are ignored, you cannot ask for a shift!!");
+                    FLUPS_CHECK(shift == 0, "If no modes are ignored, you cannot ask for a shift!!");
                 } else {
                     // if we aim at removing a point, we make sure to copy every mode except one
                     FLUPS_CHECK((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
@@ -593,6 +592,34 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     }
 }
 
+void Solver::_finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3],SwitchTopo* switchtopo[3], FFTW_plan_dim* plans[3])
+{   
+    // if needed, we create a new switchTopo from the current Green topo to the field one
+    if(plans[2]->ignoreMode()){
+        const int dimID = plans[2]->dimID();
+        // get the shift
+        int fieldstart[3] = {0};
+        fieldstart[dimID] = - plans[2]->shiftgreen();
+        // we do the link between topo[2] of Green and the field topo
+        SwitchTopo* switchtopo= new SwitchTopo(topo[2], topo_field[2], fieldstart,NULL);
+        // execute the switchtopo
+        switchtopo->execute(green,FLUPS_FORWARD);
+    }
+    else{
+        FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nloc(0) == topo[2]->nloc(0), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nloc(1) == topo[2]->nloc(1), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nloc(2) == topo[2]->nloc(2), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nglob(0) == topo[2]->nglob(0), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field");
+    }
+    // delete everything since it is no more needed
+    _delete_topologies(topo);
+    _delete_switchtopos(switchtopo);
+    _delete_plans(plans);
+}
+
 /**
  * @brief Solve the Poisson equation
  * 
@@ -631,15 +658,6 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
-    // FLUPS_INFO("------------------------------------------");
-    // FLUPS_INFO("## memory information\n")
-    // FLUPS_INFO("- size field   = %d %d %d", _size_field[0], _size_field[1], _size_field[2]);
-    // FLUPS_INFO("- size hat     = %d %d %d", _size_hat[0], _size_hat[1], _size_hat[2]);
-    // FLUPS_INFO("- dim order    = %d %d %d", _dimorder[0], _dimorder[1], _dimorder[2]);
-    // FLUPS_INFO("- field start  = %d %d %d", _fieldstart[0], _fieldstart[1], _fieldstart[2]);
-    // FLUPS_INFO("- dim multfact = %d %d %d", _dim_multfact[0], _dim_multfact[1], _dim_multfact[2]);
-    // FLUPS_INFO("- offset       = %ld", _offset);
-    // FLUPS_INFO("------------------------------------------");
 
     int ax0 = topo->axis();
     int ax1 = (ax0 + 1) % 3;
@@ -648,19 +666,12 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     FLUPS_CHECK(!topo->isComplex(), "The RHS topology cannot be complex");
 
     _prof->create("solve_copy");
+    const int nmax_for = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
     _prof->start("solve_copy");
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            // comnpute the index permutation
-            size_t id= localindex_ao(0, i1, i2, topo);
-            // the last direction is continuous in memory
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) { 
-                mydata[id] = myrhs[id];
-                id ++;
-            }
-        }
+    #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_for, mydata, myrhs)
+    for(int i=0; i<nmax_for; i++){
+        mydata[i] = myrhs[i];
     }
-
     _prof->stop("solve_copy");
 
 #ifdef DUMP_H5
@@ -738,17 +749,11 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
+    const int nmax_back = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
     _prof->start("solve_copy");
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            // comnpute the index permutation
-            size_t id= localindex_ao(0, i1, i2, topo);
-            // the last direction is continuous in memory
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) { 
-                myfield[id] = mydata[id];
-                id ++;
-            }
-        }
+    #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_back, mydata, myfield)
+    for(int i=0; i<nmax_back; i++){
+        myfield[i] = mydata[i];
     }
     _prof->stop("solve_copy");
     // io if needed
@@ -766,18 +771,8 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
 void Solver::dothemagic_rhs_real() {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
-    FLUPS_CHECK(!_topo_hat[2]->isComplex() && !_topo_green[2]->isComplex(), "field and Green must be in real topos");
-    FLUPS_CHECK(_topo_hat[2]->nloc(0)==_topo_green[2]->nloc(0),"topologies hat and green need to have the nloc(0)");
-    FLUPS_CHECK(_topo_hat[2]->nloc(1)==_topo_green[2]->nloc(1),"topologies hat and green need to have the nloc(1)");
-    FLUPS_CHECK(_topo_hat[2]->nloc(2)==_topo_green[2]->nloc(2),"topologies hat and green need to have the nloc(2)");
-
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
-
-    const int ax0 = _topo_hat[2]->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
 
     const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) \
@@ -794,19 +789,8 @@ void Solver::dothemagic_rhs_real() {
 void Solver::dothemagic_rhs_complex_nmult0() {
     BEGIN_FUNC;
 
-    // printf("doing the dothemagic_rhs_complex_nmult0");
-
-    FLUPS_CHECK(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
-    FLUPS_CHECK(_topo_hat[2]->nloc(0) == _topo_green[2]->nloc(0), "topologies hat and green need to have the nloc(0)");
-    FLUPS_CHECK(_topo_hat[2]->nloc(1) == _topo_green[2]->nloc(1), "topologies hat and green need to have the nloc(1)");
-    FLUPS_CHECK(_topo_hat[2]->nloc(2) == _topo_green[2]->nloc(2), "topologies hat and green need to have the nloc(2)");
-
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
-
-    const int ax0 = _topo_hat[2]->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
 
     const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) \

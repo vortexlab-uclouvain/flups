@@ -124,22 +124,19 @@ static inline size_t localIndex(const int axsrc, const int i0, const int i1, con
  * @param idv the indexes along each directions
  */
 static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
-    const int ax0 = axtrg;
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    const int size0 = (size[ax0]*nf);
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int ax2   = (ax0 + 2) % 3;
+    const int size0 = (size[ax0] * nf);
 
     idv[ax0] = id % size0;
     idv[ax1] = (id % (size0 * size[ax1])) / size0;
     idv[ax2] = id / (size0 * size[ax1]);
 }
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0,int *id1,int *id2, const int nf) {
-    const int ax0 = axtrg;
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    const int size0 = (size[ax0]*nf);
+static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int size0 = (size[ax0] * nf);
 
     (*id0) = id % size0;
     (*id1) = (id % (size0 * size[ax1])) / size0;
