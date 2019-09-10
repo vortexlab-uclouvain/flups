@@ -604,6 +604,8 @@ void Solver::_finalizeGreenFunction(Topology* topo_field[3],double* green, Topol
         SwitchTopo* switchtopo= new SwitchTopo(topo[2], topo_field[2], fieldstart,NULL);
         // execute the switchtopo
         switchtopo->execute(green,FLUPS_FORWARD);
+        // delete it since it is useless
+        delete(switchtopo);
     }
     else{
         FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field");
