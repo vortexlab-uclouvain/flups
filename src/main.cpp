@@ -26,7 +26,15 @@ int main(int argc, char *argv[]) {
 
     int rank;
 
-    MPI_Init(&argc, &argv);
+    // MPI_Init(&argc, &argv);
+    int provided;
+    // set MPI_THREAD_MULTIPLE or MPI_THREAD_SERIALIZED
+    int requested = MPI_THREAD_SERIALIZED;
+    MPI_Init_thread(&argc, &argv, requested, &provided);
+    if(provided < requested){
+        FLUPS_ERROR("The MPI-provided thread behavior does not match");
+    }
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // int nsample = 3; int size[3] = {16, 32, 64};

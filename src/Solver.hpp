@@ -24,6 +24,7 @@
 #include "tools.hpp"
 
 #include "Profiler.hpp"
+#include "omp.h"
 
 using namespace std;
 

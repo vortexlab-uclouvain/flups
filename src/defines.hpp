@@ -286,7 +286,7 @@ static inline void FLUPS_CHECK(bool a, char* b, T1 c, T2 d, T3 e, T4 f, T5 g, T6
 #define FLUPS_FORWARD -1  // = FFTW_FORWARD
 #define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
 
-#define FLUPS_ALIGNMENT 16
+#define FLUPS_ALIGNMENT 32
 
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {

@@ -23,6 +23,22 @@ using namespace FLUPS;
  */
 Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]) {
     BEGIN_FUNC;
+
+    //-------------------------------------------------------------------------
+    /** - Initialize the OpenMP threads */
+    //-------------------------------------------------------------------------
+    fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_max_threads());
+
+    //-------------------------------------------------------------------------
+    /** - Check if we can use the omp_malloc with the predefined alignement */
+    //-------------------------------------------------------------------------
+    double * data = (double*) fftw_malloc(10*FLUPS_ALIGNMENT);
+    if(!FLUPS_ISALIGNED(data)){
+        FLUPS_ERROR("Pre-defined data alignement is not compatible with FFTW");
+    }
+    fftw_free(data);
+
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
@@ -132,6 +148,7 @@ Solver::~Solver() {
     if(_prof!=NULL) delete(_prof);
 
     //cleanup
+    fftw_cleanup_threads();
     fftw_cleanup();
 }
 /**
@@ -347,7 +364,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart,_prof);
+                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart,NULL);
             }
 
             // Go to real data if the FFT is really done on green's array.
@@ -751,6 +768,9 @@ void Solver::dothemagic_rhs_real() {
 
     FLUPS_CHECK(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
     FLUPS_CHECK(!_topo_hat[2]->isComplex() && !_topo_green[2]->isComplex(), "field and Green must be in real topos");
+    FLUPS_CHECK(_topo_hat[2]->nloc(0)==_topo_green[2]->nloc(0),"topologies hat and green need to have the nloc(0)");
+    FLUPS_CHECK(_topo_hat[2]->nloc(1)==_topo_green[2]->nloc(1),"topologies hat and green need to have the nloc(1)");
+    FLUPS_CHECK(_topo_hat[2]->nloc(2)==_topo_green[2]->nloc(2),"topologies hat and green need to have the nloc(2)");
 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
@@ -759,15 +779,11 @@ void Solver::dothemagic_rhs_real() {
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
-    for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
-        for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
-            size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
-
-            for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
-                mydata[id+i0] *= _normfact * mygreen[id_green+i0];
-            }
-        }
+    const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) \
+    firstprivate(nmax, _normfact, mydata, mygreen)
+    for (size_t i = 0; i < nmax; i++) {
+        mydata[i] *= _normfact * mygreen[i];
     }
 }
 
@@ -781,6 +797,9 @@ void Solver::dothemagic_rhs_complex_nmult0() {
     // printf("doing the dothemagic_rhs_complex_nmult0");
 
     FLUPS_CHECK(_topo_hat[2]->axis() == _topo_green[2]->axis(), "field and Green must have the same axis");
+    FLUPS_CHECK(_topo_hat[2]->nloc(0) == _topo_green[2]->nloc(0), "topologies hat and green need to have the nloc(0)");
+    FLUPS_CHECK(_topo_hat[2]->nloc(1) == _topo_green[2]->nloc(1), "topologies hat and green need to have the nloc(1)");
+    FLUPS_CHECK(_topo_hat[2]->nloc(2) == _topo_green[2]->nloc(2), "topologies hat and green need to have the nloc(2)");
 
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr mygreen = _green;
@@ -789,25 +808,17 @@ void Solver::dothemagic_rhs_complex_nmult0() {
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
-    for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
-        for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
-            size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
-
-            for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
-                const double a = mydata[id + 0];
-                const double b = mydata[id + 1];
-                const double c = mygreen[id_green + 0];
-                const double d = mygreen[id_green + 1];
-
-                // update the values
-                mydata[id + 0] = _normfact * (a * c - b * d);
-                mydata[id + 1] = _normfact * (a * d + b * c);
-
-                id += 2;
-                id_green += 2;
-            }
-        }
+    const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) \
+    firstprivate(nmax, _normfact, mydata, mygreen)
+    for (size_t i = 0; i < nmax; i++) {
+        const double a = mydata[i * 2 + 0];
+        const double b = mydata[i * 2 + 1];
+        const double c = mygreen[i * 2 + 0];
+        const double d = mygreen[i * 2 + 1];
+        // update the values
+        mydata[i * 2 + 0] = _normfact * (a * c - b * d);
+        mydata[i * 2 + 1] = _normfact * (a * d + b * c);
     }
 }
 
