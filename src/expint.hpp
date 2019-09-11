@@ -26,6 +26,8 @@
 
 #include <math.h>
 
+static const double c_gamma = 0.577215664901532861;
+
 static double expint1(double x);
 static double expint2(double x);
 

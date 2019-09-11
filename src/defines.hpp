@@ -348,6 +348,8 @@ static const double c_7o4      = 7. / 4.;
 static const double c_19o8     = 19. / 8;
 static const double c_2o3      = 2. / 3;
 static const double c_1o24     = 1. / 24;
+static const double c_5o16     = 5. / 16.;
+static const double c_1o16     = 1. / 16.;
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

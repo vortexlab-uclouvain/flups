@@ -459,6 +459,11 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     double kfact[3];    // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
     double koffset[3];  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
     double symstart[3];
+    double epsilon = _alphaGreen * _hgrid[0]; //the smoothing length scale of the HEJ kernels
+
+    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6) && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) {
+        FLUPS_ERROR("You are trying to use a regularized kernel while not having dx=dy=dz.");
+    }
 
     for (int ip = 0; ip < 3; ip++) {
         const int dimID = planmap[ip]->dimID();
@@ -490,17 +495,17 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //-------------------------------------------------------------------------
     if (GREEN_DIM == 3) {
         if (nbr_spectral == 0) {
-            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded",_typeGreen);
-            cmpt_Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, _alphaGreen);
+            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded\n",_typeGreen);
+            cmpt_Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 1) {
-            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral",_typeGreen);
-            cmpt_Green_3D_2dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral\n",_typeGreen);
+            cmpt_Green_3D_2dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 2) {
-            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral",_typeGreen);
-            cmpt_Green_3D_1dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral\n",_typeGreen);
+            cmpt_Green_3D_1dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 3) {
-            FLUPS_INFO(">> using Green function of type %d on 3 dir spectral",_typeGreen);        
-            cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
+            FLUPS_INFO(">> using Green function of type %d on 3 dir spectral\n",_typeGreen);        
+            cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
         }
     }  else {
         FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
@@ -539,6 +544,19 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //   in full spectral.
     _scaleGreenFunction(topo[2], green, false);
 
+    // complete the Green function in a very particular case
+    if (GREEN_DIM == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+        int istart[3] = {0, 0, 0};
+        int ishift[3] = {0, 0, 0};
+        for (int ip = 0; ip < 3; ip++) {
+            const int dimID = planmap[ip]->dimID();
+
+            istart[dimID]  = isSpectral[dimID] ? 1 - _plan_green[2]->shiftgreen() : 0;  //avoid rewriting on the part of Green already computed (if there is a shiftgreen, we already skipped that part in the switchTopo)
+            ishift[dimID]  = isSpectral[dimID] ? 0 : _plan_green[dimID]->shiftgreen();  //starting point for the computation of k (accounting for shiftGreen)
+            kfact[dimID]   = planmap[ip]->kfact(); 
+        }
+        cmpt_Green_3D_0dirunbounded_3dirspectral(topo[2], kfact, koffset, symstart, green, _typeGreen, epsilon, istart, ishift);
+    }
     hdf5_dump(topo[2], "green_h", green);
 }
 
@@ -547,6 +565,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
  * 
  * @param topo the current topo
  * @param data the Green's function
+ * @param killModeZero  specify if you want to kill what's in kx=ky=kz=0
  */
 void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, const bool killModeZero) {
     BEGIN_FUNC;
