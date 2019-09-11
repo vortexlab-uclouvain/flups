@@ -783,14 +783,15 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
 void Solver::dothemagic_rhs_real() {
     BEGIN_FUNC;
 
-    opt_double_ptr       mydata  = _data;
-    const opt_double_ptr mygreen = _green;
-
-    const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) \
-    firstprivate(nmax, _normfact, mydata, mygreen)
+    const double         normfact = _normfact;
+    opt_double_ptr       mydata   = _data;
+    const opt_double_ptr mygreen  = _green;
+    const size_t         nmax     = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
+    
+    // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, normfact, mydata, mygreen)
     for (size_t i = 0; i < nmax; i++) {
-        mydata[i] *= _normfact * mygreen[i];
+        mydata[i] *= normfact * mygreen[i];
     }
 }
 
@@ -800,21 +801,21 @@ void Solver::dothemagic_rhs_real() {
  */
 void Solver::dothemagic_rhs_complex_nmult0() {
     BEGIN_FUNC;
+    const double         normfact = _normfact;
+    opt_double_ptr       mydata   = _data;
+    const opt_double_ptr mygreen  = _green;
+    const size_t         nmax     = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
 
-    opt_double_ptr       mydata  = _data;
-    const opt_double_ptr mygreen = _green;
-
-    const size_t nmax = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) \
-    firstprivate(nmax, _normfact, mydata, mygreen)
+    // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, normfact, mydata, mygreen)
     for (size_t i = 0; i < nmax; i++) {
         const double a = mydata[i * 2 + 0];
         const double b = mydata[i * 2 + 1];
         const double c = mygreen[i * 2 + 0];
         const double d = mygreen[i * 2 + 1];
         // update the values
-        mydata[i * 2 + 0] = _normfact * (a * c - b * d);
-        mydata[i * 2 + 1] = _normfact * (a * d + b * c);
+        mydata[i * 2 + 0] = normfact * (a * c - b * d);
+        mydata[i * 2 + 1] = normfact * (a * d + b * c);
     }
 }
 
