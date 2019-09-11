@@ -270,6 +270,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     int inloc[3];
     int onloc[3];
 
+    const int nByBlock[3]={_nByBlock[0],_nByBlock[1],_nByBlock[2]};
+
     opt_double_ptr* sendBuf;
     opt_double_ptr* recvBuf;
 
@@ -336,7 +338,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 // get the block ID
                 const int      bid      = localIndex(ax0, ib0, ib1, ib2, 0, recv_nBlock, 1);
                 opt_double_ptr data     = recvBuf[bid];
-                const int      datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * nf;
+                const int      datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * nf;
                 // generate the request
                 MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], MPI_ANY_TAG, MPI_COMM_WORLD, &(recvRequest[bid]));
             }
@@ -358,23 +360,23 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         // get the buffer data for this block
         opt_double_ptr data = sendBuf[bid];
         // get the starting index in the global memory
-        const int loci0         = istart[ax0] + ib[ax0] * _nByBlock[ax0];
-        const int loci1         = istart[ax1] + ib[ax1] * _nByBlock[ax1];
-        const int loci2         = istart[ax2] + ib[ax2] * _nByBlock[ax2];
+        const int loci0         = istart[ax0] + ib[ax0] * nByBlock[ax0];
+        const int loci1         = istart[ax1] + ib[ax1] * nByBlock[ax1];
+        const int loci2         = istart[ax2] + ib[ax2] * nByBlock[ax2];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
 
         // go inside the block
-        const int id_max = _nByBlock[ax1] * _nByBlock[ax2];
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, inloc)
+        const int id_max = nByBlock[ax1] * nByBlock[ax2];
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, inloc)
         for (int id = 0; id < id_max; id++) {
             // get the id from a small modulo
-            const int i2 = id / _nByBlock[ax1];
-            const int i1 = id % _nByBlock[ax1];
+            const int i2 = id / nByBlock[ax1];
+            const int i1 = id % nByBlock[ax1];
             // get the starting global id for the buffer and the field
-            const size_t buf_idx = id * _nByBlock[ax0] * nf;
+            const size_t buf_idx = id * nByBlock[ax0] * nf;
             const size_t my_idx  = localIndex(ax0, 0, i1, i2, ax0, inloc, nf);
             // get the max counter
-            const size_t nmax = _nByBlock[ax0] * nf;
+            const size_t nmax = nByBlock[ax0] * nf;
             // do the copy -> vectorized
             for (size_t i0 = 0; i0 < nmax; i0++) {
                 data[buf_idx + i0] = my_v[my_idx + i0];
@@ -382,7 +384,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
 
         // send the block and continue
-        const int datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * topo_in->nf();
+        const int datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * topo_in->nf();
         MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
     }
 
@@ -428,40 +430,40 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         opt_double_ptr data = recvBuf[bid];
 
         // go inside the block
-        const int loci0         = ostart[ax0] + ibv[ax0] * _nByBlock[ax0];
-        const int loci1         = ostart[ax1] + ibv[ax1] * _nByBlock[ax1];
-        const int loci2         = ostart[ax2] + ibv[ax2] * _nByBlock[ax2];
+        const int loci0         = ostart[ax0] + ibv[ax0] * nByBlock[ax0];
+        const int loci1         = ostart[ax1] + ibv[ax1] * nByBlock[ax1];
+        const int loci2         = ostart[ax2] + ibv[ax2] * nByBlock[ax2];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, out_axis, onloc, nf);
         // get the stride
         const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
         // get the max number of ids not aligned in ax0
-        const size_t id_max = _nByBlock[ax1] * _nByBlock[ax2];
+        const size_t id_max = nByBlock[ax1] * nByBlock[ax2];
 
         if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, onloc, out_axis)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
-                const int i2 = id / _nByBlock[ax1];
-                const int i1 = id % _nByBlock[ax1];
+                const int i2 = id / nByBlock[ax1];
+                const int i1 = id % nByBlock[ax1];
                 // get the starting global id for the buffer and the field
-                const size_t buf_idx = id * _nByBlock[ax0] * nf;
+                const size_t buf_idx = id * nByBlock[ax0] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
                 // do the copy
-                for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
+                for (int i0 = 0; i0 < nByBlock[ax0]; i0++) {
                     my_v[my_idx + i0 * stride] = data[buf_idx + i0];
                 }
             }
         } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, onloc, out_axis)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
-                const int i2 = id / _nByBlock[ax1];
-                const int i1 = id % _nByBlock[ax1];
+                const int i2 = id / nByBlock[ax1];
+                const int i1 = id % nByBlock[ax1];
                 // get the starting global id for the buffer and the field
-                const size_t buf_idx = id * _nByBlock[ax0] * nf;
+                const size_t buf_idx = id * nByBlock[ax0] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
                 // do the copy
-                for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
+                for (int i0 = 0; i0 < nByBlock[ax0]; i0++) {
                     my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
                     my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
                 }
