@@ -136,7 +136,7 @@ class FLUPS::Solver {
     /**@} */
 
    public:
-    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]);
+    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
     // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
     ~Solver();
 

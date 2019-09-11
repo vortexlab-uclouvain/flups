@@ -134,14 +134,18 @@ double TimerAgent::timeMax() const {
     }
 }
 
-void TimerAgent::writeParentality(FILE* file){
-    fprintf(file,"%s",_name.c_str());
+void TimerAgent::writeParentality(FILE* file, const int level){
+    fprintf(file,"%d;%s",level,_name.c_str());
     for (map<string, TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
         const TimerAgent* child = it->second;
         string childName = child->name();
         fprintf(file,";%s",childName.c_str());
     }
     fprintf(file,"\n");
+
+    for (map<string, TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+        it->second->writeParentality(file,level+1);
+    }
 }
 
 /**
@@ -350,10 +354,7 @@ void Profiler::disp() {
     if (rank == 0) {
         string filename = "prof/" + _name + "_parent.csv";
         file            = fopen(filename.c_str(), "w+");
-        for (map<string,TimerAgent*>::iterator it = _timeMap.begin(); it != _timeMap.end(); it++) {
-            TimerAgent* timer = it->second;
-            timer->writeParentality(file);
-        }
+        _timeMap["root"]->writeParentality(file,0);
         fclose(file);
     }
     
@@ -363,7 +364,7 @@ void Profiler::disp() {
     //-------------------------------------------------------------------------
     
     if (rank == 0) {
-        string filename = "prof/" + _name + ".csv";
+        string filename = "prof/" + _name + "_time.csv";
         file            = fopen(filename.c_str(), "w+");
     }
     // display the header
