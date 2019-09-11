@@ -164,9 +164,10 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     /** - setup the profiler    */
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
-        _prof->create("reorder_mem2buf");
-        _prof->create("reorder_buf2mem");
-        _prof->create("reorder_waiting");
+        _prof->create("reorder","solve");
+        _prof->create("mem2buf","reorder");
+        _prof->create("buf2mem","reorder");
+        _prof->create("waiting","buf2mem");
     }
 }
 
@@ -242,6 +243,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    if (_prof != NULL) _prof->start("reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -341,7 +344,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     }
 
     if (_prof != NULL) {
-        _prof->start("reorder_mem2buf");
+        _prof->start("mem2buf");
     }
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -384,7 +387,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     }
 
     if (_prof != NULL) {
-        _prof->stop("reorder_mem2buf");
+        _prof->stop("mem2buf");
     }
 
     //-------------------------------------------------------------------------
@@ -401,7 +404,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     const int out_axis = topo_out->axis();
     // for each block
     if (_prof != NULL) {
-        _prof->start("reorder_buf2mem");
+        _prof->start("buf2mem");
     }
 
     for (int count = 0; count < nblocks; count++) {
@@ -409,11 +412,11 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         int        request_index;
         MPI_Status status;
         if (_prof != NULL) {
-            _prof->start("reorder_waiting");
+            _prof->start("waiting");
         }
         MPI_Waitany(nblocks, recvRequest, &request_index, &status);
         if (_prof != NULL) {
-            _prof->stop("reorder_waiting");
+            _prof->stop("waiting");
         }
 
         // get the block id = the tag
@@ -468,7 +471,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
     }
     if (_prof != NULL) {
-        _prof->stop("reorder_buf2mem");
+        _prof->stop("buf2mem");
+        _prof->stop("reorder");
     }
 }
 

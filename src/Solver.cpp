@@ -43,7 +43,19 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     /** - Create the timer */
     //-------------------------------------------------------------------------
     _prof = new Profiler("Solver");
-    _prof->create("init");
+    _prof->create("init","root");
+    _prof->create("setup","root");
+    _prof->create("alloc_data","setup");
+    _prof->create("alloc_plans","setup");
+    _prof->create("green","setup");
+    _prof->create("green_plan","green");
+    _prof->create("green_func","green");
+    _prof->create("green_final","green");
+    _prof->create("solve","root");
+    _prof->create("copy", "solve");
+    _prof->create("fftw", "solve");
+    _prof->create("domagic", "solve");
+
     _prof->start("init");
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans and sort them type */
@@ -100,31 +112,43 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
  * We do the following operations
  */
 void Solver::setup() {
-    _prof->start("init");
+    _prof->start("setup");
+    _prof->start("alloc_data");
     //-------------------------------------------------------------------------
     /** - allocate the data for the field and Green */
     //-------------------------------------------------------------------------
     _allocate_data(_topo_hat, &_data);
     _allocate_data(_topo_green, &_green);
+    _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
+    _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
+    _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
+    _prof->start("green");
+    _prof->start("green_plan");
     _allocate_plans(_topo_green, _plan_green, _green);
+    _prof->stop("green_plan");
+    _prof->start("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
+    _prof->stop("green_func");
 
     //-------------------------------------------------------------------------
     /** - Finalize the Green's function by doing a last switch to the field
      * topo and clean allocated topo and plans */
     //-------------------------------------------------------------------------
+    _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat,_green,_topo_green,_switchtopo_green,_plan_green);
-    _prof->stop("init");
+    _prof->stop("green_final");
+    _prof->stop("green");
+    _prof->stop("setup");
 }
 
 /**
@@ -410,9 +434,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
  */
 void Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
     BEGIN_FUNC;
-
     for (int ip = 0; ip < 3; ip++) {
-        // FLUPS_CHECK(!(planmap[ip]->isr2c() && topo[ip]->isComplex()), "The topology %d need to be reset to the state BEFORE the plan to have the correct sizes for allocation (isComplex=%d)", ip, topo[ip]->isComplex());
         planmap[ip]->allocate_plan(topo[ip], data);
     }
 }
@@ -494,12 +516,11 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
     // count the number of spectral dimensions
     int nbr_spectral = 0;
-    for (int id = 0; id < 3; id++)
-        if (isSpectral[id])
+    for (int id = 0; id < 3; id++){
+        if (isSpectral[id]){
             nbr_spectral++;
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        }
+    }
 
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
@@ -645,8 +666,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr myrhs   = rhs;
 
-    _prof->create("solve_total");
-    _prof->start("solve_total");
+    _prof->start("solve");
 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
@@ -667,14 +687,13 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
 
     FLUPS_CHECK(!topo->isComplex(), "The RHS topology cannot be complex");
 
-    _prof->create("solve_copy");
     const int nmax_for = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
-    _prof->start("solve_copy");
+    _prof->start("copy");
     #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_for, mydata, myrhs)
     for(int i=0; i<nmax_for; i++){
         mydata[i] = myrhs[i];
     }
-    _prof->stop("solve_copy");
+    _prof->stop("copy");
 
 #ifdef DUMP_H5
     hdf5_dump(topo, "rhs", mydata);
@@ -682,18 +701,13 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
-    _prof->create("solve_fftw");
-    _prof->create("solve_reorder");
     for (int ip = 0; ip < 3; ip++) {
         // go to the correct topo
-        
-        _prof->start("solve_reorder");
         _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
-        _prof->stop("solve_reorder");
         // run the FFT
-        _prof->start("solve_fftw");
+        _prof->start("fftw");
         _plan_forward[ip]->execute_plan();
-        _prof->stop("solve_fftw");
+        _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2complex();
@@ -705,9 +719,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
-    
-    _prof->create("solve_domagic");
-    _prof->start("solve_domagic");
+    _prof->start("domagic");
     if (type == SRHS) {
         if (!_topo_hat[2]->isComplex()) {
             //-> there is only the case of 3dirSYM in which we could stay real for the whole process
@@ -728,7 +740,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         FLUPS_CHECK(false, "type of solver %d not implemented", type);
     }
 
-    _prof->stop("solve_domagic");
+    _prof->stop("domagic");
     // io if needed
     hdf5_dump(_topo_hat[2], "sol_h", mydata);
 
@@ -736,32 +748,30 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     /** - go back to reals */
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--) {
-        _prof->start("solve_fftw");
+        _prof->start("fftw");
         _plan_backward[ip]->execute_plan();
-        _prof->stop("solve_fftw");
+        _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
             _topo_hat[ip]->switch2real();
         }
-        _prof->start("solve_reorder");
         _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
-        _prof->stop("solve_reorder");
     }
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
     const int nmax_back = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
-    _prof->start("solve_copy");
+    _prof->start("copy");
     #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_back, mydata, myfield)
     for(int i=0; i<nmax_back; i++){
         myfield[i] = mydata[i];
     }
-    _prof->stop("solve_copy");
+    _prof->stop("copy");
     // io if needed
     hdf5_dump(topo, "sol", myfield);
     // stop the whole timer
-    _prof->stop("solve_total");
+    _prof->stop("solve");
 
     _prof->disp();
 }

@@ -14,13 +14,15 @@
 #include <map>
 #include <string>
 
-#include "mpi.h"
+#include <list>
 #include "defines.hpp"
+#include "mpi.h"
 
 using namespace std;
 
 class TimerAgent {
    protected:
+    bool   _isroot  = true;
     int    _count   = 0;
     double _timeAcc = 0.0;
     double _t0      = 0.0;
@@ -29,15 +31,29 @@ class TimerAgent {
     double _timeMax = 0.0;
     double _timeMin = 0.0;
 
+    string _name = "noname";
+
+    TimerAgent*       _daddy = NULL;
+    map<string,TimerAgent*> _children;
+
    public:
+    TimerAgent(string name);
+
     void start();
     void stop();
     void reset();
+    void disp(FILE* file,const int level, const double totalTime);
 
-    int    count() const{ return _count; };
-    double timeAcc() const{ return _timeAcc; };
-    double timeMin() const{ return _timeMin; };
-    double timeMax() const{ return _timeMax; };
+    int    count() const { return _count; };
+    bool   isroot() const { return _isroot; };
+    string name() const { return _name; };
+    double timeAcc() const;
+    double timeMin() const;
+    double timeMax() const;
+    
+
+    void addChild(TimerAgent* child);
+    void setDaddy(TimerAgent* daddy);
 };
 
 class Profiler {
@@ -45,13 +61,16 @@ class Profiler {
     map<string, TimerAgent*> _timeMap;
 
     string _name;
+    void _createSingle(string name);
 
    public:
-   Profiler();
-   Profiler(string myname);
+    Profiler();
+    Profiler(string myname);
     ~Profiler();
 
     void create(string name);
+    void create(string child, string daddy);
+
     void start(string name);
     void stop(string name);
 
