@@ -147,7 +147,8 @@ static inline double _hej_2_2unb1spe_k0(const void* params) {
 
     const double rho = r/sig;
     const double rho2 = rho*rho;
-    return -c_1o2pi * (log(r) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
+    // return -c_1o2pi * (log(r) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
+    return -c_1o2pi * (log(r) + .5 * expint_ei(rho2 / 2));
 }
 static inline double _hej_2_2unb1spe_r0(const void* params) {
     const double sig = ((double*)params)[2];
@@ -161,7 +162,8 @@ static inline double _hej_4_2unb1spe_k0(const void* params) {
 
     const double rho  = r/sig;
     const double rho2 = rho*rho;
-    return -c_1o2pi * (log(r) - (1 - .5 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
+    // return -c_1o2pi * (log(r) - (1 - .5 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
+    return -c_1o2pi * (log(r) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
 }
 static inline double _hej_4_2unb1spe_r0(const void* params) {
     const double sig = ((double*)params)[2];
@@ -175,7 +177,8 @@ static inline double _hej_6_2unb1spe_k0(const void* params) {
 
     const double rho = r/sig;
     const double rho2 = rho*rho;
-    return -c_1o2pi * (log(r) - (1 - rho2 + .125 * rho2 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
+    // return -c_1o2pi * (log(r) - (1 - rho2 + .125 * rho2 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
+    return -c_1o2pi * (log(r) - (.75 - .125 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
 }
 static inline double _hej_6_2unb1spe_r0(const void* params) {
     const double sig = ((double*)params)[2];
