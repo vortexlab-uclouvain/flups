@@ -765,7 +765,7 @@ void Solver::dothemagic_rhs_real() {
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]) + shiftgreen;
+            size_t id_green = localindex_ao(shiftgreen, i1, i2, _topo_green[2]);
 
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
                 mydata[id+i0] *= _normfact * mygreen[id_green+i0];
@@ -792,10 +792,12 @@ void Solver::dothemagic_rhs_complex_nmult0() {
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
+    const int shiftgreen = _plan_green[2]->shiftgreen(); 
+
     for (int i2 = 0; i2 < _topo_hat[2]->nloc(ax2); ++i2) {
         for (int i1 = 0; i1 < _topo_hat[2]->nloc(ax1); ++i1) {
             size_t id       = localindex_ao(0, i1, i2, _topo_hat[2]);
-            size_t id_green = localindex_ao(0, i1, i2, _topo_green[2]);
+            size_t id_green = localindex_ao(shiftgreen, i1, i2, _topo_green[2]);
 
             for (int i0 = 0; i0 < _topo_hat[2]->nloc(ax0); ++i0) {
                 const double a = mydata[id + 0];
