@@ -12,10 +12,6 @@ TARGET_LIB := build/lib$(NAME).so
 PREFIX ?= ./
 
 #-----------------------------------------------------------------------------
-# COMPILER AND OPT/DEBUG FLAGS
-LDFLAGS := 
-
-#-----------------------------------------------------------------------------
 BUILDDIR := ./build
 SRC_DIR := ./src
 OBJ_DIR := ./build
@@ -26,7 +22,7 @@ INC := -I$(SRC_DIR)
 #-----------------------------------------------------------------------------
 #---- FFTW
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
+LIB += -L$(FFTWDIR)/lib -lfftw3_omp -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
 
 #---- HDF5
 INC += -I$(HDF5DIR)/include

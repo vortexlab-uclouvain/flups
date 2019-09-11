@@ -164,9 +164,10 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     /** - setup the profiler    */
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
-        _prof->create("reorder_mem2buf");
-        _prof->create("reorder_buf2mem");
-        _prof->create("reorder_waiting");
+        _prof->create("reorder","solve");
+        _prof->create("mem2buf","reorder");
+        _prof->create("buf2mem","reorder");
+        _prof->create("waiting","buf2mem");
     }
 }
 
@@ -237,11 +238,13 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),
-              "both topologies have to be complex or real");
+                "both topologies have to be complex or real");
 
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    if (_prof != NULL) _prof->start("reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -340,105 +343,136 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
     }
 
-
     if (_prof != NULL) {
-        _prof->start("reorder_mem2buf");
+        _prof->start("mem2buf");
     }
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
-    for (int ib2 = 0; ib2 < send_nBlock[ax2]; ib2++) {
-        for (int ib1 = 0; ib1 < send_nBlock[ax1]; ib1++) {
-            for (int ib0 = 0; ib0 < send_nBlock[ax0]; ib0++) {
-                const int      bid  = localIndex(ax0, ib0, ib1, ib2, 0, send_nBlock, 1);
-                opt_double_ptr data = sendBuf[bid];
+    const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
 
-                // go inside the block
-                for (int i2 = 0; i2 < _nByBlock[ax2]; i2++) {
-                    for (int i1 = 0; i1 < _nByBlock[ax1]; i1++) {
-                        // get the starting id for the buffer
-                        const size_t buf_idx = localIndex(ax0, 0, i1, i2, ax0, _nByBlock, nf);
-                        // get the starting id for the domain
-                        const int    loci0  = istart[ax0] + ib0 * _nByBlock[ax0] + 0;
-                        const int    loci1  = istart[ax1] + ib1 * _nByBlock[ax1] + i1;
-                        const int    loci2  = istart[ax2] + ib2 * _nByBlock[ax2] + i2;
-                        const size_t my_idx = localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
-                        // get the max counter
-                        const size_t nmax = _nByBlock[ax0] * nf;
-                        // do the copy
-                        for (size_t i0 = 0; i0 < nmax; i0++) {
-                            data[buf_idx + i0] = v[my_idx + i0];
-                        }
-                    }
-                }
-                // send the block and continue
-                const int datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * topo_in->nf();
-                MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
+    for (int bid = 0; bid < nblocks_send; bid++) {
+        // get the split index
+        int ib[3];
+        localSplit(bid, send_nBlock, 0, ib, 1);
+        // get the buffer data for this block
+        opt_double_ptr data = sendBuf[bid];
+        // get the starting index in the global memory
+        const int loci0         = istart[ax0] + ib[ax0] * _nByBlock[ax0];
+        const int loci1         = istart[ax1] + ib[ax1] * _nByBlock[ax1];
+        const int loci2         = istart[ax2] + ib[ax2] * _nByBlock[ax2];
+        double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
+
+        // go inside the block
+        const int id_max = _nByBlock[ax1] * _nByBlock[ax2];
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, inloc)
+        for (int id = 0; id < id_max; id++) {
+            // get the id from a small modulo
+            const int i2 = id / _nByBlock[ax1];
+            const int i1 = id % _nByBlock[ax1];
+            // get the starting global id for the buffer and the field
+            const size_t buf_idx = id * _nByBlock[ax0] * nf;
+            const size_t my_idx  = localIndex(ax0, 0, i1, i2, ax0, inloc, nf);
+            // get the max counter
+            const size_t nmax = _nByBlock[ax0] * nf;
+            // do the copy -> vectorized
+            for (size_t i0 = 0; i0 < nmax; i0++) {
+                data[buf_idx + i0] = my_v[my_idx + i0];
             }
         }
+
+        // send the block and continue
+        const int datasize = _nByBlock[0] * _nByBlock[1] * _nByBlock[2] * topo_in->nf();
+        MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
     }
+
     if (_prof != NULL) {
-        _prof->stop("reorder_mem2buf");
+        _prof->stop("mem2buf");
     }
+
+    //-------------------------------------------------------------------------
+    /** - reset the memory to 0 */
+    //-------------------------------------------------------------------------
+    // reset the memory to 0
+    std::memset(v, 0, sizeof(double) * topo_out->locmemsize());
 
     //-------------------------------------------------------------------------
     /** - wait for a block and copy when it arrives */
     //-------------------------------------------------------------------------
-    // reset the memory to 0
-    std::memset(v, 0, sizeof(double) * topo_out->locmemsize());
     // get some counters
-    const int  nblocks = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
-    int        request_index;
-    MPI_Status status;
+    const int nblocks  = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
+    const int out_axis = topo_out->axis();
     // for each block
     if (_prof != NULL) {
-        _prof->start("reorder_buf2mem");
+        _prof->start("buf2mem");
     }
+
     for (int count = 0; count < nblocks; count++) {
         // wait for a block
+        int        request_index;
+        MPI_Status status;
         if (_prof != NULL) {
-            _prof->start("reorder_waiting");
+            _prof->start("waiting");
         }
         MPI_Waitany(nblocks, recvRequest, &request_index, &status);
         if (_prof != NULL) {
-            _prof->stop("reorder_waiting");
+            _prof->stop("waiting");
         }
+
         // get the block id = the tag
         int bid = status.MPI_TAG;
         // get the indexing of the block in 012-indexing
         int ibv[3];
-        localSplit(bid, recv_nBlock, 0, ibv);
+        localSplit(bid, recv_nBlock, 0, ibv, 1);
         // get the associated data
         opt_double_ptr data = recvBuf[bid];
-        // go inside the block using the axis of the topo_in
-        for (int i2 = 0; i2 < _nByBlock[ax2]; i2++) {
-            for (int i1 = 0; i1 < _nByBlock[ax1]; i1++) {
-                // get the starting id for the buffer
-                const size_t buf_idx = localIndex(ax0, 0, i1, i2, ax0, _nByBlock, nf);
-                // get the starting id for the domain
-                const int    loci0  = ostart[ax0] + ibv[ax0] * _nByBlock[ax0] + 0;
-                const int    loci1  = ostart[ax1] + ibv[ax1] * _nByBlock[ax1] + i1;
-                const int    loci2  = ostart[ax2] + ibv[ax2] * _nByBlock[ax2] + i2;
-                const size_t my_idx = localIndex(ax0, loci0, loci1, loci2, topo_out->axis(), onloc, nf);
-                const size_t stride = localIndex(ax0, 1, 0, 0, topo_out->axis(), onloc, nf);
+
+        // go inside the block
+        const int loci0         = ostart[ax0] + ibv[ax0] * _nByBlock[ax0];
+        const int loci1         = ostart[ax1] + ibv[ax1] * _nByBlock[ax1];
+        const int loci2         = ostart[ax2] + ibv[ax2] * _nByBlock[ax2];
+        double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, out_axis, onloc, nf);
+        // get the stride
+        const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
+        // get the max number of ids not aligned in ax0
+        const size_t id_max = _nByBlock[ax1] * _nByBlock[ax2];
+
+        if (nf == 1) {
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, onloc, out_axis)
+            for (size_t id = 0; id < id_max; id++) {
+                // get the id from a small modulo
+                const int i2 = id / _nByBlock[ax1];
+                const int i1 = id % _nByBlock[ax1];
+                // get the starting global id for the buffer and the field
+                const size_t buf_idx = id * _nByBlock[ax0] * nf;
+                const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
                 // do the copy
-                if (nf == 1) {
-                    for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
-                        v[my_idx + i0 * stride] = data[buf_idx + i0];
-                    }
-                } else if (nf == 2) {
-                    for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
-                        v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
-                        v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
-                    }
-                } else {
-                    FLUPS_CHECK(false, "the value of nf is not supported");
+                for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
+                    my_v[my_idx + i0 * stride] = data[buf_idx + i0];
                 }
             }
+        } else if (nf == 2) {
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, _nByBlock, nf, onloc, out_axis)
+            for (size_t id = 0; id < id_max; id++) {
+                // get the id from a small modulo
+                const int i2 = id / _nByBlock[ax1];
+                const int i1 = id % _nByBlock[ax1];
+                // get the starting global id for the buffer and the field
+                const size_t buf_idx = id * _nByBlock[ax0] * nf;
+                const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
+                // do the copy
+                for (int i0 = 0; i0 < _nByBlock[ax0]; i0++) {
+                    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
+                    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
+                }
+            }
+        } else {
+            FLUPS_CHECK(false, "the value of nf is not supported");
         }
     }
     if (_prof != NULL) {
-        _prof->stop("reorder_buf2mem");
+        _prof->stop("buf2mem");
+        _prof->stop("reorder");
     }
 }
 
