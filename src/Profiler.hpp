@@ -44,6 +44,8 @@ class TimerAgent {
     void reset();
     void disp(FILE* file,const int level, const double totalTime);
 
+    void writeParentality(FILE* file);
+
     int    count() const { return _count; };
     bool   isroot() const { return _isroot; };
     string name() const { return _name; };

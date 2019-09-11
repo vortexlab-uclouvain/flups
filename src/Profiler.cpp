@@ -134,6 +134,16 @@ double TimerAgent::timeMax() const {
     }
 }
 
+void TimerAgent::writeParentality(FILE* file){
+    fprintf(file,"%s",_name.c_str());
+    for (map<string, TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+        const TimerAgent* child = it->second;
+        string childName = child->name();
+        fprintf(file,";%s",childName.c_str());
+    }
+    fprintf(file,"\n");
+}
+
 /**
  * @brief display the time for the TimerAgent
  * 
@@ -211,8 +221,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  \t%07.4f\t\t%07.4f\t\t%07.4f\t\t%.6f\t%.6f\t%.6f\t%.6f\t%09.0f\n", myname.c_str(), glob_percent,self_percent,loc_percent, meanTime, meanTimePerCount, minTime, maxTime, meanCount);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", myname.c_str(), glob_percent,self_percent,loc_percent, meanTime, meanTimePerCount, minTime, maxTime, meanCount);
+            printf("%-25.25s|  \t%07.4f\t\t%07.4f\t\t%07.4f\t\t%.6f\t%.6f\t%.6f\t%.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
         }
     }
     // recursive call to the childrens
@@ -333,7 +343,25 @@ void Profiler::disp() {
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    //-------------------------------------------------------------------------
+    /** - I/O of the parentality */
+    //-------------------------------------------------------------------------
     FILE* file;
+    if (rank == 0) {
+        string filename = "prof/" + _name + "_parent.csv";
+        file            = fopen(filename.c_str(), "w+");
+        for (map<string,TimerAgent*>::iterator it = _timeMap.begin(); it != _timeMap.end(); it++) {
+            TimerAgent* timer = it->second;
+            timer->writeParentality(file);
+        }
+        fclose(file);
+    }
+    
+
+    //-------------------------------------------------------------------------
+    /** - do the IO of the timing */
+    //-------------------------------------------------------------------------
+    
     if (rank == 0) {
         string filename = "prof/" + _name + ".csv";
         file            = fopen(filename.c_str(), "w+");
@@ -342,7 +370,7 @@ void Profiler::disp() {
     if (rank == 0) {
         printf("===================================================================================================================================================\n");
         printf("        PROFILER %s  \n", _name.c_str());
-        printf("\t-NAME-   \t\t\t-%% global-\t-self %% glob-\t-%% local-\t-Total time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
+        printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
     }
     // get the global timing
     double localTotalTime = _timeMap["root"]->timeAcc();
@@ -355,9 +383,10 @@ void Profiler::disp() {
     if (rank == 0) {
         printf("===================================================================================================================================================\n");
         printf("%% global - %% of the total time passed inside or in its children (based on the mean time among processors\n");
-        printf("%% self glob - %% of the total time passed inside (children not included, based on the mean time among processors\n");
+        // printf("%% self glob - %% of the total time passed inside (children not included, based on the mean time among processors\n");
         printf("%% local - %% of the dad's time passed inside or in its children (from the mean time among processors\n");
         printf("Total time - the total time spend in that timer (averaged among the processors)\n");
+        printf("Self time - the self time spend in that timer = children not included (averaged among the processors)\n");
         printf("Time/call - the total time spend in that timer per call of the timer (averaged among the processors)\n");
         printf("Min time - the min total time spend in that timer among the processors\n");
         printf("Max time - the max total time spend in that timer among the processors\n");

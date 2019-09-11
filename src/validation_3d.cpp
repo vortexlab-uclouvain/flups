@@ -44,17 +44,20 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L);
+    Profiler* prof = new Profiler("validation");
+    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L,prof);
     mysolver->set_GreenType(typeGreen);
     mysolver->setup();
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    double *rhs = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *sol = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *rhs   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *sol   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *field = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
     std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
     std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
+    std::memset(field, 0, sizeof(double *) * topo->locmemsize());
 
 #ifndef MANUFACTURED_SOLUTION
     //-------------------------------------------------------------------------
@@ -251,8 +254,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
-    mysolver->solve(topo, rhs, rhs, type);
+    for(int is=0; is<nSolve; is++){
+        mysolver->solve(topo, field, rhs, type);
+    }
 
+    prof->disp();
 
     // lIs = 1.e10, gIs = 0.0;
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -294,7 +300,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                 const size_t id  = localindex_xyz(i0, i1, i2, topo);
-                const double err = sol[id] - rhs[id];
+                const double err = sol[id] - field[id];
 
                 lerri = max(lerri, fabs(err));
                 lerr2 += (err * err) * h[0] * h[1] * h[2];
