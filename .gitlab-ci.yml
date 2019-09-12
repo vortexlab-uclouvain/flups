@@ -1,0 +1,7 @@
+flupstest :
+  image : immc/flups-valid:v0.1
+  script:
+    - echo "include make_arch/make.docker_valid" > Makefile.valid
+    - tail -n +5 Makefile >> Makefile.valid
+    - make -j4 -f Makefile.valid
+    - mpirun -np 4 ./flups

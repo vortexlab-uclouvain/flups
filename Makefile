@@ -25,8 +25,10 @@ INC += -I$(FFTWDIR)/include
 LIB += -L$(FFTWDIR)/lib -lfftw3_omp -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
 
 #---- HDF5
-INC += -I$(HDF5DIR)/include
-LIB += -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
+HDF5LIB ?= -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
+HDF5INC ?= -I$(HDF5DIR)/include
+INC += $(HDF5INC)
+LIB += $(HDF5LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
