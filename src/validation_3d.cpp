@@ -164,8 +164,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     
     struct manuParams params[3]; 
     params[0].freq = 1;
-    params[1].freq = 2;
-    params[2].freq = 4;
+    params[1].freq = 1;
+    params[2].freq = 1;
 
     // Selecting manufactured solution compatible with the BCs
     for (int dir = 0; dir < 3; dir++) {
@@ -198,7 +198,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             }
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
-//still blobs missing if multiple mix
         } else if (mybc[dir][1] == FLUPS::UNB) {
             params[dir].center  = .5;
             if (mybc[dir][0] == FLUPS::ODD) {
@@ -208,12 +207,25 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                 params[dir].center  = .3;
                 params[dir].sign[0] = +1.;
             }
-            manuRHS[dir] = &d2dx2_fUnb;
-            manuSol[dir] = &fUnb;
+
         } else {
             FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
         }
     }
+
+    // manuRHS[0] = &fZero;
+    // manuSol[0] = &fCst;
+    // manuRHS[1] = &d2dx2_fUnbSpietz;
+    // manuSol[1] = &fUnbSpietz;
+    // manuRHS[2] = &d2dx2_fUnbSpietz;
+    // manuSol[2] = &fUnbSpietz;
+
+    manuRHS[0] = &d2dx2_fOddOdd;
+    manuSol[0] = &fOddOdd;
+    manuRHS[1] = &d2dx2_fOddOdd;
+    manuSol[1] = &fOddOdd;
+    manuRHS[2] = &d2dx2_fOddOdd;
+    manuSol[2] = &fOddOdd;
 
     // Obtaining the reference sol and rhs
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -224,6 +236,28 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      (istart[2] + i2 + 0.5) * h[2]};
 
                 const size_t id = localindex_xyz(i0, i1, i2, topo);
+
+                const double y[3] = {0.,(x[1]-.5)/c_sigma,(x[2]-.5)/c_sigma };
+                const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
+                const double r = sqrt(rsq);
+                
+                //CST(z):
+                // sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
+                // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * c_sigma * c_sigma) * \
+                //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) ;
+
+                //SIN(z):
+                // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
+                // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * c_sigma * c_sigma) * \
+                //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (sin(2.*M_PI*x[0] /L[0])) ;
+                // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+
+                //CST(z)+sin(z):
+                // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
+                // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * c_sigma * c_sigma) * \
+                //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
+                // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                
 
                 for (int dir = 0; dir < 3; dir++) {
                     const int dir2 = (dir + 1) % 3;
@@ -309,7 +343,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     err2 = sqrt(err2);
 
     char filename[512];
-    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.err",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
+    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.txt",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
 
     if (rank == 0) {
         FILE *myfile = fopen(filename, "a+");
