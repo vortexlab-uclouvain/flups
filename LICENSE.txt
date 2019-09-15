@@ -1,0 +1,63 @@
+﻿FLUPS Licensing
+============================================
+
+This file attempts to include all licenses that apply within FLUPS (this program) source tree, in particular any that are supposed to be exposed to the end user for credit requirements for instance. 
+
+FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+
+Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+	
+The contributors to the development of FLUPS are (all authors are or were affiliate to the Université catholique de Louvain, UCLouvain, when they developed FLUPS):
+	Thomas Gillis
+	Dens-Gabriel Caprace
+
+HOW TO CITE US: XXX
+
+Website of FLUPS:  XXX https://sites
+Contact: XXX  nom.prenom@uclouvain.be
+
+FLUPS General
+-----------------------------------------
+
+This program (FLUPS) is free software: 
+you can redistribute it and/or modify it under the terms of 
+the GNU General Public License as published by the 
+Free Software Foundation, either version 3 of the License, 
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program (see COPYING file).  If not, 
+see <http://www.gnu.org/licenses/>.
+*************************************************************************
+
+[The documentation for this program is under a creative commons attribution share-alike
+4.0 license.  http://creativecommons.org/licenses/by-sa/4.0/
+It can be found here:  https://site]
+*************************************************************************
+
+This program has dependencies on other libraries and Website depedencies which are or not under GPL and that are commonly distributed with this program core libraries.
+
+Dependencies are as follows:
+
+D1					Licence type			http://siteD1				
+...
+
+Licences & Credits of dependencies
+----------------------------------
+
+#####
+D1
+#####
+Credits of D1
+-----------------------------------------------------------------------------
+
+####
+...
+####
+Credits of ...
+-----------------------------------------------------------------------------
