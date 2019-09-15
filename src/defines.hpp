@@ -189,6 +189,8 @@ static inline void FLUPS_ERROR(std::string a) {
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - in %s from %s at line %d\n", a.c_str(), __func__, __FILE__, __LINE__);
     printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,0);
 };
@@ -314,11 +316,11 @@ enum BoundaryType {
      * 
      */
 enum GreenType {
-    CHAT_2, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
+    CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
+    LGF_2  = 1,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
+    HEJ_2  = 2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
 };
 
 /**
