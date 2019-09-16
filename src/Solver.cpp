@@ -316,8 +316,13 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
         // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
-            // determines the proc repartition
-            _pencil_nproc(dimID, nproc, topo->comm_size());
+            // determines the proc repartition using the previous one if available
+            if(ip == 0){
+                pencil_nproc(dimID, nproc, topo->comm_size());
+            }else{
+                const int nproc_hint[3] = {current_topo->nproc(0),current_topo->nproc(1),current_topo->nproc(2)};
+                pencil_nproc_hint(dimID, nproc, topo->comm_size(),planmap[ip-1]->dimID(),nproc_hint);
+            }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex,dimOrder);
             // determines fieldstart = the point where the old topo has to begin in the new one
@@ -334,14 +339,14 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // create the switchtopoMPI to change topology
                 switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
             }
-            switchtopo[ip]->disp_rankgraph(ip-1,ip);
+#ifdef PERF_VERBOSE
+            switchtopo[ip]->disp_rankgraph(ip - 1, ip);
+#endif
             // update the current topo to the new one
             current_topo = topomap[ip];
 
             current_topo->disp();
-            current_topo->disp_rank();
         }
-
         planmap[ip]->disp();
     }
 
@@ -363,7 +368,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
             // get the proc repartition
-            _pencil_nproc(dimID, nproc, topo->comm_size());
+            pencil_nproc(dimID, nproc, topo->comm_size());
 
             // if we had to forget one point for this plan, re-add it
             if(planmap[ip]->ignoreMode() ){

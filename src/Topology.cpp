@@ -30,17 +30,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     MPI_Comm_size(MPI_COMM_WORLD, &_comm_size);
 
     //-------------------------------------------------------------------------
-    /** - get memory axis and complex information  */
-    //-------------------------------------------------------------------------
-    _axis = axis;
-    if (!isComplex) {
-        _nf = 1;
-    } else {
-        _nf = 2;
-    }
-
-    //-------------------------------------------------------------------------
-    /** - get proc informatio  */
+    /** - get proc information  */
     //-------------------------------------------------------------------------
     for (int id = 0; id < 3; id++) {
         // total dimension
@@ -52,6 +42,16 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     }
     // split the rank
     ranksplit(_rank, _axproc, _nproc, _rankd);
+
+    //-------------------------------------------------------------------------
+    /** - get memory axis and complex information  */
+    //-------------------------------------------------------------------------
+    _axis = axis;
+    if (!isComplex) {
+        _nf = 1;
+    } else {
+        _nf = 2;
+    }
 
     //-------------------------------------------------------------------------
     /** - Get the sizes  */

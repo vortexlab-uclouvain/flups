@@ -99,6 +99,16 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     }
     fftw_free(onProc);
 
+#ifdef PERF_VERBOSE
+    if (rank == 0) {
+        FILE* file = fopen("./prof/blocksize","a+");
+        if(file != NULL){
+            fprintf(file,"SwitchTopo %d to %d: blocksize = %d %d %d\n",topo_input->axis(),topo_output->axis(),_nByBlock[0],_nByBlock[1],_nByBlock[2]);
+            fclose(file);
+        }
+    }
+#endif
+
     //-------------------------------------------------------------------------
     /** - get the starting index of the block 0,0,0 for input and output */
     //-------------------------------------------------------------------------
