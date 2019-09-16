@@ -6,7 +6,7 @@ include make_arch/make.vagrant_intel
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
 NAME := flups
-TARGET_EXE := $(NAME)
+TARGET_EXE := $(NAME)_validation
 TARGET_LIB := build/lib$(NAME).so
 
 PREFIX ?= ./
@@ -45,6 +45,10 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 
 ################################################################################
 default: $(TARGET_EXE)
+
+all: $(TARGET_EXE) $(TARGET_LIB)
+
+lib: $(TARGET_LIB)
 
 $(TARGET_EXE): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)

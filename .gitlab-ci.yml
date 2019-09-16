@@ -9,7 +9,7 @@ compilation :
   stage: build
   artifacts: 
     paths: 
-      - flups
+      - flups_validation
     when: on_success
   script:
     - echo "include make_arch/make.docker_valid" > Makefile.valid
@@ -17,16 +17,24 @@ compilation :
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error
-flupstest 1:1:
+run test 1:1:
   stage: test
   script:
-    - ./flups -ns 1
+    - ./flups_validation -ns 1
   dependencies: 
     - compilation
 
-flupstest 2:1:
+run test 2:1:
   stage: test
   script:
-    - mpirun -np 4 ./flups -np 2 2 1 -res 32
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32
+  dependencies: 
+    - compilation
+
+#validation all types of BCs with 1 kernel
+validation all BCs:
+  stage: test
+  script:
+    - python3 ./scripts/test_bcs.py
   dependencies: 
     - compilation

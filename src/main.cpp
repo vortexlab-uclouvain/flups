@@ -178,10 +178,10 @@ int main(int argc, char *argv[]) {
     
     int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
 
+    if (status) exit(status);
     if (!size){
         exit(0); //we just printed help
-    } 
-    if (status) exit(status);
+    }     
 
     // Initialize MPI
     int rank;
@@ -229,11 +229,11 @@ int main(int argc, char *argv[]) {
         for (int is = 0; is < nsample; is++) {
             // Display
             if (rank == 0) {
-                FLUPS_INFO("I will run predefined test 1 with:");
-                FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
-                FLUPS_INFO("  --nsolve: %d", nsolve);
+                printf("I will run predefined test 1 with:");
+                printf("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
+                printf("  --nsolve: %d", nsolve);
                 for (int i = 0; i < nsample; i++) {
-                    FLUPS_INFO("   -> sample %d: %d", i + 1, size[i]);
+                    printf("   -> sample %d: %d", i + 1, size[i]);
                 }
             }
 
@@ -290,8 +290,6 @@ int main(int argc, char *argv[]) {
                     validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
                     if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
                     validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
-                    // reset to unbounded
-                    valCase.mybc[id][0] = FLUPS::UNB;
                 }
             }
         }
