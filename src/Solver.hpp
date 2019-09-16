@@ -16,12 +16,10 @@
 #include <map>
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
-#include "green_functions_2d.hpp"
 #include "green_functions_3d.hpp"
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo.hpp"
-#include "tools.hpp"
 
 #include "Profiler.hpp"
 #include "omp.h"
