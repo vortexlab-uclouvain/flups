@@ -1,7 +1,32 @@
-flupstest :
+default :
   image : immc/flups-valid:v0.1
+
+stages:
+  - build
+  - test
+
+compilation :
+  stage: build
+  artifacts: 
+    paths: 
+      - flups
+    when: on_success
   script:
     - echo "include make_arch/make.docker_valid" > Makefile.valid
     - tail -n +5 Makefile >> Makefile.valid
     - make -j4 -f Makefile.valid
-    - mpirun -np 4 ./flups
+
+#checks that the code runs without error
+flupstest 1:1:
+  stage: test
+  script:
+    - ./flups -ns 1
+  dependencies: 
+    - compilation
+
+flupstest 2:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups -np 2 2 1 -res 32
+  dependencies: 
+    - compilation
