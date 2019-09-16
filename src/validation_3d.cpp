@@ -214,7 +214,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
         } else {
-            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
+            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
 
@@ -323,7 +323,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
             fclose(myfile);
         } else {
-            FLUPS_CHECK(false, "unable to open file %s", filename);
+            FLUPS_CHECK(false, "unable to open file %s", filename, LOCATION);
         }
     }
 

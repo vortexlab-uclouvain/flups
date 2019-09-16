@@ -190,7 +190,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double locSelfTime = (this->timeAcc()-sumChild);
         double selfTime;
         double self_percent;
-        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name);
+        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name, LOCATION);
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
@@ -313,7 +313,7 @@ void Profiler::start(string name) {
     }
     else{
         string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg);
+        FLUPS_ERROR(msg, LOCATION);
     }
 #endif
 }
@@ -333,7 +333,7 @@ void Profiler::stop(string name) {
     }
     else{
         string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg);
+        FLUPS_ERROR(msg, LOCATION);
     }
 #endif
 }

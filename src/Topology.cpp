@@ -71,7 +71,7 @@ Topology::~Topology() {}
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
-    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real", LOCATION);
 
     for (int id = 0; id < 3; id++) {
         const int onglob = other->nglob(id);

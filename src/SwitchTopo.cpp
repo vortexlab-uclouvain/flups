@@ -55,7 +55,7 @@ using namespace FLUPS;
 SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
+    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
 
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -145,7 +145,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
                 const size_t send_bid = localIndex(0, ib0, ib1, ib2, 0, _inBlock, 1);
                 // allocate at the correct size
                 _sendBuf[send_bid] = (double*)fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
-                FLUPS_CHECK(FLUPS_ISALIGNED(_sendBuf[send_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+                FLUPS_CHECK(FLUPS_ISALIGNED(_sendBuf[send_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
             }
         }
     }
@@ -156,7 +156,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
                 const size_t recv_bid = localIndex(0, ib0, ib1, ib2, 0, _onBlock, 1);
                 // allocate at the correct size
                 _recvBuf[recv_bid] = (double*)fftw_malloc(_nByBlock[0] * _nByBlock[1] * _nByBlock[2] * sizeof(double) * _topo_in->nf());
-                FLUPS_CHECK(FLUPS_ISALIGNED(_recvBuf[recv_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+                FLUPS_CHECK(FLUPS_ISALIGNED(_recvBuf[recv_bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
             }
         }
     }
@@ -238,7 +238,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),
-                "both topologies have to be complex or real");
+                "both topologies have to be complex or real", LOCATION);
 
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -318,7 +318,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             onloc[id]       = _topo_in->nloc(id);
         }
     } else {
-        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
+        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
     }
 
     FLUPS_INFO("previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
@@ -469,7 +469,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 }
             }
         } else {
-            FLUPS_CHECK(false, "the value of nf is not supported");
+            FLUPS_CHECK(false, "the value of nf is not supported", LOCATION);
         }
     }
     if (_prof != NULL) {

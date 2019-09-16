@@ -35,7 +35,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     //-------------------------------------------------------------------------
     double * data = (double*) fftw_malloc(10*FLUPS_ALIGNMENT);
     if(!FLUPS_ISALIGNED(data)){
-        FLUPS_ERROR("Pre-defined data alignement is not compatible with FFTW");
+        FLUPS_ERROR("Pre-defined data alignement is not compatible with FFTW", LOCATION);
     }
     fftw_free(data);
 
@@ -253,7 +253,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
         }
     }
 
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type());
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type(), LOCATION);
 }
 
 /**
@@ -375,10 +375,10 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // the shift green is taken on the new topo to write to the current_topo
                 const int shift = planmap[ip]->shiftgreen();
                 if (!planmap[ip]->ignoreMode()) {
-                    FLUPS_CHECK(shift == 0, "If no modes are ignored, you cannot ask for a shift!!");
+                    FLUPS_CHECK(shift == 0, "If no modes are ignored, you cannot ask for a shift!!", LOCATION);
                 } else {
                     // if we aim at removing a point, we make sure to copy every mode except one
-                    FLUPS_CHECK((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID);
+                    FLUPS_CHECK((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID, LOCATION);
                 }
 
                 // store the shift and do the mapping
@@ -447,7 +447,7 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK((*data) == NULL, "Pointer has to be NULL for allocation");
+    FLUPS_CHECK((*data) == NULL, "Pointer has to be NULL for allocation", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - Do the memory allocation */
@@ -465,7 +465,7 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+    FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
 }
 
 /**
@@ -537,7 +537,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
         }
     }  else {
-        FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.");
+        FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.", LOCATION);
     }
 
     // dump the green func
@@ -626,13 +626,13 @@ void Solver::_finalizeGreenFunction(Topology* topo_field[3],double* green, Topol
         delete(switchtopo);
     }
     else{
-        FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nloc(0) == topo[2]->nloc(0), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nloc(1) == topo[2]->nloc(1), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nloc(2) == topo[2]->nloc(2), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nglob(0) == topo[2]->nglob(0), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field");
-        FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field");
+        FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(0) == topo[2]->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(1) == topo[2]->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(2) == topo[2]->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(0) == topo[2]->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }
     // delete everything since it is no more needed
     _delete_topologies(topo);
@@ -654,10 +654,10 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(field != NULL, "field is NULL");
-    FLUPS_CHECK(rhs != NULL, "rhs is NULL");
-    FLUPS_CHECK(FLUPS_ISALIGNED(field), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
-    FLUPS_CHECK(FLUPS_ISALIGNED(rhs), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+    FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
+    FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(field), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(rhs), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
 
     opt_double_ptr       myfield = field;
     opt_double_ptr       mydata  = _data;
@@ -682,7 +682,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     int ax1 = (ax0 + 1) % 3;
     int ax2 = (ax0 + 2) % 3;
 
-    FLUPS_CHECK(!topo->isComplex(), "The RHS topology cannot be complex");
+    FLUPS_CHECK(!topo->isComplex(), "The RHS topology cannot be complex", LOCATION);
 
     const int nmax_for = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
     if(_prof!=NULL) _prof->start("copy");
@@ -723,7 +723,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
             if (_nbr_imult == 0)
                 dothemagic_rhs_real();
             else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult);
+                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
         } else {
             if (_nbr_imult == 0)
                 dothemagic_rhs_complex_nmult0();
@@ -731,10 +731,10 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
             // else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
             // else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
             else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult);
+                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
         }
     } else {
-        FLUPS_CHECK(false, "type of solver %d not implemented", type);
+        FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
     }
 
     if(_prof!=NULL) _prof->stop("domagic");
@@ -820,7 +820,7 @@ void Solver::dothemagic_rhs_complex_nmult0() {
  */
 void Solver::dothemagic_rhs_complex_nmult1() {
     BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet");
+    FLUPS_CHECK(false, "not implemented yet", LOCATION);
 }
 
 /**
@@ -829,7 +829,7 @@ void Solver::dothemagic_rhs_complex_nmult1() {
  */
 void Solver::dothemagic_rhs_complex_nmult2() {
     BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet");
+    FLUPS_CHECK(false, "not implemented yet", LOCATION);
 }
 
 /**
@@ -838,5 +838,5 @@ void Solver::dothemagic_rhs_complex_nmult2() {
  */
 void Solver::dothemagic_rhs_complex_nmult3() {
     BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet");
+    FLUPS_CHECK(false, "not implemented yet", LOCATION);
 }

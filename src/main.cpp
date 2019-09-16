@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_SERIALIZED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        FLUPS_ERROR("The MPI-provided thread behavior does not match");
+        FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
