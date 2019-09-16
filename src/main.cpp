@@ -61,7 +61,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     *predef  = 0;
 
     // modifying if necessary
-    if(argc <= 1){
+    if(argc < 1 || ( argc==1 && (argv[0][0]==NULL || strcmp(argv[0],"FLUPS"))) ){
         print_help();
         return 0;
     }
