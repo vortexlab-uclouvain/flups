@@ -22,12 +22,13 @@
 #include "mpi.h"
 
 //default values
-const static int              d_nsolve    = 1;
-const static int              d_nsample   = 1;
-const static int              d_startSize = 16;
-const static int              d_nprocs[3] = {1, 1, 1};
-const static double           d_L[3]      = {1., 1., 1.};
-const static FLUPS::GreenType d_kernel    = FLUPS::CHAT_2;
+const static int                 d_nsolve    = 1;
+const static int                 d_nsample   = 1;
+const static int                 d_startSize = 16;
+const static int                 d_nprocs[3] = {1, 1, 1};
+const static double              d_L[3]      = {1., 1., 1.};
+const static FLUPS::GreenType    d_kernel    = FLUPS::CHAT_2;
+const static FLUPS::BoundaryType d_bcdef     = FLUPS::UNB;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");
@@ -49,8 +50,10 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
 
     //assigning default values
     for (int i = 0; i < 3; i++) {
-        nprocs[i] = d_nprocs[i];
-        L[i]      = d_L[i];
+        nprocs[i]   = d_nprocs[i];
+        L[i]        = d_L[i];
+        bcdef[i][0] = d_bcdef;
+        bcdef[i][1] = d_bcdef;
     }
     *nsolve  = d_nsolve;
     *nsample = d_nsample;
