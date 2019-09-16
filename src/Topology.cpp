@@ -21,8 +21,9 @@ using namespace FLUPS;
  * @param nglob the global size per dim
  * @param nproc the number of proc per dim
  * @param isComplex indicate if the Topology uses complex indexing or not
+ * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex) {
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]) {
     BEGIN_FUNC;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
@@ -39,15 +40,23 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     }
 
     //-------------------------------------------------------------------------
-    /** - get the rankd for input and output  */
+    /** - get proc informatio  */
     //-------------------------------------------------------------------------
-    ranksplit(_rank, nproc, _rankd);
-
     for (int id = 0; id < 3; id++) {
         // total dimension
         _nglob[id] = nglob[id];
         // number of proc in each direction
         _nproc[id] = nproc[id];
+        // store the proc axis, used to split the rank
+        _axproc[id] = (axproc == NULL) ? id : axproc[id];
+    }
+    // split the rank
+    ranksplit(_rank, _axproc, _nproc, _rankd);
+
+    //-------------------------------------------------------------------------
+    /** - Get the sizes  */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
         // number of unknows everywhere except the last one
         _nbyproc[id] = nglob[id] / nproc[id];  // integer division = floor
         // if we are the last rank in the direction, we take everything what is left
@@ -172,8 +181,20 @@ void Topology::disp() const {
     FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
     FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
     FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
+    FLUPS_INFO(" - axproc = %d %d %d", _axproc[0], _axproc[1], _axproc[2]);
     FLUPS_INFO(" - isComplex = %d", _nf == 2);
     // FLUPS_INFO(" - h = %f %f %f",_h[0],_h[1],_h[2]);
     // FLUPS_INFO(" - L = %f %f %f",_L[0],_L[1],_L[2]);
     FLUPS_INFO("------------------------------------------");
+}
+
+void Topology::disp_rank() const{
+    double* rankdata = (double*) fftw_malloc(sizeof(double)*this->locmemsize());
+
+    for(int i=0; i<this->locmemsize(); i++){
+        rankdata[i] = this->rank();
+    }
+
+    std::string name = "rank_topo_axis" + std::to_string(this->axis());
+    hdf5_dump(this, name, rankdata);
 }

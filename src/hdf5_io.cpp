@@ -328,7 +328,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // real numbers
-    Topology *topo = new Topology(0, nglob, nproc, false);
+    Topology *topo = new Topology(0, nglob, nproc, false,NULL);
 
     double *data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 
@@ -348,7 +348,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // create a real topology
-    topo = new Topology(0, nglob, nproc, true);
+    topo = new Topology(0, nglob, nproc, true,NULL);
 
     data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 

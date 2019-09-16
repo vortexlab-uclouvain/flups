@@ -276,17 +276,20 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     const Topology *current_topo = topo;
 
     //-------------------------------------------------------------------------
-    /** - Get the sizes to start with */
+    /** - The size is initilized to that of the physical space. Then, with the 
+     * dry run, it will grow/shrink in every dimension, and this will be used
+     * as the size for the intermediate topos.
+     * Eventually, the finial size of the data will be that of the largest 
+     * topo. */
     //-------------------------------------------------------------------------
-    // The size is initilized to that of the physical space. Then, with the 
-    // dry run, it will grow/shrink in every dimension, and this will be used
-    // as the size for the intermediate topos.
-    // Eventually, the finial size of the data will be that of the largest 
-    // topo.
     int size_tmp[3];
     for (int id = 0; id < 3; id++){
         size_tmp[id] = topo->nglob(id);
     }
+    //-------------------------------------------------------------------------
+    /** - get the dimension order of the plan  */
+    //-------------------------------------------------------------------------
+    int dimOrder[3] = {planmap[0]->dimID(),planmap[1]->dimID(),planmap[2]->dimID()};
 
     //-------------------------------------------------------------------------
     /** - creates the plans and the intermediate topologies (if not Green).
@@ -316,7 +319,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // determines the proc repartition
             _pencil_nproc(dimID, nproc, topo->comm_size());
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex,dimOrder);
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -331,10 +334,12 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // create the switchtopoMPI to change topology
                 switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
             }
+            switchtopo[ip]->disp_rankgraph(ip-1,ip);
             // update the current topo to the new one
             current_topo = topomap[ip];
 
             current_topo->disp();
+            current_topo->disp_rank();
         }
 
         planmap[ip]->disp();
@@ -365,7 +370,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 size_tmp[dimID] += 1;
             }
             // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex,dimOrder);
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2){
                 // get the fieldstart = the point where the old topo has to begin in the new

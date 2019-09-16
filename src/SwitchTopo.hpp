@@ -82,6 +82,7 @@ class FLUPS::SwitchTopo {
     void execute(opt_double_ptr v, const int sign);
 
     void disp();
+    void disp_rankgraph(const int id_in,const int id_out) const;
 };
 
 void SwitchTopo_test();

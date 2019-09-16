@@ -225,7 +225,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  \t%07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
+            printf("%-25.25s|  %07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
             fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
         }
     }

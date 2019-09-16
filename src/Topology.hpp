@@ -13,6 +13,7 @@
 
 #include "defines.hpp"
 #include "mpi.h"
+#include "hdf5_io.hpp"
 
 /**
  * @brief Class Topology
@@ -31,6 +32,7 @@ class FLUPS::Topology {
     int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
     int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
     int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    int _axproc[3];
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -38,7 +40,8 @@ class FLUPS::Topology {
     //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
    public:
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
+    // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
+    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
     ~Topology();
 
     /**
@@ -65,6 +68,7 @@ class FLUPS::Topology {
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
+    inline int axproc(const int dim) const { return _axproc[dim]; }
     /**@} */
 
     /**
@@ -133,6 +137,7 @@ class FLUPS::Topology {
     }
 
     void disp() const;
+    void disp_rank() const;
 };
 
 /**
@@ -142,10 +147,13 @@ class FLUPS::Topology {
  * @param nproc the number of procs along each direction
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int nproc[3], int rankd[3]) {
-    rankd[0] = rank % nproc[0];
-    rankd[1] = (rank % (nproc[0] * nproc[1])) / nproc[0];
-    rankd[2] = rank / (nproc[0] * nproc[1]);
+inline static void ranksplit(const int rank, const int axproc[3],const int nproc[3], int rankd[3]) {
+    const int ax0 = axproc[0];
+    const int ax1 = axproc[1];
+    const int ax2 = axproc[2];
+    rankd[ax0] = rank % nproc[ax0];
+    rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+    rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
 }
 
 /**
@@ -156,7 +164,10 @@ inline static void ranksplit(const int rank, const int nproc[3], int rankd[3]) {
  * @return int 
  */
 inline static int rankindex(const int rankd[3], const FLUPS::Topology *topo) {
-    return rankd[0] + topo->nproc(0) * (rankd[1] + topo->nproc(1) * rankd[2]);
+    const int ax0 = topo->axproc(0);
+    const int ax1 = topo->axproc(1);
+    const int ax2 = topo->axproc(2);
+    return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
 }
 
 /**
