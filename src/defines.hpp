@@ -30,8 +30,8 @@
 //=============================================================================
 // LOCATORS
 //=============================================================================
-#define LOCATION ("in " + std::string(__FUNCTION__) + " from  " + std::string(__FILE__) + " at line " + std::to_string(__LINE__) )
-#define LOC      ("in " + std::string(__FUNCTION__) )
+#define LOCATION ("in " + std::string(__func__) + " from  " + std::string(__FILE__) + " at line " + std::to_string(__LINE__) )
+#define LOC      ("in " + std::string(__func__) )
 
 //=============================================================================
 // WARNINGS
@@ -40,7 +40,7 @@ static inline void FLUPS_WARNING(std::string a, std::string loc) {
     char tmp[512];
     sprintf(tmp, a.c_str());
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -49,7 +49,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, std::string loc) {
     char tmp[512];
     sprintf(tmp, a.c_str(), b);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -58,7 +58,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, std::string loc) {
     char tmp[512];
     sprintf(tmp, a.c_str(), b, c);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -67,7 +67,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, std::string lo
     char tmp[512];
     sprintf(tmp, a.c_str(), b, c, d);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -76,7 +76,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, std::str
     char tmp[512];
     sprintf(tmp, a.c_str(), b, c, d, e);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -85,7 +85,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, st
     char tmp[512];
     sprintf(tmp, a.c_str(), b, c, d, e, f);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -94,7 +94,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6
     char tmp[512];
     sprintf(tmp, a.c_str(), b, c, d, e, f, g);
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc);
+    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fflush(stdout);
 };
@@ -204,7 +204,7 @@ static inline void FLUPS_ERROR(std::string a, std::string loc) {
 #ifndef NDEBUG
 static inline void FLUPS_CHECK(bool a, std::string b, std::string loc) {
     if (!(a)) {
-        FLUPS_ERROR(b,loc);
+        FLUPS_ERROR(b,loc.c_str());
     }
 };
 template<typename T1>
@@ -212,7 +212,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, std::string loc) {
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 template<typename T1,typename T2>
@@ -220,7 +220,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, std::string lo
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c, d);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 template<typename T1,typename T2,typename T3>
@@ -228,7 +228,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, std::str
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c, d, e);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 template<typename T1,typename T2,typename T3,typename T4>
@@ -236,7 +236,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, st
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c, d, e, f);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5>
@@ -244,7 +244,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c, d, e, f, g);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
@@ -252,7 +252,7 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5
     if (!(a)) {
         char msg_chk[1024];
         sprintf(msg_chk, b.c_str(), c, d, e, f, g, h);
-        FLUPS_ERROR(msg_chk,loc);
+        FLUPS_ERROR(msg_chk,loc.c_str());
     }
 };
 #else
