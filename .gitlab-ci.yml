@@ -17,14 +17,14 @@ compilation :
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error
-run test 1:1:
+run serial:
   stage: test
   script:
     - ./flups_validation -ns 1
   dependencies: 
     - compilation
 
-run test 2:1:
+run parallel:
   stage: test
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32
@@ -32,9 +32,11 @@ run test 2:1:
     - compilation
 
 #validation all types of BCs with 1 kernel
-validation3D all BCs:
+validate3D all BCs:
   stage: test
   script:
-    - python3.7 ./scripts/test_bcs.py
+    - python3.7 ./scripts/test_3D_bcs.py
+  dependencies: 
+    - compilation
   dependencies: 
     - compilation
