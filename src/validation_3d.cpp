@@ -158,6 +158,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                 const size_t id   = localindex_xyz(i0, i1, i2, topo);
                 sol[id] = 1.0;
+                rhs[id] = 0.0;
             }
         }
     }
@@ -316,7 +317,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     err2 = sqrt(err2);
 
     char filename[512];
-    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.err",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
+    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.txt",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
 
     if (rank == 0) {
         FILE *myfile = fopen(filename, "a+");
