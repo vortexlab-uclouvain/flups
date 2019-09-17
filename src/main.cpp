@@ -45,6 +45,7 @@ static void print_help(){
 }
 
 int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS::BoundaryType bcdef[3][2], int *predef, FLUPS::GreenType *kernel, int *nsample, int **size, int *nsolve){
+    BEGIN_FUNC;
 
     int startSize = d_startSize;
 
@@ -61,7 +62,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     *predef  = 0;
 
     // modifying if necessary
-    if(argc < 1 || ( argc==1 && (argv[0][0]==NULL || strcmp(argv[0],"FLUPS"))) ){
+    if(argc < 1 || ( argc==1 && (!argv[0][0] || strcmp(argv[0],"flups_validation"))) ){
         print_help();
         return 0;
     }
@@ -102,7 +103,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
                 *nsample = atoi(argv[i+1]); 
                 if(*nsample<1){
-                    fprintf(stderr, "nsample must be >0\n");
+                    fprintf(stderr, "nresolution must be >0\n");
                     return 1;
                 }
             } else { //Missing argument
@@ -158,10 +159,10 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     }
     
     // finilizing allocations
-    *size =(int*) malloc((d_nsolve) * sizeof(int));
+    *size =(int*) malloc((*nsample) * sizeof(int));
     
     for (int i = 0; i<*nsample ; i++){
-        *size[i] = startSize * pow(2,i);
+        (*size)[i] = startSize * pow(2,i);
     }
     return 0;
 }
