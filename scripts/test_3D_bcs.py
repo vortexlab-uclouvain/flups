@@ -18,6 +18,8 @@ n_failure = 0
 
 tol = 1e-14
 
+tmp = [["4","4"]]
+
 i = 0
 for bcx in BC1 :
     for bcy in BC1 :
@@ -26,8 +28,7 @@ for bcx in BC1 :
             code = bcx[0] + bcx[1] + bcy[0] + bcy[1] + bcz[0] + bcz[1]
 
             #Launching test
-            # r = subprocess.run(["./flups_validation"] + ["-res"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
-            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-res"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+            r = subprocess.run(["./flups_validation"] + ["-res"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
             
             if r.returncode != 0 :
                 print("test %i (BCs : "%i + code + ") failed with error code ",r.returncode)
@@ -56,7 +57,7 @@ for bcx in BC1 :
                 buff = list(line)  
                 vals = dicref.get(buff[0])
                 if vals is None:
-                    print("    Skipping res= "+buff[0]+", no ref data.")
+                    print("test %i (BCs : "%i + code + ") skipped res= "+buff[0]+", no ref data.")
                     continue
                 elif abs(vals[0]-float(buff[1]))<tol and abs(vals[1]-float(buff[2]))<tol:
                     pass
@@ -73,8 +74,9 @@ for bcx in BC1 :
                 fref.seek(0)
                 print("=================================== CURRENT VALUES =============================================" )
                 print(fcurr.read())
-                print("=================================== REFERENCE VALUES =============================================" )
+                print("=================================== REFERENCE VALUES ===========================================" )
                 print(fref.read())      
+                print("=================================== ================ ===========================================\n" )
             
             fcurr.close()
             fref.close()

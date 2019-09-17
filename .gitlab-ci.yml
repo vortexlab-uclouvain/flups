@@ -5,31 +5,42 @@ stages:
   - build
   - test
 
-compilation :
+compil dbg :
   stage: build
   artifacts: 
     paths: 
       - flups_validation
     when: on_success
   script:
-    - echo "include make_arch/make.docker_valid" > Makefile.valid
+    - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
+    - tail -n +5 Makefile >> Makefile.valid
+    - make -j4 -f Makefile.valid
+
+compil opt :
+  stage: build
+  artifacts: 
+    paths: 
+      - flups_validation
+    when: on_success
+  script:
+    - echo "include make_arch/make.docker_valid_opt" > Makefile.valid
     - tail -n +5 Makefile >> Makefile.valid
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error
-run serial:
+run serial 1:1:
   stage: test
   script:
     - ./flups_validation -ns 1
   dependencies: 
-    - compilation
+    - compil dbg
 
-run parallel:
+run parallel 1:1:
   stage: test
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32
   dependencies: 
-    - compilation
+    - compil dbg
 
 #validation all types of BCs with 1 kernel
 validate3D all BCs:
@@ -37,6 +48,11 @@ validate3D all BCs:
   script:
     - python3.7 ./scripts/test_3D_bcs.py
   dependencies: 
-    - compilation
-  dependencies: 
-    - compilation
+    - compil opt
+
+# converge3D all kernels :
+#   stage: test
+#   script:
+#     - python3.7 ./scripts/test_3D_kerns.py
+#   dependencies: 
+#     - compil opt
