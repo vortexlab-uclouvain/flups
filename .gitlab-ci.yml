@@ -32,7 +32,7 @@ run test 2:1:
     - compilation
 
 #validation all types of BCs with 1 kernel
-validation all BCs:
+validation3D all BCs:
   stage: test
   script:
     - python3.7 ./scripts/test_bcs.py

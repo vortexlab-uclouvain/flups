@@ -5,3 +5,5 @@ docker build -t immc/flups-valid:v0.1 .
 docker login
 docker push immc/flups-valid
 
+# local test:
+docker run -it --rm immc/flups-valid:v0.2
