@@ -251,7 +251,8 @@ Profiler::Profiler(string myname){
 }
 Profiler::~Profiler() {
     for (map<string, TimerAgent*>::iterator it = _timeMap.begin(); it != _timeMap.end(); it++) {
-        delete (it->second);
+        TimerAgent* current = it->second;
+        delete(current);
     }
 }
 

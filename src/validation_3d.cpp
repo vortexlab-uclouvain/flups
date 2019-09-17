@@ -259,6 +259,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     }
 
     prof->disp();
+    delete(prof);
 
     // lIs = 1.e10, gIs = 0.0;
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -329,6 +330,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
 
     fftw_free(sol);
     fftw_free(rhs);
+    fftw_free(field);
     delete (mysolver);
     delete (topo);
 }
