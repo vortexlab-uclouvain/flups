@@ -1,5 +1,5 @@
 default :
-  image : immc/flups-valid:v0.1
+  image : immc/flups-valid:v0.2
 
 stages:
   - build
@@ -35,6 +35,6 @@ run test 2:1:
 validation all BCs:
   stage: test
   script:
-    - python3 ./scripts/test_bcs.py
+    - python3.7 ./scripts/test_bcs.py
   dependencies: 
     - compilation
