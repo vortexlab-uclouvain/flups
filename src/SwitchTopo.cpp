@@ -101,7 +101,7 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
 
 #ifdef PERF_VERBOSE
     if (rank == 0) {
-        FILE* file = fopen("./prof/blocksize","a+");
+        FILE* file = fopen("./prof/blocksize.txt","a+");
         if(file != NULL){
             fprintf(file,"SwitchTopo %d to %d: blocksize = %d %d %d\n",topo_input->axis(),topo_output->axis(),_nByBlock[0],_nByBlock[1],_nByBlock[2]);
             fclose(file);
@@ -350,7 +350,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 opt_double_ptr data     = recvBuf[bid];
                 const int      datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * nf;
                 // generate the request
-                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], MPI_ANY_TAG, MPI_COMM_WORLD, &(recvRequest[bid]));
+                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], bid, MPI_COMM_WORLD, &(recvRequest[bid]));
             }
         }
     }

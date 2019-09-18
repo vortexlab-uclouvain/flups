@@ -399,7 +399,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
             // Go to real data if the FFT is really done on green's array.
             // if not, keep it in complex
-            if (planmap[ip]->isr2c_green() ){
+            if (planmap[ip]->isr2c_doneByFFT() ){
                 topomap[ip]->switch2real();
                 size_tmp[dimID] *= 2; 
                 isComplex = false;
@@ -413,7 +413,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
     // Implementation Note:
     // If you want to do Helmoltz, you will always have to fill a complex Green function:
-    // - we need to ignore all r2cs (bypass the condition on isr2c_green)
+    // - we need to ignore all r2cs (bypass the condition on isr2c_doneByFFT)
     // - as there will be only C2C transforms, the size obtained after the init of plans
     //   is already the correct size for Green.
     // -> we need to be able to do SYMSYM directions on a complex number... meaning that we
@@ -571,7 +571,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             _plan_green[ip]->execute_plan();
         }
 
-        if (_plan_green[ip]->isr2c_green()) {
+        if (_plan_green[ip]->isr2c_doneByFFT()) {
             topo[ip]->switch2complex();
         }
     }
