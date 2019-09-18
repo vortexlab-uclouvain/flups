@@ -346,6 +346,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             current_topo = topomap[ip];
 
             current_topo->disp();
+            switchtopo[ip]->disp();
         }
         planmap[ip]->disp();
     }
@@ -395,6 +396,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
                 switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart,NULL);
+                switchtopo[ip+1]->disp();
             }
 
             // Go to real data if the FFT is really done on green's array.

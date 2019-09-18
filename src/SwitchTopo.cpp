@@ -493,17 +493,21 @@ void SwitchTopo::disp() {
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topo Swticher MPI");
     FLUPS_INFO("--- INPUT");
-    FLUPS_INFO("  - input axis = %d\n", _topo_in->axis());
-    FLUPS_INFO("  - input local = %d %d %d\n", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
-    FLUPS_INFO("  - input global = %d %d %d\n", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
-    FLUPS_INFO("  - istart = %d %d %d\n", _istart[0], _istart[1], _istart[2]);
-    FLUPS_INFO("  - iend = %d %d %d\n", _iend[0], _iend[1], _iend[2]);
+    FLUPS_INFO("  - input axis = %d", _topo_in->axis());
+    FLUPS_INFO("  - input local = %d %d %d", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
+    FLUPS_INFO("  - input global = %d %d %d", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
+    FLUPS_INFO("  - istart = %d %d %d", _istart[0], _istart[1], _istart[2]);
+    FLUPS_INFO("  - iend = %d %d %d", _iend[0], _iend[1], _iend[2]);
     FLUPS_INFO("--- OUTPUT");
-    FLUPS_INFO("  - output axis = %d\n", _topo_out->axis());
-    FLUPS_INFO("  - output local = %d %d %d\n", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
-    FLUPS_INFO("  - output global = %d %d %d\n", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
-    FLUPS_INFO("  - ostart = %d %d %d\n", _ostart[0], _ostart[1], _ostart[2]);
-    FLUPS_INFO("  - oend = %d %d %d\n", _oend[0], _oend[1], _oend[2]);
+    FLUPS_INFO("  - output axis = %d", _topo_out->axis());
+    FLUPS_INFO("  - output local = %d %d %d", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
+    FLUPS_INFO("  - output global = %d %d %d", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
+    FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
+    FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
+    FLUPS_INFO("--- BLOCKS");
+    FLUPS_INFO("  - nBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
+    FLUPS_INFO("  - inBlock = %d %d %d", _inBlock[0],_inBlock[1],_inBlock[2]);
+    FLUPS_INFO("  - onBlock = %d %d %d", _onBlock[0],_onBlock[1],_onBlock[2]);
     FLUPS_INFO("------------------------------------------");
 }
 
@@ -558,7 +562,7 @@ void SwitchTopo_test() {
     hdf5_dump(topo, "test_real", data);
 
     const int fieldstart[3] = {0, 0, 0};
-    // printf("\n\n=============================");
+    // printf("\n=============================");
     SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
 
     // printf("\n\n============ FORWARD =================");

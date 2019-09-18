@@ -242,7 +242,7 @@ static inline void cmpt_blockIndexes(const int istart[3], const int iend[3], con
             blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
         }
         // do some checks
-        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ",istart[0],istart[1],istart[2],iend[0],iend[1],iend[2]);
+        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ",istart[0],istart[1],istart[2],iend[0],iend[1],iend[2], LOCATION);
     }
 
     
