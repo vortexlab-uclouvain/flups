@@ -39,7 +39,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false);
+    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false,NULL);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
@@ -259,6 +259,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     }
 
     prof->disp();
+    delete(prof);
 
     // lIs = 1.e10, gIs = 0.0;
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -315,7 +316,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     err2 = sqrt(err2);
 
     char filename[512];
-    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.err",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
+    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.txt",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
 
     if (rank == 0) {
         FILE *myfile = fopen(filename, "a+");
@@ -329,6 +330,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
 
     fftw_free(sol);
     fftw_free(rhs);
+    fftw_free(field);
     delete (mysolver);
     delete (topo);
 }

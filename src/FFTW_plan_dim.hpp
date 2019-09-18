@@ -77,7 +77,8 @@ class FLUPS::FFTW_plan_dim {
     inline bool   ignoreMode() const { return _ignoreMode; }
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
-    inline bool   isr2c_green() const { return _isr2c && (!_isSpectral || !_isGreen) ; }
+    // inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral || !_isGreen) ; } //bug
+    inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
     inline int    imult() const { return _imult; }
     inline int    shiftgreen() const { return _shiftgreen; }

@@ -276,17 +276,20 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     const Topology *current_topo = topo;
 
     //-------------------------------------------------------------------------
-    /** - Get the sizes to start with */
+    /** - The size is initilized to that of the physical space. Then, with the 
+     * dry run, it will grow/shrink in every dimension, and this will be used
+     * as the size for the intermediate topos.
+     * Eventually, the finial size of the data will be that of the largest 
+     * topo. */
     //-------------------------------------------------------------------------
-    // The size is initilized to that of the physical space. Then, with the 
-    // dry run, it will grow/shrink in every dimension, and this will be used
-    // as the size for the intermediate topos.
-    // Eventually, the finial size of the data will be that of the largest 
-    // topo.
     int size_tmp[3];
     for (int id = 0; id < 3; id++){
         size_tmp[id] = topo->nglob(id);
     }
+    //-------------------------------------------------------------------------
+    /** - get the dimension order of the plan  */
+    //-------------------------------------------------------------------------
+    int dimOrder[3] = {planmap[0]->dimID(),planmap[1]->dimID(),planmap[2]->dimID()};
 
     //-------------------------------------------------------------------------
     /** - creates the plans and the intermediate topologies (if not Green).
@@ -313,10 +316,15 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
         // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
-            // determines the proc repartition
-            _pencil_nproc(dimID, nproc, topo->comm_size());
+            // determines the proc repartition using the previous one if available
+            if(ip == 0){
+                pencil_nproc(dimID, nproc, topo->comm_size());
+            }else{
+                const int nproc_hint[3] = {current_topo->nproc(0),current_topo->nproc(1),current_topo->nproc(2)};
+                pencil_nproc_hint(dimID, nproc, topo->comm_size(),planmap[ip-1]->dimID(),nproc_hint);
+            }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex,dimOrder);
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -331,12 +339,14 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // create the switchtopoMPI to change topology
                 switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart,_prof);
             }
+#ifdef PERF_VERBOSE
+            switchtopo[ip]->disp_rankgraph(ip - 1, ip);
+#endif
             // update the current topo to the new one
             current_topo = topomap[ip];
 
             current_topo->disp();
         }
-
         planmap[ip]->disp();
     }
 
@@ -358,14 +368,14 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
             // get the proc repartition
-            _pencil_nproc(dimID, nproc, topo->comm_size());
+            pencil_nproc(dimID, nproc, topo->comm_size());
 
             // if we had to forget one point for this plan, re-add it
             if(planmap[ip]->ignoreMode() ){
                 size_tmp[dimID] += 1;
             }
             // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex,dimOrder);
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2){
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -389,7 +399,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
             // Go to real data if the FFT is really done on green's array.
             // if not, keep it in complex
-            if (planmap[ip]->isr2c_green() ){
+            if (planmap[ip]->isr2c_doneByFFT() ){
                 topomap[ip]->switch2real();
                 size_tmp[dimID] *= 2; 
                 isComplex = false;
@@ -403,7 +413,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
     // Implementation Note:
     // If you want to do Helmoltz, you will always have to fill a complex Green function:
-    // - we need to ignore all r2cs (bypass the condition on isr2c_green)
+    // - we need to ignore all r2cs (bypass the condition on isr2c_doneByFFT)
     // - as there will be only C2C transforms, the size obtained after the init of plans
     //   is already the correct size for Green.
     // -> we need to be able to do SYMSYM directions on a complex number... meaning that we
@@ -561,7 +571,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             _plan_green[ip]->execute_plan();
         }
 
-        if (_plan_green[ip]->isr2c_green()) {
+        if (_plan_green[ip]->isr2c_doneByFFT()) {
             topo[ip]->switch2complex();
         }
     }

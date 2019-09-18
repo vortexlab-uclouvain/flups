@@ -99,6 +99,16 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     }
     fftw_free(onProc);
 
+#ifdef PERF_VERBOSE
+    if (rank == 0) {
+        FILE* file = fopen("./prof/blocksize.txt","a+");
+        if(file != NULL){
+            fprintf(file,"SwitchTopo %d to %d: blocksize = %d %d %d\n",topo_input->axis(),topo_output->axis(),_nByBlock[0],_nByBlock[1],_nByBlock[2]);
+            fclose(file);
+        }
+    }
+#endif
+
     //-------------------------------------------------------------------------
     /** - get the starting index of the block 0,0,0 for input and output */
     //-------------------------------------------------------------------------
@@ -340,7 +350,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 opt_double_ptr data     = recvBuf[bid];
                 const int      datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * nf;
                 // generate the request
-                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], MPI_ANY_TAG, MPI_COMM_WORLD, &(recvRequest[bid]));
+                MPI_Irecv(data, datasize, MPI_DOUBLE, origRank[bid], bid, MPI_COMM_WORLD, &(recvRequest[bid]));
             }
         }
     }
@@ -367,7 +377,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
         // go inside the block
         const int id_max = nByBlock[ax1] * nByBlock[ax2];
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, inloc)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, inloc, ax0, ax1)
         for (int id = 0; id < id_max; id++) {
             // get the id from a small modulo
             const int i2 = id / nByBlock[ax1];
@@ -440,7 +450,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         const size_t id_max = nByBlock[ax1] * nByBlock[ax2];
 
         if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis, ax0, ax1, stride)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
@@ -454,7 +464,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 }
             }
         } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis, ax0, ax1, stride)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
@@ -497,6 +507,26 @@ void SwitchTopo::disp() {
     FLUPS_INFO("------------------------------------------");
 }
 
+void SwitchTopo::disp_rankgraph(const int id_in,const int id_out) const{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    string name = "./prof/SwitchTopo" + std::to_string(id_in) + "with" + std::to_string(id_out) + "_rank" + std::to_string(rank) + ".txt";
+    FILE* file = fopen(name.c_str(),"w+");
+    if(file != NULL){
+        fprintf(file,"%d SEND:",rank);
+        for(int ib=0; ib<_inBlock[0] * _inBlock[1] * _inBlock[2]; ib++){
+            fprintf(file," %d ",_i2o_destRank[ib]);
+        }
+        fprintf(file,"\n");
+        fprintf(file,"%d RECV:",rank);
+        for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
+            fprintf(file," %d ",_o2i_destRank[ib]);
+        }
+        fprintf(file,"\n");
+        fclose(file);
+    }
+}
+
 void SwitchTopo_test() {
     BEGIN_FUNC;
 
@@ -511,8 +541,8 @@ void SwitchTopo_test() {
 
     //===========================================================================
     // real numbers
-    Topology* topo    = new Topology(0, nglob, nproc, false);
-    Topology* topobig = new Topology(0, nglob_big, nproc_big, false);
+    Topology* topo    = new Topology(0, nglob, nproc, false,NULL);
+    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL);
 
     double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
 
@@ -548,8 +578,8 @@ void SwitchTopo_test() {
 
     //===========================================================================
     // complex numbers
-    topo    = new Topology(0, nglob, nproc, true);
-    topobig = new Topology(2, nglob_big, nproc_big, true);
+    topo    = new Topology(0, nglob, nproc, true,NULL);
+    topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
 
     data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
 

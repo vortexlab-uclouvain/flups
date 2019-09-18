@@ -13,7 +13,6 @@
 #include <iostream>
 
 #include "expint.hpp"
-#include "tools.hpp"
 
 #include "Solver.hpp"
 #include "SwitchTopo.hpp"

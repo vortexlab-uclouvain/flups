@@ -85,8 +85,19 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // setup the property list for file access (property list = option list)
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    // do the magic stuff
+    MPI_Info FILE_INFO_TEMPLATE;
+    MPI_Info_create(&FILE_INFO_TEMPLATE);
+    H5Pset_sieve_buf_size(plist_id, 262144);
+    H5Pset_alignment(plist_id, 524288, 262144);
+    MPI_Info_set(FILE_INFO_TEMPLATE, "access_style", "write_once");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "collective_buffering", "true");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "cb_block_size", "1048576");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "cb_buffer_size", "4194304");
     // do some magic
-    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    // H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, FILE_INFO_TEMPLATE);
+    MPI_Info_free(&FILE_INFO_TEMPLATE);
     // create the file ID
     file_id = H5Fcreate(extFilename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     if (file_id < 0) FLUPS_ERROR("Failed to open the file.", LOCATION);
@@ -317,7 +328,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // real numbers
-    Topology *topo = new Topology(0, nglob, nproc, false);
+    Topology *topo = new Topology(0, nglob, nproc, false,NULL);
 
     double *data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 
@@ -337,7 +348,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // create a real topology
-    topo = new Topology(0, nglob, nproc, true);
+    topo = new Topology(0, nglob, nproc, true,NULL);
 
     data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 
