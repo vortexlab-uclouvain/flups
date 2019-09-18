@@ -32,7 +32,7 @@ run serial 1:1:
   stage: test
   script:
     - ./flups_validation -bc 3 3 3 3 3 3
-    - cat ./data/validation_3d_333333_typeGreen\=0.err
+    - cat ./data/validation_3d_333333_typeGreen\=0.txt
   dependencies: 
     - compil dbg
 
@@ -40,7 +40,7 @@ run serial 2:1:
   stage: test
   script:
     - ./flups_validation -bc 0 1 4 4 1 1
-    - cat ./data/validation_3d_014411_typeGreen\=0.err
+    - cat ./data/validation_3d_014411_typeGreen\=0.txt
   dependencies: 
     - compil dbg
 

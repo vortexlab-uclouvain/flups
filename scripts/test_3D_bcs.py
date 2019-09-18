@@ -43,8 +43,8 @@ for bcx in BC1 :
             #Checking for exactness of results
             n_mistake = 0
             
-            fcurr = open('./data/validation_3d_'+code+'_typeGreen=0.err','r')
-            fref  = open('./data_ref/validation_3d_'+code+'_typeGreen=0.err','r')
+            fcurr = open('./data/validation_3d_'+code+'_typeGreen=0.txt','r')
+            fref  = open('./data_ref/validation_3d_'+code+'_typeGreen=0.txt','r')
 
             #creating a dictionnary with reference data
             dicref = {}
