@@ -66,8 +66,10 @@ class FLUPS::SwitchTopo {
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */
 
-    MPI_Request *_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    MPI_Request *_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
     opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
