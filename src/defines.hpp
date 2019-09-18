@@ -198,7 +198,7 @@ static inline void FLUPS_ERROR(std::string a, std::string loc) {
     fprintf(stderr,msg_error);
     fflush(stderr);
     fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,0);
+    MPI_Abort(MPI_COMM_WORLD,1);
 };
 
 #ifndef NDEBUG

@@ -9,7 +9,7 @@ BCs = [ ["4","4","4","4","4","4"],
         ["4","0","1","4","4","4"],
         ["4","0","1","4","4","1"]]
 
-Kernels = ['0','1','2','3']
+Kernels = ['0','2','3','4']
 
 #Running all combinations of bcs and all kernels
 n_success = 0

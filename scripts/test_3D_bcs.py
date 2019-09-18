@@ -11,8 +11,6 @@ for bc1 in BC1s:
         BC1.append(bc1+bc2)
 BC1.append(["3","3"])
 
-Kernels = ['0','1','2','3']
-
 #Running all combinations of bcs
 n_success = 0
 n_failure = 0
