@@ -68,6 +68,7 @@ run MPI 1:1:
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - cat ./data/validation_3d_411444_typeGreen=0.txt
   dependencies: 
     - compil dbg
 
@@ -75,7 +76,8 @@ run MPI 2:1:
   stage: test
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+    - cat ./data/validation_3d_411444_typeGreen=2.txt
   dependencies: 
     - compil dbg
 

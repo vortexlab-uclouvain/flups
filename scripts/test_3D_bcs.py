@@ -49,7 +49,7 @@ for bcx in BC1 :
                 n_success += 1    
             else:
                 print("test %i (BCs : "%i + code + ") failed with wrong values.")
-                print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\\n" )
+                print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n" )
                 n_failure += 1
 
 print("%i test succeed out of %i" % (n_success,n_success+n_failure))
