@@ -1,5 +1,6 @@
 import subprocess
 import csv
+from check_res import check_res
 
 #List of combinations of boundary conditions in 1 direction:
 BC1s = [["0"],["1"],["4"]]
@@ -41,45 +42,15 @@ for bcx in BC1 :
                 continue
 
             #Checking for exactness of results
-            n_mistake = 0
-            
-            fcurr = open('./data/validation_3d_'+code+'_typeGreen=0.txt','r')
-            fref  = open('./data_ref/validation_3d_'+code+'_typeGreen=0.txt','r')
-
-            #creating a dictionnary with reference data
-            dicref = {}
-            for line in csv.reader(fref,delimiter=' '):
-                buff = list(line)  
-                dicref.update({buff[0] : [float(buff[1]),float(buff[2])] })
-
-            #comparing current results with reference
-            for line in csv.reader(fcurr,delimiter=' '):
-                buff = list(line)  
-                vals = dicref.get(buff[0])
-                if vals is None:
-                    print("test %i (BCs : "%i + code + ") skipped res= "+buff[0]+", no ref data.")
-                    continue
-                elif abs(vals[0]-float(buff[1]))<tol and abs(vals[1]-float(buff[2]))<tol:
-                    pass
-                else:
-                    n_mistake +=1
+            n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen=0.txt')
 
             if n_mistake==0:
                 print("test %i (BCs : "%i + code + ") succeed")
                 n_success += 1    
             else:
-                print("test %i (BCs : "%i + code + ") failed with wrong values:")
+                print("test %i (BCs : "%i + code + ") failed with wrong values.")
+                print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\\n" )
                 n_failure += 1
-                fcurr.seek(0)
-                fref.seek(0)
-                print("=================================== CURRENT VALUES =============================================" )
-                print(fcurr.read())
-                print("=================================== REFERENCE VALUES ===========================================" )
-                print(fref.read())      
-                print("=================================== ================ ===========================================\n" )
-            
-            fcurr.close()
-            fref.close()
 
 print("%i test succeed out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)
