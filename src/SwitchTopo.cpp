@@ -341,7 +341,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     /** - start the reception requests so we are ready to receive */
     //-------------------------------------------------------------------------
     for (int bid = 0; bid < recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2]; bid++) {
-        MPI_Start(&recvRequest[bid]);
+        MPI_Start(&(recvRequest[bid]));
     }
 
     if (_prof != NULL) {
@@ -385,7 +385,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         // send the block and continue
         // const int datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * topo_in->nf();
         // MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
-        MPI_Start(&sendRequest[bid]);
+        MPI_Start(&(sendRequest[bid]));
     }
 
     if (_prof != NULL) {
@@ -402,21 +402,21 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     /** - wait for a block and copy when it arrives */
     //-------------------------------------------------------------------------
     // get some counters
-    const int nblocks  = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
+    const int nblocks_recv  = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     const int out_axis = topo_out->axis();
     // for each block
     if (_prof != NULL) {
         _prof->start("buf2mem");
     }
 
-    for (int count = 0; count < nblocks; count++) {
+    for (int count = 0; count < nblocks_recv; count++) {
         // wait for a block
         int        request_index;
         MPI_Status status;
         if (_prof != NULL) {
             _prof->start("waiting");
         }
-        MPI_Waitany(nblocks, recvRequest, &request_index, &status);
+        MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
         if (_prof != NULL) {
             _prof->stop("waiting");
         }
@@ -472,6 +472,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             FLUPS_CHECK(false, "the value of nf is not supported");
         }
     }
+    // now that we have received everything, close the send requests
+    MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
+    
     if (_prof != NULL) {
         _prof->stop("buf2mem");
         _prof->stop("reorder");
