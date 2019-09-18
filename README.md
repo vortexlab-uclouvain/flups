@@ -1,5 +1,15 @@
 # FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
+### Licensing
+
+See LICENCE file.
+
+**TODO**: 
+- complete the LICENCE file
+- write Acknowledgements
+- how to cite us (here)
+
+
 ### Installation
 #### 1. Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
