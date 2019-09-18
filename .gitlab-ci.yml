@@ -28,13 +28,13 @@ compil opt :
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error in serial dbg
-run serial 1:1:
-  stage: test
-  script:
-    - ./flups_validation -bc 3 3 3 3 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
-  dependencies: 
-    - compil dbg
+# run serial 1:1:
+#   stage: test
+#   script:
+#     - ./flups_validation -bc 3 3 3 3 3 3
+#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
+#   dependencies: 
+#     - compil dbg
 
 # run serial 2:1:
 #   stage: test
@@ -61,37 +61,79 @@ run serial 1:1:
 #   dependencies: 
 #     - compil dbg
 
-run extra 1:1:
+serial dbg 1:1:
   stage: test
   script:
     - ./flups_validation -bc 4 1 1 4 4 4 -res 32
     - cat ./data/validation_3d_411444_typeGreen\=0.txt
-    - ./flups_validation -bc 4 4 0 4 4 4 -res 32
-    - cat ./data/validation_3d_440444_typeGreen\=0.txt
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-#checks that the code runs without error in MPI dbg
-run extra 2:1:
+serial dbg 2:1:
+  stage: test
+  script:
+    - ./flups_validation -bc 4 4 0 4 4 4 -res 32
+    - cat ./data/validation_3d_440444_typeGreen\=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+paral dbg 1:1:
   stage: test
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
     - cat ./data/validation_3d_411444_typeGreen=0.txt
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
-    - cat ./data/validation_3d_440444_typeGreen=0.txt
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run MPI 2:1:
+paral dbg 2:1:
   stage: test
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
-    - cat ./data/validation_3d_411444_typeGreen=2.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
+    - cat ./data/validation_3d_440444_typeGreen=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
+
+paral dbg 1:1:
+  stage: test
+  script:
+    - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 -bc 4 1 1 4 4 4
+    - cat ./data/validation_3d_411444_typeGreen=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+paral opt 1:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
+    - cat ./data/validation_3d_411444_typeGreen=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil opt
+
+paral opt 2:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
+    - cat ./data/validation_3d_440444_typeGreen=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil opt
+
+#checks that the code runs without error in MPI dbg
+
+# run MPI 2:1:
+#   stage: test
+#   script:
+#     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
+#     - cat ./data/validation_3d_411444_typeGreen=2.txt
+#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+#   dependencies: 
+#     - compil dbg
 
 # run MPI 3:1:
 #   stage: test
