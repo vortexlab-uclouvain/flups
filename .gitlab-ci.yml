@@ -1,9 +1,13 @@
 default :
   image : immc/flups-valid:v0.2
+  before_script:
+    - OMP_NUM_THREADS=1
 
 stages:
   - build
   - test
+  - validation
+  - convergence
 
 compil dbg :
   stage: build
@@ -28,164 +32,104 @@ compil opt :
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error in serial dbg
-# run serial 1:1:
-#   stage: test
-#   script:
-#     - ./flups_validation -bc 3 3 3 3 3 3
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg
-
-# run serial 2:1:
-#   stage: test
-#   script:
-#     - ./flups_validation -bc 0 1 4 4 1 1
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
-#     - cat ./data/validation_3d_014411_typeGreen\=0.txt
-#   dependencies: 
-#     - compil dbg
-
-# run serial 3:1:
-#   stage: test
-#   script:
-#     - ./flups_validation -bc 3 3 1 4 1 1
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg
-
-# run serial 4:1:
-#   stage: test
-#   script:
-#     - ./flups_validation -bc 3 3 0 0 1 1
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg
-
-serial dbg 1:1:
+run serial 1:1:
   stage: test
   script:
-    - ./flups_validation -bc 4 1 1 4 4 4 -res 32
-    - cat ./data/validation_3d_411444_typeGreen\=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - ./flups_validation -bc 3 3 3 3 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-serial dbg 2:1:
+run serial 2:1:
   stage: test
   script:
-    - ./flups_validation -bc 4 4 0 4 4 4 -res 32
-    - cat ./data/validation_3d_440444_typeGreen\=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
+    - ./flups_validation -bc 0 1 4 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-paral dbg 1:1:
+run serial 3:1:
   stage: test
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
-    - cat ./data/validation_3d_411444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - ./flups_validation -bc 3 3 1 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-paral dbg 2:1:
+run serial 4:1:
   stage: test
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
-    - cat ./data/validation_3d_440444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
+    - ./flups_validation -bc 3 3 0 0 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-paral dbg 3:1:
-  stage: test
-  script:
-    - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 -bc 4 1 1 4 4 4
-    - cat ./data/validation_3d_411444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
-  dependencies: 
-    - compil dbg
-
-extra 2:1:
-  stage: test
-  script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
-    - cat ./data/validation_3d_411444_typeGreen=0.txt
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
-    - cat ./data/validation_3d_440444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
-  dependencies: 
-    - compil dbg
-
-paral opt 1:1:
-  stage: test
-  script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
-    - cat ./data/validation_3d_411444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
-  dependencies: 
-    - compil opt
-
-paral opt 2:1:
-  stage: test
-  script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
-    - cat ./data/validation_3d_440444_typeGreen=0.txt
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_440444_typeGreen=0.txt'))"
-  dependencies: 
-    - compil opt
 
 #checks that the code runs without error in MPI dbg
+run MPI 1:1:
+  stage: test
+  script:
+    - echo $OMP_NUM_THREADS
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 4
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
 
-# run MPI 2:1:
-#   stage: test
-#   script:
-#     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
-#     - cat ./data/validation_3d_411444_typeGreen=2.txt
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
-#   dependencies: 
-#     - compil dbg
+run MPI 2:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+  dependencies: 
+    - compil dbg
 
-# run MPI 3:1:
-#   stage: test
-#   script:
-#     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 3 3 1 4 1 1
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg
+run MPI 3:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 3 3 1 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
 
-# run MPI 4:1:
-#   stage: test
-#   script:
-#     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 3 3
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg    
-
-
-# #checks that the code runs without error in MPI-OMP dbg
-# run MPI-OMP 1:1:
-#   stage: test
-#   script:
-#     - export OMP_NUM_THREADS=2
-#     - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 -bc 4 1 4 4 3 3
-#     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
-#   dependencies: 
-#     - compil dbg
+run MPI 4:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg    
 
 
-# #validation all types of BCs with 1 kernel (serial)
-# validate3D all BCs:
-#   stage: test
-#   script:
-#     - python3.7 ./scripts/test_3D_bcs.py
-#   dependencies: 
-#     - compil opt
+#checks that the code runs without error in MPI-OMP dbg
+run MPI-OMP 1:1:
+  stage: test
+  script:
+    - export OMP_NUM_THREADS=2
+    - echo $OMP_NUM_THREADS
+    - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 -bc 4 1 4 4 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
 
-# #validation convergence in unbounded for all kernels (parallel)
-# converge3D all kernels :
-#   stage: test
-#   script:
-#     - python3.7 ./scripts/test_3D_kerns.py
-#   dependencies: 
-#     - compil opt
+
+#validation all types of BCs with 1 kernel (serial)
+validate3D all BCs:
+  # only:
+  #   - master@examples/flups
+  stage: validation
+  script:
+    - export OMP_NUM_THREADS=1
+    - python3.7 ./scripts/test_3D_bcs.py
+  dependencies: 
+    - compil opt
+
+#validation convergence in unbounded for all kernels (parallel)
+converge3D all kernels :
+  # only:
+  #   - master@examples/flups
+  stage: convergence
+  script:
+    - export OMP_NUM_THREADS=2
+    - python3.7 -v ./scripts/test_3D_kerns.py
+  dependencies: 
+    - compil opt
