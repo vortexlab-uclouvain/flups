@@ -174,10 +174,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // compute time passed inside + children
         double localTime = _timeAcc;
-        double meanTime, maxTime, minTime, glob_percent;
+        double meanTime, glob_percent;
         MPI_Allreduce(&localTime, &meanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &maxTime, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &minTime, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanTime *= scale;
         glob_percent = meanTime/totalTime*100.0;
 
@@ -196,9 +194,11 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         self_percent = selfTime / totalTime * 100.0;
 
         // compute the time per call
-        double meanTimePerCount;
+        double meanTimePerCount, maxTimePerCount, minTimePerCount;
         double localTimePerCount = localTime / localCount;
         MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanTimePerCount *= scale;
 
         // comnpute the time passed inside the daddy
@@ -225,8 +225,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
+            printf("%-25.25s|  %07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
         }
     }
     // recursive call to the childrens
