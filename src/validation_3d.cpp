@@ -70,7 +70,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     const double oosigma3  = 1.0 / (sigma * sigma * sigma);
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
     /**
      * also accounting for various symmetry conditions. CAUTION: the solution for the Gaussian blob does not go to 0 fast enough
@@ -150,7 +150,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {

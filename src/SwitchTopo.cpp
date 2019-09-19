@@ -264,10 +264,6 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     MPI_Request* sendRequest;
     MPI_Request* recvRequest;
 
-    opt_int_ptr destRank;
-    opt_int_ptr destTag;
-    opt_int_ptr origRank;
-
     int send_nBlock[3];
     int recv_nBlock[3];
 
@@ -288,9 +284,6 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         topo_out    = _topo_out;
         sendRequest = _i2o_sendRequest;
         recvRequest = _i2o_recvRequest;
-        destRank    = _i2o_destRank;
-        destTag     = _i2o_destTag;
-        origRank    = _o2i_destRank;
         sendBuf     = _sendBuf;
         recvBuf     = _recvBuf;
 
@@ -309,9 +302,6 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         topo_out    = _topo_in;
         sendRequest = _o2i_sendRequest;
         recvRequest = _o2i_recvRequest;
-        destRank    = _o2i_destRank;
-        destTag     = _o2i_destTag;
-        origRank    = _i2o_destRank;
         sendBuf     = _recvBuf;
         recvBuf     = _sendBuf;
 
@@ -382,9 +372,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             }
         }
 
-        // send the block and continue
-        // const int datasize = nByBlock[0] * nByBlock[1] * nByBlock[2] * topo_in->nf();
-        // MPI_Isend(data, datasize, MPI_DOUBLE, destRank[bid], destTag[bid], MPI_COMM_WORLD, &(sendRequest[bid]));
+        // start the send the block and continue
         MPI_Start(&(sendRequest[bid]));
     }
 
@@ -474,7 +462,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     }
     // now that we have received everything, close the send requests
     MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
-    
+
     if (_prof != NULL) {
         _prof->stop("buf2mem");
         _prof->stop("reorder");

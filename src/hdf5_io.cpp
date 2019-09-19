@@ -144,7 +144,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // get the offset from topo
     int topo_offset[3];
-    get_istart_glob(topo_offset, topo);
+    topo->get_istart_glob(topo_offset);
 
     // compute some memory quantities
     hsize_t count[3]  = {1, 1, 1};                                                                          // how many blocks to write
