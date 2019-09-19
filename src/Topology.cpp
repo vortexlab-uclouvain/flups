@@ -30,7 +30,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == _comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], _comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get proc information  */
