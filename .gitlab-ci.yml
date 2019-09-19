@@ -97,11 +97,22 @@ paral dbg 2:1:
   dependencies: 
     - compil dbg
 
-paral dbg 1:1:
+paral dbg 3:1:
   stage: test
   script:
     - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 -bc 4 1 1 4 4 4
     - cat ./data/validation_3d_411444_typeGreen=0.txt
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+extra 2:1:
+  stage: test
+  script:
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4
+    - cat ./data/validation_3d_411444_typeGreen=0.txt
+    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 4 0 4 4 4
+    - cat ./data/validation_3d_440444_typeGreen=0.txt
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
