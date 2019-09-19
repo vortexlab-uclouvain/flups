@@ -113,7 +113,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
@@ -197,7 +197,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     const double r_eq2D = c_1osqrtpi * sqrt( hfact[ax0]*hfact[ax1]+hfact[ax1]*hfact[ax2]+hfact[ax2]*hfact[ax0] );
 
@@ -302,7 +302,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
 
     //Note: i0 (ax0) is the only spatial (i.e. non spectral) axis
@@ -394,7 +394,7 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {

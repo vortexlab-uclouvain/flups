@@ -12,8 +12,8 @@
 #define TOPOLOGY_HPP
 
 #include "defines.hpp"
-#include "mpi.h"
 #include "hdf5_io.hpp"
+#include "mpi.h"
 
 /**
  * @brief Class Topology
@@ -23,16 +23,14 @@
  */
 class FLUPS::Topology {
    protected:
-    int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int _rank;       /**<@brief rank of the current process */
-    int _comm_size;  /**<@brief size of the communicator */
-    int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
     int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int _axproc[3];  /**<@brief axis of the procs for ranksplit  */
+    int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
+    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int _axis;       /**<@brief fastest rotating index in the topology  */
     int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
     int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
-    int _axproc[3];
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -49,19 +47,9 @@ class FLUPS::Topology {
      * 
      * @{
      */
-    inline int comm_size() const { return _comm_size; }
     inline int axis() const { return _axis; }
-    inline int rank() const { return _rank; }
     inline int nf() const { return _nf; }
     inline int isComplex() const { return _nf == 2; }
-
-    // inline double h(const int dim) const { return _h[dim]; }
-    // inline double L(const int dim) const { return _L[dim]; }
-    // inline int* nloc() const { return _nloc; }
-    // inline int* nglob() const { return _nglob; }
-    // inline int* nproc() const { return _nproc; }
-    // inline int* rankd() const { return _rankd; }
-    // inline int* nbyproc() const { return _nbyproc; }
 
     inline int nglob(const int dim) const { return _nglob[dim]; }
     inline int nloc(const int dim) const { return _nloc[dim]; }
@@ -69,15 +57,12 @@ class FLUPS::Topology {
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
     inline int axproc(const int dim) const { return _axproc[dim]; }
-    /**@} */
-
     /**
      * @name Functions to compute intersection data with other Topologies
      * 
      * @{
      */
     void cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
-    void cmpt_intersect_naxis(const Topology *other, const int istart[3], const int iend[3], const int ishift[3], int *naxis) const;
     /**@} */
 
     /**
@@ -99,17 +84,17 @@ class FLUPS::Topology {
     inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
 
     /**
-     * @brief compute the rank in the other topology of the processor containing the data i
+     * @brief returns the starting global index of the current proc
      * 
-     * @param dim the dimension along which i is measured in the (indexing of the other topology!)
-     * @param other the other topo
-     * @param i the global index in the current topo
-     * @return int 
      */
-    inline int cmpt_matchrank(const int dim, const Topology *other, const int i) const {
-        return std::min((_rankd[dim] * _nbyproc[dim] + i) / other->nbyproc(dim), other->nproc(dim) - 1);
+    inline void get_istart_glob(int istart[3]) const {
+        const int ax0 = _axis;
+        const int ax1 = (ax0 + 1) % 3;
+        const int ax2 = (ax0 + 2) % 3;
+        istart[ax0]   = _rankd[ax0] * _nbyproc[ax0];
+        istart[ax1]   = _rankd[ax1] * _nbyproc[ax1];
+        istart[ax2]   = _rankd[ax2] * _nbyproc[ax2];
     }
-    /**@} */
 
     /**
      * @brief switch the topology to a complex mode
@@ -147,13 +132,13 @@ class FLUPS::Topology {
  * @param nproc the number of procs along each direction
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int axproc[3],const int nproc[3], int rankd[3]) {
+inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], int rankd[3]) {
     const int ax0 = axproc[0];
     const int ax1 = axproc[1];
     const int ax2 = axproc[2];
-    rankd[ax0] = rank % nproc[ax0];
-    rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
-    rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
+    rankd[ax0]    = rank % nproc[ax0];
+    rankd[ax1]    = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+    rankd[ax2]    = rank / (nproc[ax0] * nproc[ax1]);
 }
 
 /**
@@ -287,6 +272,6 @@ inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const
     is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
     is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
     is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
-
+    
 }
 #endif
