@@ -44,7 +44,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0]));
+    std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_ncore" + std::to_string(comm_size*omp_get_max_threads());
     Profiler* prof = new Profiler(name);
     FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L,prof);
     mysolver->set_GreenType(typeGreen);
