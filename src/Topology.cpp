@@ -30,7 +30,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size);
+    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == _comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], _comm_size, LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get proc information  */
@@ -83,7 +83,7 @@ Topology::~Topology() {}
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
-    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real", LOCATION);
 
     for (int id = 0; id < 3; id++) {
         const int onglob = other->nglob(id);
@@ -97,7 +97,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
             if (oid_global <= 0) start[id] = i;
             if (oid_global < onglob) end[id] = i + 1;
         }
-        FLUPS_CHECK(end[id]-start[id]>0,"iend has to be at least 1 bigger than istart: my nloc = %d %d %d vs other %d %d %d",_nloc[0],_nloc[1],_nloc[2],other->nloc(0),other->nloc(1),other->nloc(2));
+        FLUPS_CHECK(end[id]-start[id]>0,"iend has to be at least 1 bigger than istart: my nloc = %d %d %d vs other %d %d %d",_nloc[0],_nloc[1],_nloc[2],other->nloc(0),other->nloc(1),other->nloc(2), LOCATION);
     }
 }
 
