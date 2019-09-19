@@ -225,7 +225,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
             fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
         }
     }
@@ -340,10 +340,18 @@ void Profiler::stop(string name) {
 }
 
 /**
- * @brief display the whole profiler
+ * @brief display the whole profiler using 
  * 
  */
 void Profiler::disp() {
+   this->disp("root");
+}
+/**
+ * @brief display the profiler using the timer spent in ref as a reference for the global percentage computation
+ * 
+ * @param ref 
+ */
+void Profiler::disp(const std::string ref) {    
     int commSize, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -376,7 +384,7 @@ void Profiler::disp() {
         printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-");
     }
     // get the global timing
-    double localTotalTime = _timeMap["root"]->timeAcc();
+    double localTotalTime = _timeMap[ref]->timeAcc();
     double totalTime;
     MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     totalTime /= commSize;

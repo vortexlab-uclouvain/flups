@@ -259,7 +259,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         mysolver->solve(topo, field, rhs, type);
     }
 
-    prof->disp();
+    prof->disp("solve");
     delete(prof);
 
     // lIs = 1.e10, gIs = 0.0;
