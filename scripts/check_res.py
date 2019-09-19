@@ -6,7 +6,7 @@ import os
 #i is just an index for display
 def check_res(i, file):
 
-    tol = 1e-14
+    tol = 1e-10 #relative error does not exceed tol
 
     #Checking for exactness of results
     n_mistake = 0
@@ -27,7 +27,17 @@ def check_res(i, file):
         if vals is None:
             print("test %i: skipped res= "%i +buff[0]+", no ref data.\n     curr: "+buff[1]+" , " + buff[2] )
             continue
-        elif abs(vals[0]-float(buff[1]))<tol and abs(vals[1]-float(buff[2]))<tol:
+        
+        err2   = float('Inf')
+        errInf = float('Inf')
+        if vals[0] < 1e-14: #absolute error because ref is 0
+            err2   = abs((vals[0]-float(buff[1])))
+            errInf = abs((vals[1]-float(buff[2])))
+        else:
+            err2   = abs((vals[0]-float(buff[1]))/vals[0])
+            errInf = abs((vals[1]-float(buff[2]))/vals[1])
+
+        if err2<tol and errInf<tol:
             pass
         else:
             print("test %i: WRONG values for res= "%i +buff[0]+":\n     curr: "+buff[1]+" , " + buff[2] +"\n     ref : %10.12e , %10.12e"%(vals[0],vals[1]))

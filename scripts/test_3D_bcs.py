@@ -15,8 +15,6 @@ BC1.append(["3","3"])
 n_success = 0
 n_failure = 0
 
-tol = 1e-14
-
 tmp = [["4","4"]]
 
 i = 0

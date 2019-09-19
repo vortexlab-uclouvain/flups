@@ -15,8 +15,6 @@ Kernels = ['0','2','3','4']
 n_success = 0
 n_failure = 0
 
-tol = 1e-14
-
 i = 0
 for bcs in BCs :
     for kern in Kernels :
