@@ -174,10 +174,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // compute time passed inside + children
         double localTime = _timeAcc;
-        double meanTime, maxTime, minTime, glob_percent;
+        double meanTime, glob_percent;
         MPI_Allreduce(&localTime, &meanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &maxTime, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &minTime, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanTime *= scale;
         glob_percent = meanTime/totalTime*100.0;
 
@@ -190,15 +188,17 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double locSelfTime = (this->timeAcc()-sumChild);
         double selfTime;
         double self_percent;
-        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name);
+        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name, LOCATION);
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
 
         // compute the time per call
-        double meanTimePerCount;
+        double meanTimePerCount, maxTimePerCount, minTimePerCount;
         double localTimePerCount = localTime / localCount;
         MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanTimePerCount *= scale;
 
         // comnpute the time passed inside the daddy
@@ -225,8 +225,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %07.4f\t\t%07.4f\t\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTime, maxTime, meanCount);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
         }
     }
     // recursive call to the childrens
@@ -314,7 +314,7 @@ void Profiler::start(string name) {
     }
     else{
         string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg);
+        FLUPS_ERROR(msg, LOCATION);
     }
 #endif
 }
@@ -334,16 +334,24 @@ void Profiler::stop(string name) {
     }
     else{
         string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg);
+        FLUPS_ERROR(msg, LOCATION);
     }
 #endif
 }
 
 /**
- * @brief display the whole profiler
+ * @brief display the whole profiler using 
  * 
  */
 void Profiler::disp() {
+   this->disp("root");
+}
+/**
+ * @brief display the profiler using the timer spent in ref as a reference for the global percentage computation
+ * 
+ * @param ref 
+ */
+void Profiler::disp(const std::string ref) {    
     int commSize, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -376,7 +384,7 @@ void Profiler::disp() {
         printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-");
     }
     // get the global timing
-    double localTotalTime = _timeMap["root"]->timeAcc();
+    double localTotalTime = _timeMap[ref]->timeAcc();
     double totalTime;
     MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     totalTime /= commSize;

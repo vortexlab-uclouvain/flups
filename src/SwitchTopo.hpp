@@ -66,8 +66,10 @@ class FLUPS::SwitchTopo {
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */
 
-    MPI_Request *_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    MPI_Request *_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
     opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
@@ -242,7 +244,7 @@ static inline void cmpt_blockIndexes(const int istart[3], const int iend[3], con
             blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
         }
         // do some checks
-        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ",istart[0],istart[1],istart[2],iend[0],iend[1],iend[2]);
+        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ",istart[0],istart[1],istart[2],iend[0],iend[1],iend[2], LOCATION);
     }
 
     

@@ -70,7 +70,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     const double oosigma3  = 1.0 / (sigma * sigma * sigma);
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
     /**
      * also accounting for various symmetry conditions. CAUTION: the solution for the Gaussian blob does not go to 0 fast enough
@@ -150,7 +150,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -158,7 +158,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                 const size_t id   = localindex_xyz(i0, i1, i2, topo);
                 sol[id] = 1.0;
-                rhs[id] = 0.0;
             }
         }
     }
@@ -215,7 +214,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             manuRHS[dir] = &d2dx2_fUnb;
             manuSol[dir] = &fUnb;
         } else {
-            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
+            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
 
@@ -259,7 +258,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         mysolver->solve(topo, field, rhs, type);
     }
 
-    prof->disp();
+    prof->disp("solve");
     delete(prof);
 
     // lIs = 1.e10, gIs = 0.0;
@@ -325,7 +324,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
             fclose(myfile);
         } else {
-            FLUPS_CHECK(false, "unable to open file %s", filename);
+            FLUPS_CHECK(false, "unable to open file %s", filename, LOCATION);
         }
     }
 

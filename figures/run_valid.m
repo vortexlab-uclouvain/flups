@@ -1,6 +1,6 @@
 function run_valid(valid_case,order)
 
-    err = load( ['../data/validation_' valid_case '.err']);
+    err = load( ['../data/validation_' valid_case '.txt']);
     N = err(:,1);
     err2 = err(:,2);
     erri = err(:,3);

@@ -122,7 +122,7 @@ Indeed having the last dimension in the slower rotating index does not penalize 
 As an example, we here is how we access the memory
 
 ```cpp
-double* data =(double*) malloc(n[0] * n[1] * n[2] * sizeof(double));
+double* data =(double*) fftw_malloc(n[0] * n[1] * n[2] * sizeof(double));
 
 for(int iz=0; iz<n[2]; iz++){
     for(int iy=0; iy<n[1]; iy++){
