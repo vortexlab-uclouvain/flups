@@ -342,6 +342,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     //-------------------------------------------------------------------------
     const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
 
+#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, istart, nByBlock, nf, inloc, ax0, ax1,ax2,sendRequest)
     for (int bid = 0; bid < nblocks_send; bid++) {
         // get the split index
         int ib[3];
@@ -356,7 +357,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
         // go inside the block
         const int id_max = nByBlock[ax1] * nByBlock[ax2];
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, inloc, ax0, ax1)
+#pragma omp for schedule(dynamic) nowait
         for (int id = 0; id < id_max; id++) {
             // get the id from a small modulo
             const int i2 = id / nByBlock[ax1];
@@ -373,7 +374,10 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
 
         // start the send the block and continue
-        MPI_Start(&(sendRequest[bid]));
+        #pragma omp master
+        {
+            MPI_Start(&(sendRequest[bid]));
+        }
     }
 
     if (_prof != NULL) {
@@ -397,17 +401,25 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         _prof->start("buf2mem");
     }
 
+    // create the status as a shared variable
+    MPI_Status status;
+
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, nf, onloc, ax0, ax1, ax2, recvRequest)
     for (int count = 0; count < nblocks_recv; count++) {
-        // wait for a block
-        int        request_index;
-        MPI_Status status;
-        if (_prof != NULL) {
-            _prof->start("waiting");
+        // only the master receive the call
+#pragma omp master
+        {
+            if (_prof != NULL) {
+                _prof->start("waiting");
+            }
+            int request_index;
+            MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
+            if (_prof != NULL) {
+                _prof->stop("waiting");
+            }
         }
-        MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
-        if (_prof != NULL) {
-            _prof->stop("waiting");
-        }
+        // make sure that the master has received the status before going further
+#pragma omp barrier
 
         // get the block id = the tag
         int bid = status.MPI_TAG;
@@ -428,7 +440,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         const size_t id_max = nByBlock[ax1] * nByBlock[ax2];
 
         if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis, ax0, ax1, stride)
+#pragma omp for schedule(dynamic) nowait
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
@@ -442,7 +454,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 }
             }
         } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(id_max, my_v, data, nByBlock, nf, onloc, out_axis, ax0, ax1, stride)
+#pragma omp for schedule(dynamic) nowait
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
