@@ -22,6 +22,8 @@ compil dbg :
 
 compil opt :
   stage: build
+  only:
+    - master@examples/flups
   artifacts: 
     paths: 
       - flups_validation
@@ -34,6 +36,8 @@ compil opt :
 #checks that the code runs without error in serial dbg
 run serial 1:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - ./flups_validation -bc 3 3 3 3 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
@@ -42,6 +46,8 @@ run serial 1:1:
 
 run serial 2:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - ./flups_validation -bc 0 1 4 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
@@ -50,6 +56,8 @@ run serial 2:1:
 
 run serial 3:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - ./flups_validation -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
@@ -58,6 +66,8 @@ run serial 3:1:
 
 run serial 4:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - ./flups_validation -bc 3 3 0 0 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
@@ -68,6 +78,8 @@ run serial 4:1:
 #checks that the code runs without error in MPI dbg
 run MPI 1:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - echo $OMP_NUM_THREADS
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 4
@@ -77,6 +89,8 @@ run MPI 1:1:
 
 run MPI 2:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
@@ -85,6 +99,8 @@ run MPI 2:1:
 
 run MPI 3:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
@@ -93,6 +109,8 @@ run MPI 3:1:
 
 run MPI 4:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
@@ -103,6 +121,8 @@ run MPI 4:1:
 #checks that the code runs without error in MPI-OMP dbg
 run MPI-OMP 1:1:
   stage: test
+  only:
+    - master@examples/flups
   script:
     - export OMP_NUM_THREADS=2
     - echo $OMP_NUM_THREADS
@@ -114,9 +134,9 @@ run MPI-OMP 1:1:
 
 #validation all types of BCs with 1 kernel (serial)
 validate3D all BCs:
-  # only:
-  #   - master@examples/flups
   stage: validation
+  only:
+    - master@examples/flups
   script:
     - export OMP_NUM_THREADS=1
     - python3.7 ./scripts/test_3D_bcs.py
@@ -125,9 +145,9 @@ validate3D all BCs:
 
 #validation convergence in unbounded for all kernels (parallel)
 converge3D all kernels :
-  # only:
-  #   - master@examples/flups
   stage: convergence
+  only:
+    - master@examples/flups
   script:
     - export OMP_NUM_THREADS=2
     - python3.7 -v ./scripts/test_3D_kerns.py
