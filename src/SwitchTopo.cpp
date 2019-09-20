@@ -357,7 +357,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
         // go inside the block
         const int id_max = nByBlock[ax1] * nByBlock[ax2];
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static)
         for (int id = 0; id < id_max; id++) {
             // get the id from a small modulo
             const int i2 = id / nByBlock[ax1];
@@ -440,7 +440,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         const size_t id_max = nByBlock[ax1] * nByBlock[ax2];
 
         if (nf == 1) {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static) nowait
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
@@ -454,7 +454,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 }
             }
         } else if (nf == 2) {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static) nowait
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
