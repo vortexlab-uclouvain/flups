@@ -187,8 +187,8 @@ int main(int argc, char *argv[]) {
     int rank;
 
     int provided;
-    // set MPI_THREAD_MULTIPLE or MPI_THREAD_SERIALIZED
-    int requested = MPI_THREAD_SERIALIZED;
+    // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
+    int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
