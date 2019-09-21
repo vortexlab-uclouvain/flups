@@ -372,6 +372,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 data[buf_idx + i0] = my_v[my_idx + i0];
             }
         }
+        // we wait that everyone has filled the buffer
+        #pragma omp barrier
 
         // start the send the block and continue
         #pragma omp master
