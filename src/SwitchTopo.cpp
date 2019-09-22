@@ -372,8 +372,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 data[buf_idx + i0] = my_v[my_idx + i0];
             }
         }
-        // we wait that everyone has filled the buffer
-        #pragma omp barrier
+        // we wait that everyone has filled the buffer, should be useless since there is a lock after the omp for section
+        // #pragma omp barrier
 
         // start the send the block and continue
         #pragma omp master
@@ -442,7 +442,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         const size_t id_max = nByBlock[ax1] * nByBlock[ax2];
 
         if (nf == 1) {
-#pragma omp for schedule(static) nowait
+#pragma omp for schedule(static)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
@@ -456,7 +456,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 }
             }
         } else if (nf == 2) {
-#pragma omp for schedule(static) nowait
+#pragma omp for schedule(static)
             for (size_t id = 0; id < id_max; id++) {
                 // get the id from a small modulo
                 const int i2 = id / nByBlock[ax1];
