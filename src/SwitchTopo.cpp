@@ -372,9 +372,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                 data[buf_idx + i0] = my_v[my_idx + i0];
             }
         }
-        // we wait that everyone has filled the buffer, should be useless since there is a lock after the omp for section
-        // #pragma omp barrier
-
+        // the barrier after an OpenMP "for" block is implicit
         // start the send the block and continue
         #pragma omp master
         {
@@ -421,6 +419,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             }
         }
         // make sure that the master has received the status before going further
+        // there is no implicit barrier after
 #pragma omp barrier
 
         // get the block id = the tag
