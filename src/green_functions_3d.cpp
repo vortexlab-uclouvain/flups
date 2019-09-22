@@ -87,12 +87,12 @@ static inline double _chat_2(const void* params) {
 void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha){
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral");
+    FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral", LOCATION);
 
     // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK(hfact[0] != 0.0, "grid spacing cannot be 0");
-    FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0");
-    FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0");
+    FLUPS_CHECK(hfact[0] != 0.0, "grid spacing cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
     int ax0 = topo->axis();
     int ax1 = (ax0 + 1) % 3;
@@ -121,15 +121,15 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
             G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             //please add the parameters you need to params
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
@@ -178,12 +178,12 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]");
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]");
+    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
-    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
+    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
 
     // const double eps     = alpha * hfact[0];
@@ -193,27 +193,27 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
 
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             // see [Spietz:2018]
             break;
         case HEJ_4:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case HEJ_6:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     const double r_eq2D = c_1osqrtpi * sqrt( hfact[ax0]*hfact[ax1]+hfact[ax1]*hfact[ax2]+hfact[ax2]*hfact[ax0] );
 
@@ -283,12 +283,12 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]");
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]");
+    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
-    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
+    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
 
     // const double eps     = alpha * hfact[0];
@@ -298,27 +298,27 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
 
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             // see [Spietz:2018]
             break;
         case HEJ_4:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case HEJ_6:
-            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
 
     //Note: i0 (ax0) is the only spatial (i.e. non spectral) axis
@@ -377,9 +377,9 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK(kfact[0] != 0.0, "dk cannot be 0");
-    FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0");
-    FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0");
+    FLUPS_CHECK(kfact[0] != 0.0, "dk cannot be 0", LOCATION);
+    FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0", LOCATION);
+    FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
 
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -390,27 +390,27 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
 
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_ERROR("HEJ kernels not implemented in full spectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in full spectral.", LOCATION);
             // To do this, you need to have the FT of the regularization kernel and divide it by k^2
             break;
         case HEJ_4:
-            FLUPS_ERROR("HEJ kernels not implemented in full spectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in full spectral.", LOCATION);
             break;
         case HEJ_6:
-            FLUPS_ERROR("HEJ kernels not implemented in full spectral.");
+            FLUPS_ERROR("HEJ kernels not implemented in full spectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {

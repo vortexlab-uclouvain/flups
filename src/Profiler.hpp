@@ -96,6 +96,7 @@ class Profiler {
     void stop(string name);
 
     void disp();
+    void disp(const std::string ref);
 };
 
 #endif

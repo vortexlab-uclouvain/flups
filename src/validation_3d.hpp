@@ -42,10 +42,9 @@
 
 struct DomainDescr {
     int          nglob[3]   = {64, 64, 64};
-    int          nproc[3]   = {1, 2, 1};
+    int          nproc[3]   = {1, 2, 2};
     double       L[3]       = {1.0, 1.0, 1.0};
     FLUPS::BoundaryType mybc[3][2] = {{FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}};
-    // BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 };
 
 /**

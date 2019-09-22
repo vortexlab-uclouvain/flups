@@ -48,7 +48,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
+    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2", LOCATION);
 
     //-------------------------------------------------------------------------
     // Initialisation of the sizes and types
@@ -87,7 +87,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
     } else {
-        FLUPS_ERROR("Invalid combination of BCs");
+        FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim() {
@@ -152,7 +152,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -226,7 +226,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
             _koffset = 0.5;
         }
     } else {
-        FLUPS_ERROR("unable to init the solver required");
+        FLUPS_ERROR("unable to init the solver required", LOCATION);
     }
 }
 
@@ -244,7 +244,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
@@ -300,7 +300,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
         } else {
-            FLUPS_ERROR("unable to init the solver required");
+            FLUPS_ERROR("unable to init the solver required", LOCATION);
         }
     }
 }
@@ -586,7 +586,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 void FFTW_plan_dim::execute_plan() {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral");
+    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
 
     // run the plan
     if (_type == SYMSYM) {
