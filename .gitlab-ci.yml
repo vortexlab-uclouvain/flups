@@ -17,7 +17,7 @@ compil dbg :
     when: on_success
   script:
     - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
-    - tail -n +5 Makefile >> Makefile.valid
+    - tail -n +27 Makefile >> Makefile.valid
     - make -j4 -f Makefile.valid
 
 compil opt :
@@ -30,7 +30,7 @@ compil opt :
     when: on_success
   script:
     - echo "include make_arch/make.docker_valid_opt" > Makefile.valid
-    - tail -n +5 Makefile >> Makefile.valid
+    - tail -n +27 Makefile >> Makefile.valid
     - make -j4 -f Makefile.valid
 
 #checks that the code runs without error in serial dbg
