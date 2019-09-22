@@ -1,3 +1,5 @@
+print("Hello...")
+
 import subprocess
 from check_res import check_res
 
@@ -5,6 +7,7 @@ from check_res import check_res
 
 BCs = [ ["4","4","4","4","4","4"],
         ["4","4","0","4","4","4"],
+        ["4","1","1","4","4","4"],
         ["4","1","4","4","4","4"],
         ["4","0","1","4","4","4"],
         ["4","0","1","4","4","1"]]
@@ -15,17 +18,20 @@ Kernels = ['0','2','3','4']
 n_success = 0
 n_failure = 0
 
-tol = 1e-14
+print("Starting the tests...")
 
 i = 0
 for bcs in BCs :
     for kern in Kernels :
         i+=1
 
+        print("----- %i -----"%i)
+
         code = ''.join(bcs)
 
         # Launching test
-        r = subprocess.run(["mpirun"] + ["-np"] + ["4"] + ["-oversubscribe"] + ["./flups_validation"] + ["-np"] + ["1"] + ["2"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["-nres"] + ["3"] + ["-bc"] + bcs, capture_output=True)
+        #+ ["-oversubscribe"]
+        r = subprocess.run(["mpirun"] + ["-np"] + ["4"] + ["./flups_validation"] + ["-np"] + ["1"] + ["2"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["-nres"] + ["3"] + ["-bc"] + bcs, capture_output=True)
         
         if r.returncode != 0 :
             print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
