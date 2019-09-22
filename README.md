@@ -1,13 +1,19 @@
 # FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
-### Licensing
+#### Licensing and authorship
+Copyright © UCLouvain 2019
 
-See LICENCE file.
+FLUPS is distributed under GPLv3.0 (or any later version) license.
 
-**TODO**: 
-- complete the LICENCE file
-- write Acknowledgements
-- how to cite us (here)
+The main authors are (by alphabetical order):
+- Denis-Gabriel Caprace
+- Thomas Gillis
+
+For the list of all the contributors to the development of FLUPS, description and a complete License: see LICENSE file.
+
+#### Citation
+If you use FLUPS for your publications, please cite it as follows:
+**FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, Caprace et al., 2019 (under publication)
 
 
 ### Installation

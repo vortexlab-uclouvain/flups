@@ -1,15 +1,36 @@
 /**
  * @file bessel.hpp
- * @author Denis-Gabriel Caprace
- * @brief implementation of the modified bessel functions (with nu=0).
- * @date 2019-09-05
+ * @author Thomas Gillis and Denis-Gabriel Caprace
+ * @brief 
+ * @version
+ * @date 2019-09-22
  * 
- * References:
- * - Abramowitz and Stegun, "Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables", 1964; §9.4 "Bessel functions"
- * - Press et al., "Numerical Recipes", 3rd edition, Cambridge University Press, 2007; §6.5.1 "Modified Bessel Functions of Integer Order", pp. 279
+ * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
+ * 
  */
 
 #include <cmath>
+// References:
+//   - Abramowitz and Stegun, "Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables", 1964; §9.4 "Bessel functions"
+//   - Press et al., "Numerical Recipes", 3rd edition, Cambridge University Press, 2007; §6.5.1 "Modified Bessel Functions of Integer Order", pp. 279
 
 static inline double poly(const double *coef, const int n, const double x) {
     double ans = coef[n];
