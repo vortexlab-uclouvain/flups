@@ -245,8 +245,8 @@ SwitchTopo::~SwitchTopo() {
 void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),
-                "both topologies have to be complex or real", LOCATION);
+    FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
+    FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -469,8 +469,6 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
                     my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
                 }
             }
-        } else {
-            FLUPS_CHECK(false, "the value of nf is not supported", LOCATION);
         }
     }
     // now that we have received everything, close the send requests
