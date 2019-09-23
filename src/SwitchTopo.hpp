@@ -39,7 +39,6 @@ typedef int bcoord[3];
 class FLUPS::SwitchTopo {
    protected:
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
-
     int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
     int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
     int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
@@ -56,6 +55,9 @@ class FLUPS::SwitchTopo {
 
     int _ib2o_shift[3]; /**<@brief position in the output topology of the first block (0,0,0) matching the origin of the input topology  */
     int _ob2i_shift[3]; /**<@brief position in the input topology of the first block (0,0,0) matching the origin of the output topology  */
+
+    opt_int_ptr _iBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    opt_int_ptr _oBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
     opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
     opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
@@ -149,7 +151,7 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
 /**
  * @brief compute the destination rank for every block on the current processor
  * 
- * @param nBlockByProc the number of block on the current proc (012-indexing)
+ * @param nBlock the number of block on the current proc (012-indexing)
  * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
  * @param topo the destination topology
  * @param nBlockOnProc the number of block on each proc in the destination topology
@@ -173,7 +175,7 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
 
                 // determine the dest rank for each dimension
                 for (int id = 0; id < 3; id++) {
-                    // we go trough every proc on the dim
+                    // we go trough every rank on the given dim
                     int block_count = 0;
                     for (int ir = 0; ir < topo->nproc(id); ir++) {
                         // update the destination rank
@@ -200,6 +202,36 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
                                       nBlockEachProc[2 * comm_size + destrank]};
                 // store the destination tag = local block index in the destination rank
                 destTag[bid] = localIndex(0,local_bid[0], local_bid[1], local_bid[2],0,dest_nBlock,1);
+            }
+        }
+    }
+}
+/**
+ * @brief compute the size of the blocks inside the given topology
+ * 
+ * @param nBlock 
+ * @param blockIDStart 
+ * @param nByBlock 
+ * @param topo 
+ * @param nBlockSize 
+ */
+static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const FLUPS::Topology *topo, opt_int_ptr nBlockSize[3]) {
+    // go through each block
+    for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
+        for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
+            for (int ib0 = 0; ib0 < nBlock[0]; ib0++) {
+                // get the global block index
+                const int bidv[3] = {ib0 + blockIDStart[0], ib1 + blockIDStart[1], ib2 + blockIDStart[2]};
+                const int bid     = localIndex(0, ib0, ib1, ib2, 0, nBlock, 1);
+                // determine the size in each direction
+                for (int id = 0; id < 3; id++) {
+                    //if no block is the next one
+                    if ((bidv[id] + 1) * nBlock[id] > topo->nglob(id)) {
+                        nBlockSize[id][bid] = topo->nglob(id) - bidv[id] * nBlock[id];
+                    } else {
+                        nBlockSize[id][bid] = nByBlock[id];
+                    }
+                }
             }
         }
     }

@@ -239,8 +239,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\t%9.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
         }
     }
     // recursive call to the childrens
@@ -410,7 +410,7 @@ void Profiler::disp(const std::string ref) {
         printf("===================================================================================================================================================\n");
         printf("        PROFILER %s  \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
-        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-","-Bandwidth (MB/s)-");
+        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-","-(MB/s)-");
     }
     // get the global timing
     double localTotalTime = _timeMap[ref]->timeAcc();
