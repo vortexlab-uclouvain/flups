@@ -27,6 +27,7 @@ class TimerAgent {
     double _timeAcc = 0.0;
     double _t0      = 0.0;
     double _t1      = 0.0;
+    size_t _memsize = 0;
 
     double _timeMax = 0.0;
     double _timeMin = 0.0;
@@ -42,9 +43,8 @@ class TimerAgent {
     void start();
     void stop();
     void reset();
-    void disp(FILE* file,const int level, const double totalTime);
-
-    void writeParentality(FILE* file,const int level);
+    void addMem(size_t mem);
+    void disp(FILE* file, const int level, const double totalTime);
 
     int    count() const { return _count; };
     bool   isroot() const { return _isroot; };
@@ -52,10 +52,10 @@ class TimerAgent {
     double timeAcc() const;
     double timeMin() const;
     double timeMax() const;
-    
 
     void addChild(TimerAgent* child);
     void setDaddy(TimerAgent* daddy);
+    void writeParentality(FILE* file, const int level);
 };
 
 class Profiler {
@@ -75,6 +75,7 @@ class Profiler {
 
     void start(string name);
     void stop(string name);
+    void addMem(string name,size_t mem);
 
     void disp();
     void disp(const std::string ref);

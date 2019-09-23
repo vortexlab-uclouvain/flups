@@ -416,6 +416,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
             MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
             if (_prof != NULL) {
                 _prof->stop("waiting");
+                size_t loc_mem = nByBlock[0] * nByBlock[1] *nByBlock[2]*nf*sizeof(double);
+                _prof->addMem("waiting", loc_mem);
             }
         }
         // make sure that the master has received the status before going further

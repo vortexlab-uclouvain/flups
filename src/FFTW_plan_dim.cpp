@@ -617,7 +617,7 @@ void FFTW_plan_dim::disp() {
     } else if (_bc[1] == PER) {
         FLUPS_INFO(" PER}");
     }
-    if (_type == SYMSYM || _type == MIXUNB) {
+    if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
         if (_kind == FFTW_REDFT00) {
             FLUPS_INFO("- kind = REDFT00 = DCT type I");
         }

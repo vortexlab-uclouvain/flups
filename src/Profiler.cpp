@@ -57,6 +57,14 @@ void TimerAgent::reset() {
 }
 
 /**
+ * @brief adds memory to the timer to compute bandwith
+ * 
+ */
+void TimerAgent::addMem(size_t mem){
+    _memsize += mem;
+}
+
+/**
  * @brief add a child to the timer 
  * 
  * @param child 
@@ -214,6 +222,12 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
             loc_percent = 100.0;
         }
 
+        // compute the bandwith
+        double localBandwidth = ((double)_memsize) / _timeAcc;
+        double meanBandwidth;
+        MPI_Allreduce(&localBandwidth, &meanBandwidth, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        meanBandwidth *= scale/std::pow(10.0,6.0);
+
         // setup the displayed name
         string myname = _name;
         if (level > 1) {
@@ -225,8 +239,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\t%9.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
         }
     }
     // recursive call to the childrens
@@ -339,6 +353,21 @@ void Profiler::stop(string name) {
 #endif
 }
 
+void Profiler::addMem(string name,size_t mem) {
+#ifdef NDEBUG
+    _timeMap[name]->addMem(mem);
+#else
+    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
+    if (it != _timeMap.end()) {
+        _timeMap[name]->addMem(mem);
+    }
+    else{
+        string msg = "timer "+name+ " not found";
+        FLUPS_ERROR(msg, LOCATION);
+    }
+#endif
+}
+
 /**
  * @brief display the whole profiler using 
  * 
@@ -381,7 +410,7 @@ void Profiler::disp(const std::string ref) {
         printf("===================================================================================================================================================\n");
         printf("        PROFILER %s  \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
-        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-");
+        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-","-Bandwidth (MB/s)-");
     }
     // get the global timing
     double localTotalTime = _timeMap[ref]->timeAcc();
