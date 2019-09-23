@@ -56,8 +56,8 @@ class FLUPS::SwitchTopo {
     int _ib2o_shift[3]; /**<@brief position in the output topology of the first block (0,0,0) matching the origin of the input topology  */
     int _ob2i_shift[3]; /**<@brief position in the input topology of the first block (0,0,0) matching the origin of the output topology  */
 
-    opt_int_ptr _iBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-    opt_int_ptr _oBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* _iBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* _oBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
     opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
     opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
@@ -215,7 +215,7 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
  * @param topo 
  * @param nBlockSize 
  */
-static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const FLUPS::Topology *topo, opt_int_ptr nBlockSize[3]) {
+static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const FLUPS::Topology *topo, int* nBlockSize[3]) {
     // go through each block
     for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
         for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
