@@ -227,7 +227,7 @@ static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3]
                 // determine the size in each direction
                 for (int id = 0; id < 3; id++) {
                     //if I am the last block, I forgive a small difference between the blocksizes
-                    if (bidv[id] == nBlock[id]) {
+                    if (bidv[id] == (nBlock[id]-1)) {
                         nBlockSize[id][bid] = (iend[id]-istart[id]) - bidv[id] * nByBlock[id];
                     } else {
                         nBlockSize[id][bid] = nByBlock[id];
