@@ -88,7 +88,15 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
         // get the gcd between send and receive
         int isend = (_iend[id] - _istart[id]);
         int osend = (_oend[id] - _ostart[id]);
-        int npoints = gcd(isend-isend%2,osend-osend%2);
+        // To avoid that the 2*n+1 is destroying the block size,
+        // if we are the last proc, we forget about the last row
+        if(_topo_in->rankd(id) == (_topo_in->nproc(id)-1)){
+            isend = isend - isend%2;
+        }
+        if(_topo_out->rankd(id) == (_topo_out->nproc(id)-1)){
+            osend = osend - osend%2;
+        }
+        int npoints = gcd(isend,osend);
         // gather on each proc the gcd
         MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, MPI_COMM_WORLD);
         // get the Greatest Common Divider among every process
@@ -147,11 +155,11 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     /** - for each block, get the destination rank */
     //-------------------------------------------------------------------------
     // send destination ranks in the ouput topo
+    cmpt_blockSize(_inBlock,_iblockIDStart,_nByBlock,_istart,_iend,_iBlockSize);
+    cmpt_blockSize(_onBlock,_oblockIDStart,_nByBlock,_ostart,_oend,_oBlockSize);
+
     cmpt_blockDestRankAndTag(_inBlock, _iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank, _i2o_destTag);
     cmpt_blockDestRankAndTag(_onBlock, _oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank, _o2i_destTag);
-
-    cmpt_blockSize(_inBlock,_iblockIDStart,_nByBlock,_topo_in,_iBlockSize);
-    cmpt_blockSize(_onBlock,_oblockIDStart,_nByBlock,_topo_out,_oBlockSize);
 
     // free the temp arrays
     fftw_free(inBlockEachProc);
@@ -163,7 +171,6 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
         _sendBuf[bid] = (double*)fftw_malloc(_iBlockSize[0][bid] * _iBlockSize[1][bid] * _iBlockSize[2][bid] * sizeof(double) * _topo_in->nf());
         FLUPS_CHECK(FLUPS_ISALIGNED(_sendBuf[bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
-
         //create the request
         const int datasize = _iBlockSize[0][bid] * _iBlockSize[1][bid] * _iBlockSize[2][bid] * _topo_out->nf();
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
@@ -175,7 +182,6 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
         // allocate the buffer
         _recvBuf[bid] = (double*)fftw_malloc(_oBlockSize[0][bid] * _oBlockSize[1][bid] * _oBlockSize[2][bid] * sizeof(double) * _topo_in->nf());
         FLUPS_CHECK(FLUPS_ISALIGNED(_recvBuf[bid]), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
-
         //create the request
         const int datasize = _oBlockSize[0][bid] * _oBlockSize[1][bid] * _oBlockSize[2][bid] * _topo_out->nf();
         // for the reception when doing input 2 output: receive from the rank o2i with tag bid
@@ -342,6 +348,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
     FLUPS_INFO("previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
     FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
+    FLUPS_INFO("using %d blocks on send and %d on recv",send_nBlock[0]*send_nBlock[1]*send_nBlock[2],recv_nBlock[0]*recv_nBlock[1]*recv_nBlock[2]);
 
     const int ax0 = topo_in->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -520,7 +527,7 @@ void SwitchTopo::disp() {
     FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
     FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
     FLUPS_INFO("--- BLOCKS");
-    FLUPS_INFO("  - nBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
+    FLUPS_INFO("  - nByBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
     FLUPS_INFO("  - inBlock = %d %d %d", _inBlock[0],_inBlock[1],_inBlock[2]);
     FLUPS_INFO("  - onBlock = %d %d %d", _onBlock[0],_onBlock[1],_onBlock[2]);
     FLUPS_INFO("------------------------------------------");

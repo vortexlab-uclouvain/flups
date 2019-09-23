@@ -193,6 +193,7 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
 
                 // get the global destination rank
                 int destrank = rankindex(destrankd, topo);
+                FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d",destrank,destrankd[0],destrankd[1],destrankd[2],comm_size,LOCATION);
                 // get the global destination rank
                 int bid = localIndex(0,ib0,ib1,ib2,0,nBlock,1);
                 destRank[bid] = destrank;
@@ -215,19 +216,19 @@ static inline void cmpt_blockDestRankAndTag(const int nBlock[3], const int block
  * @param topo 
  * @param nBlockSize 
  */
-static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const FLUPS::Topology *topo, int* nBlockSize[3]) {
+static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]) {
     // go through each block
     for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
         for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
             for (int ib0 = 0; ib0 < nBlock[0]; ib0++) {
                 // get the global block index
-                const int bidv[3] = {ib0 + blockIDStart[0], ib1 + blockIDStart[1], ib2 + blockIDStart[2]};
+                const int bidv[3] = {ib0, ib1, ib2};
                 const int bid     = localIndex(0, ib0, ib1, ib2, 0, nBlock, 1);
                 // determine the size in each direction
                 for (int id = 0; id < 3; id++) {
-                    //if no block is the next one
-                    if ((bidv[id] + 1) * nBlock[id] > topo->nglob(id)) {
-                        nBlockSize[id][bid] = topo->nglob(id) - bidv[id] * nBlock[id];
+                    //if I am the last block, I forgive a small difference between the blocksizes
+                    if (bidv[id] == nBlock[id]) {
+                        nBlockSize[id][bid] = (iend[id]-istart[id]) - bidv[id] * nByBlock[id];
                     } else {
                         nBlockSize[id][bid] = nByBlock[id];
                     }
