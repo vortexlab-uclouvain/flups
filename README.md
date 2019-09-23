@@ -11,9 +11,9 @@ The main authors are (by alphabetical order):
 
 For the list of all the contributors to the development of FLUPS, description and a complete License: see LICENSE file.
 
-#### Citation
-If you use FLUPS for your publications, please cite it as follows:
-**FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, Caprace et al., 2019 (under publication)
+#### Citation information
+If you use FLUPS, please cite it as follows in your publications:
+- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)
 
 
 ### Installation

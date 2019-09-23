@@ -1,21 +1,25 @@
 ﻿FLUPS Licensing
 ============================================
 
-This file attempts to include all licenses that apply within FLUPS (this program) source tree, in particular any that are supposed to be exposed to the end user for credit requirements for instance. 
+This file includes all licenses that apply within FLUPS (this program) source tree, in particular any that are supposed to be exposed to the end user for credit requirements for instance. 
 
 FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
 
-Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
 	
-The contributors to the development of FLUPS are (all authors are or were affiliate to the Université catholique de Louvain, UCLouvain, when they developed FLUPS):
+The contributors to the development of FLUPS are (all authors are or were affiliate to the Universite catholique de Louvain, UCLouvain, when they developed FLUPS):
 	Thomas Gillis
 	Denis-Gabriel Caprace
 
-The authors tanks particularly the helpfull discussion with Jonathan Lambrecht and Philippe Chatelain.
+The authors particularly thank Dr. Jonathan Lambrecht and Prof. Philippe Chatelain for helpfull discussions.
+
+Website:
+   https://github.com/vortexlab_uclouvain/flups
 
 Contact:
-   Thomas Gillis  thomas.gillis@uclouvain.be
-   Denis-Gabriel Caprace denis-gabriel.caprace@uclouvain.be
+
+   Thomas Gillis           thomas.gillis@uclouvain.be
+   Denis-Gabriel Caprace   denis-gabriel.caprace@uclouvain.be
 
 FLUPS General
 -----------------------------------------
@@ -34,9 +38,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program (see COPYING file).  If not, 
 see <http://www.gnu.org/licenses/>.
+
 *************************************************************************
 
-[The documentation for this program is under a creative commons attribution share-alike
+The documentation for this program is under a creative commons attribution share-alike
 4.0 license.  http://creativecommons.org/licenses/by-sa/4.0/
 
 *************************************************************************

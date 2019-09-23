@@ -1,15 +1,11 @@
 /**
  * @file hdf5_io.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @brief 
- * @version
- * @date 2019-09-22
- * 
  * @copyright Copyright © UCLouvain 2019
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
  * 
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
