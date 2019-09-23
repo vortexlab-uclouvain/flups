@@ -16,9 +16,8 @@ compil dbg :
       - flups_validation
     when: on_success
   script:
-    - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
-    - tail -n +5 Makefile >> Makefile.valid
-    - make -j4 -f Makefile.valid
+    - export ARCH_FILE=make_arch/make.docker_valid_dbg
+    - make -j4
 
 compil opt :
   stage: build
@@ -29,9 +28,8 @@ compil opt :
       - flups_validation
     when: on_success
   script:
-    - echo "include make_arch/make.docker_valid_opt" > Makefile.valid
-    - tail -n +5 Makefile >> Makefile.valid
-    - make -j4 -f Makefile.valid
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make -j4
 
 #checks that the code runs without error in serial dbg
 run serial 1:1:
