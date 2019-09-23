@@ -14,7 +14,7 @@ The contributors to the development of FLUPS are (all authors are or were affili
 The authors particularly thank Dr. Jonathan Lambrecht and Prof. Philippe Chatelain for helpfull discussions.
 
 Website:
-   https://github.com/vortexlab_uclouvain/flups
+   <https://github.com/vortexlab_uclouvain/flups>
 
 Contact:
 
@@ -41,8 +41,8 @@ see <http://www.gnu.org/licenses/>.
 
 *************************************************************************
 
-The documentation for this program is under a creative commons attribution share-alike
-4.0 license.  http://creativecommons.org/licenses/by-sa/4.0/
+The documentation for this program is available under a Creative Commons Attribution ShareAlike
+4.0 license.  <http://creativecommons.org/licenses/by-sa/4.0/>
 
 *************************************************************************
 
@@ -50,9 +50,9 @@ This program has dependencies on other libraries and Website depedencies which a
 
 Dependencies are as follows:
 
-OpenMPI           3-clause BSD   https://www.open-mpi.org
-HDF5					3-clause BSD   https://www.hdfgroup.org				
-FFTW3					GNU GPLv2+		http://www.fftw.org
+OpenMPI           3-clause BSD   <https://www.open-mpi.org>
+HDF5					3-clause BSD   <https://www.hdfgroup.org>				
+FFTW3					GNU GPLv2+		<http://www.fftw.org>
 
 Licences & Credits of dependencies
 ----------------------------------
@@ -101,7 +101,7 @@ You are under no obligation whatsoever to provide any bug fixes, patches, or upg
 Limited portions of HDF5 were developed by Lawrence Berkeley National 
 Laboratory (LBNL). LBNL's Copyright Notice and Licensing Terms can be
 found here: COPYING_LBNL_HDF5 file in this directory or at 
-http://support.hdfgroup.org/ftp/HDF5/releases/COPYING_LBNL_HDF5. 
+<http://support.hdfgroup.org/ftp/HDF5/releases/COPYING_LBNL_HDF5>.
 
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
