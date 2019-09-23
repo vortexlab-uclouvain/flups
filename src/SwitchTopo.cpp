@@ -288,8 +288,8 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     int inloc[3];
     int onloc[3];
 
-    int iBlockSize[3];
-    int oBlockSize[3];
+    int* iBlockSize[3];
+    int* oBlockSize[3];
 
     const int nByBlock[3] = {_nByBlock[0],_nByBlock[1],_nByBlock[2]};
 
