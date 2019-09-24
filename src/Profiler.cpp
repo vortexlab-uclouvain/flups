@@ -223,10 +223,12 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         }
 
         // compute the bandwith
-        double localBandwidth = ((double)_memsize) / _timeAcc;
-        double meanBandwidth;
-        MPI_Allreduce(&localBandwidth, &meanBandwidth, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        meanBandwidth *= scale/std::pow(10.0,6.0);
+        double localBandTime = _timeAcc;
+        double localBandMemsize = (double) _memsize;
+        double bandMemsize, bandTime, meanBandwidth;
+        MPI_Allreduce(&localBandTime, &bandTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localBandMemsize, &bandMemsize, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        meanBandwidth =(bandMemsize/bandTime)/std::pow(10.0,6.0);
 
         // setup the displayed name
         string myname = _name;

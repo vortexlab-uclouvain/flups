@@ -38,6 +38,10 @@ typedef int bcoord[3];
  */
 class FLUPS::SwitchTopo {
    protected:
+    int _selfBlockN=0;
+    int* _iselfBlockID = NULL;
+    int* _oselfBlockID = NULL;
+
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
     int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
     int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */

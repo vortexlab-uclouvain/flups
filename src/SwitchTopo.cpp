@@ -163,6 +163,26 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     fftw_free(onBlockEachProc);
 
     //-------------------------------------------------------------------------
+    /** - Compute the self blocks   */
+    //-------------------------------------------------------------------------
+    _selfBlockN = 0;
+    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
+        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
+        if (_i2o_destRank[bid] == rank) {
+            _selfBlockN++;
+        }
+    }
+    int temp = 0;
+    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
+        if (_o2i_destRank[bid] == rank) {
+            temp++;
+        }
+    }
+    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
+    _iselfBlockID = (int*)fftw_malloc(_selfBlockN * sizeof(int));
+    _oselfBlockID = (int*)fftw_malloc(_selfBlockN * sizeof(int));
+
+    //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
@@ -174,6 +194,9 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
 }
 
 void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_recvBuf){
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
     //-------------------------------------------------------------------------
     /** - Store the buffers */
     //-------------------------------------------------------------------------
@@ -181,23 +204,45 @@ void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_rec
     _recvBuf = my_recvBuf;
     
     //-------------------------------------------------------------------------
-    /** - for each block we associate the the data buffer and the MPI requests */
+    /** - for each block we associate the the data buffer and the MPI requests or associate it to NULL */
     //-------------------------------------------------------------------------
+    int icount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
         //create the request
         const int datasize = _iBlockSize[0][bid] * _iBlockSize[1][bid] * _iBlockSize[2][bid] * _topo_out->nf();
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
-        MPI_Send_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], MPI_COMM_WORLD, &(_i2o_sendRequest[bid]));
-        // for the send when doing output 2 input: send to rank o2i with tag o2i
-        MPI_Recv_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], bid, MPI_COMM_WORLD, &(_o2i_recvRequest[bid]));
+        if (_i2o_destRank[bid] == rank) {
+            // save the bid
+            _iselfBlockID[icount] = bid;
+            // associate the request to NULL
+            _i2o_sendRequest[bid] = MPI_REQUEST_NULL;
+            _o2i_recvRequest[bid] = MPI_REQUEST_NULL;
+            // increment the counter
+            icount++;
+        } else {
+            MPI_Send_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], MPI_COMM_WORLD, &(_i2o_sendRequest[bid]));
+            // for the send when doing output 2 input: send to rank o2i with tag o2i
+            MPI_Recv_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], bid, MPI_COMM_WORLD, &(_o2i_recvRequest[bid]));
+        }
     }
+    int ocount = 0;
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
         //create the request
         const int datasize = _oBlockSize[0][bid] * _oBlockSize[1][bid] * _oBlockSize[2][bid] * _topo_out->nf();
-        // for the reception when doing input 2 output: receive from the rank o2i with tag bid
-        MPI_Recv_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], bid, MPI_COMM_WORLD, &(_i2o_recvRequest[bid]));
-        // for the send when doing output 2 input: send to rank o2i with tag o2i
-        MPI_Send_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], MPI_COMM_WORLD, &(_o2i_sendRequest[bid]));
+        if (_o2i_destRank[bid] == rank) {
+            // save the bid
+            _oselfBlockID[ocount] = bid;
+            // associate the request to NULL
+            _i2o_recvRequest[bid] = MPI_REQUEST_NULL;
+            _o2i_sendRequest[bid] = MPI_REQUEST_NULL;
+            // increment the counter
+            ocount++;
+        } else {
+            // for the reception when doing input 2 output: receive from the rank o2i with tag bid
+            MPI_Recv_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], bid, MPI_COMM_WORLD, &(_i2o_recvRequest[bid]));
+            // for the send when doing output 2 input: send to rank o2i with tag o2i
+            MPI_Send_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], MPI_COMM_WORLD, &(_o2i_sendRequest[bid]));
+        }
     }
 }
 
@@ -210,6 +255,9 @@ SwitchTopo::~SwitchTopo() {
     if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
     if (_i2o_destTag != NULL) fftw_free(_i2o_destTag);
     if (_o2i_destTag != NULL) fftw_free(_o2i_destTag);
+
+    if (_iselfBlockID != NULL) fftw_free(_iselfBlockID);
+    if (_oselfBlockID != NULL) fftw_free(_oselfBlockID);
 
     for(int ib=0; ib< _inBlock[0]*_inBlock[1]*_inBlock[2]; ib++){
         // if (_sendBuf[ib] != NULL) fftw_free(_sendBuf[ib]);
@@ -297,6 +345,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
 
     int* iBlockSize[3];
     int* oBlockSize[3];
+    
+    int* oselfBlockID;
+    int* destTag;
 
     const int nByBlock[3] = {_nByBlock[0],_nByBlock[1],_nByBlock[2]};
 
@@ -310,6 +361,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         recvRequest = _i2o_recvRequest;
         sendBuf     = _sendBuf;
         recvBuf     = _recvBuf;
+
+        oselfBlockID = _oselfBlockID;
+        destTag      = _i2o_destTag;
 
         for (int id = 0; id < 3; id++) {
             send_nBlock[id] = _inBlock[id];
@@ -330,6 +384,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         recvRequest = _o2i_recvRequest;
         sendBuf     = _recvBuf;
         recvBuf     = _sendBuf;
+
+        oselfBlockID = _iselfBlockID;
+        destTag      = _o2i_destTag;
 
         for (int id = 0; id < 3; id++) {
             send_nBlock[id] = _onBlock[id];
@@ -360,7 +417,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     /** - start the reception requests so we are ready to receive */
     //-------------------------------------------------------------------------
     for (int bid = 0; bid < recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2]; bid++) {
-        MPI_Start(&(recvRequest[bid]));
+        if (recvRequest[bid] != MPI_REQUEST_NULL){
+            MPI_Start(&(recvRequest[bid]));
+        }
     }
 
     if (_prof != NULL) {
@@ -371,13 +430,21 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     //-------------------------------------------------------------------------
     const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
 
-#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest)
+#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, recvBuf, destTag, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest)
     for (int bid = 0; bid < nblocks_send; bid++) {
         // get the split index
         int ib[3];
         localSplit(bid, send_nBlock, 0, ib, 1);
         // get the buffer data for this block
-        opt_double_ptr data = sendBuf[bid];
+        opt_double_ptr data;
+        if(sendRequest[bid] == MPI_REQUEST_NULL){
+            // if we are doing a self block the data is the recv buff
+            // the new block ID is given by destTag[bid]
+            data = recvBuf[destTag[bid]];
+        } else {
+            // else we copy inside the sendbuffer
+            data = sendBuf[bid];
+        }
         // get the starting index in the global memory
         const int loci0         = istart[ax0] + ib[ax0] * nByBlock[ax0];
         const int loci1         = istart[ax1] + ib[ax1] * nByBlock[ax1];
@@ -405,7 +472,9 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         // start the send the block and continue
         #pragma omp master
         {
-            MPI_Start(&(sendRequest[bid]));
+            if(sendRequest[bid] != MPI_REQUEST_NULL){
+                MPI_Start(&(sendRequest[bid]));
+            }
         }
     }
 
@@ -433,28 +502,30 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     // create the status as a shared variable
     MPI_Status status;
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
+        int bid;
+        if (count < _selfBlockN) {
+            bid = oselfBlockID[count];
+        } else {
 #pragma omp master
-        {
-            if (_prof != NULL) {
-                _prof->start("waiting");
+            {
+                if (_prof != NULL) {
+                    _prof->start("waiting");
+                }
+                int request_index;
+                MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
+                if (_prof != NULL) {
+                    _prof->stop("waiting");
+                }
             }
-            int request_index;
-            MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
-            if (_prof != NULL) {
-                _prof->stop("waiting");
-                size_t loc_mem = nByBlock[0] * nByBlock[1] *nByBlock[2]*nf*sizeof(double);
-                _prof->addMem("waiting", loc_mem);
-            }
-        }
-        // make sure that the master has received the status before going further
-        // there is no implicit barrier after
+            // make sure that the master has received the status before going further
+            // there is no implicit barrier after
 #pragma omp barrier
-
-        // get the block id = the tag
-        int bid = status.MPI_TAG;
+            // get the block id = the tag
+            bid = status.MPI_TAG;
+        }
         // get the indexing of the block in 012-indexing
         int ibv[3];
         localSplit(bid, recv_nBlock, 0, ibv, 1);
@@ -470,6 +541,15 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
         // get the max number of ids not aligned in ax0
         const size_t id_max = oBlockSize[ax1][bid] * oBlockSize[ax2][bid];
+
+        // add the bandwith info
+        #pragma omp master
+        {
+            if (_prof != NULL) {
+                size_t loc_mem = oBlockSize[0][bid] * oBlockSize[1][bid] *oBlockSize[2][bid]*nf*sizeof(double);
+                _prof->addMem("waiting", loc_mem);
+            }
+        }
 
         if (nf == 1) {
 #pragma omp for schedule(static)
