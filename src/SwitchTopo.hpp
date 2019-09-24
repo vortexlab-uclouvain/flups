@@ -109,11 +109,11 @@ class FLUPS::SwitchTopo {
         // get the max block size
         size_t maxsize = 0;
         for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
-            maxsize = std::max(maxsize,_iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib]* nf);
+            maxsize = std::max(maxsize,((size_t)_iBlockSize[0][ib])*((size_t)_iBlockSize[1][ib])*((size_t)_iBlockSize[2][ib])* ((size_t)nf));
         }
         // get the max block size
         for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
-            maxsize = std::max(maxsize,_oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib]* nf);
+            maxsize = std::max(maxsize,((size_t)_oBlockSize[0][ib])*((size_t)_oBlockSize[1][ib])*((size_t)_oBlockSize[2][ib])*((size_t)nf));
         }
         // return
         return maxsize;
