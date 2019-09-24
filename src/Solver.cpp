@@ -490,7 +490,7 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
         if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
     }
 }
-void Solver::_deallocate_switchTopo(const int ntopo, SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+void Solver::_deallocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
     // get the size of the buffers
     int max_nblocks = 0;
     for (int id = 0; id < ntopo; id++) {
