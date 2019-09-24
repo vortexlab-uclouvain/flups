@@ -136,6 +136,8 @@ void Solver::setup() {
     if (_prof != NULL) _prof->start("green_plan");
     _allocate_plans(_topo_green, _plan_green, _green);
     if (_prof != NULL) _prof->stop("green_plan");
+    // setup the buffers for Green
+    _allocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
     if (_prof != NULL) _prof->start("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
     if (_prof != NULL) _prof->stop("green_func");
@@ -147,8 +149,18 @@ void Solver::setup() {
     if (_prof != NULL) _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat, _green, _topo_green, _switchtopo_green, _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
+    // delete everything since it is no more needed
+    _deallocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
+    _delete_topologies(_topo_green);
+    _delete_switchtopos(_switchtopo_green);
+    _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
     if (_prof != NULL) _prof->stop("setup");
+
+    //-------------------------------------------------------------------------
+    /** - Allocate the buffers for the SwitchTopos */
+    //-------------------------------------------------------------------------
+    _allocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
 }
 
 /**
@@ -159,6 +171,8 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) fftw_free(_green);
+
+    _deallocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
 
     // for the field
     _delete_plans(_plan_forward);
@@ -436,6 +450,51 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     }
 }
 
+void Solver::_allocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+    int max_nblocks = 0;
+    int max_blockSize = 0;
+    for (int id = 0; id < 3; id++) {
+        if (switchtopo[id] != NULL) {
+            max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
+            max_blockSize = std::max(max_blockSize, switchtopo[id]->get_BlockSize());
+        }
+    }
+
+    *send_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
+    *recv_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
+
+    for (int ib = 0; ib < max_nblocks; ib++) {
+        (*send_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
+        (*recv_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
+    }
+
+    // associate the buffers
+    for (int id = 0; id < 3; id++) {
+        if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
+    }
+}
+void Solver::_deallocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+    // get the size of the buffers
+    int max_nblocks = 0;
+    for (int id = 0; id < 3; id++) {
+        if (switchtopo[id] != NULL) {
+            max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
+        }
+    }
+    // deallocate everything!!
+    for (int ib = 0; ib < max_nblocks; ib++) {
+        fftw_free((*send_buff)[ib]);
+        fftw_free((*recv_buff)[ib]);
+        (*send_buff)[ib] = NULL;
+        (*recv_buff)[ib] = NULL;
+    }
+
+    fftw_free((double**) (*send_buff));
+    fftw_free((double**) (*recv_buff));
+    (*send_buff) = NULL;
+    (*recv_buff) = NULL;
+}
+
 /**
  * @brief allocates the plans in planmap according to that computed during the dry run, see \ref _init_plansAndTopos
  * 
@@ -647,10 +706,6 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }
-    // delete everything since it is no more needed
-    _delete_topologies(topo);
-    _delete_switchtopos(switchtopo);
-    _delete_plans(plans);
 }
 
 /**

@@ -68,6 +68,8 @@ class FLUPS::Solver {
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
+    opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
     /**@} */
 
     /**
@@ -108,6 +110,15 @@ class FLUPS::Solver {
     void _init_plansAndTopos(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
     void _allocate_plans(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void _delete_plans(FFTW_plan_dim* planmap[3]);
+    /**@} */
+
+    /**
+     * @name SwitchTopo management
+     * 
+     * @{
+     */
+    void _allocate_switchTopo(SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
+    void _deallocate_switchTopo(SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
     /**@} */
 
     /**
