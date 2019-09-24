@@ -430,7 +430,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     //-------------------------------------------------------------------------
     const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
 
-#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, recvBuf, destTag, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest)
+#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, recvBuf, destTag, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest,MPI_REQUEST_NULL)
     for (int bid = 0; bid < nblocks_send; bid++) {
         // get the split index
         int ib[3];
@@ -470,9 +470,10 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
         }
         // the barrier after an OpenMP "for" block is implicit
         // start the send the block and continue
-        #pragma omp master
+        
+#pragma omp master
         {
-            if(sendRequest[bid] != MPI_REQUEST_NULL){
+            if (sendRequest[bid] != MPI_REQUEST_NULL) {
                 MPI_Start(&(sendRequest[bid]));
             }
         }
@@ -502,7 +503,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     // create the status as a shared variable
     MPI_Status status;
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest,MPI_REQUEST_NULL)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
         int bid;
