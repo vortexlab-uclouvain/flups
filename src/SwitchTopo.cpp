@@ -209,6 +209,8 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
 }
 
 void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_recvBuf){
+    BEGIN_FUNC;
+
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
@@ -266,6 +268,8 @@ void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_rec
  * 
  */
 SwitchTopo::~SwitchTopo() {
+    BEGIN_FUNC
+
     if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
     if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
     if (_i2o_destTag != NULL) fftw_free(_i2o_destTag);
@@ -628,6 +632,7 @@ void SwitchTopo::disp() {
     FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
     FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
     FLUPS_INFO("--- BLOCKS");
+    FLUPS_INFO("  - selfBlockN = %d", _selfBlockN);
     FLUPS_INFO("  - nByBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
     FLUPS_INFO("  - inBlock = %d %d %d", _inBlock[0],_inBlock[1],_inBlock[2]);
     FLUPS_INFO("  - onBlock = %d %d %d", _onBlock[0],_onBlock[1],_onBlock[2]);
