@@ -205,8 +205,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double meanTimePerCount, maxTimePerCount, minTimePerCount;
         double localTimePerCount = localTime / localCount;
         MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTimePerCount, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTimePerCount, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanTimePerCount *= scale;
 
         // comnpute the time passed inside the daddy
