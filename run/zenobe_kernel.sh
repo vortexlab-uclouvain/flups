@@ -16,7 +16,7 @@ echo "submit dir : $PBS_O_WORKDIR"
 echo "queue : $PBS_O_QUEUE" 
 echo "user : $PBS_O_LOGNAME" 
 echo "threads : $OMP_NUM_THREADS" 
-NCPUS="$( cat $PBS_NODEFILE | wc -l )"
+NCPUS=$((${MY_NX}*${MY_NY}*${MY_NZ}))
 echo "CPU         :  $NCPUS"
 
 module purge
