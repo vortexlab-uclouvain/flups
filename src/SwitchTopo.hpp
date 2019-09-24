@@ -104,15 +104,16 @@ class FLUPS::SwitchTopo {
     void execute(opt_double_ptr v, const int sign);
 
     inline int get_BlockSize () const {
-        FLUPS_CHECK(_topo_in->nf() == _topo_out->nf(),"Both topologies have to have the nf",LOCATION);
+        // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
+        const int nf = _topo_out->nf();
         // get the max block size
         int maxsize = 0;
         for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
-            maxsize = std::max(maxsize,_iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib])* _topo_in->nf();
+            maxsize = std::max(maxsize,_iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib])* nf;
         }
         // get the max block size
         for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
-            maxsize = std::max(maxsize,_oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib])* _topo_out->nf();
+            maxsize = std::max(maxsize,_oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib])* nf;
         }
         // return
         return maxsize;

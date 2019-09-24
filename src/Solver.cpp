@@ -465,6 +465,8 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 }
 
 void Solver::_allocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+    BEGIN_FUNC; 
+    
     int max_nblocks = 0;
     int max_blockSize = 0;
     for (int id = 0; id < 3; id++) {
