@@ -469,13 +469,15 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     BEGIN_FUNC; 
 
     int max_nblocks = 0;
-    int max_blockSize = 0;
+    size_t max_blockSize = 0;
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
             max_blockSize = std::max(max_blockSize, switchtopo[id]->get_BlockSize());
         }
     }
+    FLUPS_CHECK(max_nblocks>0,"number of blocks %d should be >0",max_nblocks,LOCATION);
+    FLUPS_CHECK(max_blockSize>0,"size of blocks %d should be >0",max_blockSize,LOCATION);
 
     *send_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
     *recv_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));

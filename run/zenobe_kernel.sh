@@ -1,7 +1,6 @@
 #!/bin/bash
 # Submission script for Zenobe 
 #PBS -N scalability
-#PBS -q large
 #PBS -r y 
 #PBS -W group_list=examples
 #PBS -l walltime=00:30:00 
@@ -24,6 +23,7 @@ module purge
 module load compiler/gcc/7.2.0
 module load compiler/intel/comp_and_lib/2019.3.199
 module load intelmpi/5.1.3.181/64
+module load devtoolset/8
 
 
 
