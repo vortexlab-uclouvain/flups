@@ -632,6 +632,7 @@ void SwitchTopo::disp() {
     FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
     FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
     FLUPS_INFO("--- BLOCKS");
+    FLUPS_INFO("  - selfBlockN = %d", _selfBlockN);
     FLUPS_INFO("  - nByBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
     FLUPS_INFO("  - inBlock = %d %d %d", _inBlock[0],_inBlock[1],_inBlock[2]);
     FLUPS_INFO("  - onBlock = %d %d %d", _onBlock[0],_onBlock[1],_onBlock[2]);

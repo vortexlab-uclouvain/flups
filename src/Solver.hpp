@@ -131,8 +131,8 @@ class FLUPS::Solver {
      * 
      * @{
      */
-    void _allocate_switchTopo(SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
-    void _deallocate_switchTopo(SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
+    void _allocate_switchTopo(const int ntopo, SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
+    void _deallocate_switchTopo(const int ntopo, SwitchTopo* switchtopo[3], opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
     /**@} */
 
     /**

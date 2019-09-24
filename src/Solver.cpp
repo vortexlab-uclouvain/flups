@@ -151,10 +151,13 @@ void Solver::setup() {
     _allocate_plans(_topo_green, _plan_green, _green);
     if (_prof != NULL) _prof->stop("green_plan");
     // setup the buffers for Green
-    _allocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
+    _allocate_switchTopo(3,_switchtopo_green,&_sendBuf,&_recvBuf);
     if (_prof != NULL) _prof->start("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
     if (_prof != NULL) _prof->stop("green_func");
+    // delete the switchTopos
+    _deallocate_switchTopo(3,_switchtopo_green,&_sendBuf,&_recvBuf);
+    _delete_switchtopos(_switchtopo_green);
 
     //-------------------------------------------------------------------------
     /** - Finalize the Green's function by doing a last switch to the field
@@ -163,10 +166,8 @@ void Solver::setup() {
     if (_prof != NULL) _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat, _green, _topo_green, _switchtopo_green, _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
-    // delete everything since it is no more needed
-    _deallocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
+    // delete the topologies and plans no more needed
     _delete_topologies(_topo_green);
-    _delete_switchtopos(_switchtopo_green);
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
     if (_prof != NULL) _prof->stop("setup");
@@ -174,7 +175,7 @@ void Solver::setup() {
     //-------------------------------------------------------------------------
     /** - Allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
-    _allocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
+    _allocate_switchTopo(3,_switchtopo,&_sendBuf,&_recvBuf);
 }
 
 /**
@@ -186,7 +187,7 @@ Solver::~Solver() {
     // for Green
     if (_green != NULL) fftw_free(_green);
 
-    _deallocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
+    _deallocate_switchTopo(3,_switchtopo,&_sendBuf,&_recvBuf);
 
     // for the field
     _delete_plans(_plan_forward);
@@ -464,12 +465,12 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     }
 }
 
-void Solver::_allocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
     BEGIN_FUNC; 
-    
+
     int max_nblocks = 0;
     int max_blockSize = 0;
-    for (int id = 0; id < 3; id++) {
+    for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
             max_blockSize = std::max(max_blockSize, switchtopo[id]->get_BlockSize());
@@ -485,14 +486,14 @@ void Solver::_allocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **se
     }
 
     // associate the buffers
-    for (int id = 0; id < 3; id++) {
+    for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
     }
 }
-void Solver::_deallocate_switchTopo(SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
+void Solver::_deallocate_switchTopo(const int ntopo, SwitchTopo *switchtopo[3], opt_double_ptr **send_buff, opt_double_ptr **recv_buff) {
     // get the size of the buffers
     int max_nblocks = 0;
-    for (int id = 0; id < 3; id++) {
+    for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
         }
@@ -708,9 +709,15 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         fieldstart[dimID] = -plans[2]->shiftgreen();
         // we do the link between topo[2] of Green and the field topo
         SwitchTopo *switchtopo = new SwitchTopo(topo[2], topo_field[2], fieldstart, NULL);
+        
+        // allocate the topology
+        opt_double_ptr * temp_send;
+        opt_double_ptr * temp_recv;
+        _allocate_switchTopo(1,&switchtopo,&temp_send,&temp_recv);
         // execute the switchtopo
         switchtopo->execute(green, FLUPS_FORWARD);
-        // delete it since it is useless
+        // dallocate everything
+        _deallocate_switchTopo(1,&switchtopo,&temp_send,&temp_recv);
         delete(switchtopo);
     }
     else{
