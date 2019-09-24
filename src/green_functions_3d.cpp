@@ -1,30 +1,42 @@
 /**
- * @file Green_functions_3d.cpp
- * @author Denis-Gabriel Caprace, Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-22
- * 
+ * @file green_functions_3d.cpp
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
- * -------------------------------
- * **Symmetry computation:**
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * We have to take the symmetry around symstart. e.g. in X direction: `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
  * 
- * In some cases when we have an R2C transform, it ask for 2 additional doubles.
- * The value is meaningless but we would like to avoid segfault and nan's.
- * To do so, we use 2 tricks:
- * - The `abs` is used to stay on the positivie side and hence avoid negative memory access
- * - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
- * As an example, the final formula is then ( in the X direction):
- * `max( abs(2 symstart[0] - ix) , 1)`
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
 #include "green_functions_3d.hpp"
 
+// **Symmetry computation:**
+// 
+// We have to take the symmetry around symstart. e.g. in X direction: `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
+// 
+// In some cases when we have an R2C transform, it ask for 2 additional doubles.
+// The value is meaningless but we would like to avoid segfault and nan's.
+// To do so, we use 2 tricks:
+// - The `abs` is used to stay on the positivie side and hence avoid negative memory access
+// - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
+// 
+// As an example, the final formula is then ( in the X direction):
+// `max( abs(2 symstart[0] - ix) , 1)`
 
 using namespace FLUPS;
 
