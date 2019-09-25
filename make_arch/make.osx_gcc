@@ -26,4 +26,4 @@ HDF5DIR  :=  /opt/hdf5/gcc-9/v1.10.6
 
 #backups:
 # INC += -I/usr/local/Cellar/gcc/9.2.0/include/c++/9.2.0/
-# LIB += -L/usr/local/Cellar/gcc/9.2.0/lib/gcc/9 -lstdc++
+LIB += -L/usr/local/Cellar/gcc/9.2.0/lib/gcc/9 -lstdc++ -lgomp

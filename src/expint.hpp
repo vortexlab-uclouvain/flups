@@ -2,26 +2,16 @@
 #define _H_EXPONENTIAL_INTEGRAL
 
 /**********************************************************************/
-/* FILE ELEMENT: expint.c                                             */
-/**********************************************************************/
 /*                                                                    */
 /*                   double ExponentialIntegral()                     */
 /*                                                                    */
 /**********************************************************************/
 /*                                                                    */
 /*  DESCRIPTION:                                                      */
-/*  Calculation of the exponential integral E (x) for  values of      */
+/*  Calculation of the exponential integral E (x) using Chebychev     */
 /*                                           1                        */
-/*  x >= -4.                                                          */
+/*  polynomial expansion.                                             */
 /*                                                                    */
-/*  FUNCTIONS CALLED:                                                 */
-/*  System library: <math.h> fabs(), exp(), log();                    */
-/*  Numlib library: None                                              */
-/*  Local functions: double expint1(), expint2();                     */
-/*  User supplied: None                                               */
-/*                                                                    */
-/*  PROGRAMMED BY: T.Haavie                                           */
-/*  DATE/VERSION: 88-06-23/1.0                                        */
 /**********************************************************************/
 
 #include <math.h>
@@ -31,40 +21,20 @@ static const double c_gamma = 0.577215664901532861;
 static double expint1(double x);
 static double expint2(double x);
 
-//double ExponentialIntegral(x, flag)
-/* PARAMETERS(input): */
-//      double x;      /* Argument in function call */
-/* Parameters(output): */
-//      int *flag;     /* Flag parameter                                      */
-/*          = 0, value of x outside the permitted range.        */
-/*          = 1, value of x within the permitted range.         */
-
-/* Computed value for the exponential integral returned through func- */
-/* tion name EponentialIntegral().      */
-static double expint_ei(double x)  //, int* flag)
+static double expint_ei(double x) 
 {
-    //double expint1();  /* Used for computing the exponential      */
-    /* integral for argument -4 <= x >= 4.     */
-    //double expint2();  /* Used for computing the exponential      */
-    /* integral for argument x >= 4.                    */
-    //double cof;
     double value;
-    //int i;
-    //int n;
-
-    //*flag = 1;
+ 
     if (x >= -4. && x <= 4.)
         value = expint1(x);
     else if (x > 4.)
         value = expint2(x);
     else {
-        //*flag = 0;
         value = 0.;
     }
 
     return (value);
-
-} /* End of ExponentialIntegral(). */
+}
 
 /**********************************************************************/
 /*                                                                    */
@@ -79,7 +49,6 @@ static double expint_ei(double x)  //, int* flag)
 /**********************************************************************/
 
 static double expint1(double x)
-/* Argument for which the error function is wanted.       */
 {
     static int MAX = 23; /* The number of coefficients in a[].   */
 
@@ -129,7 +98,7 @@ static double expint1(double x)
 
     return (-value);
 
-} /* End of expint1(). */
+}
 
 /**********************************************************************/
 /*                                                                    */
@@ -144,7 +113,6 @@ static double expint1(double x)
 /**********************************************************************/
 
 static double expint2(double x)
-/* Argument for which the error function is wanted.       */
 {
     static int MAX = 23; /* The number of coefficients in a[].   */
 
@@ -194,6 +162,6 @@ static double expint2(double x)
 
     return (value);
 
-} /* End of expint2(). */
+}
 
 #endif

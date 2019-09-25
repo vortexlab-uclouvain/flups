@@ -1,11 +1,25 @@
 /**
  * @file validation_3d.cpp
- * @author Denis-Gabriel Caprace, Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-19
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -39,22 +53,26 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false);
+    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false,NULL);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L);
+    std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
+    Profiler* prof = new Profiler(name);
+    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L,prof);
     mysolver->set_GreenType(typeGreen);
     mysolver->setup();
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    double *rhs = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *sol = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *rhs   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *sol   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    double *field = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
     std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
     std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
+    std::memset(field, 0, sizeof(double *) * topo->locmemsize());
 
 #ifndef MANUFACTURED_SOLUTION
     //-------------------------------------------------------------------------
@@ -67,7 +85,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     const double oosigma3  = 1.0 / (sigma * sigma * sigma);
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
     /**
      * also accounting for various symmetry conditions. CAUTION: the solution for the Gaussian blob does not go to 0 fast enough
@@ -147,7 +165,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
 
     int istart[3];
-    get_istart_glob(istart, topo);
+    topo->get_istart_glob(istart);
 
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -209,7 +227,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             }
 
         } else {
-            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
+            FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
 
@@ -285,8 +303,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
-    mysolver->solve(topo, rhs, rhs, type);
+    for(int is=0; is<nSolve; is++){
+        mysolver->solve(topo, field, rhs, type);
+    }
 
+    prof->disp("solve");
+    delete(prof);
 
     // lIs = 1.e10, gIs = 0.0;
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -328,7 +350,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                 const size_t id  = localindex_xyz(i0, i1, i2, topo);
-                const double err = sol[id] - rhs[id];
+                const double err = sol[id] - field[id];
 
                 lerri = max(lerri, fabs(err));
                 lerr2 += (err * err) * h[0] * h[1] * h[2];
@@ -351,12 +373,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
             fclose(myfile);
         } else {
-            FLUPS_CHECK(false, "unable to open file %s", filename);
+            FLUPS_CHECK(false, "unable to open file %s", filename, LOCATION);
         }
     }
 
     fftw_free(sol);
     fftw_free(rhs);
+    fftw_free(field);
     delete (mysolver);
     delete (topo);
 }

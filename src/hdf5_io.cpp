@@ -1,12 +1,25 @@
 /**
  * @file hdf5_io.cpp
- * @author Denis-Gabriel Caprace and Thomas Gillis
- * @brief 
- * @version
- * @date 2019-08-20
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -85,11 +98,22 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // setup the property list for file access (property list = option list)
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
+    // do the magic stuff
+    MPI_Info FILE_INFO_TEMPLATE;
+    MPI_Info_create(&FILE_INFO_TEMPLATE);
+    H5Pset_sieve_buf_size(plist_id, 262144);
+    H5Pset_alignment(plist_id, 524288, 262144);
+    MPI_Info_set(FILE_INFO_TEMPLATE, "access_style", "write_once");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "collective_buffering", "true");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "cb_block_size", "1048576");
+    MPI_Info_set(FILE_INFO_TEMPLATE, "cb_buffer_size", "4194304");
     // do some magic
-    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    // H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, FILE_INFO_TEMPLATE);
+    MPI_Info_free(&FILE_INFO_TEMPLATE);
     // create the file ID
     file_id = H5Fcreate(extFilename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-    if (file_id < 0) FLUPS_ERROR("Failed to open the file.");
+    if (file_id < 0) FLUPS_ERROR("Failed to open the file.", LOCATION);
     // close the property list
     H5Pclose(plist_id);
 
@@ -133,7 +157,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // get the offset from topo
     int topo_offset[3];
-    get_istart_glob(topo_offset, topo);
+    topo->get_istart_glob(topo_offset);
 
     // compute some memory quantities
     hsize_t count[3]  = {1, 1, 1};                                                                          // how many blocks to write
@@ -145,14 +169,14 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     if (!topo->isComplex()) {
         filespace_real = H5Dget_space(fileset_real);
         status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in dataset.");
+        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in dataset.", LOCATION);
     } else {
         filespace_real = H5Dget_space(fileset_real);
         status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in dataset.");
+        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in dataset.", LOCATION);
         filespace_imag = H5Dget_space(fileset_imag);
         status         = H5Sselect_hyperslab(filespace_imag, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select complex hyperslab in dataset.");
+        FLUPS_CHECK(status >= 0, "Failed to select complex hyperslab in dataset.", LOCATION);
     }
 
     //-------------------------------------------------------------------------
@@ -171,9 +195,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
         hsize_t memoffset[3] = {0, 0, 0};  // offset in memory
         hsize_t memstride[3] = {1, 1, 1};
         status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in memmory.");
+        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in memmory.", LOCATION);
         status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write hyperslab to file.");
+        FLUPS_CHECK(status >= 0, "Failed to write hyperslab to file.", LOCATION);
     }
 
     if (topo->isComplex()) {
@@ -182,16 +206,16 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
         // real part
         hsize_t memoffset[3] = {0, 0, 0};
         status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.");
+        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
         status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write real part hyperslab to file.");
+        FLUPS_CHECK(status >= 0, "Failed to write real part hyperslab to file.", LOCATION);
 
         // imaginary part
         memoffset[2] = 1;  // set an offset on the fastest rotating index
         status       = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.");
+        FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.", LOCATION);
         status = H5Dwrite(fileset_imag, H5T_NATIVE_DOUBLE, memspace, filespace_imag, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.");
+        FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.", LOCATION);
     }
 
     //-------------------------------------------------------------------------
@@ -317,7 +341,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // real numbers
-    Topology *topo = new Topology(0, nglob, nproc, false);
+    Topology *topo = new Topology(0, nglob, nproc, false,NULL);
 
     double *data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 
@@ -337,7 +361,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // create a real topology
-    topo = new Topology(0, nglob, nproc, true);
+    topo = new Topology(0, nglob, nproc, true,NULL);
 
     data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
 

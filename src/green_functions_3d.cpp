@@ -1,30 +1,42 @@
 /**
- * @file Green_functions_3d.cpp
- * @author Denis-Gabriel Caprace, Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-22
- * 
+ * @file green_functions_3d.cpp
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
- * -------------------------------
- * **Symmetry computation:**
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * We have to take the symmetry around symstart. e.g. in X direction: `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
  * 
- * In some cases when we have an R2C transform, it ask for 2 additional doubles.
- * The value is meaningless but we would like to avoid segfault and nan's.
- * To do so, we use 2 tricks:
- * - The `abs` is used to stay on the positivie side and hence avoid negative memory access
- * - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
- * As an example, the final formula is then ( in the X direction):
- * `max( abs(2 symstart[0] - ix) , 1)`
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
 #include "green_functions_3d.hpp"
 
+// **Symmetry computation:**
+// 
+// We have to take the symmetry around symstart. e.g. in X direction: `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
+// 
+// In some cases when we have an R2C transform, it ask for 2 additional doubles.
+// The value is meaningless but we would like to avoid segfault and nan's.
+// To do so, we use 2 tricks:
+// - The `abs` is used to stay on the positivie side and hence avoid negative memory access
+// - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
+// 
+// As an example, the final formula is then ( in the X direction):
+// `max( abs(2 symstart[0] - ix) , 1)`
 
 using namespace FLUPS;
 
@@ -71,12 +83,12 @@ static inline double _chat_2_3unb0spe(const void* params) {
 void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral");
+    FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral", LOCATION);
 
     // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK(hfact[0] != 0.0, "grid spacing cannot be 0");
-    FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0");
-    FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0");
+    FLUPS_CHECK(hfact[0] != 0.0, "grid spacing cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
     int ax0 = topo->axis();
     int ax1 = (ax0 + 1) % 3;
@@ -103,15 +115,15 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
             G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             //please add the parameters you need to params
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
@@ -231,12 +243,12 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]");
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]");
+    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
-    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
+    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
@@ -247,7 +259,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
 
     switch (typeGreen) {
         case HEJ_2:
-            // FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail a approximation.");
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail a approximation.", LOCATION);
             
             // Note: 
             // According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
@@ -278,14 +290,14 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     const double r_eq2D = c_1osqrtpi * sqrt( hfact[ax0]*hfact[ax1]+hfact[ax1]*hfact[ax2]+hfact[ax2]*hfact[ax0] );
 
@@ -399,12 +411,12 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]");
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]");
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]");
+    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
-    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
+    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
 
     GreenKernel G;   // the Green kernel (general expression in the whole domain)
@@ -428,14 +440,14 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
             G0 = &_chat_2_1unb2spe_k0;
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
 
     //Note: i0 (ax0) is the only spatial (i.e. non spectral) axis
@@ -529,9 +541,9 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK(kfact[0] != 0.0, "dk cannot be 0");
-    FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0");
-    FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0");
+    FLUPS_CHECK(kfact[0] != 0.0, "dk cannot be 0", LOCATION);
+    FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0", LOCATION);
+    FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
 
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -558,14 +570,14 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
             G = &_chat_2_0unb3spe;
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.");
+            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
             break;
         default:
-            FLUPS_ERROR("Green Function type unknow.");
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
-    get_istart_glob(istart,topo);
+    topo->get_istart_glob(istart);
 
     //forgetting a part of the domain
     const int is0 = istart[ax0] == 0 ? istart0[ax0] : 0;

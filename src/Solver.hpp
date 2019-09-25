@@ -1,11 +1,25 @@
 /**
  * @file Solver.hpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -16,14 +30,13 @@
 #include <map>
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
-#include "green_functions_2d.hpp"
 #include "green_functions_3d.hpp"
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo.hpp"
-#include "tools.hpp"
 
 #include "Profiler.hpp"
+#include "omp.h"
 
 using namespace std;
 
@@ -69,6 +82,8 @@ class FLUPS::Solver {
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
+    opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
     /**@} */
 
     /**
@@ -112,6 +127,15 @@ class FLUPS::Solver {
     /**@} */
 
     /**
+     * @name SwitchTopo management
+     * 
+     * @{
+     */
+    void _allocate_switchTopo(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
+    void _deallocate_switchTopo(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr** send_buff, opt_double_ptr** recv_buff);
+    /**@} */
+
+    /**
      * @name Do the magic
      * 
      * @{
@@ -131,10 +155,11 @@ class FLUPS::Solver {
     void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
     void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
+    void _finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3],SwitchTopo* switchtopo[3], FFTW_plan_dim* plans[3]);
     /**@} */
 
    public:
-    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3]);
+    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
     // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
     ~Solver();
 
@@ -166,7 +191,7 @@ class FLUPS::Solver {
  * @param nproc the number of proc in each direction
  * @param comm_size the total communicator size
  */
-static inline void _pencil_nproc(const int id, int nproc[3], const int comm_size) {
+static inline void pencil_nproc(const int id, int nproc[3], const int comm_size) {
     const int id1 = (id + 1) % 3;
     const int id2 = (id + 2) % 3;
 
@@ -181,7 +206,25 @@ static inline void _pencil_nproc(const int id, int nproc[3], const int comm_size
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
 
-    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
+    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+}
+
+static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_size, const int id_hint, const int nproc_hint[3]) {
+    // get the id shared between the hint topo
+    int sharedID = 0;
+    for (int i = 0; i < 3; i++) {
+        if (i != id && i != id_hint) {
+            sharedID = i;
+            break;
+        }
+    }
+    nproc[id]       = 1;
+    nproc[sharedID] = nproc_hint[sharedID];
+    nproc[id_hint]  = comm_size / nproc[sharedID];
+
+    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
 }
 
 #endif

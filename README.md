@@ -1,5 +1,21 @@
 # FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
+#### Licensing and authorship
+Copyright © UCLouvain 2019
+
+FLUPS is distributed under GPLv3.0 (or any later version) license.
+
+The main authors are (by alphabetical order):
+- Denis-Gabriel Caprace
+- Thomas Gillis
+
+For the list of all the contributors to the development of FLUPS, description and a complete License: see LICENSE file.
+
+#### Citation information
+If you use FLUPS, please cite it as follows in your publications:
+- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)
+
+
 ### Installation
 #### 1. Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
@@ -60,7 +76,7 @@ int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
 int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
 bool isComplex = false;          // real data
 
-Topology *topo = new Topology(axis, nglob, nproc, isComplex);
+Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL);
 
 // define additional quantities
 double L = {1.0, 2.0, 1.0};
@@ -122,7 +138,7 @@ Indeed having the last dimension in the slower rotating index does not penalize 
 As an example, we here is how we access the memory
 
 ```cpp
-double* data =(double*) malloc(n[0] * n[1] * n[2] * sizeof(double));
+double* data =(double*) fftw_malloc(n[0] * n[1] * n[2] * sizeof(double));
 
 for(int iz=0; iz<n[2]; iz++){
     for(int iy=0; iy<n[1]; iy++){

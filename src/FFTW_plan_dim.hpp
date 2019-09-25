@@ -1,18 +1,33 @@
 /**
  * @file FFTW_plan_dim.hpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
+ * 
  */
+
 #ifndef FFTW_PLAN_DIM_HPP
 #define FFTW_PLAN_DIM_HPP
 
-#include "defines.hpp"
 #include "Topology.hpp"
+#include "defines.hpp"
 #include "fftw3.h"
 
 /**
@@ -47,12 +62,12 @@ class FLUPS::FFTW_plan_dim {
     int    _fieldstart = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
     int    _n_in       = 0;     /**< @brief the number of element in the transform*/
     int    _n_out      = 0;     /**< @brief the number of element coming out of the transform*/
-    int    _shiftgreen = 0;   /**< @brief the shift to set in the Green's function when doing the convolution*/
+    int    _shiftgreen = 0;     /**< @brief the shift to set in the Green's function when doing the convolution*/
     double _symstart   = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double _normfact   = 0.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double _volfact    = 0.0; /**< @brief volume factor*/
-    double _kfact      = 0.0; /**< @brief multiplication factor to have the correct k numbers*/
-    double _koffset    = 0.0; /**< @brief additive factor to have the correct k numbers*/
+    double _normfact   = 0.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact    = 0.0;   /**< @brief volume factor*/
+    double _kfact      = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
+    double _koffset    = 0.0;   /**< @brief additive factor to have the correct k numbers*/
 
     PlanType     _type;  /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/
@@ -66,7 +81,7 @@ class FLUPS::FFTW_plan_dim {
 
     void init(const int size[3], const bool isComplex);
 
-    void allocate_plan(const Topology *topo, double* data);
+    void allocate_plan(const Topology* topo, double* data);
     void execute_plan();
 
     /**
@@ -74,10 +89,11 @@ class FLUPS::FFTW_plan_dim {
      * 
      */
     /**@{ */
-    inline bool   ignoreMode() const { return _ignoreMode; }
-    inline bool   isSpectral() const { return _isSpectral; }
-    inline bool   isr2c() const { return _isr2c; }
-    inline bool   isr2c_green() const { return _isr2c && (!_isSpectral || !_isGreen) ; }
+    inline bool ignoreMode() const { return _ignoreMode; }
+    inline bool isSpectral() const { return _isSpectral; }
+    inline bool isr2c() const { return _isr2c; }
+    // inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral || !_isGreen) ; } //bug
+    inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
     inline int    imult() const { return _imult; }
     inline int    shiftgreen() const { return _shiftgreen; }
@@ -110,8 +126,8 @@ class FLUPS::FFTW_plan_dim {
      * @name Plan allocation
      */
     /**@{ */
-    void _allocate_plan_real(const Topology *topo, double* data);
-    void _allocate_plan_complex(const Topology *topo, double* data);
+    void _allocate_plan_real(const Topology* topo, double* data);
+    void _allocate_plan_complex(const Topology* topo, double* data);
     /**@} */
 };
 

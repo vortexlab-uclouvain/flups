@@ -1,13 +1,28 @@
 /**
- * @file validation.hpp
- * @author Denis-Gabriel Caprace, Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-19
- * 
+ * @file validation_3d.hpp
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
+ * 
  */
+
 #ifndef VALIDATION_3D_HPP
 #define VALIDATION_3D_HPP
 
@@ -23,10 +38,9 @@
 
 struct DomainDescr {
     int          nglob[3]   = {64, 64, 64};
-    int          nproc[3]   = {2, 2, 1};
+    int          nproc[3]   = {1, 2, 2};
     double       L[3]       = {1.0, 1.0, 1.0};
     FLUPS::BoundaryType mybc[3][2] = {{FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}, {FLUPS::UNB, FLUPS::UNB}};
-    // BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
 };
 
 /**

@@ -1,13 +1,28 @@
 /**
  * @file FFTW_plan_dim.cpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
+ * 
  */
+
 #include "FFTW_plan_dim.hpp"
 
 using namespace FLUPS;
@@ -29,7 +44,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
+    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2", LOCATION);
 
     //-------------------------------------------------------------------------
     // Initialisation of the sizes and types
@@ -68,7 +83,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
     } else {
-        FLUPS_ERROR("Invalid combination of BCs");
+        FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
 }
 FFTW_plan_dim::~FFTW_plan_dim() {
@@ -133,7 +148,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
@@ -207,7 +222,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
             _koffset = 0.5;
         }
     } else {
-        FLUPS_ERROR("unable to init the solver required");
+        FLUPS_ERROR("unable to init the solver required", LOCATION);
     }
 }
 
@@ -225,7 +240,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
@@ -281,7 +296,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
         } else {
-            FLUPS_ERROR("unable to init the solver required");
+            FLUPS_ERROR("unable to init the solver required", LOCATION);
         }
     }
 }
@@ -567,7 +582,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 void FFTW_plan_dim::execute_plan() {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral");
+    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
 
     // run the plan
     if (_type == SYMSYM) {
@@ -617,7 +632,7 @@ void FFTW_plan_dim::disp() {
     } else if (_bc[1] == PER) {
         FLUPS_INFO(" PER}");
     }
-    if (_type == SYMSYM || _type == MIXUNB) {
+    if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
         if (_kind == FFTW_REDFT00) {
             FLUPS_INFO("- kind = REDFT00 = DCT type I");
         }
