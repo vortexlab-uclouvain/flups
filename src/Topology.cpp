@@ -111,7 +111,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
             if (oid_global <= 0) start[id] = i;
             if (oid_global < onglob) end[id] = i + 1;
         }
-        FLUPS_CHECK(end[id]-start[id]>0,"iend has to be at least 1 bigger than istart: my nloc = %d %d %d vs other %d %d %d",_nloc[0],_nloc[1],_nloc[2],other->nloc(0),other->nloc(1),other->nloc(2), LOCATION);
+        FLUPS_CHECK(end[id]-start[id]>0,"iend has to be at least 1 bigger than istart: istart = %d - iend = %d > my nloc = %d vs other %d > shift = %d",start[id],end[id],_nloc[id],other->nloc(id),shift[id], LOCATION);
     }
 }
 

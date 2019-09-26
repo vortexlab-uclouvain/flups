@@ -139,7 +139,7 @@ class FLUPS::SwitchTopo_a2a {
     void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count,int** start);
 };
 
-// void SwitchTopo_test();
+void SwitchTopo_a2a_test();
 
 static inline int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
@@ -208,6 +208,7 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
  * @param destRank the computed destination rank for each block
  */
 static inline void cmpt_blockDestRank(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology *topo, const int *nBlockEachProc,int *destRank) {
+    BEGIN_FUNC;
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     // go through each block

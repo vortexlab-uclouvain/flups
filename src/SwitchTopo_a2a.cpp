@@ -254,10 +254,18 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 }
 
 void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) {
+    BEGIN_FUNC;
 
     _sendBuf = (double**) fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2]*sizeof(double*));
     _recvBuf = (double**) fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2]*sizeof(double*));
 
+    int subsize;
+    MPI_Comm_size(_subcomm,&subsize);
+    int* countPerRank = (int*) fftw_malloc(subsize * sizeof(int));
+
+    const int blockSize = get_blockMemSize();
+    
+    std::memset(countPerRank,0,subsize * sizeof(int));
     for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
         // get the destination rank
         int destrank = _i2o_destRank[ib];
@@ -266,10 +274,16 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         for (int ir = 0; ir < destrank; ir++) {
             memblocks += (size_t)_i2o_count[ir];
         }
-        _sendBuf[ib] = sendData + memblocks;
-        FLUPS_INFO("linking block %d with an offset of %d",ib,memblocks);
+
+        // place the block given the number of ranks bellow + the number of block already set to my rank
+        _sendBuf[ib] = sendData + memblocks + countPerRank[destrank];
+        FLUPS_INFO("send: linking block %d with an offset of %d on proc %d",ib,memblocks + countPerRank[destrank],destrank);
+        // add the block size to the number of already added blocks
+        countPerRank[destrank] += blockSize;
     }
 
+
+    std::memset(countPerRank,0,subsize * sizeof(int));
     for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
         // get the destination rank
         int destrank = _o2i_destRank[ib];
@@ -278,14 +292,20 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         for (int ir = 0; ir < destrank; ir++) {
             memblocks += (size_t)_o2i_count[ir];
         }
-        _recvBuf[ib] = recvData + memblocks;
+        // place the block given the number of ranks bellow + the number of block already set to my rank
+        _recvBuf[ib] = recvData + memblocks + countPerRank[destrank];
+        FLUPS_INFO("recv: linking block %d with an offset of %d on proc %d",ib,memblocks + countPerRank[destrank],destrank);
+        // add the block size to the number of already added blocks
+        countPerRank[destrank] += blockSize;
     }
+    
+    fftw_free(countPerRank);
 
     // if we are all to all, we should destroy info: start and count except the first one
 }
 
 void SwitchTopo_a2a::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count,int** start) {
-
+    BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the new destination ranks    */
     //-------------------------------------------------------------------------
@@ -325,7 +345,11 @@ void SwitchTopo_a2a::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* 
     // compute the start indexes
     (*start)[0] = 0;
     for (int ir = 1; ir < subsize; ir++) {
-        (*start)[ir] = (*start)[ir-1] + (*count)[ir];
+        (*start)[ir] = (*start)[ir-1] + (*count)[ir-1];
+    }
+
+    for (int ir = 0; ir < subsize; ir++) {
+        FLUPS_INFO("count = %d and start = %d",(*count)[ir],(*start)[ir]);
     }
 }
 
@@ -393,11 +417,17 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 
     MPI_Comm_free(&_subcomm);
 
+
     if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
     if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
 
     if (_i2o_count != NULL) fftw_free(_i2o_count);
     if (_o2i_count != NULL) fftw_free(_o2i_count);
+    if (_i2o_start != NULL) fftw_free(_i2o_start);
+    if (_o2i_start != NULL) fftw_free(_o2i_start);
+
+    if (_sendBuf != NULL) fftw_free((double*)_sendBuf);
+    if (_recvBuf != NULL) fftw_free((double*)_recvBuf);
 
     for(int id=0; id<3; id++){
         if(_iBlockSize[id] != NULL) fftw_free(_iBlockSize[id]);
@@ -499,8 +529,8 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
             iend[id]        = _iend[id];
             ostart[id]      = _ostart[id];
             oend[id]        = _oend[id];
-            // inloc[id]       = _topo_in->nloc(id);
-            // onloc[id]       = _topo_out->nloc(id);
+            inloc[id]       = _topo_in->nloc(id);
+            onloc[id]       = _topo_out->nloc(id);
             iBlockSize[id]  = _iBlockSize[id];
             oBlockSize[id]  = _oBlockSize[id];
         }
@@ -522,8 +552,8 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
             iend[id]        = _oend[id];
             ostart[id]      = _istart[id];
             oend[id]        = _iend[id];
-            // inloc[id]       = _topo_out->nloc(id);
-            // onloc[id]       = _topo_in->nloc(id);
+            inloc[id]       = _topo_out->nloc(id);
+            onloc[id]       = _topo_in->nloc(id);
             iBlockSize[id]  = _oBlockSize[id];
             oBlockSize[id]  = _iBlockSize[id];
         }
@@ -564,6 +594,11 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
         double* __restrict data = sendBuf[bid];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
 
+        // FLUPS_INFO("starting copy of block %d from %d",bid,localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf));
+        // FLUPS_INFO("first values of v = %f %f %f",my_v[0],my_v[1],my_v[2]);
+
+        std::memset(data,0,iBlockSize[0][bid] * iBlockSize[1][bid] * iBlockSize[2][bid]*nf*sizeof(double));
+
         // go inside the block
         const int id_max = iBlockSize[ax1][bid] * iBlockSize[ax2][bid];
 #pragma omp for schedule(static)
@@ -571,14 +606,22 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
             // get the id from a small modulo
             const int i2 = id / iBlockSize[ax1][bid];
             const int i1 = id % iBlockSize[ax1][bid];
-            // get the starting global id for the buffer and the field
-            const size_t buf_idx = id * iBlockSize[ax0][bid] * nf;
-            const size_t my_idx  = localIndex(ax0, 0, i1, i2, ax0, inloc, nf);
+            
             // get the max counter
             const size_t nmax = iBlockSize[ax0][bid] * nf;
+            // get the starting global id for the buffer and the field
+            const size_t buf_idx = id * nmax;
+            const size_t my_idx  = localIndex(ax0, 0, i1, i2, ax0, inloc, nf);
+            
+            // FLUPS_INFO("my_idx %d %d %d @  %d",0,i1,i2,my_idx);
+            // FLUPS_INFO("computed using inloc = %d %d %d",inloc[0],inloc[1],inloc[2]);
+            
             // do the copy -> vectorized
             for (size_t i0 = 0; i0 < nmax; i0++) {
                 data[buf_idx + i0] = my_v[my_idx + i0];
+                // FLUPS_INFO("reading value %d %d %d / %d %d %d",i0,i1,i2,iBlockSize[0][bid],iBlockSize[1][bid],iBlockSize[2][bid]);
+                // FLUPS_INFO("reading value %d %d %d @ (%d + %d) = %d",i0,i1,i2,my_idx , i0,my_idx + i0);
+                // my_v[my_idx + i0] = 0.0;
             }
         }
     }
@@ -589,6 +632,8 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
     //-------------------------------------------------------------------------
     /** - Do the communication */
     //-------------------------------------------------------------------------
+    if(_is_all2all) FLUPS_INFO("sending!! ALL TO ALL");
+    if(!_is_all2all) FLUPS_INFO("sending!! with ALL TO ALL VECTOOOOOOR");
     if (_prof != NULL) {
         _prof->start("waiting");
     }
@@ -597,6 +642,18 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
 
     } else {
         // the count is the count of the first one
+        int size = 0;
+        for(int id=0; id<comm_size; id++){
+            size += send_count[id];
+            printf("sending %d mem to proc %d with start = %d\n",send_count[id],id,send_start[id]);
+        }
+        size = 0;
+        for(int id=0; id<comm_size; id++){
+            size += recv_count[id];
+            printf("receiving %d mem to proc %d with start = %d\n",recv_count[id],id,recv_start[id]);
+        }
+        FLUPS_CHECK(size<=get_bufMemSize(),"the size %d  > buf mem size %d",size,get_bufMemSize(),LOCATION);
+
         MPI_Alltoallv(sendBuf[0], send_count, send_start, MPI_DOUBLE, recvBuf[0], recv_count, recv_start, MPI_DOUBLE, _subcomm);
     }
     if (_prof != NULL) {
@@ -724,93 +781,105 @@ void SwitchTopo_a2a::disp() {
 //     }
 // }
 
-// void SwitchTopo_test() {
-//     BEGIN_FUNC;
+void SwitchTopo_a2a_test() {
+    BEGIN_FUNC;
 
-//     int comm_size;
-//     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    int comm_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-//     const int nglob[3] = {8, 8, 8};
-//     const int nproc[3] = {2, 2, 1};
+    const int nglob[3] = {8, 8, 8};
+    const int nproc[3] = {2, 2, 1};
 
-//     const int nglob_big[3] = {17, 8, 8};
-//     const int nproc_big[3] = {2, 2, 1};
+    // const int nglob_big[3] = {17, 8, 8};
+    const int nglob_big[3] = {10, 8, 8};
+    const int nproc_big[3] = {2, 2, 1};
 
-//     //===========================================================================
-//     // real numbers
-//     Topology* topo    = new Topology(0, nglob, nproc, false,NULL);
-//     Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL);
+    //===========================================================================
+    // real numbers
+    Topology* topo    = new Topology(0, nglob, nproc, false,NULL);
+    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL);
 
-//     double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
+    double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
 
-//     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-//         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-//             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-//                 size_t id    = localindex_xyz(i0, i1, i2, topo);
-//                 data[id + 0] = id;
-//             }
-//         }
-//     }
-//     // try the dump
-//     hdf5_dump(topo, "test_real", data);
+    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                size_t id    = localindex_xyz(i0, i1, i2, topo);
+                data[id + 0] = id;
+            }
+        }
+    }
+    // try the dump
+    hdf5_dump(topo, "test_real", data);
 
-//     const int fieldstart[3] = {0, 0, 0};
-//     // printf("\n=============================");
-//     SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
+    const int fieldstart[3] = {0, 0, 0};
+    // printf("\n=============================");
+    SwitchTopo_a2a* switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+    size_t max_mem = switchtopo->get_bufMemSize();
+    opt_double_ptr send_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
+    opt_double_ptr recv_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
+    std::memset(send_buff,0,max_mem * sizeof(double));
+    std::memset(recv_buff,0,max_mem * sizeof(double));
+    // associate the buffer
+    switchtopo->setup_buffers(send_buff,recv_buff);
 
-//     // printf("\n\n============ FORWARD =================");
-//     switchtopo->execute(data, FLUPS_FORWARD);
+    switchtopo->disp();
 
-//     hdf5_dump(topobig, "test_real_padd", data);
+    // printf("\n\n============ FORWARD =================");
+    switchtopo->execute(data, FLUPS_FORWARD);
 
-//     // printf("\n\n============ BACKWARD =================");
-//     switchtopo->execute(data, FLUPS_BACKWARD);
+    hdf5_dump(topobig, "test_real_padd", data);
 
-//     hdf5_dump(topo, "test_real_returned", data);
+    // printf("\n\n============ BACKWARD =================");
+    switchtopo->execute(data, FLUPS_BACKWARD);
 
-//     fftw_free(data);
-//     delete (switchtopo);
-//     delete (topo);
-//     delete (topobig);
+    hdf5_dump(topo, "test_real_returned", data);
 
-//     //===========================================================================
-//     // complex numbers
-//     topo    = new Topology(0, nglob, nproc, true,NULL);
-//     topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
+    fftw_free(data);
+    fftw_free(send_buff);
+    fftw_free(recv_buff);
+    delete (switchtopo);
+    delete (topo);
+    delete (topobig);
 
-//     data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
+    // //===========================================================================
+    // // complex numbers
+    // topo    = new Topology(0, nglob, nproc, true,NULL);
+    // topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
 
-//     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-//         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-//             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-//                 size_t id    = localindex_xyz(i0, i1, i2, topo);
-//                 data[id + 0] = 0;
-//                 data[id + 1] = id;
-//             }
-//         }
-//     }
-//     // try the dump
-//     hdf5_dump(topo, "test_complex", data);
+    // data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
 
-//     // topobig->switch2complex();
-//     // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
-//     // topobig->switch2real();
-//     // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    //             size_t id    = localindex_xyz(i0, i1, i2, topo);
+    //             data[id + 0] = 0;
+    //             data[id + 1] = id;
+    //         }
+    //     }
+    // }
+    // // try the dump
+    // hdf5_dump(topo, "test_complex", data);
 
-//     const int fieldstart2[3] = {4, 0, 0};
-//     // printf("\n=============================");
-//     switchtopo = new SwitchTopo(topo, topobig, fieldstart2, NULL);
+    // // topobig->switch2complex();
+    // // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+    // // topobig->switch2real();
+    // // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
-//     switchtopo->execute(data, FLUPS_FORWARD);
+    // const int fieldstart2[3] = {4, 0, 0};
+    // // printf("\n=============================");
+    // switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
 
-//     hdf5_dump(topobig, "test_complex_padd", data);
+    // switchtopo->execute(data, FLUPS_FORWARD);
 
-//     switchtopo->execute(data, FLUPS_BACKWARD);
+    // hdf5_dump(topobig, "test_complex_padd", data);
 
-//     hdf5_dump(topo, "test_complex_returned", data);
+    // switchtopo->execute(data, FLUPS_BACKWARD);
 
-//     fftw_free(data);
-//     delete (switchtopo);
-//     delete (topo);
-//     delete (topobig);
-// }
+    // hdf5_dump(topo, "test_complex_returned", data);
+
+    // fftw_free(data);
+    // delete (switchtopo);
+    // delete (topo);
+    // delete (topobig);
+}

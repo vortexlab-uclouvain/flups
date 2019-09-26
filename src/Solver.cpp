@@ -502,12 +502,9 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo_a2a **switchtopo, 
 
     *send_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
     *recv_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
-
-    // for (int ib = 0; ib < max_nblocks; ib++) {
-    //     (*send_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
-    //     (*recv_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
-    // }
-
+    std::memset(*send_buff,0,max_mem * sizeof(double));
+    std::memset(*recv_buff,0,max_mem * sizeof(double));
+    
     // associate the buffers
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
