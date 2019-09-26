@@ -24,6 +24,7 @@ compil opt :
   stage: build
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   artifacts: 
@@ -40,6 +41,7 @@ run serial 1:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -52,6 +54,7 @@ run serial 2:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -64,6 +67,7 @@ run serial 3:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -76,6 +80,7 @@ run serial 4:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -90,6 +95,7 @@ run MPI 1:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -103,6 +109,7 @@ run MPI 2:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -115,6 +122,7 @@ run MPI 3:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -127,6 +135,7 @@ run MPI 4:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -141,6 +150,7 @@ run MPI-OMP 1:1:
   stage: test
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
@@ -157,6 +167,7 @@ validate3D all BCs:
   stage: validation
   only:
     - master@examples/flups
+    - dev_all2all@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
