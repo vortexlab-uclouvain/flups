@@ -695,24 +695,20 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
  */
 void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, const bool killModeZero) {
     BEGIN_FUNC;
-    // the symmetry is done along the fastest rotating index
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
 
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            size_t id = localindex_ao(0, i1, i2, topo);
-            for (int i0 = 0; i0 < topo->nloc(ax0) * topo->nf(); i0++) {
-                data[id + i0] = data[id + i0] * _volfact;
-            }
-        }
+    const size_t         nmax     = topo->nloc(0) * topo->nloc(1) * topo->nloc(2) * topo->nf();
+
+    // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, _volfact, data)
+    for (size_t i = 0; i < nmax; i++) {
+        data[i] *= _volfact ;
     }
 
     if (killModeZero) {
         int istart[3];
+
         topo->get_istart_glob(istart);
-        if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+        if (istart[0] == 0 && istart[1] == 0 && istart[2] == 0) {
             for (int i0 = 0; i0 < topo->nf(); i0++) {
                 data[i0] = 0.0;
             }

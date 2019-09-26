@@ -356,8 +356,19 @@ static inline double _hej_2_1unb2spe(const void* params) {
 
     const double rho = r/sig;
     const double s   = k*sig;
-    return .25 * sig / s * ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+
+    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    return .25 * sig / s * subfun ;
 }
+static inline double _hej_2_1unb2spe_k0(const void* params) {
+    const double r   = ((double*)params) [0];
+    const double sig = ((double*)params) [2];
+
+    const double rho = r/sig;
+    return 0.0; //THIS IS WRONG !
+    //and clearly not 0.0 as stated in [Hejlesen:2013] and [Spietz:2018]
+}
+
 static inline double _hej_4_1unb2spe(const void* params) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
@@ -365,9 +376,18 @@ static inline double _hej_4_1unb2spe(const void* params) {
 
     const double rho = r/sig;
     const double s   = k*sig;
-    return .25 * sig / s * ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho)) + \
+    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    return .25 * sig / s * subfun + \
            sig * M_SQRT2 * c_1osqrtpi * .25 * exp(-.5 * (s * s + rho * rho));
 }
+static inline double _hej_4_1unb2spe_k0(const void* params) {
+    const double r   = ((double*)params) [0];
+    const double sig = ((double*)params) [2];
+
+    const double rho = r/sig;
+    return 0.0; //THIS IS WRONG !
+}
+
 static inline double _hej_6_1unb2spe(const void* params) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
@@ -375,9 +395,18 @@ static inline double _hej_6_1unb2spe(const void* params) {
 
     const double rho = r/sig;
     const double s   = k*sig;
-    return .25 * sig / s * ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho)) + \
+    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    return .25 * sig / s * subfun + \
            sig * M_SQRT2 * c_1osqrtpi * (c_5o16 + c_1o16 * (s * s - rho * rho)) * exp(-.5 * (s * s + rho * rho));
 }
+static inline double _hej_6_1unb2spe_k0(const void* params) {
+    const double r   = ((double*)params) [0];
+    const double sig = ((double*)params) [2];
+
+    const double rho = r/sig;
+    return 0.0; //THIS IS WRONG !
+}
+
 static inline double _chat_2_1unb2spe(const void* params) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
@@ -425,15 +454,18 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     switch (typeGreen) {
         case HEJ_2:
             G  = &_hej_2_1unb2spe;
-            G0 = &_hej_2_1unb2spe;
+            G0 = &_hej_2_1unb2spe_k0;
+            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case HEJ_4:
             G  = &_hej_4_1unb2spe;
-            G0 = &_hej_4_1unb2spe;
+            G0 = &_hej_4_1unb2spe_k0;
+            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case HEJ_6:
             G  = &_hej_6_1unb2spe;
-            G0 = &_hej_6_1unb2spe;
+            G0 = &_hej_6_1unb2spe_k0;
+            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case CHAT_2:
             G  = &_chat_2_1unb2spe;
