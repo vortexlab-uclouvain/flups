@@ -544,19 +544,24 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
 #pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, istart, nByBlock, iBlockSize, nf, inloc, ax0, ax1, ax2)
     for (int bid = 0; bid < nblocks_send; bid++) {
         // get the split index
-        int ib[3];
-        localSplit(bid, send_nBlock, 0, ib, 1);
+        int ibv[3];
+        localSplit(bid, send_nBlock, 0, ibv, 1);
 
         // get the starting index in the global memory using !!nByBlock!!
         // since only the last block may have a different size
-        const int loci0 = istart[ax0] + ib[ax0] * nByBlock[ax0];
-        const int loci1 = istart[ax1] + ib[ax1] * nByBlock[ax1];
-        const int loci2 = istart[ax2] + ib[ax2] * nByBlock[ax2];
+        const int loci0 = istart[ax0] + ibv[ax0] * nByBlock[ax0];
+        const int loci1 = istart[ax1] + ibv[ax1] * nByBlock[ax1];
+        const int loci2 = istart[ax2] + ibv[ax2] * nByBlock[ax2];
         // get the memory to write to/from
         double* __restrict data = sendBuf[bid];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
 
-        std::memset(data, 0, iBlockSize[0][bid] * iBlockSize[1][bid] * iBlockSize[2][bid] * nf * sizeof(double));
+#pragma omp master
+        {   // reset of the buffer, only done by the master
+            std::memset(data, 0, iBlockSize[0][bid] * iBlockSize[1][bid] * iBlockSize[2][bid] * nf * sizeof(double));
+        }
+        // wait till the reset is over before doing the fill
+#pragma omp barrier
 
         // go inside the block
         const int id_max = iBlockSize[ax1][bid] * iBlockSize[ax2][bid];
@@ -565,7 +570,6 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
             // get the id from a small modulo
             const int i2 = id / iBlockSize[ax1][bid];
             const int i1 = id % iBlockSize[ax1][bid];
-
             // get the max counter
             const size_t nmax = iBlockSize[ax0][bid] * nf;
             // get the starting global id for the buffer and the field
