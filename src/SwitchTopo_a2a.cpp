@@ -102,6 +102,8 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 
         // compute the exchanged size same if from the input or output
         MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
+        _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
 
         // if I am the last one, I decrease the blocksize by one if needed
         if (_topo_in->rankd(id) == (_topo_in->nproc(id) - 1)) {
