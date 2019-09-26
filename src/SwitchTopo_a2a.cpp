@@ -169,13 +169,60 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     /** - do the communication split */
     //-------------------------------------------------------------------------
     // compute the color among the proc I send to and I recv from
+    FLUPS_INFO("Trying to determine the MPI communicators...");
     int mycolor = rank;
+    int* colors =(int*) fftw_malloc(comm_size * sizeof(int));
+    bool* inMyGroup =(bool*) fftw_malloc(comm_size * sizeof(bool));
+
+    for (int ir = 0; ir < comm_size; ir++) {
+        inMyGroup[ir] = false;
+    }
+
+    // do a first pass and give a color + who is in my group
     for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
         mycolor = std::min(mycolor, _i2o_destRank[ib]);
+        inMyGroup[_i2o_destRank[ib]] = true;
     }
     for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
         mycolor = std::min(mycolor, _o2i_destRank[ib]);
+        inMyGroup[_o2i_destRank[ib]] = true;
     }
+
+    // count how much is should be in my group
+    // by default we assume that nobody is in the same group
+    int nleft = 0;
+    for (int ir = 0; ir < comm_size; ir++) {
+        if (inMyGroup[ir]) {
+            nleft += 1;
+        }
+    }
+    // continue while we haven't found a solution
+    while (nleft > 0 ) {
+        // gather the color info from everyone
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, MPI_COMM_WORLD);
+        // iterate on the proc
+        int n_notInMyGroup = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            // if it is reachable and the color is not already the same
+            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
+                // we first increment the counter flagging that one is missing
+                n_notInMyGroup += 1;
+                // then we solve the problem if we are able to do so....
+                // remove 1 if we are able to solve the issue <=> my color > colors[ir]
+                n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
+                // changing if possible
+                mycolor = std::min(mycolor, colors[ir]);
+            }
+        }
+        // compute among everybody, if we need to continue
+        MPI_Allreduce(&n_notInMyGroup,&nleft,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+        FLUPS_INFO("stil %d to find (@ my proc: %d)",nleft,n_notInMyGroup);
+    }
+    fftw_free(colors);
+    fftw_free(inMyGroup);
+
+    FLUPS_INFO("Group found: my color = %d",mycolor);
+    
     // create the new communicator
     MPI_Comm_split(MPI_COMM_WORLD, mycolor, rank, &_subcomm);
 
@@ -193,6 +240,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         _is_all2all = _is_all2all && (tmp_size == _i2o_count[ir]);
         _is_all2all = _is_all2all && (tmp_size == _o2i_count[ir]);
     }
+    FLUPS_INFO("End of init SwitchTopo with a group of size",subsize);
 
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
@@ -219,6 +267,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
             memblocks += (size_t)_i2o_count[ir];
         }
         _sendBuf[ib] = sendData + memblocks;
+        FLUPS_INFO("linking block %d with an offset of %d",ib,memblocks);
     }
 
     for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
@@ -240,12 +289,12 @@ void SwitchTopo_a2a::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* 
     //-------------------------------------------------------------------------
     /** - get the new destination ranks    */
     //-------------------------------------------------------------------------
-    int newrank,commsize;
+    int newrank,worldsize;
     MPI_Comm_rank(newcomm, &newrank);
-    MPI_Comm_size(newcomm, &commsize);
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 
     // get the new ranks from my old friends in the old communicator
-    int* newRanks =(int*) fftw_malloc(commsize * sizeof(int));
+    int* newRanks =(int*) fftw_malloc(worldsize * sizeof(int));
     MPI_Allgather(&newrank, 1, MPI_INT, newRanks, 1, MPI_INT, MPI_COMM_WORLD);
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
@@ -259,15 +308,18 @@ void SwitchTopo_a2a::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* 
     int subsize;
     MPI_Comm_size(_subcomm, &subsize);
 
+    printf("subsize = %d\n",subsize);
+
     // count the number of blocks to each process
-    (*count) == fftw_malloc(subsize * sizeof(int));
-    (*start) == fftw_malloc(subsize * sizeof(int));
+    (*count) =(int*) fftw_malloc(subsize * sizeof(int));
+    (*start) =(int*) fftw_malloc(subsize * sizeof(int));
     std::memset((*count), 0, subsize * sizeof(int));
     std::memset((*start), 0, subsize * sizeof(int));
     // get the size per block
     const int blockMem = get_blockMemSize();
     // count the number of blocks per rank
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        printf("the destination rank of block %d  = %d\n",ib,destRank[ib]);
         (*count)[destRank[ib]] += blockMem;
     }
     // compute the start indexes
@@ -631,7 +683,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
 void SwitchTopo_a2a::disp() {
     BEGIN_FUNC;
     FLUPS_INFO("------------------------------------------");
-    if(_is_all2all) FLUPS_INFO("## Topo Swticher All to All MPI");
+    if(_is_all2all) FLUPS_INFO("## Topo Swticher All to All !! MPI");
     if(!_is_all2all) FLUPS_INFO("## Topo Swticher All to All vector MPI");
     FLUPS_INFO("--- INPUT");
     FLUPS_INFO("  - input axis = %d", _topo_in->axis());
