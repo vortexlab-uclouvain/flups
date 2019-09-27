@@ -198,12 +198,18 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         MPI_Allreduce(&localCount, &minCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanCount *= scale;
 
-        // compute time passed inside + children
+        // compute times passed inside + children
         double localTime = _timeAcc;
-        double meanTime, glob_percent;
+        double meanTime, maxTime, minTime;
         MPI_Allreduce(&localTime, &meanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &minTime, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &maxTime, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         meanTime *= scale;
-        glob_percent = meanTime/totalTime*100.0;
+        
+        double meanTimePerCount = meanTime/meanCount;
+        double minTimePerCount = minTime/meanCount;
+        double maxTimePerCount = maxTime/meanCount;
+        double glob_percent = meanTime/totalTime*100.0;
 
         // compute the self time  = time passed inside - children
         double sumChild = 0.0;
@@ -218,14 +224,6 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
-
-        // compute the time per call
-        double meanTimePerCount, maxTimePerCount, minTimePerCount;
-        double localTimePerCount = localTime / localCount;
-        MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTimePerCount, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTimePerCount, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        meanTimePerCount *= scale;
 
         // comnpute the time passed inside the daddy
         double loc_percent;
@@ -259,7 +257,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
             fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
         }
     }
@@ -430,7 +428,7 @@ void Profiler::disp(const std::string ref) {
         printf("===================================================================================================================================================\n");
         printf("        PROFILER %s  \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
-        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-","-(MB/s)-");
+        printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
     // get the global timing
     double localTotalTime = _timeMap[ref]->timeAcc();
@@ -448,8 +446,8 @@ void Profiler::disp(const std::string ref) {
         printf("Total time - the total time spend in that timer (averaged among the processors)\n");
         printf("Self time - the self time spend in that timer = children not included (averaged among the processors)\n");
         printf("Time/call - the total time spend in that timer per call of the timer (averaged among the processors)\n");
-        printf("Min time - the min total time spend in that timer among the processors\n");
-        printf("Max time - the max total time spend in that timer among the processors\n");
+        printf("Min time - the min time / call spend in that timer among the processors\n");
+        printf("Max time - the max time / call spend in that timer among the processors\n");
         printf("Mean cnt - the total number of time the timer has been called (averaged among the processors)\n");
         printf("===================================================================================================================================================\n");
         fclose(file);

@@ -55,15 +55,14 @@
  */
 class FLUPS::SwitchTopo_a2a {
    protected:
+    MPI_Comm _subcomm;            /**<@brief subcomm used for this SwitchTopo */
+    bool     _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
 
-    MPI_Comm _subcomm;
-    bool _is_all2all = false;
+    int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
+    int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
 
-    int* _i2o_count = NULL;
-    int* _o2i_count = NULL;
-
-    int* _i2o_start = NULL;
-    int* _o2i_start = NULL;
+    int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
+    int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
     int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
 
@@ -76,31 +75,14 @@ class FLUPS::SwitchTopo_a2a {
     int _inBlock[3];  /**<@brief the local number of block in each dim in the input topology */
     int _onBlock[3];  /**<@brief the local number of block in each dim in the output topology  */
 
-    // int _inBlockByProc[3]; /**<@brief The number of blocks in each dim in the input topo = send topo (!different on each process! and 012-indexing) */
-    // int _onBlockByProc[3]; /**<@brief The number of blocks in each dim in the output topo = recv topo (!different on each process! and 012-indexing) */
-
-    // int _iblockIDStart[3]; /**<@brief starting index of the block (0,0,0) in the input topo (012-indexing)    */
-    // int _oblockIDStart[3]; /**<@brief starting index of the block (0,0,0) in the output topo (012-indexing)    */
-
-    // int _ib2o_shift[3]; /**<@brief position in the output topology of the first block (0,0,0) matching the origin of the input topology  */
-    // int _ob2i_shift[3]; /**<@brief position in the input topology of the first block (0,0,0) matching the origin of the output topology  */
-
     int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
     int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
     opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
     opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
 
-    // opt_int_ptr _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
-    // opt_int_ptr _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
-
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */
-
-    // MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    // MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
-    // MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    // MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
     opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
@@ -114,6 +96,11 @@ class FLUPS::SwitchTopo_a2a {
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
     void execute(opt_double_ptr v, const int sign);
 
+    /**
+     * @brief return the memory size of a block (including the padding for odd numbers if needed)
+     * 
+     * @return size_t 
+     */
     inline size_t get_blockMemSize() const {
         // get the max block size
         size_t total = 1;
@@ -125,6 +112,11 @@ class FLUPS::SwitchTopo_a2a {
         // return the total size
         return total;
     };
+    /**
+     * @brief return the buffer size for one proc = number of blocks * blocks memory size
+     * 
+     * @return size_t 
+     */
     inline size_t get_bufMemSize() const {
         // nultiply by the number of blocks
         size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
