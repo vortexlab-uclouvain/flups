@@ -358,6 +358,7 @@ class Solver;
 class FFTW_plan_dim;
 class Topology;
 class SwitchTopo;
+class SwitchTopo_a2a;
 }  // namespace FLUPS
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
