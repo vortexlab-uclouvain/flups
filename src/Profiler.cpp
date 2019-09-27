@@ -178,8 +178,12 @@ void TimerAgent::writeParentality(FILE* file, const int level){
  * @param totalTime 
  */
 void TimerAgent::disp(FILE* file,const int level, const double totalTime){
-
-    if (_count > 0) {
+    
+    // check if any proc has called the agent
+    int totalCount;
+    MPI_Allreduce(&_count,&totalCount,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    // if someone has every call the agent, display it
+    if (totalCount > 0) {
         // get the size and usefull stuffs
         int commSize, rank;
         MPI_Comm_size(MPI_COMM_WORLD, &commSize);
