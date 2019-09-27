@@ -765,7 +765,7 @@ void SwitchTopo_a2a_test() {
     const int nglob[3] = {8, 8, 8};
     const int nproc[3] = {2, 2, 1};
 
-    const int nglob_big[3] = {10, 8, 8};
+    const int nglob_big[3] = {17, 8, 8};
     const int nproc_big[3] = {2, 2, 1};
 
     //===========================================================================
