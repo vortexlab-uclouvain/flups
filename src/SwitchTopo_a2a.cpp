@@ -272,8 +272,10 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 #ifdef PERF_VERBOSE
     // we display important information for the performance
     string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
-    FILE* file = fopen(name.c_str(),"w+");
+    FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){
+        fprintf(file,"============================================================\n");
++       fprintf(file,"NX = %d - rank = %d - threads = %d\n",_topo_in->nglob(0),comm_size,omp_get_max_threads());
         if(_is_all2all) fprintf(file,"- is all to all\n");
         if(!_is_all2all) fprintf(file,"- is vectorized all to all\n");
         
