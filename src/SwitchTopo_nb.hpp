@@ -55,6 +55,7 @@
  */
 class FLUPS::SwitchTopo_nb : public SwitchTopo {
    protected:
+    int _exSize[3];
     int _selfBlockN=0;
     int* _iselfBlockID = NULL;
     int* _oselfBlockID = NULL;
@@ -112,28 +113,28 @@ class FLUPS::SwitchTopo_nb : public SwitchTopo {
      * @return size_t 
      */
     inline size_t get_blockMemSize() const {
-        // // get the max block size
-        // size_t total = 1;
-        // for (int id = 0; id < 3; id++) {
-        //     total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
-        // }
-        // // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        // total *= (size_t)_topo_out->nf();
-        // // return the total size
-        // return total;
+        // get the max block size
+        size_t total = 1;
+        for (int id = 0; id < 3; id++) {
+            total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
+        }
         // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        const int nf = _topo_out->nf();
-        // get the max block size
-        size_t maxsize = 0;
-        for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
-            maxsize = std::max(maxsize,((size_t)_iBlockSize[0][ib])*((size_t)_iBlockSize[1][ib])*((size_t)_iBlockSize[2][ib])* ((size_t)nf));
-        }
-        // get the max block size
-        for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
-            maxsize = std::max(maxsize,((size_t)_oBlockSize[0][ib])*((size_t)_oBlockSize[1][ib])*((size_t)_oBlockSize[2][ib])*((size_t)nf));
-        }
+        total *= (size_t)_topo_out->nf();
+        // return the total size
+        return total;
+        // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
+        // const int nf = _topo_out->nf();
+        // // get the max block size
+        // size_t maxsize = 0;
+        // for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+        //     maxsize = std::max(maxsize,((size_t)_iBlockSize[0][ib])*((size_t)_iBlockSize[1][ib])*((size_t)_iBlockSize[2][ib])* ((size_t)nf));
+        // }
+        // // get the max block size
+        // for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+        //     maxsize = std::max(maxsize,((size_t)_oBlockSize[0][ib])*((size_t)_oBlockSize[1][ib])*((size_t)_oBlockSize[2][ib])*((size_t)nf));
+        // }
         // return
-        return maxsize;
+        // return maxsize;
     };
     /**
      * @brief return the buffer size for one proc = number of blocks * blocks memory size

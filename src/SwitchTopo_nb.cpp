@@ -107,13 +107,17 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
         // get the gcd between send and receive
         int isend = (_iend[id] - _istart[id]);
         int osend = (_oend[id] - _ostart[id]);
-        // To avoid that the 2*n+1 is destroying the block size,
-        // if we are the last proc, we forget about the last row
-        if(_topo_in->rankd(id) == (_topo_in->nproc(id)-1)){
-            isend = isend;
+        // compute the exchanged size same if from the input or output
+        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
+        _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
+
+        // if I am the last one, I decrease the blocksize by one if needed
+        if (_topo_in->rankd(id) == (_topo_in->nproc(id) - 1)) {
+            isend = isend - _exSize[id] % 2;
         }
-        if(_topo_out->rankd(id) == (_topo_out->nproc(id)-1)){
-            osend = osend;
+        if (_topo_out->rankd(id) == (_topo_out->nproc(id) - 1)) {
+            osend = osend - _exSize[id] % 2;
         }
         int npoints = gcd(isend,osend);
         // gather on each proc the gcd
@@ -127,16 +131,6 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
         _nByBlock[id] = my_gcd;
     }
     fftw_free(onProc);
-
-#ifdef PERF_VERBOSE
-    if (rank == 0) {
-        FILE* file = fopen("./prof/blocksize.txt","a+");
-        if(file != NULL){
-            fprintf(file,"SwitchTopo %d to %d: blocksize = %d %d %d\n",topo_input->axis(),topo_output->axis(),_nByBlock[0],_nByBlock[1],_nByBlock[2]);
-            fclose(file);
-        }
-    }
-#endif
 
     //-------------------------------------------------------------------------
     /** - get the starting index of the block 0,0,0 for input and output */
@@ -210,6 +204,43 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
         _prof->create("buf2mem","reorder");
         _prof->create("waiting","buf2mem");
     }
+
+    //-------------------------------------------------------------------------
+    /** - Display performance information if asked */
+    //-------------------------------------------------------------------------
+#ifdef PERF_VERBOSE
+    // we display important information for the performance
+    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
+    FILE* file = fopen(name.c_str(),"w+");
+    if(file != NULL){
+        if(_is_all2all) fprintf(file,"- is all to all\n");
+        if(!_is_all2all) fprintf(file,"- is vectorized all to all\n");
+        
+        int newrank;
+        MPI_Comm_rank(_subcomm,&newrank);
+        int rlen;
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
+        fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
+        fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
+        fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],_nByBlock[0]+_exSize[0]%2,_nByBlock[1]+_exSize[1]%2,_nByBlock[2]+_exSize[2]%2);
+
+        fprintf(file,"--------------------------\n");
+        fprintf(file,"%d SEND:",newrank);
+        for(int ib=0; ib<_inBlock[0] * _inBlock[1] * _inBlock[2]; ib++){
+            fprintf(file," %d ",_i2o_destRank[ib]);
+        }
+        fprintf(file,"\n");
+        fprintf(file,"--------------------------\n");
+        fprintf(file,"%d RECV:",newrank);
+        for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
+            fprintf(file," %d ",_o2i_destRank[ib]);
+        }
+        fprintf(file,"\n");
+        fclose(file);
+    }
+#endif
 }
 
 void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvData){
@@ -561,6 +592,13 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
             // get the block id = the tag
             bid = status.MPI_TAG;
         }
+        // add the bandwith info
+        #pragma omp master
+        {
+            if (_prof != NULL) {
+                _prof->addMem("waiting", get_bufMemSize());
+            }
+        }
         // get the indexing of the block in 012-indexing
         int ibv[3];
         localSplit(bid, recv_nBlock, 0, ibv, 1);
@@ -576,15 +614,6 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
         const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
         // get the max number of ids not aligned in ax0
         const size_t id_max = oBlockSize[ax1][bid] * oBlockSize[ax2][bid];
-
-        // add the bandwith info
-        #pragma omp master
-        {
-            if (_prof != NULL) {
-                size_t loc_mem = oBlockSize[0][bid] * oBlockSize[1][bid] *oBlockSize[2][bid]*nf*sizeof(double);
-                _prof->addMem("waiting", loc_mem);
-            }
-        }
 
         if (nf == 1) {
 #pragma omp for schedule(static)
