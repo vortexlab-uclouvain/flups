@@ -657,7 +657,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
             for (int ir = 0; ir < comm_size; ir++) {
                 loc_mem += send_count[ir];
             }
-            _prof->addMem("all_2_all_v", loc_mem);
+            _prof->addMem("all_2_all_v", loc_mem*sizeof(double));
         }
     }
 

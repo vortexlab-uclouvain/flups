@@ -213,15 +213,14 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
     FILE* file = fopen(name.c_str(),"w+");
     if(file != NULL){
-        if(_is_all2all) fprintf(file,"- is all to all\n");
-        if(!_is_all2all) fprintf(file,"- is vectorized all to all\n");
-        
+        fprintf(file,"- non blocking and persistent communications\n");
+
         int newrank;
-        MPI_Comm_rank(_subcomm,&newrank);
-        int rlen;
-        char myname[MPI_MAX_OBJECT_NAME];
-        MPI_Comm_get_name(_subcomm, myname, &rlen);
-        fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
+        MPI_Comm_rank(MPI_COMM_WORLD,&newrank);
+        // int rlen;
+        // char myname[MPI_MAX_OBJECT_NAME];
+        // MPI_Comm_get_name(_subcomm, myname, &rlen);
+        // fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
         fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
         fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
         fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],_nByBlock[0]+_exSize[0]%2,_nByBlock[1]+_exSize[1]%2,_nByBlock[2]+_exSize[2]%2);
@@ -596,7 +595,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
         #pragma omp master
         {
             if (_prof != NULL) {
-                _prof->addMem("waiting", get_bufMemSize());
+                _prof->addMem("waiting", get_bufMemSize()*sizeof(double));
             }
         }
         // get the indexing of the block in 012-indexing
