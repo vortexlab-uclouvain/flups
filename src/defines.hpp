@@ -41,6 +41,9 @@
 
 #define FFTW_FLAG FFTW_MEASURE
 
+// #define SWITCHTOPO_A2A
+#define SWITCHTOPO_NB
+
 //=============================================================================
 // LOCATORS
 //=============================================================================
@@ -358,6 +361,7 @@ class Solver;
 class FFTW_plan_dim;
 class Topology;
 class SwitchTopo;
+class SwitchTopo_nb;
 class SwitchTopo_a2a;
 }  // namespace FLUPS
 

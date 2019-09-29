@@ -1,9 +1,9 @@
 /**
- * @file SwitchTopo_a2a.hpp
+ * @file SwitchTopo_nb.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief 
  * @version
- * @date 2019-09-25
+ * @date 2019-09-28
  * 
  * @copyright Copyright © UCLouvain 2019
  * 
@@ -27,9 +27,8 @@
  * 
  */
 
-
-#ifndef SWITCHTOPO_A2A_HPP
-#define SWITCHTOPO_A2A_HPP
+#ifndef SWITCHTOPO_NB_HPP
+#define SWITCHTOPO_NB_HPP
 
 #include <cstring>
 #include "defines.hpp"
@@ -37,6 +36,7 @@
 #include "mpi.h"
 #include "Topology.hpp"
 #include "Profiler.hpp"
+#include "omp.h"
 #include "SwitchTopo.hpp"
 
 /**
@@ -53,18 +53,11 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class FLUPS::SwitchTopo_a2a : public SwitchTopo {
+class FLUPS::SwitchTopo_nb : public SwitchTopo {
    protected:
-    MPI_Comm _subcomm;            /**<@brief subcomm used for this SwitchTopo */
-    bool     _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
-
-    int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
-    int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
-
-    int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
-    int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
-
-    int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
+    int _selfBlockN=0;
+    int* _iselfBlockID = NULL;
+    int* _oselfBlockID = NULL;
 
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
     int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
@@ -75,14 +68,31 @@ class FLUPS::SwitchTopo_a2a : public SwitchTopo {
     int _inBlock[3];  /**<@brief the local number of block in each dim in the input topology */
     int _onBlock[3];  /**<@brief the local number of block in each dim in the output topology  */
 
-    int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-    int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int _inBlockByProc[3]; /**<@brief The number of blocks in each dim in the input topo = send topo (!different on each process! and 012-indexing) */
+    int _onBlockByProc[3]; /**<@brief The number of blocks in each dim in the output topo = recv topo (!different on each process! and 012-indexing) */
+
+    int _iblockIDStart[3]; /**<@brief starting index of the block (0,0,0) in the input topo (012-indexing)    */
+    int _oblockIDStart[3]; /**<@brief starting index of the block (0,0,0) in the output topo (012-indexing)    */
+
+    int _ib2o_shift[3]; /**<@brief position in the output topology of the first block (0,0,0) matching the origin of the input topology  */
+    int _ob2i_shift[3]; /**<@brief position in the input topology of the first block (0,0,0) matching the origin of the output topology  */
+
+    int* _iBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* _oBlockSize[3]; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
     opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
     opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
 
+    opt_int_ptr _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    opt_int_ptr _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */
+
+    MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
     opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
@@ -90,10 +100,10 @@ class FLUPS::SwitchTopo_a2a : public SwitchTopo {
     Profiler* _prof = NULL;
 
    public:
-    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
-    ~SwitchTopo_a2a();
+    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
+    ~SwitchTopo_nb();
 
-    void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
+    void setup_buffers(opt_double_ptr _sendBuf,opt_double_ptr _recvBuf);
     void execute(opt_double_ptr v, const int sign) const;
 
     /**
@@ -102,15 +112,28 @@ class FLUPS::SwitchTopo_a2a : public SwitchTopo {
      * @return size_t 
      */
     inline size_t get_blockMemSize() const {
-        // get the max block size
-        size_t total = 1;
-        for (int id = 0; id < 3; id++) {
-            total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
-        }
+        // // get the max block size
+        // size_t total = 1;
+        // for (int id = 0; id < 3; id++) {
+        //     total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
+        // }
+        // // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
+        // total *= (size_t)_topo_out->nf();
+        // // return the total size
+        // return total;
         // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        total *= (size_t)_topo_out->nf();
-        // return the total size
-        return total;
+        const int nf = _topo_out->nf();
+        // get the max block size
+        size_t maxsize = 0;
+        for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+            maxsize = std::max(maxsize,((size_t)_iBlockSize[0][ib])*((size_t)_iBlockSize[1][ib])*((size_t)_iBlockSize[2][ib])* ((size_t)nf));
+        }
+        // get the max block size
+        for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+            maxsize = std::max(maxsize,((size_t)_oBlockSize[0][ib])*((size_t)_oBlockSize[1][ib])*((size_t)_oBlockSize[2][ib])*((size_t)nf));
+        }
+        // return
+        return maxsize;
     };
     /**
      * @brief return the buffer size for one proc = number of blocks * blocks memory size
@@ -126,11 +149,9 @@ class FLUPS::SwitchTopo_a2a : public SwitchTopo {
     };
 
     void disp() const;
-
-   protected:
-    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count,int** start);
+    void disp_rankgraph(const int id_in,const int id_out) const;
 };
 
-void SwitchTopo_a2a_test();
+void SwitchTopo_test();
 
 #endif

@@ -1,11 +1,15 @@
 /**
- * @file SwitchTopo.cpp
+ * @file SwitchTopo_nb.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
+ * @brief 
+ * @version
+ * @date 2019-09-28
+ * 
  * @copyright Copyright © UCLouvain 2019
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
@@ -24,7 +28,7 @@
  */
 
 
-#include "SwitchTopo.hpp"
+#include "SwitchTopo_nb.hpp"
 
 /**
  * @brief Construct a Switch Topo object
@@ -67,7 +71,7 @@
  */
 using namespace FLUPS;
 
-SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
+SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC;
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
@@ -106,10 +110,10 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
         // To avoid that the 2*n+1 is destroying the block size,
         // if we are the last proc, we forget about the last row
         if(_topo_in->rankd(id) == (_topo_in->nproc(id)-1)){
-            isend = isend - isend%2;
+            isend = isend;
         }
         if(_topo_out->rankd(id) == (_topo_out->nproc(id)-1)){
-            osend = osend - osend%2;
+            osend = osend;
         }
         int npoints = gcd(isend,osend);
         // gather on each proc the gcd
@@ -208,66 +212,72 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
     }
 }
 
-void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_recvBuf){
+void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvData){
     BEGIN_FUNC;
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    //-------------------------------------------------------------------------
-    /** - Store the buffers */
-    //-------------------------------------------------------------------------
-    _sendBuf = my_sendBuf;
-    _recvBuf = my_recvBuf;
+    int subsize, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &subsize);
+    // allocate the second layer of buffers
+    _sendBuf = (double**)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(double*));
+    _recvBuf = (double**)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(double*));
     
     //-------------------------------------------------------------------------
     /** - for each block we associate the the data buffer and the MPI requests or associate it to NULL */
     //-------------------------------------------------------------------------
-    int icount = 0;
+    int selfcount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
         //create the request
-        const int datasize = _iBlockSize[0][bid] * _iBlockSize[1][bid] * _iBlockSize[2][bid] * _topo_out->nf();
+        const size_t blockMemSize = get_blockMemSize();
+        _sendBuf[bid] = sendData + bid*blockMemSize;
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
         if (_i2o_destRank[bid] == rank) {
-            // save the bid
-            _iselfBlockID[icount] = bid;
+            // save the bid to the self block list
+            _iselfBlockID[selfcount] = bid;
             // associate the request to NULL
             _i2o_sendRequest[bid] = MPI_REQUEST_NULL;
             _o2i_recvRequest[bid] = MPI_REQUEST_NULL;
             // increment the counter
-            icount++;
+            selfcount++;
         } else {
-            MPI_Send_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], MPI_COMM_WORLD, &(_i2o_sendRequest[bid]));
+            MPI_Send_init(_sendBuf[bid], blockMemSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], MPI_COMM_WORLD, &(_i2o_sendRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Recv_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], bid, MPI_COMM_WORLD, &(_o2i_recvRequest[bid]));
+            MPI_Recv_init(_sendBuf[bid], blockMemSize, MPI_DOUBLE, _i2o_destRank[bid], bid, MPI_COMM_WORLD, &(_o2i_recvRequest[bid]));
         }
+
     }
-    int ocount = 0;
+    FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
+
+    // reset the self count
+    selfcount = 0;
+    const size_t blockMemSize = get_blockMemSize();
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        //create the request
-        const int datasize = _oBlockSize[0][bid] * _oBlockSize[1][bid] * _oBlockSize[2][bid] * _topo_out->nf();
+        //associate the pointer
+        
+        _recvBuf[bid] = recvData + bid*blockMemSize;
+        // create the request if needed
         if (_o2i_destRank[bid] == rank) {
             // save the bid
-            _oselfBlockID[ocount] = bid;
+            _oselfBlockID[selfcount] = bid;
             // associate the request to NULL
             _i2o_recvRequest[bid] = MPI_REQUEST_NULL;
             _o2i_sendRequest[bid] = MPI_REQUEST_NULL;
             // increment the counter
-            ocount++;
+            selfcount++;
         } else {
             // for the reception when doing input 2 output: receive from the rank o2i with tag bid
-            MPI_Recv_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], bid, MPI_COMM_WORLD, &(_i2o_recvRequest[bid]));
+            MPI_Recv_init(_recvBuf[bid], blockMemSize, MPI_DOUBLE, _o2i_destRank[bid], bid, MPI_COMM_WORLD, &(_i2o_recvRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Send_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], MPI_COMM_WORLD, &(_o2i_sendRequest[bid]));
+            MPI_Send_init(_recvBuf[bid], blockMemSize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], MPI_COMM_WORLD, &(_o2i_sendRequest[bid]));
         }
     }
+    FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
 }
 
 /**
  * @brief Destroy the Switch Topo
  * 
  */
-SwitchTopo::~SwitchTopo() {
+SwitchTopo_nb::~SwitchTopo_nb() {
     BEGIN_FUNC
 
     if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
@@ -298,8 +308,8 @@ SwitchTopo::~SwitchTopo() {
     if (_o2i_sendRequest != NULL) fftw_free(_o2i_sendRequest);
     if (_o2i_recvRequest != NULL) fftw_free(_o2i_recvRequest);
 
-    // fftw_free((double**)_sendBuf);
-    // fftw_free((double**)_recvBuf);
+    fftw_free((double*)_sendBuf);
+    fftw_free((double*)_recvBuf);
 }
 
 /**
@@ -330,7 +340,7 @@ SwitchTopo::~SwitchTopo() {
  * -----------------------------------------------
  * We do the following:
  */
-void SwitchTopo::execute(opt_double_ptr v, const int sign) {
+void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
@@ -526,10 +536,11 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     // create the status as a shared variable
     MPI_Status status;
 
+
 #pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
-        int bid;
+        int bid = -1;
         if (count < _selfBlockN) {
             bid = oselfBlockID[count];
         } else {
@@ -615,7 +626,7 @@ void SwitchTopo::execute(opt_double_ptr v, const int sign) {
     }
 }
 
-void SwitchTopo::disp() {
+void SwitchTopo_nb::disp() const {
     BEGIN_FUNC;
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topo Swticher MPI");
@@ -639,7 +650,7 @@ void SwitchTopo::disp() {
     FLUPS_INFO("------------------------------------------");
 }
 
-void SwitchTopo::disp_rankgraph(const int id_in,const int id_out) const{
+void SwitchTopo_nb::disp_rankgraph(const int id_in,const int id_out) const{
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     string name = "./prof/SwitchTopo" + std::to_string(id_in) + "with" + std::to_string(id_out) + "_rank" + std::to_string(rank) + ".txt";
@@ -659,7 +670,7 @@ void SwitchTopo::disp_rankgraph(const int id_in,const int id_out) const{
     }
 }
 
-void SwitchTopo_test() {
+void SwitchTopo_nb_test() {
     BEGIN_FUNC;
 
     int comm_size;
@@ -691,7 +702,7 @@ void SwitchTopo_test() {
 
     const int fieldstart[3] = {0, 0, 0};
     // printf("\n=============================");
-    SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
+    SwitchTopo* switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart, NULL);
 
     // printf("\n\n============ FORWARD =================");
     switchtopo->execute(data, FLUPS_FORWARD);
@@ -734,7 +745,7 @@ void SwitchTopo_test() {
 
     const int fieldstart2[3] = {4, 0, 0};
     // printf("\n=============================");
-    switchtopo = new SwitchTopo(topo, topobig, fieldstart2, NULL);
+    switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart2, NULL);
 
     switchtopo->execute(data, FLUPS_FORWARD);
 

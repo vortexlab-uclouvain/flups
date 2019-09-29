@@ -219,7 +219,7 @@ void Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
-void Solver::_delete_switchtopos(SwitchTopo_a2a *switchtopo[3]) {
+void Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -294,7 +294,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
     BEGIN_FUNC;
 
     // @Todo: check that _plan_forward exists before doing _plan_green !
@@ -365,16 +365,26 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                // SwitchTopo_a2a* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof); 
+                // SwitchTopo* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#if defined(SWITCHTOPO_A2A)
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#elif defined(SWITCHTOPO_NB)
+                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#endif
                 topomap[ip]->switch2complex();
+
             } else {
                 // create the switchtopoMPI to change topology
+
+#if defined(SWITCHTOPO_A2A)
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#elif defined(SWITCHTOPO_NB)
+                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#endif
             }
-// #ifdef PERF_VERBOSE
+            // #ifdef PERF_VERBOSE
             // switchtopo[ip]->disp_rankgraph(ip - 1, ip);
-// #endif
+            // #endif
             // update the current topo to the new one
             current_topo = topomap[ip];
 
@@ -427,7 +437,11 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-                switchtopo[ip+1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart,NULL);
+#if defined(SWITCHTOPO_A2A)
+                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
+#elif defined(SWITCHTOPO_NB)
+                switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
+#endif
                 switchtopo[ip+1]->disp();
             }
 
@@ -466,7 +480,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     }
 }
 
-void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo_a2a **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     BEGIN_FUNC; 
 
     // int max_nblocks = 0;
@@ -505,12 +519,12 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo_a2a **switchtopo, 
     std::memset(*send_buff,0,max_mem * sizeof(double));
     std::memset(*recv_buff,0,max_mem * sizeof(double));
     
-    // associate the buffers
+    // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
     }
 }
-void Solver::_deallocate_switchTopo(SwitchTopo_a2a **switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff) {
+void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff) {
     // get the size of the buffers
     // int max_nblocks = 0;
     // for (int id = 0; id < ntopo; id++) {
@@ -720,16 +734,20 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     }
 }
 
-void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *plans[3]) {
+void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *plans[3]) {
     // if needed, we create a new switchTopo from the current Green topo to the field one
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
         // get the shift
         int fieldstart[3] = {0};
         fieldstart[dimID] = -plans[2]->shiftgreen();
-        // we do the link between topo[2] of Green and the field topo
-        SwitchTopo_a2a *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
-        
+// we do the link between topo[2] of Green and the field topo
+#if defined(SWITCHTOPO_A2A)
+        SwitchTopo *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
+#elif defined(SWITCHTOPO_NB)
+        SwitchTopo *switchtopo = new SwitchTopo_nb(topo[2], topo_field[2], fieldstart, NULL);
+#endif
+
         // allocate the topology
         opt_double_ptr temp_send;
         opt_double_ptr temp_recv;

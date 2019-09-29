@@ -27,6 +27,7 @@
  * 
  */
 
+#include "SwitchTopo.hpp"
 #include "SwitchTopo_a2a.hpp"
 
 /**
@@ -150,8 +151,10 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
     cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
 
-    cmpt_blockDestRank(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank);
-    cmpt_blockDestRank(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank);
+    cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
+    cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
+    // cmpt_blockDestRank(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank);
+    // cmpt_blockDestRank(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank);
 
     // free the temp arrays
     fftw_free(inBlockEachProc);
@@ -474,7 +477,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
  * -----------------------------------------------
  * We do the following:
  */
-void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
+void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(), "both topologies have to be complex or real", LOCATION);
@@ -732,7 +735,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
     }
 }
 
-void SwitchTopo_a2a::disp() {
+void SwitchTopo_a2a::disp() const {
     BEGIN_FUNC;
     FLUPS_INFO("------------------------------------------");
     if (_is_all2all) FLUPS_INFO("## Topo Swticher All to All !! MPI");
@@ -788,7 +791,7 @@ void SwitchTopo_a2a_test() {
 
     const int fieldstart[3] = {0, 0, 0};
     // printf("\n=============================");
-    SwitchTopo_a2a* switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+    SwitchTopo* switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
     size_t          max_mem    = switchtopo->get_bufMemSize();
     opt_double_ptr  send_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
     opt_double_ptr  recv_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
