@@ -47,10 +47,26 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     //-------------------------------------------------------------------------
     /** - Check if we can use the omp_malloc with the predefined alignement */
     //-------------------------------------------------------------------------
-    double * data = (double*) fftw_malloc(10*FLUPS_ALIGNMENT);
-    if(!FLUPS_ISALIGNED(data)){
-        FLUPS_ERROR("Pre-defined data alignement is not compatible with FFTW", LOCATION);
+    // align a random array
+    double *data          = (double *)fftw_malloc(FLUPS_ALIGNMENT * 10);
+    bool    isaligned     = fftw_alignment_of(&(data[0])) == 0;
+    int     fftwalignment = (isaligned) ? sizeof(double) : 0;
+
+    for (int i = 1; i < 10 * FLUPS_ALIGNMENT / sizeof(double); i++) {
+        if (fftw_alignment_of(&(data[i])) == 0) {
+            // if we are above the minimum requirement, generate an error
+            if (i < FLUPS_ALIGNMENT / sizeof(double)) {
+                isaligned = false;
+                FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", fftwalignment, FLUPS_ALIGNMENT);
+                FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly", LOCATION);
+            }
+            // else, just stop and advise the user to change
+            break;
+        }
+        fftwalignment += sizeof(double);
     }
+    FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", fftwalignment, FLUPS_ALIGNMENT);
+    FLUPS_INFO("To maximize efficiency, both values should match");
     fftw_free(data);
 
     //-------------------------------------------------------------------------
