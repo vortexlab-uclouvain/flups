@@ -23,6 +23,7 @@ compil opt :
   stage: build
   only:
     - master@examples/flups
+    - validation@examples/flups
   artifacts: 
     paths: 
       - flups_validation
@@ -78,6 +79,7 @@ run MPI 1:1:
   stage: test
   only:
     - master@examples/flups
+    - validation@examples/flups
   script:
     - echo $OMP_NUM_THREADS
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 4
@@ -146,8 +148,9 @@ converge3D all kernels :
   stage: convergence
   only:
     - master@examples/flups
+    - validation@examples/flups
   script:
-    - export OMP_NUM_THREADS=2
+    - echo $OMP_NUM_THREADS
     - python3.7 -v ./scripts/test_3D_kerns.py
   dependencies: 
     - compil opt
