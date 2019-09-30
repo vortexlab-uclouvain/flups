@@ -95,36 +95,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
-    int* nperProc = (int*)fftw_malloc(comm_size * sizeof(int));
-    for (int id = 0; id < 3; id++) {
-        // get the gcd between send and receive
-        int isend = (_iend[id] - _istart[id]);
-        int osend = (_oend[id] - _ostart[id]);
-
-        // compute the exchanged size same if from the input or output
-        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
-        _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
-
-        // if I am the last one, I decrease the blocksize by one if needed
-        if (_topo_in->rankd(id) == (_topo_in->nproc(id) - 1)) {
-            isend = isend - _exSize[id] % 2;
-        }
-        if (_topo_out->rankd(id) == (_topo_out->nproc(id) - 1)) {
-            osend = osend - _exSize[id] % 2;
-        }
-        int npoints = gcd(isend, osend);
-        // gather on each proc the gcd
-        MPI_Allgather(&npoints, 1, MPI_INT, nperProc, 1, MPI_INT, MPI_COMM_WORLD);
-        // get the Greatest Common Divider among every process
-        int my_gcd = nperProc[0];
-        for (int ip = 1; ip < comm_size; ip++) {
-            my_gcd = gcd(my_gcd, nperProc[ip]);
-        }
-        // store it as the block dimension
-        _nByBlock[id] = my_gcd;
-    }
-    fftw_free(nperProc);
+    _cmpt_nByBlock();
 
     //-------------------------------------------------------------------------
     /** - get the number of blocks and for each block get the size and the destination rank */
@@ -134,8 +105,8 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     int* inBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
     int* onBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
 
-    cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
-    cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
+    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
+    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
 
     // allocte the block size
     for (int id = 0; id < 3; id++) {
@@ -148,83 +119,20 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _o2i_destRank = (opt_int_ptr)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
 
     // get the send destination ranks in the ouput topo
-    cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
-    cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
+    _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
+    _cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
 
-    cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
-    cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
-    // cmpt_blockDestRank(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank);
-    // cmpt_blockDestRank(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank);
+    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
+    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
 
     // free the temp arrays
     fftw_free(inBlockEachProc);
     fftw_free(onBlockEachProc);
 
     //-------------------------------------------------------------------------
-    /** - do the communication split */
+    /** - Setup subcomm */
     //-------------------------------------------------------------------------
-    // compute the color among the proc I send to and I recv from
-    FLUPS_INFO("Trying to determine the MPI communicators...");
-    int   mycolor   = rank;
-    int*  colors    = (int*)fftw_malloc(comm_size * sizeof(int));
-    bool* inMyGroup = (bool*)fftw_malloc(comm_size * sizeof(bool));
-
-    for (int ir = 0; ir < comm_size; ir++) {
-        inMyGroup[ir] = false;
-    }
-
-    // do a first pass and give a color + who is in my group
-    for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
-        mycolor                      = std::min(mycolor, _i2o_destRank[ib]);
-        inMyGroup[_i2o_destRank[ib]] = true;
-    }
-    for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
-        mycolor                      = std::min(mycolor, _o2i_destRank[ib]);
-        inMyGroup[_o2i_destRank[ib]] = true;
-    }
-
-    // count how much is should be in my group
-    // by default we assume that nobody is in the same group
-    int nleft = 0;
-    for (int ir = 0; ir < comm_size; ir++) {
-        if (inMyGroup[ir]) {
-            nleft += 1;
-        }
-    }
-    // continue while we haven't found a solution
-    while (nleft > 0) {
-        // gather the color info from everyone
-        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, MPI_COMM_WORLD);
-        // iterate on the proc
-        int n_notInMyGroup = 0;
-        for (int ir = 0; ir < comm_size; ir++) {
-            // if it is reachable and the color is not already the same
-            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
-                // we first increment the counter flagging that one is missing
-                n_notInMyGroup += 1;
-                // then we solve the problem if we are able to do so....
-                // remove 1 if we are able to solve the issue <=> my color > colors[ir]
-                n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
-                // changing if possible
-                mycolor = std::min(mycolor, colors[ir]);
-            }
-        }
-        // compute among everybody, if we need to continue
-        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        FLUPS_INFO("stil %d to find (@ my proc: %d)", nleft, n_notInMyGroup);
-    }
-    fftw_free(colors);
-    fftw_free(inMyGroup);
-
-    FLUPS_INFO("Group found: my color = %d", mycolor);
-
-    //-------------------------------------------------------------------------
-    /** - create the new communicator and assocatied data */
-    //-------------------------------------------------------------------------
-    MPI_Comm_split(MPI_COMM_WORLD, mycolor, rank, &_subcomm);
-    // set a name
-    std::string commname = "comm-" + std::to_string(mycolor);
-    MPI_Comm_set_name(_subcomm, commname.c_str());
+    _cmpt_commSplit();
     // setup the dest rank, counts and starts
     _setup_subComm(_subcomm, _inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
     _setup_subComm(_subcomm, _onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
@@ -304,61 +212,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         fclose(file);
     }
 #endif
-}
-
-/**
- * @brief setup the comm lists
- * 
- * We setup the following lists:
- * - destRank: transformed from the values in the world comm to the values in the new comm.
- * - count: the number of elements send to each proc form this proc
- * - start: the starting position of the data to send to each proc in the buffer
- * 
- * @param newcomm the new comm
- * @param nBlock the number of blocks
- * @param destRank the destination rank on the world comm. returns the new destination rank in the newcomm
- * @param count the number of information to send to each proc
- * @param start the id in the buffer where the information starts for each proc
- */
-void SwitchTopo_a2a::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start) {
-    BEGIN_FUNC;
-    //-------------------------------------------------------------------------
-    /** - get the new destination ranks    */
-    //-------------------------------------------------------------------------
-    int newrank, worldsize;
-    MPI_Comm_rank(newcomm, &newrank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-
-    // get the new ranks from my old friends in the old communicator
-    int* newRanks = (int*)fftw_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&newrank, 1, MPI_INT, newRanks, 1, MPI_INT, MPI_COMM_WORLD);
-    // replace the old ranks by the newest ones
-    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        destRank[ib] = newRanks[destRank[ib]];
-    }
-    fftw_free(newRanks);
-
-    //-------------------------------------------------------------------------
-    /** - build the size vector of block to each procs    */
-    //-------------------------------------------------------------------------
-    int subsize;
-    MPI_Comm_size(_subcomm, &subsize);
-    // count the number of blocks to each process
-    (*count) = (int*)fftw_malloc(subsize * sizeof(int));
-    (*start) = (int*)fftw_malloc(subsize * sizeof(int));
-    std::memset((*count), 0, subsize * sizeof(int));
-    std::memset((*start), 0, subsize * sizeof(int));
-    // get the size per block
-    const int blockMem = get_blockMemSize();
-    // count the number of blocks per rank
-    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        (*count)[destRank[ib]] += blockMem;
-    }
-    // compute the start indexes
-    (*start)[0] = 0;
-    for (int ir = 1; ir < subsize; ir++) {
-        (*start)[ir] = (*start)[ir - 1] + (*count)[ir - 1];
-    }
 }
 
 /**
