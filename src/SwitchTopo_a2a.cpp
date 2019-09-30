@@ -195,7 +195,8 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
         fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
         fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
-        fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],_nByBlock[0]+_exSize[0]%2,_nByBlock[1]+_exSize[1]%2,_nByBlock[2]+_exSize[2]%2);
+        int totalsize = (_nByBlock[0]+_exSize[0]%2)*(_nByBlock[1]+_exSize[1]%2)*(_nByBlock[2]+_exSize[2]%2);
+        fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],_nByBlock[0]+_exSize[0]%2,_nByBlock[1]+_exSize[1]%2,_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
 
         fprintf(file,"--------------------------\n");
         fprintf(file,"%d SEND:",newrank);
@@ -454,7 +455,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         const int loci1 = istart[ax1] + ibv[ax1] * nByBlock[ax1];
         const int loci2 = istart[ax2] + ibv[ax2] * nByBlock[ax2];
         // get the memory to write to/from
-        double* __restrict data = sendBuf[bid];
+        opt_double_ptr data = sendBuf[bid];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
 
 #pragma omp master
@@ -545,7 +546,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         const int loci1 = ostart[ax1] + ibv[ax1] * nByBlock[ax1];
         const int loci2 = ostart[ax2] + ibv[ax2] * nByBlock[ax2];
         // get the memory
-        double* __restrict data = recvBuf[bid];
+        opt_double_ptr data = recvBuf[bid];
         double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, out_axis, onloc, nf);
         // get the stride
         const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
