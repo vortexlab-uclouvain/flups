@@ -11,18 +11,8 @@ stages:
 
 compil dbg :
   stage: build
-  artifacts: 
-    paths: 
-      - flups_validation
-    when: on_success
-  script:
-    - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
-    - tail -n +27 Makefile >> Makefile.valid
-    - make -j4 -f Makefile.valid
-
-compil dbg_mr :
-  stage: build
   only:
+    - /.*$/i@examples/flups
     - merge_requests
   artifacts: 
     paths: 
