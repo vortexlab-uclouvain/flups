@@ -1,4 +1,4 @@
-print("Hello...")
+print("Hello...", flush=True)
 
 import subprocess
 from check_res import check_res
@@ -18,14 +18,14 @@ Kernels = ['0','2','3','4']
 n_success = 0
 n_failure = 0
 
-print("Starting the tests...")
+print("Starting the tests...", flush=True)
 
 i = 0
 for bcs in BCs :
     for kern in Kernels :
         i+=1
 
-        print("----- %i -----"%i)
+        print("----- %i -----"%i, flush=True)
 
         code = ''.join(bcs)
 
