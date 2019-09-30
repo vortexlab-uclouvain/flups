@@ -20,6 +20,19 @@ compil dbg :
     - tail -n +27 Makefile >> Makefile.valid
     - make -j4 -f Makefile.valid
 
+compil dbg_mr :
+  stage: build
+  only:
+    - merge_requests
+  artifacts: 
+    paths: 
+      - flups_validation
+    when: on_success
+  script:
+    - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
+    - tail -n +27 Makefile >> Makefile.valid
+    - make -j4 -f Makefile.valid
+
 compil opt :
   stage: build
   only:
