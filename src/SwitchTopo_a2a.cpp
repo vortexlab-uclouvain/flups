@@ -675,7 +675,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) {
         _prof->start("buf2mem");
     }
 
-#pragma omp parallel default(none) proc_bind(close) firstprivate(nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2)
+#pragma omp parallel default(none) proc_bind(close) firstprivate(nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, out_axis)
     for (int bid = 0; bid < nblocks_recv; bid++) {
         // get the indexing of the block in 012-indexing
         int ibv[3];

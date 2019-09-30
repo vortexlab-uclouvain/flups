@@ -225,7 +225,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                 params[dir].center  = .3;
                 params[dir].sign[0] = +1.;
             }
-
+            manuRHS[dir] = &d2dx2_fUnb;
+            manuSol[dir] = &fUnb;
         } else {
             FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }

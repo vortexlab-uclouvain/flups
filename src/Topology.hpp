@@ -99,16 +99,13 @@ class FLUPS::Topology {
     inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
 
     /**
-     * @brief returns the starting global index of the current proc
+     * @brief returns the starting global index on the current proc
      * 
      */
     inline void get_istart_glob(int istart[3]) const {
-        const int ax0 = _axis;
-        const int ax1 = (ax0 + 1) % 3;
-        const int ax2 = (ax0 + 2) % 3;
-        istart[ax0]   = _rankd[ax0] * _nbyproc[ax0];
-        istart[ax1]   = _rankd[ax1] * _nbyproc[ax1];
-        istart[ax2]   = _rankd[ax2] * _nbyproc[ax2];
+        istart[0]   = _rankd[0] * _nbyproc[0];
+        istart[1]   = _rankd[1] * _nbyproc[1];
+        istart[2]   = _rankd[2] * _nbyproc[2];
     }
 
     /**

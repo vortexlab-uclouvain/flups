@@ -34,7 +34,6 @@
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo_a2a.hpp"
-#include "SwitchTopo_a2a.hpp"
 
 #include "Profiler.hpp"
 #include "omp.h"
