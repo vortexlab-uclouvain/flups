@@ -112,8 +112,8 @@ static inline double d2dx2_fUnb(const double x, const double L, const manuParams
 }
 
 
-static const inline double c_C = 10.;
-static const inline double c_sigma = .5;
+static const double c_C = 10.;
+static const double c_sigma = .5;
 
 static inline double fUnbSpietz(const double x, const double L, const manuParams params) {
     const double x0 = (x -       params.center  * L) / c_sigma;

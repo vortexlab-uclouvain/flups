@@ -697,11 +697,12 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     BEGIN_FUNC;
 
     const size_t         nmax     = topo->nloc(0) * topo->nloc(1) * topo->nloc(2) * topo->nf();
+    const double         volfact  = _volfact;
 
     // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, _volfact, data)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, volfact, data)
     for (size_t i = 0; i < nmax; i++) {
-        data[i] *= _volfact ;
+        data[i] *= volfact ;
     }
 
     if (killModeZero) {
