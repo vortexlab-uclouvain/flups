@@ -382,20 +382,20 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
                 // SwitchTopo* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
-#if defined(SWITCHTOPO_A2A)
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
-#elif defined(SWITCHTOPO_NB)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#if defined(COMM_NONBLOCK)
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#else
+                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
 #endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
 
-#if defined(SWITCHTOPO_A2A)
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
-#elif defined(SWITCHTOPO_NB)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#if defined(COMM_NONBLOCK)
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#else
+                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
 #endif
             }
             // #ifdef PERF_VERBOSE
@@ -453,10 +453,10 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-#if defined(SWITCHTOPO_A2A)
-                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
-#elif defined(SWITCHTOPO_NB)
+#if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
+#else
+                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
 #endif
                 switchtopo[ip+1]->disp();
             }
@@ -758,10 +758,10 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         int fieldstart[3] = {0};
         fieldstart[dimID] = -plans[2]->shiftgreen();
 // we do the link between topo[2] of Green and the field topo
-#if defined(SWITCHTOPO_A2A)
-        SwitchTopo *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
-#elif defined(SWITCHTOPO_NB)
+#if defined(COMM_NONBLOCK)
         SwitchTopo *switchtopo = new SwitchTopo_nb(topo[2], topo_field[2], fieldstart, NULL);
+#else
+        SwitchTopo *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
 #endif
 
         // allocate the topology
