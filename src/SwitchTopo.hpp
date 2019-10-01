@@ -90,7 +90,8 @@ class FLUPS::SwitchTopo {
         // get the max block size
         size_t total = 1;
         for (int id = 0; id < 3; id++) {
-            total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
+            // if the block size is 1, no need to pad :)
+            total *= (_nByBlock[id] == 1) ? 1 : (size_t)(_nByBlock[id] + _exSize[id] % 2);
         }
         // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
         total *= (size_t)_topo_out->nf();
