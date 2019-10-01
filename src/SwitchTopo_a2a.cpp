@@ -145,6 +145,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 
     int tmp_size = _i2o_count[0];
     _is_all2all  = (tmp_size != 0);
+    _is_all2all  = _is_all2all && (tmp_size == _o2i_count[0]);
     for (int ir = 1; ir < subsize; ir++) {
         // if the count from and to the rank is the same, we can do an A2A
         _is_all2all = _is_all2all && (tmp_size == _i2o_count[ir]);
