@@ -122,6 +122,7 @@ class FLUPS::Topology {
             _nf = 2;
             _nglob[_axis] /= 2;
             _nloc[_axis] /= 2;
+            _nmem[_axis] /= 2;
             _nbyproc[_axis] /= 2;
         }
     }
@@ -134,6 +135,7 @@ class FLUPS::Topology {
             _nf = 1;
             _nglob[_axis] *= 2;
             _nloc[_axis] *= 2;
+            _nmem[_axis] *= 2;
             _nbyproc[_axis] *= 2;
         }
     }
