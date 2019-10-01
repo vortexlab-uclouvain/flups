@@ -48,26 +48,26 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     /** - Check if we can use the omp_malloc with the predefined alignement */
     //-------------------------------------------------------------------------
     // align a random array
-    // int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
-    // double *data      = (double *)fftw_malloc(10 * alignSize * sizeof(double));
-    // // initialize the fftw alignement
-    // _fftwalignment = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
-    // // get the fftw alignement and stop if it is lower than the one we assumed
-    // for (int i = 1; i < 10*alignSize; i++) {
-    //     if (fftw_alignment_of(&(data[i])) == 0) {
-    //         // if we are above the minimum requirement, generate an error
-    //         if(i < alignSize ){
-    //             FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
-    //             FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly", LOCATION);
-    //         }
-    //         // else, just stop and advise the user to change
-    //         break;
-    //     }
-    //     _fftwalignment += sizeof(double);
-    // }
-    // FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
+    int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
+    double *data      = (double *)fftw_malloc(10 * alignSize * sizeof(double));
+    // initialize the fftw alignement
+    _fftwalignment = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
+    // get the fftw alignement and stop if it is lower than the one we assumed
+    for (int i = 1; i < 10*alignSize; i++) {
+        if (fftw_alignment_of(&(data[i])) == 0) {
+            // if we are above the minimum requirement, generate an error
+            if(i < alignSize ){
+                FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
+                FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly", LOCATION);
+            }
+            // else, just stop and advise the user to change
+            break;
+        }
+        _fftwalignment += sizeof(double);
+    }
+    FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
     FLUPS_INFO("To maximize efficiency, both values should match");
-    // fftw_free(data);
+    fftw_free(data);
 
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -372,7 +372,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder,1);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder,_fftwalignment);
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -434,7 +434,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 size_tmp[dimID] += 1;
             }
             // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder,1);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder,_fftwalignment);
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2) {
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -806,7 +806,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const size_t inmax   = topo->nloc(ax0);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs,nmem)
         for (int io = 0; io < onmax; io++) {
             const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
             for (size_t ii = 0; ii < inmax; ii++) {
@@ -896,7 +896,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax,nmem, mydata, myfield)
         for (int io = 0; io < onmax; io++) {
             const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
             for (size_t ii = 0; ii < inmax; ii++) {

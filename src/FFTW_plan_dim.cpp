@@ -434,7 +434,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     assert(data != NULL);
 
-    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
+    const int memsize[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     //-------------------------------------------------------------------------
     /** - If is Green and #_type is SYMSYM, exit */
@@ -506,7 +506,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 
     assert(data != NULL);
 
-    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
+    const int memsize[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     if (_isGreen && _type == PERPER) {
         _plan = NULL;
