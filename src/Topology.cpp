@@ -87,11 +87,17 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
             _nmem[id] = _nloc[id];
             // if we are in the axis, we padd to ensure that every pencil is ok with alignment
             if (id == _axis) {
-                const int modulo = (_nglob[id] * sizeof(double)) % alignment;
-                _nmem[id] += (modulo == 0) ? 0 : (alignment - modulo) / sizeof(double);
+                // compute by how many we are not aligned: the global size in double = nglob * nf
+                const int modulo = (_nglob[id] * _nf * sizeof(double)) % alignment;
+                // compute the number of points to add (in double size)
+                const int delta = (alignment - modulo) / sizeof(double);
+                // if it is an even number, I have to add delta/n = (delta+delta%2)/nf
+                // if it is an odd number, I have to add (delta+delta%2)/nf
+                _nmem[id] += 0;// (modulo == 0) ? 0 : (delta+delta%2)/_nf  ;
             }
         }
     }
+    FLUPS_INFO("My nf = %d ",_nf);
     FLUPS_INFO("My local sizes = %d %d %d vs mem size = %d %d %d",_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
 }
 
