@@ -42,6 +42,7 @@ class FLUPS::Topology {
     int _axproc[3];  /**<@brief axis of the procs for ranksplit  */
     int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
     int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
     int _axis;       /**<@brief fastest rotating index in the topology  */
     int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
     int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
@@ -54,7 +55,7 @@ class FLUPS::Topology {
 
    public:
     // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
+    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
     ~Topology();
 
     /**
@@ -68,6 +69,7 @@ class FLUPS::Topology {
 
     inline int nglob(const int dim) const { return _nglob[dim]; }
     inline int nloc(const int dim) const { return _nloc[dim]; }
+    inline int nmem(const int dim) const { return _nmem[dim]; }
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
@@ -86,17 +88,17 @@ class FLUPS::Topology {
      * @{
      */
     /**
-     * @brief returns the local size of the memory (in double!) on this proc
+     * @brief returns the local size of on this proc
      * 
      * @return size_t 
      */
-    inline size_t locmemsize() const { return _nloc[0] * _nloc[1] * _nloc[2] * _nf; }
+    inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
     /**
-     * @brief returns the global memory size (in double!)
+     * @brief returns the memory size of on this proc
      * 
      * @return size_t 
      */
-    inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
+    inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
 
     /**
      * @brief returns the starting global index of the current proc
@@ -206,7 +208,6 @@ inline static size_t localindex_ao(const int i0, const int i1, const int i2, con
 
     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
 }
-
 /**
  * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
  *
@@ -231,6 +232,74 @@ inline static size_t localindex(const int axis, const int i0, const int i1, cons
     // return localindex_xyz(i[0], i[1], i[2], topo);
     return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
 }
+/**
+ * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
+ * 
+ * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param i0
+ * @param i1 
+ * @param i2 
+ * @param axtrg the target FRI
+ * @param size the size of the memory (012-indexing)
+ * @param nf the number of unknows in one element
+ * @return size_t 
+ */
+static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+                                const int axtrg, const int size[3], const int nf) {
+    const int i[3] = {i0, i1, i2};
+    const int dax0 = (3 + axtrg - axsrc) % 3;
+    const int dax1 = (dax0 + 1) % 3;
+    const int dax2 = (dax0 + 2) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
+
+    // return localindex_xyz(i[0], i[1], i[2], topo);
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
+}
+/**
+ * @brief compute the memory local index for a point (i0,id) in axsrc-indexing in a memory in the same indexing
+ * 
+ * The memory id is computed as the collapsed version of the 2 external loops
+ * 
+ * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param i0 the index aligned along the axsrc axis
+ * @param id the collapsed id of the outer two loops
+ * @param size the size of the memory (012-indexing)
+ * @param nf the number of unknows in one element
+ * @return size_t 
+ */
+static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
+    const int ax0  = axsrc;
+    return i0 * nf + size[ax0] * nf * id;
+}
+
+/**
+ * @brief split a global index along the different direction using the FRI axtrg
+ * 
+ * @param id the global id
+ * @param size the size in 012-indexing
+ * @param axtrg the target axis
+ * @param idv the indexes along each directions
+ */
+static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int ax2   = (ax0 + 2) % 3;
+    const int size0 = (size[ax0] * nf);
+
+    idv[ax0] = id % size0;
+    idv[ax1] = (id % (size0 * size[ax1])) / size0;
+    idv[ax2] = id / (size0 * size[ax1]);
+}
+static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int size0 = (size[ax0] * nf);
+
+    (*id0) = id % size0;
+    (*id1) = (id % (size0 * size[ax1])) / size0;
+    (*id2) = id / (size0 * size[ax1]);
+}
 
 /**
  * @brief Get the istart in global indexing
@@ -246,17 +315,6 @@ inline static void get_istart_glob(int istart[3], const FLUPS::Topology *topo) {
     istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0);
     istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
     istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
-}
-
-/**
- * @brief return the number of local point for the proc index iproc in the dimension id 
- * 
- * @param id the dimension ID
- * @param iproc the id of the proc in the direction id
- * @param topo the topology
- */
-inline static int get_nloc(const int id, const int iproc, const FLUPS::Topology *topo) {
-    return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 
 /**

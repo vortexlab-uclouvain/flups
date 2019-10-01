@@ -521,7 +521,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     /** - reset the memory to 0 */
     //-------------------------------------------------------------------------
     // reset the memory to 0
-    std::memset(v, 0, sizeof(double) * topo_out->locmemsize());
+    std::memset(v, 0, sizeof(double) * topo_out->memsize());
 
     //-------------------------------------------------------------------------
     /** - wait for a block and copy when it arrives */
@@ -615,104 +615,104 @@ void SwitchTopo_a2a::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void SwitchTopo_a2a_test() {
-    BEGIN_FUNC;
+// void SwitchTopo_a2a_test() {
+//     BEGIN_FUNC;
 
-    int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+//     int comm_size;
+//     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    const int nglob[3] = {8, 8, 8};
-    const int nproc[3] = {2, 2, 1};
+//     const int nglob[3] = {8, 8, 8};
+//     const int nproc[3] = {2, 2, 1};
 
-    const int nglob_big[3] = {17, 8, 8};
-    const int nproc_big[3] = {2, 2, 1};
+//     const int nglob_big[3] = {17, 8, 8};
+//     const int nproc_big[3] = {2, 2, 1};
 
-    //===========================================================================
-    // real numbers
-    Topology* topo    = new Topology(2, nglob, nproc, false, NULL);
-    Topology* topobig = new Topology(0, nglob_big, nproc_big, false, NULL);
+//     //===========================================================================
+//     // real numbers
+//     Topology* topo    = new Topology(2, nglob, nproc, false, NULL);
+//     Topology* topobig = new Topology(0, nglob_big, nproc_big, false, NULL);
 
-    double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
+//     double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
 
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localindex_xyz(i0, i1, i2, topo);
-                data[id + 0] = id;
-            }
-        }
-    }
-    // try the dump
-    hdf5_dump(topo, "test_real", data);
+//     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+//         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+//             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+//                 size_t id    = localindex_xyz(i0, i1, i2, topo);
+//                 data[id + 0] = id;
+//             }
+//         }
+//     }
+//     // try the dump
+//     hdf5_dump(topo, "test_real", data);
 
-    const int fieldstart[3] = {0, 0, 0};
-    // printf("\n=============================");
-    SwitchTopo* switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
-    size_t          max_mem    = switchtopo->get_bufMemSize();
-    opt_double_ptr  send_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
-    opt_double_ptr  recv_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
-    std::memset(send_buff, 0, max_mem * sizeof(double));
-    std::memset(recv_buff, 0, max_mem * sizeof(double));
-    // associate the buffer
-    switchtopo->setup_buffers(send_buff, recv_buff);
+//     const int fieldstart[3] = {0, 0, 0};
+//     // printf("\n=============================");
+//     SwitchTopo* switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+//     size_t          max_mem    = switchtopo->get_bufMemSize();
+//     opt_double_ptr  send_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+//     opt_double_ptr  recv_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+//     std::memset(send_buff, 0, max_mem * sizeof(double));
+//     std::memset(recv_buff, 0, max_mem * sizeof(double));
+//     // associate the buffer
+//     switchtopo->setup_buffers(send_buff, recv_buff);
 
-    switchtopo->disp();
+//     switchtopo->disp();
 
-    // printf("\n\n============ FORWARD =================");
-    switchtopo->execute(data, FLUPS_FORWARD);
+//     // printf("\n\n============ FORWARD =================");
+//     switchtopo->execute(data, FLUPS_FORWARD);
 
-    hdf5_dump(topobig, "test_real_padd", data);
+//     hdf5_dump(topobig, "test_real_padd", data);
 
-    // printf("\n\n============ BACKWARD =================");
-    switchtopo->execute(data, FLUPS_BACKWARD);
+//     // printf("\n\n============ BACKWARD =================");
+//     switchtopo->execute(data, FLUPS_BACKWARD);
 
-    hdf5_dump(topo, "test_real_returned", data);
+//     hdf5_dump(topo, "test_real_returned", data);
 
-    fftw_free(data);
-    fftw_free(send_buff);
-    fftw_free(recv_buff);
-    delete (switchtopo);
-    delete (topo);
-    delete (topobig);
+//     fftw_free(data);
+//     fftw_free(send_buff);
+//     fftw_free(recv_buff);
+//     delete (switchtopo);
+//     delete (topo);
+//     delete (topobig);
 
-    // //===========================================================================
-    // // complex numbers
-    // topo    = new Topology(0, nglob, nproc, true,NULL);
-    // topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
+//     // //===========================================================================
+//     // // complex numbers
+//     // topo    = new Topology(0, nglob, nproc, true,NULL);
+//     // topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
 
-    // data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
+//     // data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
 
-    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             size_t id    = localindex_xyz(i0, i1, i2, topo);
-    //             data[id + 0] = 0;
-    //             data[id + 1] = id;
-    //         }
-    //     }
-    // }
-    // // try the dump
-    // hdf5_dump(topo, "test_complex", data);
+//     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+//     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+//     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+//     //             size_t id    = localindex_xyz(i0, i1, i2, topo);
+//     //             data[id + 0] = 0;
+//     //             data[id + 1] = id;
+//     //         }
+//     //     }
+//     // }
+//     // // try the dump
+//     // hdf5_dump(topo, "test_complex", data);
 
-    // // topobig->switch2complex();
-    // // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
-    // // topobig->switch2real();
-    // // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+//     // // topobig->switch2complex();
+//     // // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+//     // // topobig->switch2real();
+//     // // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
 
-    // const int fieldstart2[3] = {4, 0, 0};
-    // // printf("\n=============================");
-    // switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
+//     // const int fieldstart2[3] = {4, 0, 0};
+//     // // printf("\n=============================");
+//     // switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
 
-    // switchtopo->execute(data, FLUPS_FORWARD);
+//     // switchtopo->execute(data, FLUPS_FORWARD);
 
-    // hdf5_dump(topobig, "test_complex_padd", data);
+//     // hdf5_dump(topobig, "test_complex_padd", data);
 
-    // switchtopo->execute(data, FLUPS_BACKWARD);
+//     // switchtopo->execute(data, FLUPS_BACKWARD);
 
-    // hdf5_dump(topo, "test_complex_returned", data);
+//     // hdf5_dump(topo, "test_complex_returned", data);
 
-    // fftw_free(data);
-    // delete (switchtopo);
-    // delete (topo);
-    // delete (topobig);
-}
+//     // fftw_free(data);
+//     // delete (switchtopo);
+//     // delete (topo);
+//     // delete (topobig);
+// }

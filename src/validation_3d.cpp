@@ -53,7 +53,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false,NULL);
+    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false,NULL,1);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
@@ -67,12 +67,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    double *rhs   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *sol   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *field = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
-    std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
-    std::memset(field, 0, sizeof(double *) * topo->locmemsize());
+    double *rhs   = (double *)fftw_malloc(sizeof(double *) * topo->memsize());
+    double *sol   = (double *)fftw_malloc(sizeof(double *) * topo->memsize());
+    double *field = (double *)fftw_malloc(sizeof(double *) * topo->memsize());
+    std::memset(rhs, 0, sizeof(double *) * topo->memsize());
+    std::memset(sol, 0, sizeof(double *) * topo->memsize());
+    std::memset(field, 0, sizeof(double *) * topo->memsize());
 
 #ifndef MANUFACTURED_SOLUTION
     //-------------------------------------------------------------------------
