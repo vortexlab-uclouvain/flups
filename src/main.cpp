@@ -209,9 +209,6 @@ int main(int argc, char *argv[]) {
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-
-    // SwitchTopo_a2a_test();
-
     // Do the validation
     if (predef == 0){
         // Display

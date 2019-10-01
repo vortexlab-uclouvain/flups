@@ -66,9 +66,10 @@ class FLUPS::Solver {
     // even is the dimension is 2, we allocate arrays of dimension 3
 
    protected:
-    int _orderdiff    = 0; /**< @brief the order of derivative (spectral = 0)  */
-    int _nbr_imult    = 0; /**< @brief the number of time we have applied a DST transform */
-    int _nbr_spectral = 0; /** @brief the number of spectral directions involved     */
+    int _fftwalignment = 0; /**< @brief alignement assumed by the FFTW Solver  */
+    int _orderdiff     = 0; /**< @brief the order of derivative (spectral = 0)  */
+    int _nbr_imult     = 0; /**< @brief the number of time we have applied a DST transform */
+    int _nbr_spectral  = 0; /** @brief the number of spectral directions involved     */
 
     double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */

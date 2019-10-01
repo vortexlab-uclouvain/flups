@@ -172,66 +172,66 @@ inline static int rankindex(const int rankd[3], const FLUPS::Topology *topo) {
     return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
 }
 
-/**
- * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
- * 
- * @param ix index in the X direction
- * @param iy index in the Y direction
- * @param iz index in the Z direction
- * @param topo 
- * @return size_t 
- */
-inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const FLUPS::Topology *topo) {
-    const int nf = topo->nf();
+// /**
+//  * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
+//  * 
+//  * @param ix index in the X direction
+//  * @param iy index in the Y direction
+//  * @param iz index in the Z direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const FLUPS::Topology *topo) {
+//     const int nf = topo->nf();
 
-    const int i[3] = {ix, iy, iz};
-    const int ax0  = topo->axis();
-    const int ax1  = (ax0 + 1) % 3;
-    const int ax2  = (ax0 + 2) % 3;
+//     const int i[3] = {ix, iy, iz};
+//     const int ax0  = topo->axis();
+//     const int ax1  = (ax0 + 1) % 3;
+//     const int ax2  = (ax0 + 2) % 3;
 
-    return i[ax0] * nf + topo->nloc(ax0) * nf * (i[ax1] + topo->nloc(ax1) * i[ax2]);
-}
+//     return i[ax0] * nf + topo->nloc(ax0) * nf * (i[ax1] + topo->nloc(ax1) * i[ax2]);
+// }
 
-/**
- * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
- * 
- * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
- * @param i1 index along the ax1 direction
- * @param i2 index along the ax2 direction
- * @param topo 
- * @return size_t 
- */
-inline static size_t localindex_ao(const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
-    const int nf  = topo->nf();
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
+// /**
+//  * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
+//  * 
+//  * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
+//  * @param i1 index along the ax1 direction
+//  * @param i2 index along the ax2 direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex_ao(const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
+//     const int nf  = topo->nf();
+//     const int ax0 = topo->axis();
+//     const int ax1 = (ax0 + 1) % 3;
 
-    return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
-}
-/**
- * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
- *
- * @param axis index of the axis corresponding to i0
- * @param ix index in the X direction
- * @param iy index in the Y direction
- * @param iz index in the Z direction
- * @param topo 
- * @return size_t 
- */
-inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
-    const int nf   = topo->nf();
-    const int i[3] = {i0, i1, i2};
-    // compute the shift to perform from the axis reference to
-    const int dax0 = (3 + topo->axis() - axis) % 3;
-    const int dax1 = (dax0 + 1) % 3;
-    const int dax2 = (dax0 + 2) % 3;
+//     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
+// }
+// /**
+//  * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
+//  *
+//  * @param axis index of the axis corresponding to i0
+//  * @param ix index in the X direction
+//  * @param iy index in the Y direction
+//  * @param iz index in the Z direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
+//     const int nf   = topo->nf();
+//     const int i[3] = {i0, i1, i2};
+//     // compute the shift to perform from the axis reference to
+//     const int dax0 = (3 + topo->axis() - axis) % 3;
+//     const int dax1 = (dax0 + 1) % 3;
+//     const int dax2 = (dax0 + 2) % 3;
 
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
+//     const int ax0 = topo->axis();
+//     const int ax1 = (ax0 + 1) % 3;
 
-    // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
-}
+//     // return localindex_xyz(i[0], i[1], i[2], topo);
+//     return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
+// }
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
  * 

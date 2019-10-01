@@ -86,10 +86,10 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
             _nloc[id] = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * _rankd[id]);
             _nmem[id] = _nloc[id];
             // if we are in the axis, we padd to ensure that every pencil is ok with alignment
-            // if (id == _axis) {
-            //     const int modulo = (_nglob[id] * sizeof(double)) % alignment;
-            //     _nmem[id] += (modulo == 0) ? 0 : (alignment - modulo) / sizeof(double);
-            // }
+            if (id == _axis) {
+                const int modulo = (_nglob[id] * sizeof(double)) % alignment;
+                _nmem[id] += (modulo == 0) ? 0 : (alignment - modulo) / sizeof(double);
+            }
         }
     }
     FLUPS_INFO("My local sizes = %d %d %d vs mem size = %d %d %d",_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
