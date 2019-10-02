@@ -213,7 +213,7 @@ Solver::~Solver() {
     if (_data != NULL) fftw_free(_data);
 
     //cleanup
-    fftw_cleanup_threads();
+    // fftw_cleanup_threads();
     fftw_cleanup();
 }
 /**
