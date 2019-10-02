@@ -28,11 +28,15 @@ include make_arch/make.vagrant_intel
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
-NAME := flups
-TARGET_EXE := $(NAME)_validation
-TARGET_LIB := build/lib$(NAME).so
-
 PREFIX ?= ./
+NAME := flups
+# executable naming
+TARGET_EXE := $(NAME)_validation
+TARGET_EXE_A2A := $(NAME)_validation_a2a
+TARGET_EXE_NB := $(NAME)_validation_nb
+# library naming
+TARGET_LIB_A2A := build/lib$(NAME)_a2a.so
+TARGET_LIB_NB := build/lib$(NAME)_nb.so
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -59,30 +63,51 @@ SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
 HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 
 ## generate object list
-OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
+OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
+OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+
+$(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
 default: $(TARGET_EXE)
 
-all: $(TARGET_EXE) $(TARGET_LIB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
 
-lib: $(TARGET_LIB)
+validation: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
-$(TARGET_EXE): $(OBJ)
+all2all: $(TARGET_EXE_A2A)
+
+nonblocking: $(TARGET_EXE_NB)
+
+lib: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
+
+$(TARGET_EXE): $(OBJ_A2A)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB): $(OBJ)
+$(TARGET_EXE_A2A): $(OBJ_A2A)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_EXE_NB): $(OBJ_NB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_A2A): $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-install: $(TARGET_LIB)
+$(TARGET_LIB_NB): $(OBJ_NB)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+
+install: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
 	mkdir -p $(PREFIX)/lib
 	mkdir -p $(PREFIX)/include
-	cp $(TARGET_LIB) $(PREFIX)/lib
+	cp $(TARGET_LIB_A2A) $(PREFIX)/lib
+	cp $(TARGET_LIB_NB) $(PREFIX)/lib
 	cp $(HEAD) $(PREFIX)/include
 
 test:
@@ -91,20 +116,27 @@ test:
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE)
-	rm -f $(TARGET_LIB)
+	rm -f $(TARGET_EXE_A2A)
+	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_LIB_A2A)
+	rm -f $(TARGET_LIB_NB)
 
 destroy:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(OBJ_DIR)/*.d
 	rm -f $(TARGET_EXE)
-	rm -f $(TARGET_LIB)
+	rm -f $(TARGET_EXE_A2A)
+	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_LIB_A2A)
+	rm -f $(TARGET_LIB_NB)
 	rm -f $(OBJ_DIR)/*
-	rm -f include/*
-	rm -f lib/*
+	rm -rf include
+	rm -rf lib
 
 info:
 	$(info SRC = $(SRC))
-	$(info OBJ = $(OBJ))
+	$(info OBJ = $(OBJ_A2A))
+	$(info OBJ = $(OBJ_NB))
 	$(info DEP = $(DEP))
 
 -include $(DEP)
