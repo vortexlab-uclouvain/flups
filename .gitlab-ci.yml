@@ -7,18 +7,19 @@ stages:
   - build
   - test
   - validation
-  - convergence
 
 compil dbg :
   stage: build
+  only:
+    - /.*$/i@examples/flups
+    - merge_requests
   artifacts: 
     paths: 
       - flups_validation
     when: on_success
   script:
-    - echo "include make_arch/make.docker_valid_dbg" > Makefile.valid
-    - tail -n +27 Makefile >> Makefile.valid
-    - make -j4 -f Makefile.valid
+    - export ARCH_FILE=make_arch/make.docker_valid_dbg
+    - make -j4
 
 compil opt :
   stage: build
@@ -31,9 +32,8 @@ compil opt :
       - flups_validation
     when: on_success
   script:
-    - echo "include make_arch/make.docker_valid_opt" > Makefile.valid
-    - tail -n +27 Makefile >> Makefile.valid
-    - make -j4 -f Makefile.valid
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make -j4
 
 #checks that the code runs without error in serial dbg
 run serial 1:1:
@@ -166,14 +166,14 @@ validate3D all BCs:
     - compil opt
 
 #validation convergence in unbounded for all kernels (parallel)
-# converge3D all kernels :
-#   stage: convergence
-#   only:
-#     - master@examples/flups
-#     - /^[0-9]-job-failed.*$/i@examples/flups
-#     - merge_requests
-#   script:
-#     - export OMP_NUM_THREADS=2
-#     - python3.7 -v ./scripts/test_3D_kerns.py
-#   dependencies: 
-#     - compil opt
+validate3D all kernels :
+  stage: validation
+  only:
+    - master@examples/flup
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - echo $OMP_NUM_THREADS
+    - python3.7 ./scripts/test_3D_kerns.py
+  dependencies: 
+    - compil opt

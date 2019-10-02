@@ -23,7 +23,9 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-include make_arch/make.vagrant_intel
+ARCH_FILE ?= make_arch/make.vagrant_intel
+
+include $(ARCH_FILE)
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
@@ -103,6 +105,7 @@ destroy:
 	rm -f lib/*
 
 info:
+	@echo $(ARCH_FILE)
 	$(info SRC = $(SRC))
 	$(info OBJ = $(OBJ))
 	$(info DEP = $(DEP))
