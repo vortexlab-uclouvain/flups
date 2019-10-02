@@ -36,6 +36,7 @@ using namespace FLUPS;
  * @param nproc the number of proc per dim
  * @param isComplex indicate if the Topology uses complex indexing or not
  * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
+ * @param alignment the number of bytes on which each 
  */
 Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment) {
     BEGIN_FUNC;

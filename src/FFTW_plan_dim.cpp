@@ -560,7 +560,11 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 }
 
 /**
- * @brief Executes the plan
+ * @brief Executes the plan for a given Topology on a given data
+ * 
+ * The transform is done in-place on the data array
+ * Every transform is done as a 1 thread 1d transform.
+ * The multi-threading is used to perfom several FFT's at once
  * 
  */
 void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
@@ -578,7 +582,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
     }
 
-    // const int nf = topo->nf();
     const int howmany = _howmany;
     const int fftw_stride = _fftw_stride;
     const fftw_plan* plan = &_plan;

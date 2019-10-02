@@ -38,11 +38,11 @@ using namespace FLUPS;
 Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3], Profiler *prof) {
     BEGIN_FUNC;
 
-    //-------------------------------------------------------------------------
-    /** - Initialize the OpenMP threads */
-    //-------------------------------------------------------------------------
-    fftw_init_threads();
-    fftw_plan_with_nthreads(omp_get_max_threads());
+    // //-------------------------------------------------------------------------
+    // /** - Initialize the OpenMP threads */
+    // //-------------------------------------------------------------------------
+    // fftw_init_threads();
+    // fftw_plan_with_nthreads(omp_get_max_threads());
 
     //-------------------------------------------------------------------------
     /** - Check if we can use the omp_malloc with the predefined alignement */
