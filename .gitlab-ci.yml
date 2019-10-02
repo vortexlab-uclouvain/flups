@@ -7,10 +7,12 @@ stages:
   - build
   - test
   - validation
-  - convergence
 
 compil dbg :
   stage: build
+  only:
+    - /.*$/i@examples/flups
+    - merge_requests
   artifacts: 
     paths: 
       - flups_validation
@@ -164,10 +166,12 @@ validate3D all BCs:
     - compil opt
 
 #validation convergence in unbounded for all kernels (parallel)
-converge3D all kernels :
-  stage: convergence
+validate3D all kernels :
+  stage: validation
   only:
-    - master@examples/flups
+    - master@examples/flup
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - echo $OMP_NUM_THREADS
     - python3.7 ./scripts/test_3D_kerns.py
