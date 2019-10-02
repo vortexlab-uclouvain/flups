@@ -691,19 +691,17 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
-    {
-        const int    nf      = topo->nf();
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
-        const size_t inmax   = _topo_hat[2]->nloc(ax0) * topo->nf();
+    const int    nf      = topo->nf();
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+    const size_t inmax   = topo->nloc(ax0) * topo->nf();
 
-        // do the loop
+    // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
-        for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, nf);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                data[id + ii] = data[id + ii] * _volfact;
-            }
+    for (int io = 0; io < onmax; io++) {
+        const size_t id = collapsedIndex(ax0, 0, io, nmem, nf);
+        for (size_t ii = 0; ii < inmax; ii++) {
+            data[id + ii] = data[id + ii] * _volfact;
         }
     }
 
