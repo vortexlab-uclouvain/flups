@@ -459,17 +459,19 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     int idist   = memsize[_dimID]*topo->nf();
     int odist   = memsize[_dimID]*topo->nf();
 
+    // store the stride to execute the loop
+    _fftw_stride = idist;
     //-------------------------------------------------------------------------
     /** - Compute howmany  */
     //-------------------------------------------------------------------------
-    int howmany = 1;
-    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
+    _howmany = 1;
+    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
-    _plan = fftw_plan_many_r2r(rank, (int*)(&_n_in), howmany,
+    _plan = fftw_plan_many_r2r(rank, (int*)(&_n_in), 1,
                                data, NULL, istride, idist,
                                data, NULL, ostride, odist, &_kind, FFTW_FLAG);
 
@@ -480,7 +482,9 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
         FLUPS_INFO("## MIXUNB plan created for plan mix (=%d)", _type);
     }
     FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
-    FLUPS_INFO("howmany   = %d", howmany);
+    FLUPS_INFO("dimID     = %d", _dimID);
+    FLUPS_INFO("howmany   = %d", _howmany);
+    FLUPS_INFO("fftw stride   = %d", _fftw_stride);
     FLUPS_INFO("size n    = %d", _n_in);
     FLUPS_INFO("istride (double) = %d - idist = %d", istride, idist);
     FLUPS_INFO("ostride (double) = %d - odist = %d", ostride, odist);
@@ -520,17 +524,17 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     // the jth element of transform k is at k*idist+j*istride
     int rank = 1;
     // Compute howmany
-    int howmany = 1;
-    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
+    _howmany = 1;
+    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
 
     // strides
     int istride = 1;
     int ostride = 1;
     int idist   = memsize[_dimID];
     int odist   = memsize[_dimID];
-
-    // incomming arrays depends if we are a complex switcher or not
+    _fftw_stride = idist;
+       
     if (_isr2c) {
         // idist has been obtained from a the incomming size
         odist /= 2;
@@ -549,7 +553,8 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         }
         FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
         FLUPS_INFO("dimID     = %d", _dimID);
-        FLUPS_INFO("howmany   = %d", howmany);
+        FLUPS_INFO("howmany   = %d", _howmany);
+        FLUPS_INFO("fftw stride   = %d", _fftw_stride);
         FLUPS_INFO("size n    = %d", _n_in);
         FLUPS_INFO("istride (double)  = %d - idist = %d", istride, idist);
         FLUPS_INFO("ostride (complex) = %d - odist = %d", ostride, odist);
@@ -557,18 +562,18 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 
         // set the plan - there is no offset in r2c or c2c possible
         if (_sign == FLUPS_FORWARD) {
-            _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), howmany,
+            _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), 1,
                                            data, NULL, istride, idist,
                                            (fftw_complex*)data, NULL, ostride, odist, FFTW_FLAG);
         } else {
-            _plan = fftw_plan_many_dft_c2r(rank, (int*)(&_n_in), howmany,
+            _plan = fftw_plan_many_dft_c2r(rank, (int*)(&_n_in), 1,
                                            (fftw_complex*)data, NULL, ostride, odist,
                                            data, NULL, istride, idist, FFTW_FLAG);
         }
 
     } else {
         // set the plan
-        _plan = fftw_plan_many_dft(rank, (int*)(&_n_in), howmany,
+        _plan = fftw_plan_many_dft(rank, (int*)(&_n_in), 1,
                                    (fftw_complex*)data, NULL, istride, idist,
                                    (fftw_complex*)data, NULL, ostride, odist, _sign, FFTW_FLAG);
 
@@ -579,7 +584,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
  * @brief Executes the plan
  * 
  */
-void FFTW_plan_dim::execute_plan() {
+void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
@@ -594,7 +599,64 @@ void FFTW_plan_dim::execute_plan() {
     } else if (_type == UNBUNB) {
         FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
     }
-    fftw_execute(_plan);
+
+    const int nf = topo->nf();
+    const int howmany = _howmany;
+    const int fftw_stride = _fftw_stride;
+    const fftw_plan* plan = &_plan;
+
+    // incomming arrays depends if we are a complex switcher or not
+    if (_type == SYMSYM || _type == MIXUNB) {  // R2R
+
+#pragma omp parallel for proc_bind(close) schedule(static) firstprivate(plan, data, fftw_stride, howmany)
+        for (int id = 0; id < howmany; id++) {
+            // get the memory
+            double* mydata = (double*)data + id * fftw_stride * nf;
+            // check the alignment
+            FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "R2R- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+            // execute the plan on it
+            fftw_execute_r2r(*plan, (double*)mydata, (double*)mydata);
+        }
+    } else if (_type == PERPER || _type == UNBUNB) {
+        if (_isr2c) {
+            if (_sign == FLUPS_FORWARD) {  // DFT - R2C
+
+#pragma omp parallel for proc_bind(close) schedule(static) firstprivate(plan, data, fftw_stride, howmany)
+                for (int id = 0; id < howmany; id++) {
+                    // get the memory
+                    double* mydata = (double*)data + id * fftw_stride * nf;
+                    // check the alignment
+                    FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "R2C- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+                    // execute the plan on it
+                    fftw_execute_dft_r2c(*plan, (double*)mydata, (fftw_complex*)mydata);
+                }
+            } else {  // DFT - C2R
+
+#pragma omp parallel for proc_bind(close) schedule(static) firstprivate(plan, data, fftw_stride, howmany)
+                for (int id = 0; id < howmany; id++) {
+                    // get the memory
+                    // WARNING the stride is given in REAL = input type => id * _fftw_stride/2 * nf = id * _fftw_stride
+                    double* mydata = (double*)data + id * fftw_stride;
+                    // check the alignment
+                    FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "C2R- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+                    // execute the plan on it
+                    fftw_execute_dft_c2r(*plan, (fftw_complex*)mydata, (double*)mydata);
+                }
+            }
+
+        } else {  // DFT
+
+#pragma omp parallel for proc_bind(close) schedule(static) firstprivate(plan, data, fftw_stride, howmany)
+            for (int id = 0; id < howmany; id++) {
+                // get the memory
+                double* mydata = (double*)data + id * fftw_stride * nf;
+                // check the alignment
+                FLUPS_CHECK(fftw_alignment_of((double*) mydata) == 0, "DFT- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d",fftw_alignment_of( mydata),id,_fftw_stride, LOCATION);
+                // execute the plan on it
+                fftw_execute_dft(*plan, (fftw_complex*)mydata,(fftw_complex*) mydata);
+            }
+        }
+    }
 }
 
 /**

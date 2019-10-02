@@ -180,7 +180,7 @@ void Solver::setup() {
      * topo and clean allocated topo and plans */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("green_final");
-    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _switchtopo_green, _plan_green);
+    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
     // delete the topologies and plans no more needed
     _delete_topologies(_topo_green);
@@ -660,7 +660,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            _plan_green[ip]->execute_plan();
+            _plan_green[ip]->execute_plan(topo[ip],green);
         }
 
         if (_plan_green[ip]->isr2c_doneByFFT()) {
@@ -717,7 +717,18 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     }
 }
 
-void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *plans[3]) {
+/**
+ * @brief Finalize the Green's function
+ * 
+ * Reset the Green topology to the correct field's topology.
+ * This is done to have the correct shiftgreen for the last plan if required
+ * 
+ * @param topo_field the topos of the field
+ * @param green the green data
+ * @param topo the topo of the Green functions
+ * @param plans the plans executed for the Green function
+ */
+void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], FFTW_plan_dim *plans[3]) {
     // if needed, we create a new switchTopo from the current Green topo to the field one
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
@@ -826,7 +837,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
         // run the FFT
         if (_prof != NULL) _prof->start("fftw");
-        _plan_forward[ip]->execute_plan();
+        _plan_forward[ip]->execute_plan(_topo_hat[ip],mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
@@ -869,7 +880,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--) {
         if (_prof != NULL) _prof->start("fftw");
-        _plan_backward[ip]->execute_plan();
+        _plan_backward[ip]->execute_plan(_topo_hat[ip],mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {

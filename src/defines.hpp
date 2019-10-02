@@ -164,6 +164,24 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g)
     sprintf(tmp, a.c_str(), b, c, d, e, f, g);
     FLUPS_INFO_DISP(tmp);
 };
+template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h);
+    FLUPS_INFO_DISP(tmp);
+};
+template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h, i);
+    FLUPS_INFO_DISP(tmp);
+};
+template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h, i, j);
+    FLUPS_INFO_DISP(tmp);
+};
 #define BEGIN_FUNC {FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);};
 #else
 static inline void FLUPS_INFO_DISP(std::string a) {
@@ -194,6 +212,18 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f) {
 };
 template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
 static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g) {
+    ((void)0);
+};
+template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h) {
+    ((void)0);
+};
+template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7,typename T8>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i) {
+    ((void)0);
+};
+template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7,typename T8, typename T9>
+static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
     ((void)0);
 };
 // static inline void BEGIN_FUNC() {

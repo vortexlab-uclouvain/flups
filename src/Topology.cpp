@@ -89,16 +89,14 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
             if (id == _axis) {
                 // compute by how many we are not aligned: the global size in double = nglob * nf
                 const int modulo = (_nglob[id] * _nf * sizeof(double)) % alignment;
-                // compute the number of points to add (in double size)
+                // compute the number of points to add (in double indexing)
                 const int delta = (alignment - modulo) / sizeof(double);
-                // if it is an even number, I have to add delta/n = (delta+delta%2)/nf
-                // if it is an odd number, I have to add (delta+delta%2)/nf
-                _nmem[id] += 0;// (modulo == 0) ? 0 : (delta+delta%2)/_nf  ;
+                _nmem[id] += (modulo == 0) ? 0 : delta/_nf  ;
+                FLUPS_CHECK(delta%_nf == 0, "the alignment MUST be a multiple of %d bytes",_nf*sizeof(double),LOCATION);
             }
         }
     }
-    FLUPS_INFO("My nf = %d ",_nf);
-    FLUPS_INFO("My local sizes = %d %d %d vs mem size = %d %d %d",_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
+    FLUPS_INFO("nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",_nf,_axis,_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
 }
 
 /**
