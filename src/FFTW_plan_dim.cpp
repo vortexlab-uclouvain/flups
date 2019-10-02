@@ -568,7 +568,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
 
     FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
 
-    // run the plan
     if (_type == SYMSYM) {
         FLUPS_INFO(">> Doing plan real2real for dim %d", _dimID);
     } else if (_type == MIXUNB) {
@@ -584,6 +583,22 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
     const int fftw_stride = _fftw_stride;
     const fftw_plan* plan = &_plan;
 
+    //-------------------------------------------------------------------------
+    /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
+    //-------------------------------------------------------------------------
+
+#ifndef NDEBUG
+    for (int id = 0; id < howmany; id++) {
+        // get the memory
+        double* mydata = (double*)data + id * fftw_stride;
+        // check the alignment
+        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+    }
+#endif
+
+    //-------------------------------------------------------------------------
+    /** - run the plan on each FFT  */
+    //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (_type == SYMSYM || _type == MIXUNB) {  // R2R
         // we can be complex or real (see allocate_real) but fftw_stride contains the correct info
@@ -591,8 +606,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         for (int id = 0; id < howmany; id++) {
             // get the memory
             double* mydata = (double*)data + id * fftw_stride;
-            // check the alignment
-            FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "R2R- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
             // execute the plan on it
             fftw_execute_r2r(*plan, (double*)mydata, (double*)mydata);
         }
@@ -604,8 +617,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
                 for (int id = 0; id < howmany; id++) {
                     // get the memory
                     double* mydata = (double*)data + id * fftw_stride;
-                    // check the alignment
-                    FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "R2C- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
                     // execute the plan on it
                     fftw_execute_dft_r2c(*plan, (double*)mydata, (fftw_complex*)mydata);
                 }
@@ -616,8 +627,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
                     // get the memory
                     // WARNING the stride is given in the input size =  REAL => id * _fftw_stride/2 * nf = id * _fftw_stride
                     double* mydata = (double*)data + id * fftw_stride;
-                    // check the alignment
-                    FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "C2R- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
                     // execute the plan on it
                     fftw_execute_dft_c2r(*plan, (fftw_complex*)mydata, (double*)mydata);
                 }
@@ -629,8 +638,6 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
             for (int id = 0; id < howmany; id++) {
                 // get the memory with nf = 2
                 double* mydata = (double*)data + id * fftw_stride * 2;
-                // check the alignment
-                FLUPS_CHECK(fftw_alignment_of((double*) mydata) == 0, "DFT- data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d",fftw_alignment_of( mydata),id,_fftw_stride, LOCATION);
                 // execute the plan on it
                 fftw_execute_dft(*plan, (fftw_complex*)mydata,(fftw_complex*) mydata);
             }
