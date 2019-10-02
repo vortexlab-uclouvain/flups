@@ -23,6 +23,8 @@ compil opt :
   stage: build
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   artifacts: 
     paths: 
       - flups_validation
@@ -36,6 +38,8 @@ run serial 1:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - ./flups_validation -bc 3 3 3 3 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
@@ -46,6 +50,8 @@ run serial 2:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - ./flups_validation -bc 0 1 4 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
@@ -56,6 +62,8 @@ run serial 3:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - ./flups_validation -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
@@ -66,6 +74,8 @@ run serial 4:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - ./flups_validation -bc 3 3 0 0 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
@@ -78,6 +88,8 @@ run MPI 1:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - echo $OMP_NUM_THREADS
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 4
@@ -89,6 +101,8 @@ run MPI 2:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 4 4 -k 2
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
@@ -99,6 +113,8 @@ run MPI 3:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
@@ -109,6 +125,8 @@ run MPI 4:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 -bc 4 1 1 4 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
@@ -121,6 +139,8 @@ run MPI-OMP 1:1:
   stage: test
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - export OMP_NUM_THREADS=2
     - echo $OMP_NUM_THREADS
@@ -135,6 +155,8 @@ validate3D all BCs:
   stage: validation
   only:
     - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
   script:
     - export OMP_NUM_THREADS=1
     - python3.7 ./scripts/test_3D_bcs.py

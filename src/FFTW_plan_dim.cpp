@@ -1,13 +1,28 @@
 /**
  * @file FFTW_plan_dim.cpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
+ * 
  */
+
 #include "FFTW_plan_dim.hpp"
 
 using namespace FLUPS;
@@ -617,7 +632,7 @@ void FFTW_plan_dim::disp() {
     } else if (_bc[1] == PER) {
         FLUPS_INFO(" PER}");
     }
-    if (_type == SYMSYM || _type == MIXUNB) {
+    if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
         if (_kind == FFTW_REDFT00) {
             FLUPS_INFO("- kind = REDFT00 = DCT type I");
         }

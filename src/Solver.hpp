@@ -1,11 +1,25 @@
 /**
  * @file Solver.hpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -19,7 +33,8 @@
 #include "green_functions_3d.hpp"
 #include "hdf5_io.hpp"
 
-#include "SwitchTopo.hpp"
+#include "SwitchTopo_a2a.hpp"
+#include "SwitchTopo_a2a.hpp"
 
 #include "Profiler.hpp"
 #include "omp.h"
@@ -33,7 +48,7 @@ using namespace std;
  * data, plus the transformed required for the Green's function to solve the Poisson equation.
  * The tranforms are done in-place in each direction successively. Between each transform, data
  * are remapped (i.e. transposed) in order to have the memory aligned with the direction of the
- * transform. This is done using SwitchTopo which changes the layout of data between 2 topos.
+ * transform. This is done using SwitchTopo_a2a which changes the layout of data between 2 topos.
  * 
  * @warning
  * The memory alignement follows the rules explained on the mainpage.
@@ -67,7 +82,11 @@ class FLUPS::Solver {
     FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
-    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    SwitchTopo_a2a*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    // opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
+    // opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
+    opt_double_ptr _sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
+    opt_double_ptr _recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
     /**@} */
 
     /**
@@ -82,7 +101,7 @@ class FLUPS::Solver {
 
     FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
     Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
-    SwitchTopo* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+    SwitchTopo_a2a* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
     /**@} */
 
     // time the solve
@@ -95,7 +114,7 @@ class FLUPS::Solver {
      * @{
      */
     void _allocate_data(const Topology* const topo[3], double** data);
-    void _delete_switchtopos(SwitchTopo* switchtopo[3]);
+    void _delete_switchtopos(SwitchTopo_a2a* switchtopo[3]);
     void _delete_topologies(Topology* topo[3]);
     /**@}  */
 
@@ -105,9 +124,18 @@ class FLUPS::Solver {
      * @{
      */
     void _sort_plans(FFTW_plan_dim* plan[3]);
-    void _init_plansAndTopos(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
+    void _init_plansAndTopos(const Topology* topo, Topology* topomap[3], SwitchTopo_a2a* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
     void _allocate_plans(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void _delete_plans(FFTW_plan_dim* planmap[3]);
+    /**@} */
+
+    /**
+     * @name SwitchTopo_a2a management
+     * 
+     * @{
+     */
+    void _allocate_switchTopo(const int ntopo, SwitchTopo_a2a** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
+    void _deallocate_switchTopo(SwitchTopo_a2a** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
     /**@} */
 
     /**
@@ -130,7 +158,7 @@ class FLUPS::Solver {
     void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
     void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
-    void _finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3],SwitchTopo* switchtopo[3], FFTW_plan_dim* plans[3]);
+    void _finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3],SwitchTopo_a2a* switchtopo[3], FFTW_plan_dim* plans[3]);
     /**@} */
 
    public:

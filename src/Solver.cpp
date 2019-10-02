@@ -1,11 +1,25 @@
 /**
  * @file Solver.cpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -136,9 +150,14 @@ void Solver::setup() {
     if (_prof != NULL) _prof->start("green_plan");
     _allocate_plans(_topo_green, _plan_green, _green);
     if (_prof != NULL) _prof->stop("green_plan");
+    // setup the buffers for Green
+    _allocate_switchTopo(3,_switchtopo_green,&_sendBuf,&_recvBuf);
     if (_prof != NULL) _prof->start("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
     if (_prof != NULL) _prof->stop("green_func");
+    // delete the switchTopos
+    _deallocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
+    _delete_switchtopos(_switchtopo_green);
 
     //-------------------------------------------------------------------------
     /** - Finalize the Green's function by doing a last switch to the field
@@ -147,8 +166,16 @@ void Solver::setup() {
     if (_prof != NULL) _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat, _green, _topo_green, _switchtopo_green, _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
+    // delete the topologies and plans no more needed
+    _delete_topologies(_topo_green);
+    _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
     if (_prof != NULL) _prof->stop("setup");
+
+    //-------------------------------------------------------------------------
+    /** - Allocate the buffers for the SwitchTopos */
+    //-------------------------------------------------------------------------
+    _allocate_switchTopo(3,_switchtopo,&_sendBuf,&_recvBuf);
 }
 
 /**
@@ -159,6 +186,8 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) fftw_free(_green);
+
+    _deallocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
 
     // for the field
     _delete_plans(_plan_forward);
@@ -190,7 +219,7 @@ void Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
-void Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
+void Solver::_delete_switchtopos(SwitchTopo_a2a *switchtopo[3]) {
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -265,7 +294,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
     BEGIN_FUNC;
 
     // @Todo: check that _plan_forward exists before doing _plan_green !
@@ -336,15 +365,16 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart, _prof);
+                // SwitchTopo_a2a* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof); 
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
                 topomap[ip]->switch2complex();
             } else {
                 // create the switchtopoMPI to change topology
-                switchtopo[ip] = new SwitchTopo(current_topo, topomap[ip], fieldstart, _prof);
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
             }
-#ifdef PERF_VERBOSE
-            switchtopo[ip]->disp_rankgraph(ip - 1, ip);
-#endif
+// #ifdef PERF_VERBOSE
+            // switchtopo[ip]->disp_rankgraph(ip - 1, ip);
+// #endif
             // update the current topo to the new one
             current_topo = topomap[ip];
 
@@ -397,7 +427,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-                switchtopo[ip+1] = new SwitchTopo(topomap[ip], current_topo, fieldstart,NULL);
+                switchtopo[ip+1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart,NULL);
                 switchtopo[ip+1]->disp();
             }
 
@@ -434,6 +464,72 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             topomap[ip]->switch2real();
         }
     }
+}
+
+void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo_a2a **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+    BEGIN_FUNC; 
+
+    // int max_nblocks = 0;
+    // size_t max_blockSize = 0;
+    // for (int id = 0; id < ntopo; id++) {
+    //     if (switchtopo[id] != NULL) {
+    //         max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
+    //         max_blockSize = std::max(max_blockSize, switchtopo[id]->get_BlockSize());
+    //     }
+    // }
+    // FLUPS_CHECK(max_nblocks>0,"number of blocks %d should be >0",max_nblocks,LOCATION);
+    // FLUPS_CHECK(max_blockSize>0,"size of blocks %d should be >0",max_blockSize,LOCATION);
+
+    // *send_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
+    // *recv_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
+
+    // for (int ib = 0; ib < max_nblocks; ib++) {
+    //     (*send_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
+    //     (*recv_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
+    // }
+
+    // // associate the buffers
+    // for (int id = 0; id < ntopo; id++) {
+    //     if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
+    // }
+    size_t max_mem = 0;
+    for (int id = 0; id < ntopo; id++) {
+        if (switchtopo[id] != NULL) {
+            max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
+        }
+    }
+    FLUPS_CHECK(max_mem>0,"number of memory %d should be >0",max_mem,LOCATION);
+
+    *send_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
+    *recv_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
+    std::memset(*send_buff,0,max_mem * sizeof(double));
+    std::memset(*recv_buff,0,max_mem * sizeof(double));
+    
+    // associate the buffers
+    for (int id = 0; id < ntopo; id++) {
+        if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
+    }
+}
+void Solver::_deallocate_switchTopo(SwitchTopo_a2a **switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff) {
+    // get the size of the buffers
+    // int max_nblocks = 0;
+    // for (int id = 0; id < ntopo; id++) {
+    //     if (switchtopo[id] != NULL) {
+    //         max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
+    //     }
+    // }
+    // // deallocate everything!!
+    // for (int ib = 0; ib < max_nblocks; ib++) {
+    //     fftw_free((*send_buff)[ib]);
+    //     fftw_free((*recv_buff)[ib]);
+    //     (*send_buff)[ib] = NULL;
+    //     (*recv_buff)[ib] = NULL;
+    // }
+
+    fftw_free(*send_buff);
+    fftw_free(*recv_buff);
+    (*send_buff) = NULL;
+    (*recv_buff) = NULL;
 }
 
 /**
@@ -624,7 +720,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     }
 }
 
-void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *plans[3]) {
+void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *plans[3]) {
     // if needed, we create a new switchTopo from the current Green topo to the field one
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
@@ -632,10 +728,16 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         int fieldstart[3] = {0};
         fieldstart[dimID] = -plans[2]->shiftgreen();
         // we do the link between topo[2] of Green and the field topo
-        SwitchTopo *switchtopo = new SwitchTopo(topo[2], topo_field[2], fieldstart, NULL);
+        SwitchTopo_a2a *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
+        
+        // allocate the topology
+        opt_double_ptr temp_send;
+        opt_double_ptr temp_recv;
+        _allocate_switchTopo(1,&switchtopo,&temp_send,&temp_recv);
         // execute the switchtopo
         switchtopo->execute(green, FLUPS_FORWARD);
-        // delete it since it is useless
+        // dallocate everything
+        _deallocate_switchTopo(&switchtopo,&temp_send,&temp_recv);
         delete(switchtopo);
     }
     else{
@@ -647,10 +749,6 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }
-    // delete everything since it is no more needed
-    _delete_topologies(topo);
-    _delete_switchtopos(switchtopo);
-    _delete_plans(plans);
 }
 
 /**

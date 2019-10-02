@@ -1,11 +1,25 @@
 /**
  * @file Profiler.cpp
- * @author Thomas Gillis
- * @brief 
- * @version
- * @date 2019-08-26
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -54,6 +68,14 @@ void TimerAgent::reset() {
     _timeAcc = 0.0;
     _timeMax = 0.0;
     _timeMin = 0.0;
+}
+
+/**
+ * @brief adds memory to the timer to compute bandwith
+ * 
+ */
+void TimerAgent::addMem(size_t mem){
+    _memsize += mem;
 }
 
 /**
@@ -156,8 +178,12 @@ void TimerAgent::writeParentality(FILE* file, const int level){
  * @param totalTime 
  */
 void TimerAgent::disp(FILE* file,const int level, const double totalTime){
-
-    if (_count > 0) {
+    
+    // check if any proc has called the agent
+    int totalCount;
+    MPI_Allreduce(&_count,&totalCount,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    // if someone has every call the agent, display it
+    if (totalCount > 0) {
         // get the size and usefull stuffs
         int commSize, rank;
         MPI_Comm_size(MPI_COMM_WORLD, &commSize);
@@ -172,12 +198,18 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         MPI_Allreduce(&localCount, &minCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         meanCount *= scale;
 
-        // compute time passed inside + children
+        // compute times passed inside + children
         double localTime = _timeAcc;
-        double meanTime, glob_percent;
+        double meanTime, maxTime, minTime;
         MPI_Allreduce(&localTime, &meanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &minTime, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&localTime, &maxTime, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         meanTime *= scale;
-        glob_percent = meanTime/totalTime*100.0;
+        
+        double meanTimePerCount = meanTime/meanCount;
+        double minTimePerCount = minTime/meanCount;
+        double maxTimePerCount = maxTime/meanCount;
+        double glob_percent = meanTime/totalTime*100.0;
 
         // compute the self time  = time passed inside - children
         double sumChild = 0.0;
@@ -193,14 +225,6 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
 
-        // compute the time per call
-        double meanTimePerCount, maxTimePerCount, minTimePerCount;
-        double localTimePerCount = localTime / localCount;
-        MPI_Allreduce(&localTimePerCount, &meanTimePerCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &maxTimePerCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&localTime, &minTimePerCount, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        meanTimePerCount *= scale;
-
         // comnpute the time passed inside the daddy
         double loc_percent;
         if (_daddy != NULL) {
@@ -214,6 +238,14 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
             loc_percent = 100.0;
         }
 
+        // compute the bandwith
+        double localBandTime = _timeAcc;
+        double localBandMemsize = (double) _memsize;
+        double bandMemsize, bandTime, meanBandwidth;
+        MPI_Allreduce(&localBandTime, &bandTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localBandMemsize, &bandMemsize, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        meanBandwidth =(bandMemsize/bandTime)/std::pow(10.0,6.0);
+
         // setup the displayed name
         string myname = _name;
         if (level > 1) {
@@ -225,8 +257,8 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // printf the important information
         if (rank == 0) {
-            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.0f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount);
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
         }
     }
     // recursive call to the childrens
@@ -339,6 +371,21 @@ void Profiler::stop(string name) {
 #endif
 }
 
+void Profiler::addMem(string name,size_t mem) {
+#ifdef NDEBUG
+    _timeMap[name]->addMem(mem);
+#else
+    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
+    if (it != _timeMap.end()) {
+        _timeMap[name]->addMem(mem);
+    }
+    else{
+        string msg = "timer "+name+ " not found";
+        FLUPS_ERROR(msg, LOCATION);
+    }
+#endif
+}
+
 /**
  * @brief display the whole profiler using 
  * 
@@ -381,7 +428,7 @@ void Profiler::disp(const std::string ref) {
         printf("===================================================================================================================================================\n");
         printf("        PROFILER %s  \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
-        printf("%18.18s\t |%15.15s%15.15s     %15.15s%15.15s %15.15s    %15.15s %15.15s%15.15s\n","-NAME-", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min tot time-", "-Max tot time-","-Mean cnt-");
+        printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
     // get the global timing
     double localTotalTime = _timeMap[ref]->timeAcc();
@@ -399,8 +446,8 @@ void Profiler::disp(const std::string ref) {
         printf("Total time - the total time spend in that timer (averaged among the processors)\n");
         printf("Self time - the self time spend in that timer = children not included (averaged among the processors)\n");
         printf("Time/call - the total time spend in that timer per call of the timer (averaged among the processors)\n");
-        printf("Min time - the min total time spend in that timer among the processors\n");
-        printf("Max time - the max total time spend in that timer among the processors\n");
+        printf("Min time - the min time / call spend in that timer among the processors\n");
+        printf("Max time - the max time / call spend in that timer among the processors\n");
         printf("Mean cnt - the total number of time the timer has been called (averaged among the processors)\n");
         printf("===================================================================================================================================================\n");
         fclose(file);

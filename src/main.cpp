@@ -1,11 +1,25 @@
 /**
  * @file main.cpp
- * @author Denis-Gabriel Caprace, Thomas Gillis
- * @brief 
- * @version
- * @date 2019-07-16
- * 
+ * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
+ * 
+ * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
+ * 
+ * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * 
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * 
+ * This program (FLUPS) is free software: 
+ * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program (see COPYING file).  If not, 
+ * see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -15,7 +29,7 @@
 #include "expint.hpp"
 
 #include "Solver.hpp"
-#include "SwitchTopo.hpp"
+#include "SwitchTopo_a2a.hpp"
 #include "validation_3d.hpp"
 
 #include "mpi.h"
@@ -37,7 +51,7 @@ static void print_help(){
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
-    printf(" --kernel, -k [0-3]:            the Green kernel 0=CHAT2, 1=HEJ2, 2=HEJ4, 3=HEJ6 \n");
+    printf(" --kernel, -k [0,2-4]:            the Green kernel 0=CHAT2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
     printf(" --predefined-test, -pt :       runs a predefined validation test with several combination of UNB BCs and all the Green Kernels (excludes -L, -k and -bc) \n ");
@@ -187,8 +201,8 @@ int main(int argc, char *argv[]) {
     int rank;
 
     int provided;
-    // set MPI_THREAD_MULTIPLE or MPI_THREAD_SERIALIZED
-    int requested = MPI_THREAD_SERIALIZED;
+    // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
+    int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
