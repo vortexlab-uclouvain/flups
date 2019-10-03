@@ -434,7 +434,10 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
             // get the proc repartition
             if(ip>1){
-                pencil_nproc(dimID, nproc, comm_size, size_tmp);
+                //it has to be the same as the field in full spectral
+                for(int i = 0;i<3;i++){
+                    nproc[i]=_topo_hat[2]->nproc(i);
+                }
             }else{
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip+1]->dimID(), nproc_hint);
@@ -736,6 +739,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
  * @param plans the plans executed for the Green function
  */
 void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], FFTW_plan_dim *plans[3]) {
+    BEGIN_FUNC;
     // if needed, we create a new switchTopo from the current Green topo to the field one
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
@@ -759,14 +763,14 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         _deallocate_switchTopo(&switchtopo, &temp_send, &temp_recv);
         delete (switchtopo);
     } else {
-        FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nloc(0) == topo[2]->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nloc(1) == topo[2]->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nloc(2) == topo[2]->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nglob(0) == topo[2]->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nglob(1) == topo[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo[2]->nglob(2) == topo[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
-    }
+        FLUPS_CHECK(topo[2]->nf() == topo_field[2]->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(0) == topo_field[2]->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(1) == topo_field[2]->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nloc(2) == topo_field[2]->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(0) == topo_field[2]->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(1) == topo_field[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+        FLUPS_CHECK(topo[2]->nglob(2) == topo_field[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
+    }   
 }
 
 /**
