@@ -57,16 +57,19 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i < alignSize) {
-                FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
-                FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly", LOCATION);
+                FLUPS_ERROR("The FFTW alignement has to be bigger or = to FLUPS, please change accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
             }
             // else, just stop and advise the user to change
             break;
         }
         _fftwalignment += sizeof(double);
     }
-    FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
-    FLUPS_INFO("To maximize efficiency, both values should match");
+    if (_fftwalignment != FLUPS_ALIGNMENT) {
+        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+    } else {
+        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT);
+    }
+
     fftw_free(data);
 
     //-------------------------------------------------------------------------
@@ -660,7 +663,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            _plan_green[ip]->execute_plan(topo[ip],green);
+            _plan_green[ip]->execute_plan(topo[ip], green);
         }
 
         if (_plan_green[ip]->isr2c_doneByFFT()) {
@@ -696,12 +699,14 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
     const size_t inmax   = topo->nloc(ax0) * topo->nf();
 
+    FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+
     // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
     for (int io = 0; io < onmax; io++) {
-        const size_t id = collapsedIndex(ax0, 0, io, nmem, nf);
+        opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
         for (size_t ii = 0; ii < inmax; ii++) {
-            data[id + ii] = data[id + ii] * _volfact;
+            dataloc[ii] = dataloc[ii] * _volfact;
         }
     }
 
@@ -813,12 +818,27 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
 
-        // do the loop
+        // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+        if (FLUPS_ISALIGNED(myrhs) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+            // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
-        for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                mydata[id + ii] = myrhs[id + ii];
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    dataloc[ii] = rhsloc[ii];
+                }
+            }
+        } else {
+            // do the loop
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
+                double *__restrict dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    dataloc[ii] = rhsloc[ii];
+                }
             }
         }
     }
@@ -837,7 +857,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
         // run the FFT
         if (_prof != NULL) _prof->start("fftw");
-        _plan_forward[ip]->execute_plan(_topo_hat[ip],mydata);
+        _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
@@ -880,7 +900,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--) {
         if (_prof != NULL) _prof->start("fftw");
-        _plan_backward[ip]->execute_plan(_topo_hat[ip],mydata);
+        _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
@@ -903,12 +923,28 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
-        // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, myfield)
-        for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                myfield[id + ii] = mydata[id + ii];
+
+        // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+        if (FLUPS_ISALIGNED(myfield) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+            // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    fieldloc[ii] = dataloc[ii];
+                }
+            }
+        } else {
+            // do the loop
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
+                double *__restrict dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    fieldloc[ii] = dataloc[ii];
+                }
             }
         }
     }
@@ -942,12 +978,16 @@ void Solver::dothemagic_rhs_real() {
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
             for (size_t ii = 0; ii < inmax; ii++) {
-                mydata[id + ii] *= normfact * mygreen[id + ii];
+                dataloc[ii] *= normfact * greenloc[ii];
             }
         }
     }
@@ -973,18 +1013,22 @@ void Solver::dothemagic_rhs_complex_nmult0() {
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 2);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
+            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
             for (size_t ii = 0; ii < inmax; ii++) {
-                const double a = mydata[id + ii * 2 + 0];
-                const double b = mydata[id + ii * 2 + 1];
-                const double c = mygreen[id + ii * 2 + 0];
-                const double d = mygreen[id + ii * 2 + 1];
+                const double a = dataloc[ii * 2 + 0];
+                const double b = dataloc[ii * 2 + 1];
+                const double c = greenloc[ii * 2 + 0];
+                const double d = greenloc[ii * 2 + 1];
                 // update the values
-                mydata[id + ii * 2 + 0] = normfact * (a * c - b * d);
-                mydata[id + ii * 2 + 1] = normfact * (a * d + b * c);
+                dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
+                dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
             }
         }
     }

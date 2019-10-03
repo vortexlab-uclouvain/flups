@@ -235,9 +235,86 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
 //=============================================================================
 // ERRORS AND ASSERTS
 //=============================================================================
+//=============================================================================
+// WARNINGS
+//=============================================================================
 static inline void FLUPS_ERROR(std::string a, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str());
     char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", a.c_str(), loc.c_str());
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1>
+static inline void FLUPS_ERROR(std::string a, T1 b, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1,typename T2>
+static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1,typename T2,typename T3>
+static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1,typename T2,typename T3,typename T4>
+static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1,typename T2,typename T3,typename T4,typename T5>
+static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e, f);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
+    printf(msg_error);
+    fprintf(stderr,msg_error);
+    fflush(stderr);
+    fflush(stdout);
+    MPI_Abort(MPI_COMM_WORLD,1);
+};
+template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
+static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, std::string loc) {
+    char tmp[512];
+    sprintf(tmp, a.c_str(), b, c, d, e, f, g);
+    char msg_error[1024];
+    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
     printf(msg_error);
     fprintf(stderr,msg_error);
     fflush(stderr);
@@ -248,55 +325,43 @@ static inline void FLUPS_ERROR(std::string a, std::string loc) {
 #ifndef NDEBUG
 static inline void FLUPS_CHECK(bool a, std::string b, std::string loc) {
     if (!(a)) {
-        FLUPS_ERROR(b,loc.c_str());
+        FLUPS_ERROR(b,loc);
     }
 };
 template<typename T1>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,loc);
     }
 };
 template<typename T1,typename T2>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c, d);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,d,loc);
     }
 };
 template<typename T1,typename T2,typename T3>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c, d, e);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,d,e,loc);
     }
 };
 template<typename T1,typename T2,typename T3,typename T4>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c, d, e, f);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,d,e,f,loc);
     }
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c, d, e, f, g);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,d,e,f,g,loc);
     }
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
 static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, T6 h, std::string loc) {
     if (!(a)) {
-        char msg_chk[1024];
-        sprintf(msg_chk, b.c_str(), c, d, e, f, g, h);
-        FLUPS_ERROR(msg_chk,loc.c_str());
+        FLUPS_ERROR(b,c,d,e,f,g,h,loc);
     }
 };
 #else
@@ -343,6 +408,11 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;
+}
+
+template <typename T>
+static inline int FLUPS_CMPT_ALIGNMENT(T a) {
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
 
 typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;

@@ -200,7 +200,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
             break;
         case LGF_2:
             FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
@@ -299,7 +299,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
             FLUPS_ERROR("HEJ kernels not implemented in 2dirunbounded 1dirspectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
             break;
         case LGF_2:
             FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
@@ -389,7 +389,7 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
             FLUPS_ERROR("HEJ kernels not implemented in full spectral.", LOCATION);
             break;
         case CHAT_2:
-            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.", LOCATION);
+            FLUPS_INFO("CHAT_2 is the only kernel available in full spectral for now... so we hardcoded the kernel in the loop.");
             break;
         case LGF_2:
             FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
