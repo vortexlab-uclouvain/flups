@@ -33,9 +33,9 @@ echo
 echo "----------------- Start computation -------------"
 echo "Starting time : " $(date)
 
-export MY_SIZE_X = $((${MY_SIZE} * ${L_X}/${L_X}))
-export MY_SIZE_Y = $((${MY_SIZE} * ${L_Y}/${L_X}))
-export MY_SIZE_Z = $((${MY_SIZE} * ${L_Z}/${L_X}))
+MY_SIZE_X=$((${MY_SIZE} * ${L_X}/${L_X}))
+MY_SIZE_Y=$((${MY_SIZE} * ${L_Y}/${L_X}))
+MY_SIZE_Z=$((${MY_SIZE} * ${L_Z}/${L_X}))
 
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -ns 250 -k 0 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -ns 250 -k 0 >> stdout_${PBS_JOBID}
