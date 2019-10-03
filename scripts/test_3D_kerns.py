@@ -29,7 +29,7 @@ for bcs in BCs :
 
         # Launching test
         #+ ["-oversubscribe"]
-        r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+        r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
         
         if r.returncode != 0 :
             print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
