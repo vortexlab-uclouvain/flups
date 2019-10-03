@@ -703,9 +703,10 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
     for (int io = 0; io < onmax; io++) {
-        const size_t id = collapsedIndex(ax0, 0, io, nmem, nf);
+        opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
+        FLUPS_CHECK(FLUPS_ISALIGNED(dataloc),"data has to be aligned",LOCATION);
         for (size_t ii = 0; ii < inmax; ii++) {
-            data[id + ii] = data[id + ii] * _volfact;
+            dataloc[ii] = dataloc[ii] * _volfact;
         }
     }
 
@@ -820,9 +821,12 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr rhsloc = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+            FLUPS_CHECK(FLUPS_ISALIGNED(rhsloc),"data has to be aligned",LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc),"data has to be aligned",LOCATION);
             for (size_t ii = 0; ii < inmax; ii++) {
-                mydata[id + ii] = myrhs[id + ii];
+                dataloc[ii] = rhsloc[ii];
             }
         }
     }
@@ -910,9 +914,12 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, myfield)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+            FLUPS_CHECK(FLUPS_ISALIGNED(fieldloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
             for (size_t ii = 0; ii < inmax; ii++) {
-                myfield[id + ii] = mydata[id + ii];
+                fieldloc[ii] = dataloc[ii];
             }
         }
     }
@@ -949,9 +956,12 @@ void Solver::dothemagic_rhs_real() {
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
             for (size_t ii = 0; ii < inmax; ii++) {
-                mydata[id + ii] *= normfact * mygreen[id + ii];
+                dataloc[ii] *= normfact * greenloc[ii];
             }
         }
     }
@@ -980,15 +990,18 @@ void Solver::dothemagic_rhs_complex_nmult0() {
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
         for (int io = 0; io < onmax; io++) {
-            const size_t id = collapsedIndex(ax0, 0, io, nmem, 2);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
+            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
+            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
             for (size_t ii = 0; ii < inmax; ii++) {
-                const double a = mydata[id + ii * 2 + 0];
-                const double b = mydata[id + ii * 2 + 1];
-                const double c = mygreen[id + ii * 2 + 0];
-                const double d = mygreen[id + ii * 2 + 1];
+                const double a = dataloc[ii * 2 + 0];
+                const double b = dataloc[ii * 2 + 1];
+                const double c = greenloc[ii * 2 + 0];
+                const double d = greenloc[ii * 2 + 1];
                 // update the values
-                mydata[id + ii * 2 + 0] = normfact * (a * c - b * d);
-                mydata[id + ii * 2 + 1] = normfact * (a * d + b * c);
+                dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
+                dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
             }
         }
     }
