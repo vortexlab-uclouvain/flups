@@ -204,9 +204,9 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size)
 
     double n1 = 1;
     double n2 = (double)comm_size;
-    while (n1 < n2 && std::floor(n2) == n2) {
+    while (n1 < n2 && std::floor(n2*.5) == n2*.5) {
         n1 *= 2.0;
-        n2 /= 2.0;
+        n2 *= 0.5;
     }
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
