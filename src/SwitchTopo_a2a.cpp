@@ -186,7 +186,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         fprintf(file,"============================================================\n");
 +       fprintf(file,"NX = %d - rank = %d - threads = %d\n",_topo_in->nglob(0),comm_size,omp_get_max_threads());
         if(_is_all2all) fprintf(file,"- is all to all\n");
-        if(!_is_all2all) fprintf(file,"- is vectorized all to all\n");
+        if(!_is_all2all) fprintf(file,"- is all to all VECTOR\n");
         
         int newrank;
         MPI_Comm_rank(_subcomm,&newrank);
@@ -500,7 +500,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         if (_prof != NULL) {
             _prof->stop("all_2_all");
             int loc_mem = send_count[0] * comm_size;
-            _prof->addMem("all_2_all", loc_mem);
+            _prof->addMem("all_2_all", loc_mem*sizeof(double));
         }
 
     } else {
