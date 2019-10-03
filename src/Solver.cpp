@@ -741,6 +741,13 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
 void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], FFTW_plan_dim *plans[3]) {
     BEGIN_FUNC;
     // if needed, we create a new switchTopo from the current Green topo to the field one
+
+    //simulate that we have done the transforms
+    if(plans[0]->isr2c() || plans[1]->isr2c() || plans[2]->isr2c()){
+        topo_field[2]->switch2complex();
+    }
+
+    // if needed, we create a new switchTopo from the last Green topo to the last field topo
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
         // get the shift
@@ -771,6 +778,11 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         FLUPS_CHECK(topo[2]->nglob(1) == topo_field[2]->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo[2]->nglob(2) == topo_field[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }   
+
+    //coming back
+    if(plans[0]->isr2c() || plans[1]->isr2c() || plans[2]->isr2c()){
+        topo_field[2]->switch2real();
+    }
 }
 
 /**
