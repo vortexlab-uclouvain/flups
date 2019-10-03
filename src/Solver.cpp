@@ -698,15 +698,16 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
     const size_t inmax   = topo->nloc(ax0) * topo->nf();
+    const double volfact = _volfact;
 
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
     // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact)
     for (int io = 0; io < onmax; io++) {
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
         for (size_t ii = 0; ii < inmax; ii++) {
-            dataloc[ii] = dataloc[ii] * _volfact;
+            dataloc[ii] = dataloc[ii] * volfact;
         }
     }
 
