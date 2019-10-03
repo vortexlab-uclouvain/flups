@@ -699,13 +699,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
     const size_t inmax   = topo->nloc(ax0) * topo->nf();
 
-// check the alignement
-#ifndef NDEBUG
-    for (int io = 0; io < onmax; io++) {
-        opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
-        FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
-    }
-#endif
+    FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
     // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
@@ -824,23 +818,27 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
 
-// check the alignement
-#ifndef NDEBUG
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
-            opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(rhsloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(rhsloc), LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
-        }
-#endif
-
-        // do the loop
+        // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+        if (FLUPS_ISALIGNED(myrhs) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+            // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
-            opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                dataloc[ii] = rhsloc[ii];
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    dataloc[ii] = rhsloc[ii];
+                }
+            }
+        } else {
+            // do the loop
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
+                double *__restrict dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    dataloc[ii] = rhsloc[ii];
+                }
             }
         }
     }
@@ -926,22 +924,27 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
 
-        // check the alignement
-#ifndef NDEBUG
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(fieldloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(fieldloc), LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
-        }
-#endif
-        // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, myfield)
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                fieldloc[ii] = dataloc[ii];
+        // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+        if (FLUPS_ISALIGNED(myfield) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+            // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    fieldloc[ii] = dataloc[ii];
+                }
+            }
+        } else {
+            // do the loop
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
+                double *__restrict dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    fieldloc[ii] = dataloc[ii];
+                }
             }
         }
     }
@@ -975,15 +978,8 @@ void Solver::dothemagic_rhs_real() {
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
-        // check the alignement
-#ifndef NDEBUG
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(greenloc), LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
-        }
-#endif
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
@@ -1017,15 +1013,8 @@ void Solver::dothemagic_rhs_complex_nmult0() {
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
-        // check the alignement
-#ifndef NDEBUG
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
-            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(greenloc), LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
-        }
-#endif
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
