@@ -192,21 +192,39 @@ class FLUPS::Solver {
 /**
  * @brief compute the pencil layout given the pencil direction
  * 
+ * The pencil layout is computed so as to obtain pencils with an aspect
+ * ratio close to 1, i.e. the same number points per proc in the the 2 other directions than id.
+ * 
  * @param id the pencil direction
  * @param nproc the number of proc in each direction
  * @param comm_size the total communicator size
+ * @param nglob the domain size in each direction
  */
-static inline void pencil_nproc(const int id, int nproc[3], const int comm_size) {
-    const int id1 = (id + 1) % 3;
-    const int id2 = (id + 2) % 3;
+static inline void pencil_nproc(const int id, int nproc[3], const int comm_size, const int nglob[3]) {
+    int id1 = (id + 1) % 3;
+    int id2 = (id + 2) % 3;
 
     nproc[id] = 1;
 
-    double n1 = 1;
-    double n2 = (double)comm_size;
-    while (n1 < n2 && std::floor(n2*.5) == n2*.5) {
-        n1 *= 2.0;
-        n2 *= 0.5;
+    double       n1       = 1;
+    double       n2       = (double) comm_size;
+    //invert indexes so that id1 is the dimension where nglob is the smallest
+    if( nglob[id1] > nglob[id2]){
+        const int tmp = id2;
+        id2 = id1;
+        id1 = tmp;
+    }
+    double       np1      = (double) nglob[id1];
+    double       np2      = (double) nglob[id2]/ comm_size;
+    const double npsquare = sqrt((double)(nglob[id1] * nglob[id2]) / comm_size);  //target number of points per dimension
+
+    //keep on deviding as long as ncurr/2>nsquare
+    //we want to leave n1=1, and we do not want to reach n2=1
+    while ( (np1 > npsquare) && std::floor(n2*.5) == n2*.5) {
+        n1  *= 2.0;
+        np1 *= 0.5;
+        n2  *= 0.5;
+        np2 *= 2.0;
     }
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;

@@ -366,7 +366,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                pencil_nproc(dimID, nproc, comm_size);
+                pencil_nproc(dimID, nproc, comm_size, size_tmp);
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
@@ -426,13 +426,20 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         for (int ip = 2; ip >= 0; ip--) {
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
-            // get the proc repartition
-            pencil_nproc(dimID, nproc, comm_size);
 
             // if we had to forget one point for this plan, re-add it
             if (planmap[ip]->ignoreMode()) {
                 size_tmp[dimID] += 1;
             }
+
+            // get the proc repartition
+            if(ip>1){
+                pencil_nproc(dimID, nproc, comm_size, size_tmp);
+            }else{
+                const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
+                pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip+1]->dimID(), nproc_hint);
+            }
+
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment);
             //switchmap only to be done for topo0->topo1 and topo1->topo2
