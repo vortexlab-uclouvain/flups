@@ -410,6 +410,11 @@ static inline bool FLUPS_ISALIGNED(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;
 }
 
+template <typename T>
+static inline int FLUPS_CMPT_ALIGNMENT(T a) {
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
+}
+
 typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;

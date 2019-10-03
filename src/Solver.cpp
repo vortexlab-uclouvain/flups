@@ -703,7 +703,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
 #ifndef NDEBUG
     for (int io = 0; io < onmax; io++) {
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
-        FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
     }
 #endif
 
@@ -829,8 +829,8 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(rhsloc), "data has to be aligned", LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(rhsloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(rhsloc), LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
         }
 #endif
 
@@ -931,8 +931,8 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(fieldloc), "data has to be aligned", LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(fieldloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(fieldloc), LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
         }
 #endif
         // do the loop
@@ -980,8 +980,8 @@ void Solver::dothemagic_rhs_real() {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned", LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(greenloc), LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
         }
 #endif
 
@@ -1022,8 +1022,8 @@ void Solver::dothemagic_rhs_complex_nmult0() {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
-            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned", LOCATION);
-            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned", LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(greenloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(greenloc), LOCATION);
+            FLUPS_CHECK(FLUPS_ISALIGNED(dataloc), "data has to be aligned: alignment = %d", FLUPS_CMPT_ALIGNMENT(dataloc), LOCATION);
         }
 #endif
 

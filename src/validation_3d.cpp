@@ -53,7 +53,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,1);
+    const FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
