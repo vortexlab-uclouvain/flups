@@ -779,8 +779,8 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         FLUPS_CHECK(topo[2]->nglob(2) == topo_field[2]->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }   
 
-    //coming back
-    if(plans[0]->isr2c() || plans[1]->isr2c() || plans[2]->isr2c()){
+    //coming back (only if the last plan was r2c. No need it if was c2c or r2r...)
+    if(plans[2]->isr2c()){
         topo_field[2]->switch2real();
     }
 }
