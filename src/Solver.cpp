@@ -38,19 +38,35 @@ using namespace FLUPS;
 Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3], Profiler *prof) {
     BEGIN_FUNC;
 
-    //-------------------------------------------------------------------------
-    /** - Initialize the OpenMP threads */
-    //-------------------------------------------------------------------------
-    fftw_init_threads();
-    fftw_plan_with_nthreads(omp_get_max_threads());
+    // //-------------------------------------------------------------------------
+    // /** - Initialize the OpenMP threads */
+    // //-------------------------------------------------------------------------
+    // fftw_init_threads();
+    // fftw_plan_with_nthreads(omp_get_max_threads());
 
     //-------------------------------------------------------------------------
     /** - Check if we can use the omp_malloc with the predefined alignement */
     //-------------------------------------------------------------------------
-    double * data = (double*) fftw_malloc(10*FLUPS_ALIGNMENT);
-    if(!FLUPS_ISALIGNED(data)){
-        FLUPS_ERROR("Pre-defined data alignement is not compatible with FFTW", LOCATION);
+    // align a random array
+    int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
+    double *data      = (double *)fftw_malloc(10 * alignSize * sizeof(double));
+    // initialize the fftw alignement
+    _fftwalignment = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
+    // get the fftw alignement and stop if it is lower than the one we assumed
+    for (int i = 1; i < 10 * alignSize; i++) {
+        if (fftw_alignment_of(&(data[i])) == 0) {
+            // if we are above the minimum requirement, generate an error
+            if (i < alignSize) {
+                FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
+                FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly", LOCATION);
+            }
+            // else, just stop and advise the user to change
+            break;
+        }
+        _fftwalignment += sizeof(double);
     }
+    FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
+    FLUPS_INFO("To maximize efficiency, both values should match");
     fftw_free(data);
 
     //-------------------------------------------------------------------------
@@ -151,12 +167,12 @@ void Solver::setup() {
     _allocate_plans(_topo_green, _plan_green, _green);
     if (_prof != NULL) _prof->stop("green_plan");
     // setup the buffers for Green
-    _allocate_switchTopo(3,_switchtopo_green,&_sendBuf,&_recvBuf);
+    _allocate_switchTopo(3, _switchtopo_green, &_sendBuf, &_recvBuf);
     if (_prof != NULL) _prof->start("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
     if (_prof != NULL) _prof->stop("green_func");
     // delete the switchTopos
-    _deallocate_switchTopo(_switchtopo_green,&_sendBuf,&_recvBuf);
+    _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
     _delete_switchtopos(_switchtopo_green);
 
     //-------------------------------------------------------------------------
@@ -164,7 +180,7 @@ void Solver::setup() {
      * topo and clean allocated topo and plans */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("green_final");
-    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _switchtopo_green, _plan_green);
+    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
     // delete the topologies and plans no more needed
     _delete_topologies(_topo_green);
@@ -175,7 +191,7 @@ void Solver::setup() {
     //-------------------------------------------------------------------------
     /** - Allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
-    _allocate_switchTopo(3,_switchtopo,&_sendBuf,&_recvBuf);
+    _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
 }
 
 /**
@@ -187,7 +203,7 @@ Solver::~Solver() {
     // for Green
     if (_green != NULL) fftw_free(_green);
 
-    _deallocate_switchTopo(_switchtopo,&_sendBuf,&_recvBuf);
+    _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
 
     // for the field
     _delete_plans(_plan_forward);
@@ -197,7 +213,7 @@ Solver::~Solver() {
     if (_data != NULL) fftw_free(_data);
 
     //cleanup
-    fftw_cleanup_threads();
+    // fftw_cleanup_threads();
     fftw_cleanup();
 }
 /**
@@ -219,7 +235,7 @@ void Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
-void Solver::_delete_switchtopos(SwitchTopo_a2a *switchtopo[3]) {
+void Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -282,7 +298,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
         }
     }
 
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d",plan[0]->type(),plan[1]->type(),plan[2]->type(), LOCATION);
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
 }
 
 /**
@@ -294,7 +310,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
     BEGIN_FUNC;
 
     // @Todo: check that _plan_forward exists before doing _plan_green !
@@ -356,7 +372,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment);
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -365,16 +381,26 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                // SwitchTopo_a2a* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof); 
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+                // SwitchTopo* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#if defined(COMM_NONBLOCK)
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#else
+                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#endif
                 topomap[ip]->switch2complex();
+
             } else {
                 // create the switchtopoMPI to change topology
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+
+#if defined(COMM_NONBLOCK)
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
+#else
+                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+#endif
             }
-// #ifdef PERF_VERBOSE
+            // #ifdef PERF_VERBOSE
             // switchtopo[ip]->disp_rankgraph(ip - 1, ip);
-// #endif
+            // #endif
             // update the current topo to the new one
             current_topo = topomap[ip];
 
@@ -408,7 +434,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 size_tmp[dimID] += 1;
             }
             // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment);
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2) {
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -427,8 +453,12 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 // store the shift and do the mapping
                 fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
-                switchtopo[ip+1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart,NULL);
-                switchtopo[ip+1]->disp();
+#if defined(COMM_NONBLOCK)
+                switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
+#else
+                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
+#endif
+                switchtopo[ip + 1]->disp();
             }
 
             // Go to real data if the FFT is really done on green's array.
@@ -466,66 +496,27 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     }
 }
 
-void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo_a2a **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-    BEGIN_FUNC; 
-
-    // int max_nblocks = 0;
-    // size_t max_blockSize = 0;
-    // for (int id = 0; id < ntopo; id++) {
-    //     if (switchtopo[id] != NULL) {
-    //         max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
-    //         max_blockSize = std::max(max_blockSize, switchtopo[id]->get_BlockSize());
-    //     }
-    // }
-    // FLUPS_CHECK(max_nblocks>0,"number of blocks %d should be >0",max_nblocks,LOCATION);
-    // FLUPS_CHECK(max_blockSize>0,"size of blocks %d should be >0",max_blockSize,LOCATION);
-
-    // *send_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
-    // *recv_buff = (opt_double_ptr *)fftw_malloc(max_nblocks * sizeof(double *));
-
-    // for (int ib = 0; ib < max_nblocks; ib++) {
-    //     (*send_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
-    //     (*recv_buff)[ib] = (opt_double_ptr)fftw_malloc(max_blockSize * sizeof(double));
-    // }
-
-    // // associate the buffers
-    // for (int id = 0; id < ntopo; id++) {
-    //     if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
-    // }
+void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+    BEGIN_FUNC;
     size_t max_mem = 0;
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
         }
     }
-    FLUPS_CHECK(max_mem>0,"number of memory %d should be >0",max_mem,LOCATION);
+    FLUPS_CHECK(max_mem > 0, "number of memory %d should be >0", max_mem, LOCATION);
 
-    *send_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr )fftw_malloc(max_mem * sizeof(double));
-    std::memset(*send_buff,0,max_mem * sizeof(double));
-    std::memset(*recv_buff,0,max_mem * sizeof(double));
-    
-    // associate the buffers
+    *send_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+    *recv_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+    std::memset(*send_buff, 0, max_mem * sizeof(double));
+    std::memset(*recv_buff, 0, max_mem * sizeof(double));
+
+    // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
-        if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff,*recv_buff);
+        if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
     }
 }
-void Solver::_deallocate_switchTopo(SwitchTopo_a2a **switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff) {
-    // get the size of the buffers
-    // int max_nblocks = 0;
-    // for (int id = 0; id < ntopo; id++) {
-    //     if (switchtopo[id] != NULL) {
-    //         max_nblocks = std::max(max_nblocks, switchtopo[id]->get_maxNBlocks());
-    //     }
-    // }
-    // // deallocate everything!!
-    // for (int ib = 0; ib < max_nblocks; ib++) {
-    //     fftw_free((*send_buff)[ib]);
-    //     fftw_free((*recv_buff)[ib]);
-    //     (*send_buff)[ib] = NULL;
-    //     (*recv_buff)[ib] = NULL;
-    // }
-
+void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     fftw_free(*send_buff);
     fftw_free(*recv_buff);
     (*send_buff) = NULL;
@@ -564,8 +555,9 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     //-------------------------------------------------------------------------
     // the biggest size will be along the pencils
     size_t size_tot = 1;
-    for (int id = 0; id < 3; id++)
-        size_tot = std::max(topo[id]->locmemsize(), size_tot);
+    for (int id = 0; id < 3; id++) {
+        size_tot = std::max(topo[id]->memsize(), size_tot);
+    }
 
     FLUPS_INFO("Complex memory allocation, size = %ld", size_tot);
     (*data) = (double *)fftw_malloc(size_tot * sizeof(double));
@@ -646,7 +638,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, _alphaGreen);
         }
-    }  else {
+    } else {
         FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.", LOCATION);
     }
 
@@ -668,7 +660,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            _plan_green[ip]->execute_plan();
+            _plan_green[ip]->execute_plan(topo[ip],green);
         }
 
         if (_plan_green[ip]->isr2c_doneByFFT()) {
@@ -699,12 +691,17 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
 
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            size_t id = localindex_ao(0, i1, i2, topo);
-            for (int i0 = 0; i0 < topo->nloc(ax0) * topo->nf(); i0++) {
-                data[id + i0] = data[id + i0] * _volfact;
-            }
+    const int    nf      = topo->nf();
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+    const size_t inmax   = topo->nloc(ax0) * topo->nf();
+
+    // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, _volfact)
+    for (int io = 0; io < onmax; io++) {
+        const size_t id = collapsedIndex(ax0, 0, io, nmem, nf);
+        for (size_t ii = 0; ii < inmax; ii++) {
+            data[id + ii] = data[id + ii] * _volfact;
         }
     }
 
@@ -720,27 +717,41 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     }
 }
 
-void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], SwitchTopo_a2a *switchtopo[3], FFTW_plan_dim *plans[3]) {
+/**
+ * @brief Finalize the Green's function
+ * 
+ * Reset the Green topology to the correct field's topology.
+ * This is done to have the correct shiftgreen for the last plan if required
+ * 
+ * @param topo_field the topos of the field
+ * @param green the green data
+ * @param topo the topo of the Green functions
+ * @param plans the plans executed for the Green function
+ */
+void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topology *topo[3], FFTW_plan_dim *plans[3]) {
     // if needed, we create a new switchTopo from the current Green topo to the field one
     if (plans[2]->ignoreMode()) {
         const int dimID = plans[2]->dimID();
         // get the shift
         int fieldstart[3] = {0};
         fieldstart[dimID] = -plans[2]->shiftgreen();
-        // we do the link between topo[2] of Green and the field topo
-        SwitchTopo_a2a *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
-        
+// we do the link between topo[2] of Green and the field topo
+#if defined(COMM_NONBLOCK)
+        SwitchTopo *switchtopo = new SwitchTopo_nb(topo[2], topo_field[2], fieldstart, NULL);
+#else
+        SwitchTopo *switchtopo = new SwitchTopo_a2a(topo[2], topo_field[2], fieldstart, NULL);
+#endif
+
         // allocate the topology
         opt_double_ptr temp_send;
         opt_double_ptr temp_recv;
-        _allocate_switchTopo(1,&switchtopo,&temp_send,&temp_recv);
+        _allocate_switchTopo(1, &switchtopo, &temp_send, &temp_recv);
         // execute the switchtopo
         switchtopo->execute(green, FLUPS_FORWARD);
         // dallocate everything
-        _deallocate_switchTopo(&switchtopo,&temp_send,&temp_recv);
-        delete(switchtopo);
-    }
-    else{
+        _deallocate_switchTopo(&switchtopo, &temp_send, &temp_recv);
+        delete (switchtopo);
+    } else {
         FLUPS_CHECK(topo[2]->nf() == topo[2]->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo[2]->nloc(0) == topo[2]->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo[2]->nloc(1) == topo[2]->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
@@ -779,25 +790,41 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    // reset at the max size
-    size_t size_tot = topo->locmemsize();
-    for (int id = 0; id < 3; id++)
-        size_tot = std::max(_topo_hat[id]->locmemsize(), size_tot);
+    size_t size_tot = topo->memsize();
+    for (int id = 0; id < 3; id++) {
+        size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
+    }
     std::memset(mydata, 0, sizeof(double) * size_tot);
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
+    FLUPS_CHECK(topo->nf() == 1, "The RHS topology cannot be complex", LOCATION);
 
-    FLUPS_CHECK(!topo->isComplex(), "The RHS topology cannot be complex", LOCATION);
-
-    const int nmax_for = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
-    if (_prof != NULL) _prof->start("copy");
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_for, mydata, myrhs)
-    for (int i = 0; i < nmax_for; i++) {
-        mydata[i] = myrhs[i];
+    if (_prof != NULL) {
+        _prof->start("copy");
     }
-    if (_prof != NULL) _prof->stop("copy");
+
+    {
+        const int    ax0     = topo->axis();
+        const int    ax1     = (ax0 + 1) % 3;
+        const int    ax2     = (ax0 + 2) % 3;
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+        const size_t inmax   = topo->nloc(ax0);
+
+        // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
+        for (int io = 0; io < onmax; io++) {
+            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            for (size_t ii = 0; ii < inmax; ii++) {
+                mydata[id + ii] = myrhs[id + ii];
+            }
+        }
+    }
+    if (_prof != NULL) {
+        _prof->stop("copy");
+    }
 
 #ifdef DUMP_H5
     hdf5_dump(topo, "rhs", mydata);
@@ -810,7 +837,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
         // run the FFT
         if (_prof != NULL) _prof->start("fftw");
-        _plan_forward[ip]->execute_plan();
+        _plan_forward[ip]->execute_plan(_topo_hat[ip],mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
@@ -853,7 +880,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     for (int ip = 2; ip >= 0; ip--) {
         if (_prof != NULL) _prof->start("fftw");
-        _plan_backward[ip]->execute_plan();
+        _plan_backward[ip]->execute_plan(_topo_hat[ip],mydata);
         if (_prof != NULL) _prof->stop("fftw");
         // get if we are now complex
         if (_plan_forward[ip]->isr2c()) {
@@ -865,13 +892,29 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
-    const int nmax_back = topo->nloc(0) * topo->nloc(1) * topo->nloc(2);
-    if (_prof != NULL) _prof->start("copy");
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax_back, mydata, myfield)
-    for (int i = 0; i < nmax_back; i++) {
-        myfield[i] = mydata[i];
+    if (_prof != NULL) {
+        _prof->start("copy");
     }
-    if (_prof != NULL) _prof->stop("copy");
+
+    {
+        const int    ax0     = topo->axis();
+        const int    ax1     = (ax0 + 1) % 3;
+        const int    ax2     = (ax0 + 2) % 3;
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+        const size_t inmax   = topo->nloc(ax0);
+        // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, myfield)
+        for (int io = 0; io < onmax; io++) {
+            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            for (size_t ii = 0; ii < inmax; ii++) {
+                myfield[id + ii] = mydata[id + ii];
+            }
+        }
+    }
+    if (_prof != NULL) {
+        _prof->stop("copy");
+    }
     // io if needed
     hdf5_dump(topo, "sol", myfield);
     // stop the whole timer
@@ -884,16 +927,29 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
  */
 void Solver::dothemagic_rhs_real() {
     BEGIN_FUNC;
+    FLUPS_CHECK(_topo_hat[2]->nf() == 1, "The topo_hat[2] has to be real", LOCATION);
 
+    // get the axis
+    const int ax0 = _topo_hat[2]->axis();
+    const int ax1 = (ax0 + 1) % 3;
+    const int ax2 = (ax0 + 2) % 3;
+    // get the factors
     const double         normfact = _normfact;
     opt_double_ptr       mydata   = _data;
     const opt_double_ptr mygreen  = _green;
-    const size_t         nmax     = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
+    {
+        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
+        const size_t inmax   = _topo_hat[2]->nloc(ax0);
+        const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
-    // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, normfact, mydata, mygreen)
-    for (size_t i = 0; i < nmax; i++) {
-        mydata[i] *= normfact * mygreen[i];
+        // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
+        for (int io = 0; io < onmax; io++) {
+            const size_t id = collapsedIndex(ax0, 0, io, nmem, 1);
+            for (size_t ii = 0; ii < inmax; ii++) {
+                mydata[id + ii] *= normfact * mygreen[id + ii];
+            }
+        }
     }
 }
 
@@ -903,24 +959,36 @@ void Solver::dothemagic_rhs_real() {
  */
 void Solver::dothemagic_rhs_complex_nmult0() {
     BEGIN_FUNC;
+    FLUPS_CHECK(_topo_hat[2]->nf() == 2, "The topo_hat[2] has to be complex", LOCATION);
+    // get the axis
+    const int ax0 = _topo_hat[2]->axis();
+    const int ax1 = (ax0 + 1) % 3;
+    const int ax2 = (ax0 + 2) % 3;
+    // get the factors
     const double         normfact = _normfact;
     opt_double_ptr       mydata   = _data;
     const opt_double_ptr mygreen  = _green;
-    const size_t         nmax     = _topo_hat[2]->nloc(0) * _topo_hat[2]->nloc(1) * _topo_hat[2]->nloc(2);
+    {
+        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
+        const size_t inmax   = _topo_hat[2]->nloc(ax0);
+        const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
-    // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nmax, normfact, mydata, mygreen)
-    for (size_t i = 0; i < nmax; i++) {
-        const double a = mydata[i * 2 + 0];
-        const double b = mydata[i * 2 + 1];
-        const double c = mygreen[i * 2 + 0];
-        const double d = mygreen[i * 2 + 1];
-        // update the values
-        mydata[i * 2 + 0] = normfact * (a * c - b * d);
-        mydata[i * 2 + 1] = normfact * (a * d + b * c);
+        // do the loop
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
+        for (int io = 0; io < onmax; io++) {
+            const size_t id = collapsedIndex(ax0, 0, io, nmem, 2);
+            for (size_t ii = 0; ii < inmax; ii++) {
+                const double a = mydata[id + ii * 2 + 0];
+                const double b = mydata[id + ii * 2 + 1];
+                const double c = mygreen[id + ii * 2 + 0];
+                const double d = mygreen[id + ii * 2 + 1];
+                // update the values
+                mydata[id + ii * 2 + 0] = normfact * (a * c - b * d);
+                mydata[id + ii * 2 + 1] = normfact * (a * d + b * c);
+            }
+        }
     }
 }
-
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
  * 

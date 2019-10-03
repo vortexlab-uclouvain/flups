@@ -53,7 +53,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS::Topology *topo = new FLUPS::Topology(0, nglob, nproc, false,NULL);
+    const FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,1);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
@@ -67,12 +67,14 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    double *rhs   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *sol   = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    double *field = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
-    std::memset(rhs, 0, sizeof(double *) * topo->locmemsize());
-    std::memset(sol, 0, sizeof(double *) * topo->locmemsize());
-    std::memset(field, 0, sizeof(double *) * topo->locmemsize());
+    FLUPS_INFO("topo memsize = %d vs %d %d %d",topo->memsize(),topo->nmem(0),topo->nmem(1),topo->nmem(2));
+
+    double *rhs   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    double *sol   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    double *field = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    std::memset(rhs, 0, sizeof(double ) * topo->memsize());
+    std::memset(sol, 0, sizeof(double ) * topo->memsize());
+    std::memset(field, 0, sizeof(double ) * topo->memsize());
 
 #ifndef MANUFACTURED_SOLUTION
     //-------------------------------------------------------------------------
@@ -123,7 +125,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
                             double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
                             double       rho2 = (x * x + y * y + z * z) * oosigma2;
                             double       rho  = sqrt(rho2);
-                            const size_t id   = localindex_xyz(i0, i1, i2, topo);
+                            const size_t id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
 
                             // Gaussian
                             rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
@@ -138,10 +140,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     // double lIs = 1.e10, 
     double gIs = 0.0;
     double lIs = 0.0;
+
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id   = localindex_xyz(i0, i1, i2, topo);
+                const size_t id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
                 lIs += sol[id];
                 // lIs = min(sol[id],lIs);
             }
@@ -150,10 +153,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     gIs *= (h[0]*h[1]*h[2]);
+    // const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
+    //             const size_t id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
     //             sol[id] -= gIs;
     //         }
     //     }
@@ -167,12 +171,17 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     int istart[3];
     topo->get_istart_glob(istart);
 
-
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id   = localindex_xyz(i0, i1, i2, topo);
-                sol[id] = 1.0;
+    {
+        const int ax0     = topo->axis();
+        const int ax1     = (ax0 + 1) % 3;
+        const int ax2     = (ax0 + 2) % 3;
+        const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    const size_t id = localIndex(ax0, i0, i1, i2, ax0, nmem, 1);
+                    sol[id]         = 1.0;
+                }
             }
         }
     }
@@ -233,21 +242,25 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         }
     }
 
-    // Obtaining the reference sol and rhs
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const double x[3] = {(istart[0] + i0 + 0.5) * h[0],
-                                     (istart[1] + i1 + 0.5) * h[1],
-                                     (istart[2] + i2 + 0.5) * h[2]};
+    {
+        const int ax0     = topo->axis();
+        const int ax1     = (ax0 + 1) % 3;
+        const int ax2     = (ax0 + 2) % 3;
+        const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    const size_t id   = localIndex(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const double x[3] = {(istart[0] + i0 + 0.5) * h[0],
+                                         (istart[1] + i1 + 0.5) * h[1],
+                                         (istart[2] + i2 + 0.5) * h[2]};
 
-                const size_t id = localindex_xyz(i0, i1, i2, topo);
-
-                for (int dir = 0; dir < 3; dir++) {
-                    const int dir2 = (dir + 1) % 3;
-                    const int dir3 = (dir + 2) % 3;
-                    sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
-                    rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                    for (int dir = 0; dir < 3; dir++) {
+                        const int dir2 = (dir + 1) % 3;
+                        const int dir3 = (dir + 2) % 3;
+                        sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
+                        rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                    }
                 }
             }
         }
@@ -309,17 +322,20 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     double lerr2 = 0.0;
     double lerri = 0.0;
 
-    /**
-         * @todo change that to axis-based loops
-         */
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id  = localindex_xyz(i0, i1, i2, topo);
-                const double err = sol[id] - field[id];
+    {
+        const int ax0     = topo->axis();
+        const int ax1     = (ax0 + 1) % 3;
+        const int ax2     = (ax0 + 2) % 3;
+        const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    const size_t id  = localIndex(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const double err = sol[id] - field[id];
 
-                lerri = max(lerri, fabs(err));
-                lerr2 += (err * err) * h[0] * h[1] * h[2];
+                    lerri = max(lerri, fabs(err));
+                    lerr2 += (err * err) * h[0] * h[1] * h[2];
+                }
             }
         }
     }

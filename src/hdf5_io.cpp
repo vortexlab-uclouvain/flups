@@ -118,13 +118,6 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     H5Pclose(plist_id);
 
     //-------------------------------------------------------------------------
-    /** - Create the memory dataspace  */
-    //-------------------------------------------------------------------------
-    // dataspace
-    hsize_t memsize[3] = {(hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)(topo->nloc(ax0) * topo->nf())};
-    memspace           = H5Screate_simple(3, memsize, NULL);
-
-    //-------------------------------------------------------------------------
     /** - Create the file dataspace and dataset  */
     //-------------------------------------------------------------------------
     // the file information is given by the global size
@@ -182,11 +175,15 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     /** - do the writting  */
     //-------------------------------------------------------------------------
+    // dataspace = data inside the memory that has a full size of nmem
+    hsize_t memsize[3] = {(hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
+    memspace           = H5Screate_simple(3, memsize, NULL);
+
     // set the property list
     plist_id = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
 
-    // get the data counts
+    // get the data counts that we are going to write -> restricted to nloc instead of nmem
     hsize_t memblock[3] = {1, 1, 1};
     hsize_t memcount[3] = {(hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)};
 
@@ -341,14 +338,16 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // real numbers
-    Topology *topo = new Topology(0, nglob, nproc, false,NULL);
+    Topology *topo    = new Topology(0, nglob, nproc, false, NULL,1);
+    const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
-    double *data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    // we only allocate the real size = local size
+    double *data = (double *)fftw_malloc(sizeof(double *) * topo->locsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localindex_xyz(i0, i1, i2, topo);
+                const size_t id = localIndex(0,i0, i1, i2,0, nmem,topo->nf());
                 data[id + 0] = id;
             }
         }
@@ -361,14 +360,14 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // create a real topology
-    topo = new Topology(0, nglob, nproc, true,NULL);
+    topo = new Topology(0, nglob, nproc, true,NULL,1);
 
-    data = (double *)fftw_malloc(sizeof(double *) * topo->locmemsize());
+    data = (double *)fftw_malloc(sizeof(double *) * topo->locsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localindex_xyz(i0, i1, i2, topo);
+                const size_t id = localIndex(0,i0, i1, i2,0, nmem,topo->nf());
                 data[id + 0] = (double)id;
                 data[id + 1] = 0.0;  //-data[id + 0];
             }

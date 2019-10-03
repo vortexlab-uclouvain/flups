@@ -1,9 +1,9 @@
 /**
- * @file SwitchTopo_a2a.hpp
+ * @file SwitchTopo_nb.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief 
  * @version
- * @date 2019-09-25
+ * @date 2019-09-28
  * 
  * @copyright Copyright © UCLouvain 2019
  * 
@@ -27,9 +27,8 @@
  * 
  */
 
-
-#ifndef SWITCHTOPO_A2A_HPP
-#define SWITCHTOPO_A2A_HPP
+#ifndef SWITCHTOPO_NB_HPP
+#define SWITCHTOPO_NB_HPP
 
 #include <cstring>
 #include "defines.hpp"
@@ -37,6 +36,7 @@
 #include "mpi.h"
 #include "Topology.hpp"
 #include "Profiler.hpp"
+#include "omp.h"
 #include "SwitchTopo.hpp"
 
 /**
@@ -53,25 +53,30 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class FLUPS::SwitchTopo_a2a : public SwitchTopo {
+class FLUPS::SwitchTopo_nb : public SwitchTopo {
    protected:
-    bool     _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
+    int _selfBlockN=0;
+    int* _iselfBlockID = NULL;
+    int* _oselfBlockID = NULL;
 
-    int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
-    int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
+    opt_int_ptr _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    opt_int_ptr _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
 
-    int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
-    int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
+    MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
    public:
-    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
-    ~SwitchTopo_a2a();
+    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
+    ~SwitchTopo_nb();
 
-    void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
+    void setup_buffers(opt_double_ptr _sendBuf,opt_double_ptr _recvBuf);
     void execute(opt_double_ptr v, const int sign) const;
+
     void disp() const;
 };
 
-void SwitchTopo_a2a_test();
+void SwitchTopo_test();
 
 #endif

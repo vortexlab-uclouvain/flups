@@ -420,8 +420,10 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
  * The howmany is computed using the memory information provided
  * 
  * @warning
- * If there is a r2c tranform we will perfom upto 2 spurious transform.
- * This is not important since the Green's transform is only performed once
+ * If this plan creation is called with a complex topo, we will do
+ * a transform using a stride of 1 on the real part of the array
+ * This may happen in the Green's transform if there is a combination of real-real 
+ * directions and periodic direction. Hence, only a DCT/DST on the real part is needed
  * 
  * @param memsize the size of the data BEFORE THE PLAN is executed
  * @param data the pointer to the transposed data (has to be allocated)
@@ -432,9 +434,8 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
-    assert(data != NULL);
-
-    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
+    FLUPS_CHECK(data != NULL,"data cannot be null",LOCATION);
+    const int memsize[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     //-------------------------------------------------------------------------
     /** - If is Green and #_type is SYMSYM, exit */
@@ -449,30 +450,26 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     }
 
     //-------------------------------------------------------------------------
-    /** - Get compute the rank and the stides  */
+    /** - Compute howmany and the stride to run the loop in the execute  */
     //-------------------------------------------------------------------------
-    // the array has to be (n[3] x n[2] x n[1])
-    // the jth element of transform k is at k*idist+j*istride
-    int rank    = 1;
-    int istride = topo->nf() ;
-    int ostride = topo->nf() ;
-    int idist   = memsize[_dimID]*topo->nf();
-    int odist   = memsize[_dimID]*topo->nf();
-
-    //-------------------------------------------------------------------------
-    /** - Compute howmany  */
-    //-------------------------------------------------------------------------
-    int howmany = 1;
-    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
+    _howmany = 1;
+    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
-    _plan = fftw_plan_many_r2r(rank, (int*)(&_n_in), howmany,
-                               data, NULL, istride, idist,
-                               data, NULL, ostride, odist, &_kind, FFTW_FLAG);
+    if (topo->nf() == 1) {
+        _fftw_stride = memsize[_dimID];
+        _plan        = fftw_plan_r2r_1d(_n_in, data, data, _kind, FFTW_FLAG);
 
+    } else if (topo->nf() == 2) {
+        _fftw_stride = memsize[_dimID] * topo->nf();
+        _plan        = fftw_plan_many_r2r(1, (int*)(&_n_in), 1,
+                                   data, NULL, topo->nf(), memsize[_dimID] * topo->nf(),
+                                   data, NULL, topo->nf(), memsize[_dimID] * topo->nf(), &_kind, FFTW_FLAG);
+    }
+    
     FLUPS_INFO("------------------------------------------");
     if (_type == SYMSYM) {
         FLUPS_INFO("## SYMSYM plan created for plan r2r (=%d)", _type);
@@ -480,10 +477,15 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
         FLUPS_INFO("## MIXUNB plan created for plan mix (=%d)", _type);
     }
     FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
-    FLUPS_INFO("howmany   = %d", howmany);
+    FLUPS_INFO("dimID     = %d", _dimID);
+    FLUPS_INFO("howmany   = %d", _howmany);
+    FLUPS_INFO("fftw stride   = %d", _fftw_stride);
     FLUPS_INFO("size n    = %d", _n_in);
-    FLUPS_INFO("istride (double) = %d - idist = %d", istride, idist);
-    FLUPS_INFO("ostride (double) = %d - odist = %d", ostride, odist);
+    if (topo->nf() == 1) {
+        FLUPS_INFO("plan created with the simple interface");
+    } else if (topo->nf() == 2) {
+        FLUPS_INFO("plan created with the many interface for non-unit stride)");
+    }
     FLUPS_INFO("------------------------------------------");
 }
 
@@ -492,10 +494,6 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
  * 
  * @note
  * The howmany is computed using the memory information provided
- * 
- * @warning
- * If there is a r2c tranform we will perfom upto 2 spurious transform.
- * This is not important since the Green's transform is only performed once
  * 
  * 
  * @param memsize the size of the data BEFORE THE PLAN is executed
@@ -506,7 +504,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 
     assert(data != NULL);
 
-    const int memsize[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
+    const int memsize[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)}; //the "current" size, corresponding to size_tmp during the dry run, see _init_plansAndTopos
 
     if (_isGreen && _type == PERPER) {
         _plan = NULL;
@@ -517,23 +515,18 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         return;
     }
 
-    // the jth element of transform k is at k*idist+j*istride
-    int rank = 1;
+    //-------------------------------------------------------------------------
+    /** - Compute howmany and the stride to run the loop in the execute  */
+    //-------------------------------------------------------------------------
     // Compute howmany
-    int howmany = 1;
-    for (int id = 0; id < _dimID; id++) howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) howmany *= memsize[id];
-
-    // strides
-    int istride = 1;
-    int ostride = 1;
-    int idist   = memsize[_dimID];
-    int odist   = memsize[_dimID];
-
-    // incomming arrays depends if we are a complex switcher or not
+    _howmany = 1;
+    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
+    // compute the stride
+    _fftw_stride = memsize[_dimID];
+       
     if (_isr2c) {
-        // idist has been obtained from a the incomming size
-        odist /= 2;
+        FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo",LOCATION);
 
         FLUPS_INFO("------------------------------------------");
         if (_type == PERPER) {
@@ -549,42 +542,36 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         }
         FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
         FLUPS_INFO("dimID     = %d", _dimID);
-        FLUPS_INFO("howmany   = %d", howmany);
+        FLUPS_INFO("howmany   = %d", _howmany);
+        FLUPS_INFO("fftw stride   = %d", _fftw_stride);
         FLUPS_INFO("size n    = %d", _n_in);
-        FLUPS_INFO("istride (double)  = %d - idist = %d", istride, idist);
-        FLUPS_INFO("ostride (complex) = %d - odist = %d", ostride, odist);
         FLUPS_INFO("------------------------------------------");
 
-        // set the plan - there is no offset in r2c or c2c possible
         if (_sign == FLUPS_FORWARD) {
-            _plan = fftw_plan_many_dft_r2c(rank, (int*)(&_n_in), howmany,
-                                           data, NULL, istride, idist,
-                                           (fftw_complex*)data, NULL, ostride, odist, FFTW_FLAG);
+            _plan = fftw_plan_dft_r2c_1d(_n_in, data, (fftw_complex*)data, FFTW_FLAG);
         } else {
-            _plan = fftw_plan_many_dft_c2r(rank, (int*)(&_n_in), howmany,
-                                           (fftw_complex*)data, NULL, ostride, odist,
-                                           data, NULL, istride, idist, FFTW_FLAG);
+            _plan = fftw_plan_dft_c2r_1d(_n_in, (fftw_complex*)data, data, FFTW_FLAG);
         }
 
     } else {
-        // set the plan
-        _plan = fftw_plan_many_dft(rank, (int*)(&_n_in), howmany,
-                                   (fftw_complex*)data, NULL, istride, idist,
-                                   (fftw_complex*)data, NULL, ostride, odist, _sign, FFTW_FLAG);
-
+        FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo",LOCATION);
+        _plan = fftw_plan_dft_1d(_n_in, (fftw_complex*)data, (fftw_complex*)data, _sign, FFTW_FLAG);
     }
 }
 
 /**
- * @brief Executes the plan
+ * @brief Executes the plan for a given Topology on a given data
+ * 
+ * The transform is done in-place on the data array
+ * Every transform is done as a 1 thread 1d transform.
+ * The multi-threading is used to perfom several FFT's at once
  * 
  */
-void FFTW_plan_dim::execute_plan() {
+void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
 
-    // run the plan
     if (_type == SYMSYM) {
         FLUPS_INFO(">> Doing plan real2real for dim %d", _dimID);
     } else if (_type == MIXUNB) {
@@ -594,7 +581,71 @@ void FFTW_plan_dim::execute_plan() {
     } else if (_type == UNBUNB) {
         FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
     }
-    fftw_execute(_plan);
+
+    const int howmany = _howmany;
+    const int fftw_stride = _fftw_stride;
+    const fftw_plan* plan = &_plan;
+
+    //-------------------------------------------------------------------------
+    /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
+    //-------------------------------------------------------------------------
+
+#ifndef NDEBUG
+    for (int id = 0; id < howmany; id++) {
+        // get the memory
+        double* mydata = (double*)data + id * fftw_stride;
+        // check the alignment
+        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+    }
+#endif
+
+    //-------------------------------------------------------------------------
+    /** - run the plan on each FFT  */
+    //-------------------------------------------------------------------------
+    // incomming arrays depends if we are a complex switcher or not
+    if (_type == SYMSYM || _type == MIXUNB) {  // R2R
+        // we can be complex or real (see allocate_real) but fftw_stride contains the correct info
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
+        for (int id = 0; id < howmany; id++) {
+            // get the memory
+            double* mydata = (double*)data + id * fftw_stride;
+            // execute the plan on it
+            fftw_execute_r2r(*plan, (double*)mydata, (double*)mydata);
+        }
+    } else if (_type == PERPER || _type == UNBUNB) {
+        if (_isr2c) {
+            if (_sign == FLUPS_FORWARD) {  // DFT - R2C
+            FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage",LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
+                for (int id = 0; id < howmany; id++) {
+                    // get the memory
+                    double* mydata = (double*)data + id * fftw_stride;
+                    // execute the plan on it
+                    fftw_execute_dft_r2c(*plan, (double*)mydata, (fftw_complex*)mydata);
+                }
+            } else {  // DFT - C2R
+                FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage",LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
+                for (int id = 0; id < howmany; id++) {
+                    // get the memory
+                    // WARNING the stride is given in the input size =  REAL => id * _fftw_stride/2 * nf = id * _fftw_stride
+                    double* mydata = (double*)data + id * fftw_stride;
+                    // execute the plan on it
+                    fftw_execute_dft_c2r(*plan, (fftw_complex*)mydata, (double*)mydata);
+                }
+            }
+
+        } else {  // DFT
+            FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage",LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
+            for (int id = 0; id < howmany; id++) {
+                // get the memory with nf = 2
+                double* mydata = (double*)data + id * fftw_stride * 2;
+                // execute the plan on it
+                fftw_execute_dft(*plan, (fftw_complex*)mydata,(fftw_complex*) mydata);
+            }
+        }
+    }
 }
 
 /**

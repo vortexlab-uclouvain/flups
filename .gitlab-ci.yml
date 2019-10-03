@@ -35,6 +35,36 @@ compil opt :
     - export ARCH_FILE=make_arch/make.docker_valid_opt
     - make -j4
 
+compil all2all :
+  stage: build
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_dbg
+    - make -j4 all2all
+
+compil nb :
+  stage: build
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_dbg
+    - make -j4 nonblocking
+
+compil lib :
+  stage: build
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make -j4 lib
+
 #checks that the code runs without error in serial dbg
 run serial 1:1:
   stage: test

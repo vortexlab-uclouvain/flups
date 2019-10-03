@@ -29,7 +29,6 @@
 #include "expint.hpp"
 
 #include "Solver.hpp"
-#include "SwitchTopo_a2a.hpp"
 #include "validation_3d.hpp"
 
 #include "mpi.h"
