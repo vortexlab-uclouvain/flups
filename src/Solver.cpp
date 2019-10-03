@@ -57,16 +57,20 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i < alignSize) {
-                FLUPS_INFO("FFTW alignement is NOT ok: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
-                FLUPS_ERROR("The FFTW alignement has to be bigger or = to ours, please change accordingly: FFTW=%d vs ours=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+                FLUPS_ERROR("The FFTW alignement has to be bigger or = to FLUPS, please change accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
             }
             // else, just stop and advise the user to change
             break;
         }
         _fftwalignment += sizeof(double);
     }
-    FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs ours = %d", _fftwalignment, FLUPS_ALIGNMENT);
-    FLUPS_INFO("To maximize efficiency, both values should match");
+    if(_fftwalignment != FLUPS_ALIGNMENT){
+        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT,LOCATION);
+    }
+    else{
+        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT);
+    }
+    
     fftw_free(data);
 
     //-------------------------------------------------------------------------
