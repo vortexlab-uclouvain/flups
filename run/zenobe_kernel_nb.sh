@@ -3,7 +3,7 @@
 #PBS -N scalability
 #PBS -r y 
 #PBS -W group_list=examples
-#PBS -l walltime=00:30:00 
+#PBS -l walltime=01:00:00 
 
 exec > ${PBS_O_WORKDIR}/${PBS_JOBNAME}_${PBS_JOBID}.log 
 echo "------------------ Work dir --------------------" 
