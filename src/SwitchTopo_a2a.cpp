@@ -567,6 +567,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
                 const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onmem, nf);
                 // do the copy
+#pragma vector always
                 for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
                     my_v[my_idx + i0 * stride] = data[buf_idx + i0];
                 }
@@ -581,10 +582,22 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
                 const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onmem, nf);
                 // do the copy
-                for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
-                    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
-                    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
-                }
+                // This loop is the most painful ! no vectorization possible when stride>2, but substantial speedup if stride==; this is why we split.
+		const int nmax = oBlockSize[ax0][bid];
+		if(stride==2){
+#pragma vector always
+                	for (int i0 = 0; i0 < 2*nmax; i0++) {
+                	    my_v[my_idx + i0] = data[buf_idx + i0];
+			    //memcpy(&my_v[my_idx+i0*2],&data[buf_idx+i0*2],2*sizeof(double));
+			}
+		}else{
+#pragma ivdep
+                	for (int i0 = 0; i0 < nmax; i0++) {
+                    	    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
+                    	    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
+                            // memcpy(&my_v[my_idx+i0*stride],&data[buf_idx+i0*2],2*sizeof(double));
+                        }
+		}
             }
         }
     }
