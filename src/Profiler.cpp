@@ -407,8 +407,15 @@ void Profiler::disp(const std::string ref) {
     /** - I/O of the parentality */
     //-------------------------------------------------------------------------
     FILE* file;
+    string folder = "./prof";
+
     if (rank == 0) {
-        string filename = "prof/" + _name + "_parent.csv";
+        struct stat st = {0};
+        if (stat(folder.c_str(), &st) == -1) {
+                mkdir(folder.c_str(), 0770);
+        }
+
+        string filename = folder + "/" + _name + "_parent.csv";
         file            = fopen(filename.c_str(), "w+");
         _timeMap["root"]->writeParentality(file,0);
         fclose(file);
@@ -426,7 +433,7 @@ void Profiler::disp(const std::string ref) {
     // display the header
     if (rank == 0) {
         printf("===================================================================================================================================================\n");
-        printf("        PROFILER %s  \n", _name.c_str());
+        printf("        PROFILER %s \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
         printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
