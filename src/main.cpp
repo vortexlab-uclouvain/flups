@@ -186,14 +186,14 @@ int main(int argc, char *argv[]) {
     int nsolve, nsample, predef;
     int nprocs[3];
     double L[3];
-    int *size;
+    int *size = NULL;
     FLUPS::GreenType kernel;
     FLUPS::BoundaryType bcdef[3][2];
     
     int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
 
     if (status) exit(status);
-    if (!size){
+    if (size==NULL){
         exit(0); //we just printed help
     }     
 
