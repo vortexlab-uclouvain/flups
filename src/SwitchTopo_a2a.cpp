@@ -214,6 +214,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         fclose(file);
     }
 #endif
+    END_FUNC;
 }
 
 /**
@@ -247,6 +248,7 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
         if (_iBlockSize[id] != NULL) fftw_free(_iBlockSize[id]);
         if (_oBlockSize[id] != NULL) fftw_free(_oBlockSize[id]);
     }
+    END_FUNC;
 }
 
 
@@ -304,6 +306,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     }
 
     fftw_free(countPerRank);
+    END_FUNC;
 }
 
 /**
@@ -590,6 +593,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         _prof->stop("buf2mem");
         _prof->stop("reorder");
     }
+    END_FUNC;
 }
 
 void SwitchTopo_a2a::disp() const {
@@ -720,4 +724,5 @@ void SwitchTopo_a2a_test() {
     // delete (switchtopo);
     // delete (topo);
     // delete (topobig);
+    END_FUNC;
 }

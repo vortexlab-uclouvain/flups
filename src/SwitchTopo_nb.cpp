@@ -219,6 +219,7 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
         fclose(file);
     }
 #endif
+    END_FUNC;
 }
 
 void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvData){
@@ -279,6 +280,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
         }
     }
     FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
+    END_FUNC;
 }
 
 /**
@@ -318,6 +320,7 @@ SwitchTopo_nb::~SwitchTopo_nb() {
 
     fftw_free((double*)_sendBuf);
     fftw_free((double*)_recvBuf);
+    END_FUNC;
 }
 
 /**
@@ -625,6 +628,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
         _prof->stop("buf2mem");
         _prof->stop("reorder");
     }
+    END_FUNC;
 }
 
 void SwitchTopo_nb::disp() const {
@@ -741,4 +745,5 @@ void SwitchTopo_nb_test() {
     delete (switchtopo);
     delete (topo);
     delete (topobig);
+    END_FUNC;
 }

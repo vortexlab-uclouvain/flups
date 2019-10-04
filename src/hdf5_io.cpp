@@ -229,6 +229,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     H5Pclose(plist_id);
     H5Fclose(file_id);
 
+    END_FUNC;
     return;
 }
 
@@ -321,6 +322,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
         fprintf(xmf, "</Xdmf>");
         fclose(xmf);
     }
+    END_FUNC;
 }
 
 /**
@@ -377,4 +379,5 @@ void hdf5_dumptest() {
     hdf5_dump(topo, "test_complex", data);
     fftw_free(data);
     delete (topo);
+    END_FUNC;
 }

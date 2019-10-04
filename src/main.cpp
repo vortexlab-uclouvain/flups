@@ -176,6 +176,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     for (int i = 0; i<*nsample ; i++){
         (*size)[i] = startSize * pow(2,i);
     }
+    END_FUNC;
     return 0;
 }
 

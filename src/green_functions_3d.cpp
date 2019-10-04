@@ -156,6 +156,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         green[0] = -G0;
     }
+    END_FUNC;
 }
 
 /**
@@ -171,6 +172,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
  * @param alpha 
  */
 void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha) {
+    BEGIN_FUNC;
 
     // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
 
@@ -263,6 +265,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
         green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
+    END_FUNC;
 }
 
 /**
@@ -278,6 +281,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
  * @param alpha 
  */
 void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha) {
+    BEGIN_FUNC;
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
     FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
@@ -347,6 +351,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
                 }
             }
         }
+    END_FUNC;
 }
 
 /**
@@ -431,4 +436,5 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 && koffset[0]+koffset[1]+koffset[2]<0.2) {
         green[0] = -0.0;
     }
+    END_FUNC;
 }

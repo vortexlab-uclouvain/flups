@@ -134,6 +134,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
             _nbr_imult++;
     }
     if (_prof != NULL) _prof->stop("init");
+    END_FUNC;
 }
 
 /**
@@ -145,6 +146,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
  * We do the following operations
  */
 void Solver::setup() {
+    BEGIN_FUNC;
     if (_prof != NULL) _prof->start("setup");
     if (_prof != NULL) _prof->start("alloc_data");
     //-------------------------------------------------------------------------
@@ -195,6 +197,7 @@ void Solver::setup() {
     /** - Allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+    END_FUNC;
 }
 
 /**
@@ -218,6 +221,7 @@ Solver::~Solver() {
     //cleanup
     // fftw_cleanup_threads();
     fftw_cleanup();
+    END_FUNC;
 }
 /**
  * @brief delete the FFTW_plan_dim stored in planmap
@@ -231,6 +235,7 @@ void Solver::_delete_plans(FFTW_plan_dim *planmap[3]) {
         delete planmap[ip];
         planmap[ip] = NULL;
     }
+    END_FUNC;
 }
 
 /**
@@ -245,6 +250,7 @@ void Solver::_delete_switchtopos(SwitchTopo *switchtopo[3]) {
         delete switchtopo[ip];
         switchtopo[ip] = NULL;
     }
+    END_FUNC;
 }
 
 /**
@@ -259,6 +265,7 @@ void Solver::_delete_topologies(Topology *topo[3]) {
         delete topo[ip];
         topo[ip] = NULL;
     }
+    END_FUNC;
 }
 
 /**
@@ -302,6 +309,7 @@ void Solver::_sort_plans(FFTW_plan_dim *plan[3]) {
     }
 
     FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
+    END_FUNC;
 }
 
 /**
@@ -507,6 +515,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             topomap[ip]->switch2real();
         }
     }
+    END_FUNC;
 }
 
 void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
@@ -528,6 +537,7 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
     }
+    END_FUNC;
 }
 void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     fftw_free(*send_buff);
@@ -548,6 +558,7 @@ void Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planm
     for (int ip = 0; ip < 3; ip++) {
         planmap[ip]->allocate_plan(topo[ip], data);
     }
+    END_FUNC;
 }
 
 /**
@@ -581,6 +592,7 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
     FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
+    END_FUNC;
 }
 
 /**
@@ -689,6 +701,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     _scaleGreenFunction(topo[2], green, false);
 
     hdf5_dump(topo[2], "green_h", green);
+    END_FUNC;
 }
 
 /**
@@ -730,6 +743,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
+    END_FUNC;
 }
 
 /**
@@ -788,6 +802,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
     if(plans[2]->isr2c()){
         topo_field[2]->switch2real();
     }
+    END_FUNC;
 }
 
 /**
@@ -978,6 +993,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     hdf5_dump(topo, "sol", myfield);
     // stop the whole timer
     if (_prof != NULL) _prof->stop("solve");
+    END_FUNC;
 }
 
 /**
@@ -1014,6 +1030,7 @@ void Solver::dothemagic_rhs_real() {
             }
         }
     }
+    END_FUNC;
 }
 
 /**
@@ -1055,6 +1072,7 @@ void Solver::dothemagic_rhs_complex_nmult0() {
             }
         }
     }
+    END_FUNC;
 }
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
@@ -1063,6 +1081,7 @@ void Solver::dothemagic_rhs_complex_nmult0() {
 void Solver::dothemagic_rhs_complex_nmult1() {
     BEGIN_FUNC;
     FLUPS_CHECK(false, "not implemented yet", LOCATION);
+    END_FUNC;
 }
 
 /**
@@ -1072,6 +1091,7 @@ void Solver::dothemagic_rhs_complex_nmult1() {
 void Solver::dothemagic_rhs_complex_nmult2() {
     BEGIN_FUNC;
     FLUPS_CHECK(false, "not implemented yet", LOCATION);
+    END_FUNC;
 }
 
 /**
@@ -1081,4 +1101,5 @@ void Solver::dothemagic_rhs_complex_nmult2() {
 void Solver::dothemagic_rhs_complex_nmult3() {
     BEGIN_FUNC;
     FLUPS_CHECK(false, "not implemented yet", LOCATION);
+    END_FUNC;
 }

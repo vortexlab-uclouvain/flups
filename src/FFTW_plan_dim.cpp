@@ -85,10 +85,12 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
+    END_FUNC;
 }
 FFTW_plan_dim::~FFTW_plan_dim() {
     BEGIN_FUNC;
     if (_plan != NULL) fftw_destroy_plan(_plan);
+    END_FUNC;
 }
 
 /**
@@ -132,6 +134,7 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
     }
+    END_FUNC;
 }
 
 /**
@@ -224,6 +227,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     } else {
         FLUPS_ERROR("unable to init the solver required", LOCATION);
     }
+    END_FUNC;
 }
 
 /**
@@ -299,6 +303,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             FLUPS_ERROR("unable to init the solver required", LOCATION);
         }
     }
+    END_FUNC;
 }
 
 /**
@@ -346,6 +351,7 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     /** - Get the #_imult factor */
     //-------------------------------------------------------------------------
     _imult = false;
+    END_FUNC;
 }
 
 /**
@@ -388,6 +394,7 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     /** - Get the #_imult */
     //-------------------------------------------------------------------------
     _imult = false;
+    END_FUNC;
 }
 
 /**
@@ -411,6 +418,7 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
     } else if (_type == PERPER || _type == UNBUNB) {
         _allocate_plan_complex(topo, data);
     }
+    END_FUNC;
 }
 
 /**
@@ -487,6 +495,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
         FLUPS_INFO("plan created with the many interface for non-unit stride)");
     }
     FLUPS_INFO("------------------------------------------");
+    END_FUNC;
 }
 
 /**
@@ -557,6 +566,7 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo",LOCATION);
         _plan = fftw_plan_dft_1d(_n_in, (fftw_complex*)data, (fftw_complex*)data, _sign, FFTW_FLAG);
     }
+    END_FUNC;
 }
 
 /**
@@ -646,6 +656,7 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
             }
         }
     }
+    END_FUNC;
 }
 
 /**
@@ -724,4 +735,5 @@ void FFTW_plan_dim::disp() {
     }
 
     FLUPS_INFO("------------------------------------------");
+    END_FUNC;
 }
