@@ -98,6 +98,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
         }
     }
     FLUPS_INFO("nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",_nf,_axis,_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
+    END_FUNC;
 }
 
 /**
@@ -131,6 +132,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
             if (oid_global < onglob) end[id] = i + 1;
         }
     }
+    END_FUNC;
 }
 
 /**

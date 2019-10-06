@@ -183,6 +183,7 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
     FLUPS_INFO_DISP(tmp);
 };
 #define BEGIN_FUNC {FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);};
+#define END_FUNC {FLUPS_INFO(">>> leaving %s from %s at line %d", __func__, __FILE__, __LINE__);};
 #else
 static inline void FLUPS_INFO_DISP(std::string a) {
     (void(0));
@@ -230,6 +231,7 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
 //     ((void)0);
 // };
 #define BEGIN_FUNC { ((void)0);};
+#define END_FUNC { ((void)0);};
 #endif
 
 //=============================================================================

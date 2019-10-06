@@ -214,6 +214,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         fclose(file);
     }
 #endif
+    END_FUNC;
 }
 
 /**
@@ -247,6 +248,7 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
         if (_iBlockSize[id] != NULL) fftw_free(_iBlockSize[id]);
         if (_oBlockSize[id] != NULL) fftw_free(_oBlockSize[id]);
     }
+    END_FUNC;
 }
 
 
@@ -304,6 +306,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     }
 
     fftw_free(countPerRank);
+    END_FUNC;
 }
 
 /**
@@ -564,6 +567,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
                 const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onmem, nf);
                 // do the copy
+#pragma vector always
                 for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
                     my_v[my_idx + i0 * stride] = data[buf_idx + i0];
                 }
@@ -578,10 +582,22 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
                 const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
                 const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onmem, nf);
                 // do the copy
-                for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
-                    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
-                    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
-                }
+                // This loop is the most painful ! no vectorization possible when stride>2, but substantial speedup if stride==; this is why we split.
+		const int nmax = oBlockSize[ax0][bid];
+		if(stride==2){
+#pragma vector always
+                	for (int i0 = 0; i0 < 2*nmax; i0++) {
+                	    my_v[my_idx + i0] = data[buf_idx + i0];
+			    //memcpy(&my_v[my_idx+i0*2],&data[buf_idx+i0*2],2*sizeof(double));
+			}
+		}else{
+#pragma ivdep
+                	for (int i0 = 0; i0 < nmax; i0++) {
+                    	    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
+                    	    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
+                            // memcpy(&my_v[my_idx+i0*stride],&data[buf_idx+i0*2],2*sizeof(double));
+                        }
+		}
             }
         }
     }
@@ -590,6 +606,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         _prof->stop("buf2mem");
         _prof->stop("reorder");
     }
+    END_FUNC;
 }
 
 void SwitchTopo_a2a::disp() const {
@@ -720,4 +737,5 @@ void SwitchTopo_a2a_test() {
     // delete (switchtopo);
     // delete (topo);
     // delete (topobig);
+    END_FUNC;
 }

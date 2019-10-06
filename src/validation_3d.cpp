@@ -347,9 +347,17 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     err2 = sqrt(err2);
 
     char filename[512];
-    sprintf(filename, "data/%s_%d%d%d%d%d%d_typeGreen=%d.txt",__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
+    string folder = "./data";
+
+        
+    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt",folder.c_str(),__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
 
     if (rank == 0) {
+        struct stat st = {0};
+        if (stat(folder.c_str(), &st) == -1) {
+                mkdir(folder.c_str(), 0770);
+        }
+
         FILE *myfile = fopen(filename, "a+");
         if (myfile != NULL) {
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);

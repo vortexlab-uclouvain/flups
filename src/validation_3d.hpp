@@ -26,6 +26,10 @@
 #ifndef VALIDATION_3D_HPP
 #define VALIDATION_3D_HPP
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "Solver.hpp"
 #include "defines.hpp"
 #include "expint.hpp"

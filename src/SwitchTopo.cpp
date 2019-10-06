@@ -70,6 +70,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         _nByBlock[id] = my_gcd;
     }
     fftw_free(onProc);
+    END_FUNC;
 }
 
 /**
@@ -126,6 +127,7 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
             destTag[ib] = localIndex(0, local_bid[0], local_bid[1], local_bid[2], 0, dest_nBlock, 1);
         }
     }
+    END_FUNC;
 }
 /**
  * @brief compute the size of the blocks inside the given topology
@@ -157,6 +159,7 @@ void SwitchTopo::_cmpt_blockSize(const int nBlock[3], const int blockIDStart[3],
             }
         }
     }
+    END_FUNC;
 }
 
 /**
@@ -201,6 +204,7 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
         // do some checks
         FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
     }
+    END_FUNC;
 }
 
 void SwitchTopo::_cmpt_commSplit(){
@@ -269,6 +273,7 @@ void SwitchTopo::_cmpt_commSplit(){
     // free the vectors
     fftw_free(colors);
     fftw_free(inMyGroup);
+    END_FUNC;
 }
 
 /**
@@ -328,4 +333,5 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
             }
         }
     }
+    END_FUNC;
 }

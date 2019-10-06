@@ -180,6 +180,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
         (*size)[i+1] = startSize[1] * pow(2,i/3);
         (*size)[i+2] = startSize[2] * pow(2,i/3);
     }
+    END_FUNC;
     return 0;
 }
 
@@ -189,14 +190,14 @@ int main(int argc, char *argv[]) {
     int nsolve, nsample, predef;
     int nprocs[3];
     double L[3];
-    int *size;
+    int *size = NULL;
     FLUPS::GreenType kernel;
     FLUPS::BoundaryType bcdef[3][2];
     
     int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
 
     if (status) exit(status);
-    if (!size){
+    if (size==NULL){
         exit(0); //we just printed help
     }     
 
