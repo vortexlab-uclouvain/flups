@@ -46,7 +46,7 @@ static void print_help(){
     printf("This is FLUPS validation code: \n");
     printf(" --help  , -h :                 print this message\n");
     printf(" --nprocs, -np Ni Nj Nk :       Ni,Nj,Nk is the number of MPI processes in each direction\n");
-    printf(" --resolution, -res R :         R is the number of cells per unit length \n");
+    printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of cells in each direction \n");
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
@@ -59,7 +59,7 @@ static void print_help(){
 int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS::BoundaryType bcdef[3][2], int *predef, FLUPS::GreenType *kernel, int *nsample, int **size, int *nsolve){
     BEGIN_FUNC;
 
-    int startSize = d_startSize;
+    int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
     //assigning default values
     for (int i = 0; i < 3; i++) {
@@ -124,17 +124,19 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
             }  
             i++;
         } else if ((arg == "-res")|| (arg== "--resolution") ) {
-            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                startSize = atoi(argv[i+1]); 
-                if(startSize<1){
-                    fprintf(stderr, "resolution must be >0\n");
+            for (int j = 0; j<3;j++){
+                if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+                    startSize[j] = atoi(argv[i+j+1]); 
+                    if(startSize[j]<=0.0){
+                        fprintf(stderr, "res must be >0\n");
+                        return 1;
+                    }
+                } else { //Missing argument
+                    fprintf(stderr, "missing argument in -res\n");
                     return 1;
-                }
-            } else { //Missing argument
-                fprintf(stderr, "missing --resolution\n");
-                return 1;
-            }  
-            i++;
+                }  
+            }
+            i+=3;
         }  else if ((arg == "-ns")|| (arg== "--nsolve") ) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
                 *nsolve = atoi(argv[i+1]); 
@@ -171,10 +173,12 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     }
     
     // finilizing allocations
-    *size =(int*) malloc((*nsample) * sizeof(int));
+    *size =(int*) malloc((*nsample) * 3 * sizeof(int));
     
-    for (int i = 0; i<*nsample ; i++){
-        (*size)[i] = startSize * pow(2,i);
+    for (int i = 0; i<*nsample*3 ; i+=3){
+        (*size)[i]   = startSize[0] * pow(2,i/3);
+        (*size)[i+1] = startSize[1] * pow(2,i/3);
+        (*size)[i+2] = startSize[2] * pow(2,i/3);
     }
     END_FUNC;
     return 0;
@@ -221,7 +225,7 @@ int main(int argc, char *argv[]) {
             FLUPS_INFO("  --kernel: %d", kernel);
             FLUPS_INFO("  --nsolve: %d", nsolve);
             for (int i = 0; i < nsample; i++) {
-                FLUPS_INFO("   -> sample %d: %d", i + 1, size[i]);
+                FLUPS_INFO("   -> sample %d: %d %d %d", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
             }
         }
 
@@ -231,7 +235,7 @@ int main(int argc, char *argv[]) {
             for (int ip = 0; ip < 3; ip++) {
                 valCase.L[ip]       = L[ip];
                 valCase.nproc[ip]   = nprocs[ip];
-                valCase.nglob[ip]   = size[is] * L[ip];
+                valCase.nglob[ip]   = size[is*3+ip];
                 valCase.mybc[ip][0] = bcdef[ip][0];
                 valCase.mybc[ip][1] = bcdef[ip][1];
             }
