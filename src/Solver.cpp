@@ -888,65 +888,73 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
 #ifdef DUMP_H5
     hdf5_dump(topo, "rhs", mydata);
 #endif
-    //-------------------------------------------------------------------------
-    /** - go to Fourier */
-    //-------------------------------------------------------------------------
-    for (int ip = 0; ip < 3; ip++) {
-        // go to the correct topo
-        _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
-        // run the FFT
-        if (_prof != NULL) _prof->start("fftw");
-        _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
-        if (_prof != NULL) _prof->stop("fftw");
-        // get if we are now complex
-        if (_plan_forward[ip]->isr2c()) {
-            _topo_hat[ip]->switch2complex();
+    if(type != FFT_BACKWARD){
+        //-------------------------------------------------------------------------
+        /** - go to Fourier */
+        //-------------------------------------------------------------------------
+        for (int ip = 0; ip < 3; ip++) {
+            // go to the correct topo
+            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
+            // run the FFT
+            if (_prof != NULL) _prof->start("fftw");
+            _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
+            if (_prof != NULL) _prof->stop("fftw");
+            // get if we are now complex
+            if (_plan_forward[ip]->isr2c()) {
+                _topo_hat[ip]->switch2complex();
+            }
         }
     }
+
 #ifdef DUMP_H5
     hdf5_dump(_topo_hat[2], "rhs_h", mydata);
 #endif
-    //-------------------------------------------------------------------------
-    /** - Perform the magic */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("domagic");
-    if (type == SRHS) {
-        if (!_topo_hat[2]->isComplex()) {
-            //-> there is only the case of 3dirSYM in which we could stay real for the whole process
-            if (_nbr_imult == 0)
-                dothemagic_rhs_real();
-            else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+
+    if(type != FFT_FORWARD && type != FFT_BACKWARD){
+        //-------------------------------------------------------------------------
+        /** - Perform the magic */
+        //-------------------------------------------------------------------------
+        if (_prof != NULL) _prof->start("domagic");
+        if (type == SRHS) {
+            if (!_topo_hat[2]->isComplex()) {
+                //-> there is only the case of 3dirSYM in which we could stay real for the whole process
+                if (_nbr_imult == 0)
+                    dothemagic_rhs_real();
+                else
+                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+            } else {
+                if (_nbr_imult == 0)
+                    dothemagic_rhs_complex_nmult0();
+                // else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1();
+                // else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
+                // else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
+                else
+                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+            }
         } else {
-            if (_nbr_imult == 0)
-                dothemagic_rhs_complex_nmult0();
-            // else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1();
-            // else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2();
-            // else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3();
-            else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+            FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
         }
-    } else {
-        FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
+
+        if (_prof != NULL) _prof->stop("domagic");
+        // io if needed
+        hdf5_dump(_topo_hat[2], "sol_h", mydata);
     }
 
-    if (_prof != NULL) _prof->stop("domagic");
-    // io if needed
-    hdf5_dump(_topo_hat[2], "sol_h", mydata);
-
-    //-------------------------------------------------------------------------
-    /** - go back to reals */
-    //-------------------------------------------------------------------------
-    for (int ip = 2; ip >= 0; ip--) {
-        if (_prof != NULL) _prof->start("fftw");
-        _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
-        if (_prof != NULL) _prof->stop("fftw");
-        // get if we are now complex
-        if (_plan_forward[ip]->isr2c()) {
-            _topo_hat[ip]->switch2real();
+    if(type != FFT_FORWARD){
+        //-------------------------------------------------------------------------
+        /** - go back to reals */
+        //-------------------------------------------------------------------------
+        for (int ip = 2; ip >= 0; ip--) {
+            if (_prof != NULL) _prof->start("fftw");
+            _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
+            if (_prof != NULL) _prof->stop("fftw");
+            // get if we are now complex
+            if (_plan_forward[ip]->isr2c()) {
+                _topo_hat[ip]->switch2real();
+            }
+            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
         }
-        _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
-    }
+    }   
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */

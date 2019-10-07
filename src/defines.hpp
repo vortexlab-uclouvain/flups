@@ -453,7 +453,9 @@ enum SolverType {
     SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
     VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
     ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    DIV,   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    FFT_FORWARD,   /**<@brief only execute the forward fft as planned */
+    FFT_BACKWARD   /**<@brief only executes the backward fft as planned */
 };
 
 class Solver;

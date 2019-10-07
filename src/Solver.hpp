@@ -180,6 +180,15 @@ class FLUPS::Solver {
     /**@} */
 
     /**
+     * @name Solver info
+     * 
+     * @{
+     */
+    int get_locMemsize(int i, int topo)  { return _topo_hat[topo]->nloc(i); }
+    int get_globMemsize(int i, int topo) { return _topo_hat[topo]->nglob(i); }
+    /**@} */
+
+    /**
      * @name Green's function
      * 
      * @{
