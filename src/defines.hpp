@@ -39,7 +39,7 @@
 // #define DUMP_H5
 #undef DUMP_H5
 
-#define FFTW_FLAG FFTW_MEASURE
+#define FFTW_FLAG FFTW_PATIENT
 
 //=============================================================================
 // LOCATORS

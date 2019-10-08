@@ -41,8 +41,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     // //-------------------------------------------------------------------------
     // /** - Initialize the OpenMP threads */
     // //-------------------------------------------------------------------------
-    // fftw_init_threads();
-    // fftw_plan_with_nthreads(omp_get_max_threads());
+    fftw_init_threads();
 
     //-------------------------------------------------------------------------
     /** - Check if we can use the omp_malloc with the predefined alignement */
@@ -219,7 +218,7 @@ Solver::~Solver() {
     if (_data != NULL) fftw_free(_data);
 
     //cleanup
-    // fftw_cleanup_threads();
+    fftw_cleanup_threads();
     fftw_cleanup();
     END_FUNC;
 }
