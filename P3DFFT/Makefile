@@ -23,10 +23,11 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= ../make_arch/make.osx_gcc
+ARCH_FILE ?= make.osx_gcc
 #DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
-include $(ARCH_FILE)
+include ../make_arch/$(ARCH_FILE)
+include make_arch/$(ARCH_FILE)
 
 #CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE 
 
@@ -40,9 +41,8 @@ P3DFFTDIR := ./
 PREFIX ?= ./
 NAME := flups_vs_p3dfft
 # executable naming
-TARGET_EXE := $(NAME)
-# TARGET_EXE_A2A := $(NAME)_validation_a2a
-# TARGET_EXE_NB := $(NAME)_validation_nb
+TARGET_EXE_A2A := $(NAME)_a2a
+TARGET_EXE_NB := $(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -55,11 +55,12 @@ INC := -I$(SRC_DIR)
 #-----------------------------------------------------------------------------
 #---- FLUPS
 INC += -I$(FLUPSDIR)/include
-LIB += -L$(FLUPSDIR)/lib -lflups_a2a -Wl,-rpath,$(FLUPSDIR)/lib
+LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
+LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
 
 #---- P3DFFT
 INC += -I$(P3DFFTDIR)/include
-LIB += -L$(P3DFFTDIR)/lib -lp3dfft -Wl,-rpath,$(P3DFFTDIR)/lib -lmpi_mpifh -lgfortran 
+LIB += -L$(P3DFFTDIR)/lib -lp3dfft
 
 #---- FFTW
 INC += -I$(FFTWDIR)/include
@@ -88,16 +89,20 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
 all: default
 
-$(TARGET_EXE): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
+$(TARGET_EXE_A2A): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
 
-install: $(TARGET_EXE)
+$(TARGET_EXE_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
+
+install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 	mkdir -p $(PREFIX)/bin
-	cp $(TARGET_EXE) $(PREFIX)/bin
+	cp $(TARGET_EXE_A2A) $(PREFIX)/bin
+	cp $(TARGET_EXE_NB) $(PREFIX)/bin
 
 test:
 	@echo $(SRC)
@@ -106,12 +111,14 @@ test:
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
-	rm -f $(TARGET_EXE)
+	rm -f $(TARGET_EXE_A2A)
+	rm -f $(TARGET_EXE_NB)
 	
 destroy:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(OBJ_DIR)/*.d
-	rm -f $(TARGET_EXE)
+	rm -f $(TARGET_EXE_A2A)
+	rm -f $(TARGET_EXE_NB)
 	rm -f $(OBJ_DIR)/*
 	
 info:

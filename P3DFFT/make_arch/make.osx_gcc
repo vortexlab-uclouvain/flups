@@ -1,0 +1,1 @@
+LDFLAGS += -lmpi_mpifh -lgfortran  

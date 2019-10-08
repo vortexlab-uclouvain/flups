@@ -6,3 +6,8 @@ prof
 .vscode
 doc/html
 doc/latex
+*.x
+*.xlsx
+*.log
+*.txt
+*.code-workspace
