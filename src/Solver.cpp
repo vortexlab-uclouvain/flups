@@ -55,7 +55,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     for (int i = 1; i < 10 * alignSize; i++) {
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
-            if (i < alignSize) {
+            if (i > alignSize) {
                 FLUPS_ERROR("The FFTW alignement has to be bigger or = to FLUPS, please change accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
             }
             // else, just stop and advise the user to change
@@ -65,6 +65,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     }
     if (_fftwalignment != FLUPS_ALIGNMENT) {
         FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+        FLUPS_WARNING("Consider using an alignment of 16 for the AVX and 32 for the AVX2", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
     } else {
         FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT);
     }
@@ -74,7 +75,11 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
-    _prof = prof;
+    if (prof != NULL) {
+        _prof = prof;
+    } else {
+        _prof = NULL;
+    }
     if (_prof != NULL) _prof->create("init", "root");
     if (_prof != NULL) _prof->create("setup", "root");
     if (_prof != NULL) _prof->create("alloc_data", "setup");
@@ -821,8 +826,6 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
     FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
-    FLUPS_CHECK(FLUPS_ISALIGNED(field), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
-    FLUPS_CHECK(FLUPS_ISALIGNED(rhs), "pointer no aligned to FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
 
     opt_double_ptr       myfield = field;
     opt_double_ptr       mydata  = _data;
