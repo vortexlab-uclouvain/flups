@@ -95,6 +95,8 @@ class Profiler {
     void stop(string name);
     void addMem(string name,size_t mem);
 
+    double get_timeAcc(const std::string ref);
+
     void disp();
     void disp(const std::string ref);
 };

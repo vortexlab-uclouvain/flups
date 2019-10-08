@@ -11,10 +11,10 @@ CXX = g++-9 -I$(MPIDIR)/include/ -L$(MPIDIR)/lib/ -lmpi -lopen-rte -lopen-pal -l
 
 # set the flag (optimisation or not)
 
-# CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE 
+# CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE  -DPERF_VERBOSE
 # CXXFLAGS := -O3 -g -Wall -std=c++17 -fdump-ipa-switch-all -fdump-lang-switch-all -fopt-info-optall=optinfo.txt
 # CXXFLAGS := -O3 -g -DNDEBUG -std=c++17 -fopt-info-optall=optinfo.txt
-CXXFLAGS := -O3 -std=c++17 -DNDEBUG
+CXXFLAGS := -O3 -std=c++17 -DNDEBUG -DPERF_VERBOSE
 
 
 #---------------------------------------------------------
