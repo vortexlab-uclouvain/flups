@@ -37,8 +37,8 @@ TARGET_EXE := $(NAME)_validation
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
 # library naming
-TARGET_LIB_A2A := build/lib$(NAME)_a2a.so
-TARGET_LIB_NB := build/lib$(NAME)_nb.so
+TARGET_LIB_A2A := build/lib$(NAME)_a2a
+TARGET_LIB_NB  := build/lib$(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -79,7 +79,7 @@ $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp
 ################################################################################
 default: $(TARGET_EXE)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) lib_static
 
 validation: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
@@ -87,7 +87,11 @@ all2all: $(TARGET_EXE_A2A)
 
 nonblocking: $(TARGET_EXE_NB)
 
-lib: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
+
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
+
+lib: lib_static
 
 $(TARGET_EXE): $(OBJ_A2A)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
@@ -98,19 +102,33 @@ $(TARGET_EXE_A2A): $(OBJ_A2A)
 $(TARGET_EXE_NB): $(OBJ_NB)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_A2A): $(OBJ_A2A)
+$(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_NB): $(OBJ_NB)
+$(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
+$(TARGET_LIB_A2A).a: $(OBJ_A2A)
+	ar rvs $(LDFLAGS) $@  $^  
 
-install: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
+$(TARGET_LIB_NB).a: $(OBJ_NB)
+	ar rvs $(LDFLAGS) $@  $^  
+
+install_dynamic: lib_dynamic
 	mkdir -p $(PREFIX)/lib
 	mkdir -p $(PREFIX)/include
-	cp $(TARGET_LIB_A2A) $(PREFIX)/lib
-	cp $(TARGET_LIB_NB) $(PREFIX)/lib
+	cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
+	cp $(TARGET_LIB_NB).so $(PREFIX)/lib
 	cp $(HEAD) $(PREFIX)/include
+
+install_static: lib_static
+	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/include
+	cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
+	cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	cp $(HEAD) $(PREFIX)/include
+	
+install: install_static
 
 test:
 	@echo $(SRC)
@@ -120,8 +138,8 @@ clean:
 	rm -f $(TARGET_EXE)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_LIB_A2A)
-	rm -f $(TARGET_LIB_NB)
+	rm -f $(TARGET_LIB_A2A)*
+	rm -f $(TARGET_LIB_NB)*
 
 destroy:
 	rm -f $(OBJ_DIR)/*.o
@@ -129,8 +147,8 @@ destroy:
 	rm -f $(TARGET_EXE)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_LIB_A2A)
-	rm -f $(TARGET_LIB_NB)
+	rm -f $(TARGET_LIB_A2A)*
+	rm -f $(TARGET_LIB_NB)*
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib

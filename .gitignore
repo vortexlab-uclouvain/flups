@@ -1,5 +1,7 @@
 data
 build
+include
+lib
 prof
 .vscode
 doc/html
