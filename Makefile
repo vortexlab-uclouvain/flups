@@ -109,10 +109,10 @@ $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $(LDFLAGS) $@  $^  
+	ar rvs $@  $^  
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $(LDFLAGS) $@  $^  
+	ar rvs $@  $^  
 
 install_dynamic: lib_dynamic
 	mkdir -p $(PREFIX)/lib
