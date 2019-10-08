@@ -358,7 +358,8 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
 void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "nf have to be the same %d vs %d", topo_in->nf(), topo_out->nf(), LOCATION);
+    // the nf will always be the max of both topologies !!
+    const int nf = std::max(topo_in->nf(),topo_out->nf());
 
     // enable the multithreading for this plan
     fftw_plan_with_nthreads(omp_get_max_threads());
@@ -395,15 +396,16 @@ void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, con
     }
     // display some info
     FLUPS_INFO("shuffle: setting up the shuffle form %d to %d",topo_in->axis(),topo_out->axis());
-    FLUPS_INFO("shuffle: nf = %d, blocksize = %d %d %d",topo_out->nf(),bSize[0],bSize[1],bSize[2]);
+    FLUPS_INFO("shuffle: nf = %d, blocksize = %d %d %d",nf,bSize[0],bSize[1],bSize[2]);
     FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d",dims[0].n,dims[0].is,dims[0].os);
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d",dims[1].n,dims[1].is,dims[1].os);
 
     // plan the real or complex plan
-    if (topo_out->nf() == 1) {
+    // the nf is driven by the OUT topology ALWAYS
+    if (nf == 1) {
         *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
-    } else if (topo_out->nf() == 2) {
+    } else if (nf == 2) {
         *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
     }
