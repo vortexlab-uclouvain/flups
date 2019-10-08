@@ -165,7 +165,7 @@ void Topology::disp() const {
 
 void Topology::disp_rank() const{
     // we only focus on the real size = local size
-    double* rankdata = (double*) fftw_malloc(sizeof(double)*this->locsize());
+    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize());
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     for(int i=0; i<this->locsize(); i++){

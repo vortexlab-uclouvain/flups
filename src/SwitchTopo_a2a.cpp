@@ -102,21 +102,21 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     int  iblockIDStart[3];
     int  oblockIDStart[3];
-    int* inBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
-    int* onBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
+    int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* onBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
 
     _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
     _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
 
     // allocte the block size
     for (int id = 0; id < 3; id++) {
-        _iBlockSize[id] = (int*)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-        _oBlockSize[id] = (int*)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
+        _iBlockSize[id] = (int*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
+        _oBlockSize[id] = (int*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
     }
 
     // allocate the destination ranks
-    _i2o_destRank = (opt_int_ptr)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-    _o2i_destRank = (opt_int_ptr)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
+    _i2o_destRank = (opt_int_ptr)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
+    _o2i_destRank = (opt_int_ptr)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
 
     // get the send destination ranks in the ouput topo
     _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
@@ -126,8 +126,8 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
 
     // free the temp arrays
-    fftw_free(inBlockEachProc);
-    fftw_free(onBlockEachProc);
+    flups_free(inBlockEachProc);
+    flups_free(onBlockEachProc);
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm */
@@ -155,11 +155,11 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     // if we are all to all, clean the start array
     if (_is_all2all) {
         if (_i2o_start != NULL) {
-            fftw_free(_i2o_start);
+            flups_free(_i2o_start);
             _i2o_start = NULL;
         }
         if (_o2i_start != NULL) {
-            fftw_free(_o2i_start);
+            flups_free(_o2i_start);
             _o2i_start = NULL;
         }
     }
@@ -233,33 +233,33 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 
     FLUPS_INFO("freeing the arrays");
 
-    if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
-    if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
+    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
+    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
 
-    if (_i2o_count != NULL) fftw_free(_i2o_count);
-    if (_o2i_count != NULL) fftw_free(_o2i_count);
-    if (_i2o_start != NULL) fftw_free(_i2o_start);
-    if (_o2i_start != NULL) fftw_free(_o2i_start);
+    if (_i2o_count != NULL) flups_free(_i2o_count);
+    if (_o2i_count != NULL) flups_free(_o2i_count);
+    if (_i2o_start != NULL) flups_free(_i2o_start);
+    if (_o2i_start != NULL) flups_free(_o2i_start);
 
-    if (_sendBuf != NULL) fftw_free((double*)_sendBuf);
-    if (_recvBuf != NULL) fftw_free((double*)_recvBuf);
+    if (_sendBuf != NULL) flups_free((double*)_sendBuf);
+    if (_recvBuf != NULL) flups_free((double*)_recvBuf);
 
     for (int id = 0; id < 3; id++) {
-        if (_iBlockSize[id] != NULL) fftw_free(_iBlockSize[id]);
-        if (_oBlockSize[id] != NULL) fftw_free(_oBlockSize[id]);
+        if (_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
+        if (_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
     }
 
     if (_i2o_shuffle != NULL) {
         for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
             fftw_destroy_plan(_i2o_shuffle[ib]);
         }
-        fftw_free(_i2o_shuffle);
+        flups_free(_i2o_shuffle);
     }
     if (_o2i_shuffle != NULL) {
         for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
             fftw_destroy_plan(_o2i_shuffle[ib]);
         }
-        fftw_free(_o2i_shuffle);
+        flups_free(_o2i_shuffle);
     }
 
     END_FUNC;
@@ -281,21 +281,21 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     int subsize;
     MPI_Comm_size(_subcomm, &subsize);
     // allocate the second layer of buffers
-    _sendBuf = (double**)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(double*));
-    _recvBuf = (double**)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(double*));
+    _sendBuf = (double**)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(double*));
+    _recvBuf = (double**)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(double*));
 
     const bool doShuffle=(_topo_in->axis() != _topo_out->axis());
     
     if (doShuffle) {
-        _i2o_shuffle = (fftw_plan*)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(fftw_plan));
-        _o2i_shuffle = (fftw_plan*)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(fftw_plan));
+        _i2o_shuffle = (fftw_plan*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(fftw_plan));
+        _o2i_shuffle = (fftw_plan*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(fftw_plan));
     } else {
         _i2o_shuffle = NULL;
         _o2i_shuffle = NULL;
     }
 
     // link the buff of every block to the data initialized
-    int*      countPerRank = (int*)fftw_malloc(subsize * sizeof(int));
+    int*      countPerRank = (int*)flups_malloc(subsize * sizeof(int));
     const int blockSize    = get_blockMemSize();
 
     std::memset(countPerRank, 0, subsize * sizeof(int));
@@ -343,7 +343,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         }
     }
 
-    fftw_free(countPerRank);
+    flups_free(countPerRank);
     END_FUNC;
 }
 
@@ -668,7 +668,7 @@ void SwitchTopo_a2a_test() {
         topo->disp();
         topobig->disp();
 
-        double* data = (double*)fftw_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
         const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -687,8 +687,8 @@ void SwitchTopo_a2a_test() {
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
         size_t         max_mem    = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff  = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
@@ -704,9 +704,9 @@ void SwitchTopo_a2a_test() {
 
         hdf5_dump(topo, "test_real_returned", data);
 
-        fftw_free(data);
-        fftw_free(send_buff);
-        fftw_free(recv_buff);
+        flups_free(data);
+        flups_free(send_buff);
+        flups_free(recv_buff);
         delete (switchtopo);
         delete (topo);
         delete (topobig);
@@ -718,7 +718,7 @@ void SwitchTopo_a2a_test() {
         Topology* topo    = new Topology(0, nglob, nproc, true, NULL, 1);
         Topology* topobig = new Topology(1, nglob_big, nproc_big, true, NULL, 1);
 
-        double* data = (double*)fftw_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
         const int ax0      = topo->axis();
         const int nmem2[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
@@ -744,8 +744,8 @@ void SwitchTopo_a2a_test() {
         SwitchTopo* switchtopo               = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
         switchtopo->disp();
         size_t         max_mem   = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+        opt_double_ptr send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
@@ -759,7 +759,7 @@ void SwitchTopo_a2a_test() {
 
         hdf5_dump(topo, "test_complex_returned", data);
 
-        fftw_free(data);
+        flups_free(data);
         delete (switchtopo);
         delete (topo);
         delete (topobig);

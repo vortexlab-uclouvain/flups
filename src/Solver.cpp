@@ -48,7 +48,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     //-------------------------------------------------------------------------
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
-    double *data      = (double *)fftw_malloc(10 * alignSize * sizeof(double));
+    double *data      = (double *)flups_malloc(10 * alignSize * sizeof(double));
     // initialize the fftw alignement
     _fftwalignment = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
     // get the fftw alignement and stop if it is lower than the one we assumed
@@ -69,7 +69,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
         FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT);
     }
 
-    fftw_free(data);
+    flups_free(data);
 
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -206,7 +206,7 @@ void Solver::setup() {
 Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
-    if (_green != NULL) fftw_free(_green);
+    if (_green != NULL) flups_free(_green);
 
     _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
 
@@ -215,7 +215,7 @@ Solver::~Solver() {
     _delete_plans(_plan_backward);
     _delete_topologies(_topo_hat);
     _delete_switchtopos(_switchtopo);
-    if (_data != NULL) fftw_free(_data);
+    if (_data != NULL) flups_free(_data);
 
     //cleanup
     fftw_cleanup_threads();
@@ -527,8 +527,8 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %d should be >0", max_mem, LOCATION);
 
-    *send_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr)fftw_malloc(max_mem * sizeof(double));
+    *send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+    *recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
     std::memset(*send_buff, 0, max_mem * sizeof(double));
     std::memset(*recv_buff, 0, max_mem * sizeof(double));
 
@@ -539,8 +539,8 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     END_FUNC;
 }
 void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-    fftw_free(*send_buff);
-    fftw_free(*recv_buff);
+    flups_free(*send_buff);
+    flups_free(*recv_buff);
     (*send_buff) = NULL;
     (*recv_buff) = NULL;
 }
@@ -583,7 +583,7 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     }
 
     FLUPS_INFO("Complex memory allocation, size = %ld", size_tot);
-    (*data) = (double *)fftw_malloc(size_tot * sizeof(double));
+    (*data) = (double *)flups_malloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));
 

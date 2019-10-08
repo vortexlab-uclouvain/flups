@@ -421,6 +421,19 @@ typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
+
+//=============================================================================
+// MEMORY ALLOCATION AND FREE
+//=============================================================================
+static inline void* flups_malloc(size_t size){
+    return _mm_malloc(size,FLUPS_ALIGNMENT);
+}
+
+static inline void flups_free(void* data){
+    return _mm_free(data);
+}
+
+
 namespace FLUPS {
 /**
      * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded

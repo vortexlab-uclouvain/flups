@@ -40,7 +40,7 @@ void SwitchTopo::_cmpt_nByBlock(){
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
 
-    int* onProc = (int*)fftw_malloc(comm_size * sizeof(int));
+    int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
@@ -69,7 +69,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         // store it as the block dimension
         _nByBlock[id] = my_gcd;
     }
-    fftw_free(onProc);
+    flups_free(onProc);
     END_FUNC;
 }
 
@@ -217,8 +217,8 @@ void SwitchTopo::_cmpt_commSplit(){
     int mycolor = rank;
     
     // allocate colors and inMyGroup array
-    int*  colors    = (int*)fftw_malloc(comm_size * sizeof(int));
-    bool* inMyGroup = (bool*)fftw_malloc(comm_size * sizeof(bool));
+    int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
 
     for (int ir = 0; ir < comm_size; ir++) {
         inMyGroup[ir] = false;
@@ -271,8 +271,8 @@ void SwitchTopo::_cmpt_commSplit(){
     MPI_Comm_set_name(_subcomm, commname.c_str());
 
     // free the vectors
-    fftw_free(colors);
-    fftw_free(inMyGroup);
+    flups_free(colors);
+    flups_free(inMyGroup);
     END_FUNC;
 }
 
@@ -300,13 +300,13 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 
     // get the new ranks from my old friends in the old communicator
-    int* newRanks = (int*)fftw_malloc(worldsize * sizeof(int));
+    int* newRanks = (int*)flups_malloc(worldsize * sizeof(int));
     MPI_Allgather(&newrank, 1, MPI_INT, newRanks, 1, MPI_INT, MPI_COMM_WORLD);
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         destRank[ib] = newRanks[destRank[ib]];
     }
-    fftw_free(newRanks);
+    flups_free(newRanks);
 
     //-------------------------------------------------------------------------
     /** - build the size vector of block to each procs    */
@@ -315,8 +315,8 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
         int subsize;
         MPI_Comm_size(_subcomm, &subsize);
         // count the number of blocks to each process
-        (*count) = (int*)fftw_malloc(subsize * sizeof(int));
-        (*start) = (int*)fftw_malloc(subsize * sizeof(int));
+        (*count) = (int*)flups_malloc(subsize * sizeof(int));
+        (*start) = (int*)flups_malloc(subsize * sizeof(int));
         std::memset((*count), 0, subsize * sizeof(int));
         std::memset((*start), 0, subsize * sizeof(int));
         // get the size per block
