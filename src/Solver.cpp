@@ -65,9 +65,10 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     }
     if (_fftwalignment != FLUPS_ALIGNMENT) {
         FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
-        FLUPS_WARNING("Consider using an alignment of 16 for the AVX and 32 for the AVX2", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+        FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)", LOCATION);
     } else {
         FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", _fftwalignment, FLUPS_ALIGNMENT);
+        FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     }
 
     flups_free(data);
