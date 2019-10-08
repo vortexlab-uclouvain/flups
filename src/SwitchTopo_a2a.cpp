@@ -558,12 +558,6 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     }
 
     //-------------------------------------------------------------------------
-    /** - reset the memory to 0 */
-    //-------------------------------------------------------------------------
-    // reset the memory to 0
-    std::memset(v, 0, sizeof(double) * topo_out->memsize());
-
-    //-------------------------------------------------------------------------
     /** - wait for a block and copy when it arrives */
     //-------------------------------------------------------------------------
     // get some counters
