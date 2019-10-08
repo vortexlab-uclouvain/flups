@@ -169,10 +169,24 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
         _prof->create("reorder", "solve");
-        _prof->create("mem2buf", "reorder");
-        _prof->create("buf2mem", "reorder");
-        _prof->create("all_2_all", "reorder");
-        _prof->create("all_2_all_v", "reorder");
+
+        _prof->create("switch0", "reorder");
+        _prof->create("0mem2buf", "switch0");
+        _prof->create("0buf2mem", "switch0");
+        _prof->create("0all_2_all", "switch0");
+        _prof->create("0all_2_all_v", "switch0");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("1mem2buf", "switch1");
+        _prof->create("1buf2mem", "switch1");
+        _prof->create("1all_2_all", "switch1");
+        _prof->create("1all_2_all_v", "switch1");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("2mem2buf", "switch2");
+        _prof->create("2buf2mem", "switch2");
+        _prof->create("2all_2_all", "switch2");
+        _prof->create("2all_2_all_v", "switch2");
     }
 
     //-------------------------------------------------------------------------
@@ -337,7 +351,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
  * -----------------------------------------------
  * We do the following:
  */
-void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
+void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(), "both topologies have to be complex or real", LOCATION);
@@ -347,6 +361,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     // MPI_Comm_rank(_subcomm, &rank);
     MPI_Comm_size(_subcomm, &comm_size);
 
+    string profName;
     if (_prof != NULL) _prof->start("reorder");
 
     //-------------------------------------------------------------------------
@@ -433,6 +448,34 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
     FLUPS_INFO("using %d blocks on send and %d on recv", send_nBlock[0] * send_nBlock[1] * send_nBlock[2], recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2]);
 
+    //Testing if the topo in and out are exactly the same. In that case, we just return.
+    if(_is_all2all){
+
+        // printf("ALL INFOs: nblocks %d %d %d / %d %d %d\n",send_nBlock[0],send_nBlock[1],send_nBlock[2],recv_nBlock[0],recv_nBlock[1],recv_nBlock[2]);
+        // printf("ALL INFOs: istart  %d %d %d / %d %d %d\n",istart[0],istart[1],istart[2],ostart[0],ostart[1],ostart[2]);
+        // printf("ALL INFOs: iend    %d %d %d / %d %d %d\n",iend[0],iend[1],iend[2],oend[0],oend[1],oend[2]);
+        // printf("ALL INFOs: inmem   %d %d %d / %d %d %d\n",inmem[0],inmem[1],inmem[2],onmem[0],onmem[1],onmem[2]);
+        // printf("ALL INFOs: iBSize  %d %d %d / %d %d %d\n",iBlockSize[0],iBlockSize[1],iBlockSize[2],oBlockSize[0],oBlockSize[1],oBlockSize[2]);
+        bool condition;
+        for (int id=0;id<3;id++){
+            condition &= (send_nBlock[id] == recv_nBlock[id]) && \
+                         (istart[id] == ostart[id]) && \
+                         (iend[id] == oend[id]) && \
+                         (inmem[id] == onmem[id]) && \
+                         (iBlockSize[id] == oBlockSize[id]);
+        }
+
+        if(condition){
+            FLUPS_INFO("Skipping switchtopo: in and out topos are the same");
+            if (_prof != NULL) {
+                _prof->stop("reorder");
+            }
+            END_FUNC;
+            return;
+        }
+    }
+
+
     // define important constants
     const int ax0 = topo_in->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -440,7 +483,10 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     const int nf  = topo_in->nf();
 
     if (_prof != NULL) {
-        _prof->start("mem2buf");
+        profName = "switch"+to_string(iswitch);
+        _prof->start(profName);
+        profName = to_string(iswitch) + "mem2buf";
+        _prof->start(profName);
     }
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -489,7 +535,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
         }
     }
     if (_prof != NULL) {
-        _prof->stop("mem2buf");
+        _prof->stop(profName); //mem2buf
     }
 
     //-------------------------------------------------------------------------
@@ -497,27 +543,29 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     //-------------------------------------------------------------------------
     if (_is_all2all) {
         if (_prof != NULL) {
-            _prof->start("all_2_all");
+            profName = to_string(iswitch) + "all_2_all";
+            _prof->start(profName);
         }
         MPI_Alltoall(sendBuf[0], send_count[0], MPI_DOUBLE, recvBuf[0], recv_count[0], MPI_DOUBLE, _subcomm);
         if (_prof != NULL) {
-            _prof->stop("all_2_all");
+            _prof->stop(profName);//all_2_all
             int loc_mem = send_count[0] * comm_size;
-            _prof->addMem("all_2_all", loc_mem*sizeof(double));
+            _prof->addMem(profName, loc_mem*sizeof(double));
         }
 
     } else {
         if (_prof != NULL) {
-            _prof->start("all_2_all_v");
+            profName = to_string(iswitch) + "all_2_all_v";
+            _prof->start(profName);
         }
         MPI_Alltoallv(sendBuf[0], send_count, send_start, MPI_DOUBLE, recvBuf[0], recv_count, recv_start, MPI_DOUBLE, _subcomm);
         if (_prof != NULL) {
-            _prof->stop("all_2_all_v");
+            _prof->stop(profName); //all_2_all_v
             int loc_mem = 0;
             for (int ir = 0; ir < comm_size; ir++) {
                 loc_mem += send_count[ir];
             }
-            _prof->addMem("all_2_all_v", loc_mem*sizeof(double));
+            _prof->addMem(profName, loc_mem*sizeof(double));
         }
     }
 
@@ -535,7 +583,8 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     const int out_axis     = topo_out->axis();
     // for each block
     if (_prof != NULL) {
-        _prof->start("buf2mem");
+        profName = to_string(iswitch) + "buf2mem";
+        _prof->start(profName);
     }
 
 #pragma omp parallel default(none) proc_bind(close) firstprivate(nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, ax0, ax1, ax2)
@@ -603,7 +652,9 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     }
 
     if (_prof != NULL) {
-        _prof->stop("buf2mem");
+        _prof->stop(profName);//buf2mem
+        profName = "switch"+to_string(iswitch);
+        _prof->stop(profName);
         _prof->stop("reorder");
     }
     END_FUNC;
@@ -679,12 +730,12 @@ void SwitchTopo_a2a_test() {
     switchtopo->disp();
 
     // printf("\n\n============ FORWARD =================");
-    switchtopo->execute(data, FLUPS_FORWARD);
+    switchtopo->execute(data, FLUPS_FORWARD, 0);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
     // printf("\n\n============ BACKWARD =================");
-    switchtopo->execute(data, FLUPS_BACKWARD);
+    switchtopo->execute(data, FLUPS_BACKWARD, 0);
 
     hdf5_dump(topo, "test_real_returned", data);
 

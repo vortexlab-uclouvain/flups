@@ -680,7 +680,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            _switchtopo_green[ip]->execute(green, FLUPS_FORWARD);
+            _switchtopo_green[ip]->execute(green, FLUPS_FORWARD, ip);
         }
 
         // execute the plan, if not already spectral
@@ -785,7 +785,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         opt_double_ptr temp_recv;
         _allocate_switchTopo(1, &switchtopo, &temp_send, &temp_recv);
         // execute the switchtopo
-        switchtopo->execute(green, FLUPS_FORWARD);
+        switchtopo->execute(green, FLUPS_FORWARD, 2);
         // dallocate everything
         _deallocate_switchTopo(&switchtopo, &temp_send, &temp_recv);
         delete (switchtopo);
@@ -894,7 +894,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
         //-------------------------------------------------------------------------
         for (int ip = 0; ip < 3; ip++) {
             // go to the correct topo
-            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
+            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD, ip);
             // run the FFT
             if (_prof != NULL) _prof->start("fftw");
             _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
@@ -952,7 +952,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
             if (_plan_forward[ip]->isr2c()) {
                 _topo_hat[ip]->switch2real();
             }
-            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
+            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD, ip);
         }
     }   
 

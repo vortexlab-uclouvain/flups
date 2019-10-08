@@ -176,9 +176,21 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     //-------------------------------------------------------------------------
     if (_prof != NULL) {
         _prof->create("reorder","solve");
-        _prof->create("mem2buf","reorder");
-        _prof->create("buf2mem","reorder");
-        _prof->create("waiting","buf2mem");
+
+        _prof->create("switch0", "reorder");
+        _prof->create("0mem2buf", "switch0");
+        _prof->create("0buf2mem", "switch0");
+        _prof->create("0waiting", "0buf2mem");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("1mem2buf", "switch1");
+        _prof->create("1buf2mem", "switch1");
+        _prof->create("1waiting", "1buf2mem");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("2mem2buf", "switch2");
+        _prof->create("2buf2mem", "switch2");
+        _prof->create("2waiting", "2buf2mem");
     }
 
     //-------------------------------------------------------------------------
@@ -351,12 +363,13 @@ SwitchTopo_nb::~SwitchTopo_nb() {
  * -----------------------------------------------
  * We do the following:
  */
-void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
+void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
+    string profName;
     if (_prof != NULL) _prof->start("reorder");
 
     //-------------------------------------------------------------------------
@@ -459,7 +472,10 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     }
 
     if (_prof != NULL) {
-        _prof->start("mem2buf");
+        profName = "switch"+to_string(iswitch);
+        _prof->start(profName);
+        profName = to_string(iswitch)+"mem2buf";
+        _prof->start(profName);
     }
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -519,7 +535,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     }
 
     if (_prof != NULL) {
-        _prof->stop("mem2buf");
+        _prof->stop(profName); //mem2buf
     }
 
     //-------------------------------------------------------------------------
@@ -536,14 +552,15 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     const int out_axis = topo_out->axis();
     // for each block
     if (_prof != NULL) {
-        _prof->start("buf2mem");
+        profName = to_string(iswitch)+"buf2mem";
+        _prof->start(profName);
     }
 
     // create the status as a shared variable
     MPI_Status status;
 
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, ax0, ax1, ax2, recvRequest)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, ax0, ax1, ax2, recvRequest, profName, iswitch)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
         int bid = -1;
@@ -553,12 +570,13 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
 #pragma omp master
             {
                 if (_prof != NULL) {
-                    _prof->start("waiting");
+                    profName = to_string(iswitch)+"waiting";
+                    _prof->start(profName);
                 }
                 int request_index;
                 MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
                 if (_prof != NULL) {
-                    _prof->stop("waiting");
+                    _prof->stop(profName); //waiting
                 }
             }
             // make sure that the master has received the status before going further
@@ -571,7 +589,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
         #pragma omp master
         {
             if (_prof != NULL) {
-                _prof->addMem("waiting", get_bufMemSize()*sizeof(double));
+                _prof->addMem(profName, get_bufMemSize()*sizeof(double)); //waiting
             }
         }
         // get the indexing of the block in 012-indexing
@@ -625,7 +643,10 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
 
     if (_prof != NULL) {
-        _prof->stop("buf2mem");
+        profName = to_string(iswitch)+"buf2mem";
+        _prof->stop(profName);
+        profName = "switch"+to_string(iswitch);
+        _prof->stop(profName);
         _prof->stop("reorder");
     }
     END_FUNC;
@@ -691,12 +712,12 @@ void SwitchTopo_nb_test() {
     SwitchTopo* switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart, NULL);
 
     // printf("\n\n============ FORWARD =================");
-    switchtopo->execute(data, FLUPS_FORWARD);
+    switchtopo->execute(data, FLUPS_FORWARD, 0);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
     // printf("\n\n============ BACKWARD =================");
-    switchtopo->execute(data, FLUPS_BACKWARD);
+    switchtopo->execute(data, FLUPS_BACKWARD, 0);
 
     hdf5_dump(topo, "test_real_returned", data);
 
@@ -733,11 +754,11 @@ void SwitchTopo_nb_test() {
     // printf("\n=============================");
     switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart2, NULL);
 
-    switchtopo->execute(data, FLUPS_FORWARD);
+    switchtopo->execute(data, FLUPS_FORWARD, 0);
 
     hdf5_dump(topobig, "test_complex_padd", data);
 
-    switchtopo->execute(data, FLUPS_BACKWARD);
+    switchtopo->execute(data, FLUPS_BACKWARD, 0);
 
     hdf5_dump(topo, "test_complex_returned", data);
 
