@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     }
 
     // //-------------------------------------------------------------------------
-    // /** - do the transform */
+    // /** - Proceed to the solve */
     // //-------------------------------------------------------------------------
     
     int Ntot = fsize[0]*fsize[1];
@@ -183,8 +183,6 @@ int main(int argc, char *argv[]) {
 
     printf("ntot: FLU= %d, P3D=%d\n",FLUNtot,Ntot);
 
-
-    
     for (int iter=0;iter<n_iter;iter++){
         
         MPI_Barrier(MPI_COMM_WORLD);
@@ -221,10 +219,60 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
+    // //-------------------------------------------------------------------------
+    // /** - get timings */
+    // //-------------------------------------------------------------------------
+    
+    // --- FLUPS -------
     FLUprof->disp("solve");
     delete(FLUprof);
 
+    // --- P3DFFT -------
+    double timers[12], gtmean[12], gtmax[12], gtmin[12];
+
+    get_timers(timers);
+    MPI_Reduce(&timers,&gtmean,12,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+    MPI_Reduce(&timers,&gtmax ,12,MPI_DOUBLE,MPI_MAX,0,MPI_COMM_WORLD);
+    MPI_Reduce(&timers,&gtmin ,12,MPI_DOUBLE,MPI_MIN,0,MPI_COMM_WORLD);
+
+    for (int i=0;i < 12;i++) {
+        gtmean[i] = gtmean[i]/ ((double) comm_size);
+    }
+
+    double timeRef      = P3Dprof->get_timeAcc("FFTandSwitch");
+    double timeInit     = P3Dprof->get_timeAcc("init");
+    string P3DNames[12] = {"All2All(v) 1", "All2All(v) 2", "?", "?", "fft 1", "reorder 1", "fft 2", "reorder+fft 3", "?", "?", "?", "?"};
+    int    order[12]    = {5, 1, 6, 7, 2, 8, 3, 4, 9, 10, 11, 12};
+
+
     P3Dprof->disp("FFTandSwitch");
+    if(rank == 0) {
+        // printf("===================================================================================================================================================\n");
+        // printf("          TIMER P3DFFT %s\n",P3DFFTprof.c_str());
+        // printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
+
+        string filename = "prof/" + P3DFFTprof + "_time.csv";
+        FILE* file      = fopen(filename.c_str(), "w+");
+    
+        printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", "init", 100*timeInit/timeRef, 100*timeInit/(timeRef+timeInit), timeInit, 0., timeInit/n_iter, 0., 0.,(double) n_iter,0.);
+        fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", "init", 100*timeInit/timeRef, 100*timeInit/(timeRef+timeInit), timeInit, 0., timeInit/n_iter, 0., 0.,(double) n_iter,0);
+        printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", "FFTandSwitch", 100., 100*timeRef/(timeRef+timeInit), timeRef, 0., timeRef/n_iter, 0., 0., (double) n_iter,0.);
+        fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", "FFTandSwitch", 100., 100*timeRef/(timeRef+timeInit), timeRef, 0., timeRef/n_iter, 0., 0., (double) n_iter,0.);
+        for(int i=0; i<6; i++){
+            int j = order[i]-1;
+            printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", ("-- "+P3DNames[j]).c_str(), 100.*gtmean[j]/timeRef, 100*gtmean[j]/timeRef, gtmean[j], 0., gtmean[j]/n_iter, gtmin[j]/n_iter, gtmax[j]/n_iter, (double) n_iter,0.);
+            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", ("-- "+P3DNames[j]).c_str(), 100.*gtmean[j]/timeRef, 100*gtmean[j]/timeRef, gtmean[j], 0., gtmean[j]/n_iter, gtmin[j]/n_iter, gtmax[j]/n_iter, (double) n_iter,0.);
+        }
+        fclose(file);
+
+        // -- backup of all timers --
+        filename = "prof/" + P3DFFTprof + "_backup.csv";
+        file            = fopen(filename.c_str(), "w+");
+        for(int i=0;i < 12;i++) {
+            fprintf(file,"timer[%d] (avg/max/min): %lE %lE %lE\n",i+1,gtmean[i],gtmax[i],gtmin[i]);
+        }
+        fclose(file);
+    }   
     delete(P3Dprof);
 
     if(rank==0)
