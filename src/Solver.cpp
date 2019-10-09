@@ -815,7 +815,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
  * -----------------------------------------------
  * We perform the following operations:
  */
-void Solver::solve(const Topology *topo, double *field, double *rhs, const SolverType type) {
+void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -955,6 +955,17 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
             _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD, ip);
         }
     }   
+
+    if(type == FFT_FORWARD){
+        FLUPS_WARNING("I have destroyed your topo and I will return new one",LOCATION);
+        delete (topo);
+        *topo=*_topo_hat[2];
+    } else if (type == FFT_BACKWARD) {
+        FLUPS_WARNING("I have destroyed your topo and I will return new one",LOCATION);
+        delete (topo);
+        *topo=*_topo_hat[0];
+    }
+    
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
