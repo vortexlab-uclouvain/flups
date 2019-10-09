@@ -558,6 +558,16 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign) const {
     }
 
     //-------------------------------------------------------------------------
+    /** - reset the memory to 0 */
+    //-------------------------------------------------------------------------
+    // reset the memory to 0
+    const size_t nmax = topo_out->memsize();
+#pragma omp parallel for default(none) proc_bind(close) firstprivate(v, nmax)
+    for (size_t id = 0; id < nmax; id++) {
+        v[id] = 0.0;
+    }
+
+    //-------------------------------------------------------------------------
     /** - wait for a block and copy when it arrives */
     //-------------------------------------------------------------------------
     // get some counters
