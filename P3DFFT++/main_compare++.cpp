@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUmemsize[3];
-    const FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
@@ -206,9 +206,7 @@ int main(int argc, char *argv[]) {
     // /** - Proceed to the solve */
     // //-------------------------------------------------------------------------
     
-    
-    int FLUmemsizeOUT = topo->memsize(); // THIS IS WRONG, I SHOULD HAVE A TOPO FOR THE OUTPUT
-    
+       
     double factor = 1.0/(nglob[0]* nglob[1]*nglob[2]);
     //Warmup
     // trans_f.exec(rhsP3D,solP3D,false);
@@ -237,16 +235,22 @@ int main(int argc, char *argv[]) {
 #endif
 
         // ------------------FLUPS---------------:
-
+        MPI_Barrier(MPI_COMM_WORLD);
         mysolver->solve(topo, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
         
-
 #ifdef PRINT_RES
+        int istartGloOut[3];
+        int FLUmemsizeOUT = topo->memsize();
+        int FLUnlocOUT[3] = {topo->nloc(0),topo->nloc(1),topo->nloc(2)};
+        topo->get_istart_glob(istartGloOut);
+        printf("[FLUPS] topo 0 loc : %d*%d*%d = %d (check: %d %d %d)\n",topo->nmem(0),topo->nmem(1),topo->nmem(2),topo->memsize(),topo->nloc(0),topo->nloc(1),topo->nloc(2));
+        printf("[FLUPS] topo 0 glo  : %d %d %d (is: %d %d %d) \n",topo->nglob(0),topo->nglob(1),topo->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
+
         for(int id = 0; id<FLUmemsizeOUT; id++){
             solFLU[id] *= factor;
         }
         //anyway this is all wrong because wrong topo
-        print_res(solFLU,FLUnlocIN,istartGlo);
+        print_res(solFLU,FLUnlocOUT,istartGloOut);
 #endif
     }
 
