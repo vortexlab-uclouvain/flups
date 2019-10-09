@@ -39,7 +39,7 @@
 // #define DUMP_H5
 #undef DUMP_H5
 
-#define FFTW_FLAG FFTW_MEASURE
+#define FFTW_FLAG FFTW_PATIENT
 
 //=============================================================================
 // LOCATORS
@@ -420,6 +420,28 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
 typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
+
+
+//=============================================================================
+// MEMORY ALLOCATION AND FREE
+//=============================================================================
+static inline void* flups_malloc(size_t size) {
+#if defined(__INTEL_COMPILER)
+    return _mm_malloc(size, FLUPS_ALIGNMENT);
+#elif defined(__GNUC__)
+    void* data;
+    posix_memalign(&data, FLUPS_ALIGNMENT, size);
+    return data;
+#endif
+}
+
+static inline void flups_free(void* data) {
+#if defined(__INTEL_COMPILER)
+    _mm_free(data);
+#elif defined(__GNUC__)
+    free(data);
+#endif
+}
 
 namespace FLUPS {
 /**

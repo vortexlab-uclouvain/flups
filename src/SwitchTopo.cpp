@@ -40,7 +40,7 @@ void SwitchTopo::_cmpt_nByBlock(){
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
 
-    int* onProc = (int*)fftw_malloc(comm_size * sizeof(int));
+    int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
@@ -69,7 +69,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         // store it as the block dimension
         _nByBlock[id] = my_gcd;
     }
-    fftw_free(onProc);
+    flups_free(onProc);
     END_FUNC;
 }
 
@@ -217,8 +217,8 @@ void SwitchTopo::_cmpt_commSplit(){
     int mycolor = rank;
     
     // allocate colors and inMyGroup array
-    int*  colors    = (int*)fftw_malloc(comm_size * sizeof(int));
-    bool* inMyGroup = (bool*)fftw_malloc(comm_size * sizeof(bool));
+    int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
 
     for (int ir = 0; ir < comm_size; ir++) {
         inMyGroup[ir] = false;
@@ -271,8 +271,8 @@ void SwitchTopo::_cmpt_commSplit(){
     MPI_Comm_set_name(_subcomm, commname.c_str());
 
     // free the vectors
-    fftw_free(colors);
-    fftw_free(inMyGroup);
+    flups_free(colors);
+    flups_free(inMyGroup);
     END_FUNC;
 }
 
@@ -300,13 +300,13 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 
     // get the new ranks from my old friends in the old communicator
-    int* newRanks = (int*)fftw_malloc(worldsize * sizeof(int));
+    int* newRanks = (int*)flups_malloc(worldsize * sizeof(int));
     MPI_Allgather(&newrank, 1, MPI_INT, newRanks, 1, MPI_INT, MPI_COMM_WORLD);
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         destRank[ib] = newRanks[destRank[ib]];
     }
-    fftw_free(newRanks);
+    flups_free(newRanks);
 
     //-------------------------------------------------------------------------
     /** - build the size vector of block to each procs    */
@@ -315,8 +315,8 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
         int subsize;
         MPI_Comm_size(_subcomm, &subsize);
         // count the number of blocks to each process
-        (*count) = (int*)fftw_malloc(subsize * sizeof(int));
-        (*start) = (int*)fftw_malloc(subsize * sizeof(int));
+        (*count) = (int*)flups_malloc(subsize * sizeof(int));
+        (*start) = (int*)flups_malloc(subsize * sizeof(int));
         std::memset((*count), 0, subsize * sizeof(int));
         std::memset((*start), 0, subsize * sizeof(int));
         // get the size per block
@@ -333,5 +333,82 @@ void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* dest
             }
         }
     }
+    END_FUNC;
+}
+
+/**
+ * @brief setup the suffle plan to do the reordering of the indexes inside a block array form the axis of topo_in to topo_out
+ * 
+ * The 3D array is split into a rectangular 2D array:
+ * - the dimension of the current FRI
+ * - the dimension of the targeted FRI
+ * 
+ * The last dimension is aggregated with eather the current FRI or the targeted, whichever comes on its left
+ * e.g.:
+ * - if the shuffle is between 2 and 1, the default order is then 2 0 1, hence the dimensions will be (2 * 0) x (1)
+ * - if the suffle is between 1 and 2, the  default order is then 1 2 0, hence the dimensions will be (1) x (2 * 0)
+ * - if the suffle is between 0 and 1, the  default order is then 1 2 0, hence the dimensions will be (0) x (1 * 2)
+ * 
+ * @param bSize the block size
+ * @param topo_in the topo_in with the current axis
+ * @param topo_out the topo_out with the desired axis
+ * @param data the data on which to apply the transformation
+ * @param shuffle the suffle plan
+ */
+void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
+    BEGIN_FUNC;
+
+    // the nf will always be the max of both topologies !!
+    const int nf = std::max(topo_in->nf(),topo_out->nf());
+
+    // enable the multithreading for this plan
+    fftw_plan_with_nthreads(omp_get_max_threads());
+
+    fftw_iodim dims[2];
+    // dim[0] = dimension of the targeted FRI (FFTW-convention)
+    dims[0].n  = 1;
+    dims[0].is = 1;
+    dims[0].os = 1;
+    // dim[1] = dimension of the current FRI (FFTW-convention)
+    dims[1].n  = 1;
+    dims[1].is = 1;
+    dims[1].os = 1;
+
+    int iaxis[3] = {topo_in->axis(), (topo_in->axis() + 1) % 3, (topo_in->axis() + 2) % 3};
+    int oaxis[3] = {topo_out->axis(), (topo_out->axis() + 1) % 3, (topo_out->axis() + 2) % 3};
+
+    // compute the size and the stride of the array
+    for (int id = 0; id < 3; id++) {
+        if (iaxis[id] != topo_out->axis()) {
+            dims[1].n  = dims[1].n * bSize[iaxis[id]];
+            dims[0].is = dims[0].is * bSize[iaxis[id]];
+        } else {
+            break;
+        }
+    }
+    for (int id = 0; id < 3; id++) {
+        if (oaxis[id] != topo_in->axis()) {
+            dims[0].n  = dims[0].n * bSize[oaxis[id]];
+            dims[1].os = dims[1].os * bSize[oaxis[id]];
+        } else {
+            break;
+        }
+    }
+    // display some info
+    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d",topo_in->axis(),topo_out->axis());
+    FLUPS_INFO("shuffle: nf = %d, blocksize = %d %d %d",nf,bSize[0],bSize[1],bSize[2]);
+    FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d",dims[0].n,dims[0].is,dims[0].os);
+    FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d",dims[1].n,dims[1].is,dims[1].os);
+
+    // plan the real or complex plan
+    // the nf is driven by the OUT topology ALWAYS
+    if (nf == 1) {
+        *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+    } else if (nf == 2) {
+        *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+    }
+
     END_FUNC;
 }

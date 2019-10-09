@@ -55,11 +55,10 @@
  */
 class FLUPS::SwitchTopo_a2a : public SwitchTopo {
    protected:
-    bool     _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
+    bool _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
 
     int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
     int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
-
     int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
     int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 

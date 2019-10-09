@@ -69,9 +69,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
     //-------------------------------------------------------------------------
     FLUPS_INFO("topo memsize = %d vs %d %d %d",topo->memsize(),topo->nmem(0),topo->nmem(1),topo->nmem(2));
 
-    double *rhs   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
-    double *sol   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
-    double *field = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    double *rhs   = (double *)flups_malloc(sizeof(double) * topo->memsize());
+    double *sol   = (double *)flups_malloc(sizeof(double) * topo->memsize());
+    double *field = (double *)flups_malloc(sizeof(double) * topo->memsize());
     std::memset(rhs, 0, sizeof(double ) * topo->memsize());
     std::memset(sol, 0, sizeof(double ) * topo->memsize());
     std::memset(field, 0, sizeof(double ) * topo->memsize());
@@ -367,9 +367,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS::SolverType type, const
         }
     }
 
-    fftw_free(sol);
-    fftw_free(rhs);
-    fftw_free(field);
+    flups_free(sol);
+    flups_free(rhs);
+    flups_free(field);
     delete (mysolver);
     delete (topo);
 }

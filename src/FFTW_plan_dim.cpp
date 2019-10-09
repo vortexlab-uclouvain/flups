@@ -467,6 +467,9 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
+    // we make sure to use only 1 thread, the multi-threading is used in the solver, not inside a plan
+    fftw_plan_with_nthreads(1);
+    // we initiate the plan
     if (topo->nf() == 1) {
         _fftw_stride = memsize[_dimID];
         _plan        = fftw_plan_r2r_1d(_n_in, data, data, _kind, FFTW_FLAG);
