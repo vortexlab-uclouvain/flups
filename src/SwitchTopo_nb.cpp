@@ -233,8 +233,8 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     const bool doShuffle=(_topo_in->axis() != _topo_out->axis());
     
     if (doShuffle) {
-        _i2o_shuffle = (fftw_plan*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(fftw_plan));
-        _o2i_shuffle = (fftw_plan*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(fftw_plan));
+        _i2o_shuffle = (fftw_plan*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(fftw_plan));
+        _o2i_shuffle = (fftw_plan*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(fftw_plan));
     } else {
         _i2o_shuffle = NULL;
         _o2i_shuffle = NULL;
