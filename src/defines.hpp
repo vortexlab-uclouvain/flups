@@ -425,14 +425,23 @@ typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_c
 //=============================================================================
 // MEMORY ALLOCATION AND FREE
 //=============================================================================
-static inline void* flups_malloc(size_t size){
-    return _mm_malloc(size,FLUPS_ALIGNMENT);
+static inline void* flups_malloc(size_t size) {
+#if defined(__INTEL_COMPILER)
+    return _mm_malloc(size, FLUPS_ALIGNMENT);
+#elif defined(__GNUC__)
+    void* data;
+    posix_memalign(&data, FLUPS_ALIGNMENT, size);
+    return data;
+#endif
 }
 
-static inline void flups_free(void* data){
-    return _mm_free(data);
+static inline void flups_free(void* data) {
+#if defined(__INTEL_COMPILER)
+    _mm_free(data);
+#elif defined(__GNUC__)
+    free(data);
+#endif
 }
-
 
 namespace FLUPS {
 /**
