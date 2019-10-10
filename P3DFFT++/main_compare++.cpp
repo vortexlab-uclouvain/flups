@@ -29,8 +29,10 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     //Definition of the problem
     //-------------------------------------------------------------------------
-    const int     nglob[3] = {16, 16, 16};
-    const int     nproc[3] = {1, 1, 2}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
+    const int     nglob[3] = {512, 512, 512};
+    const int     nproc[3] = {1, 8, 8}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
+    // const int     nglob[3] = {32, 32, 64};
+    // const int     nproc[3] = {1, 1, 2}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
     const double  L[3]     = {1., 1., 1.};;
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
                                             FLUPS::PER, FLUPS::PER,
                                             FLUPS::PER, FLUPS::PER};
 
-    const int n_iter = 1;
+    const int n_iter = 100;
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
         FLUPS_ERROR("Invalid number of procs",LOCATION);
@@ -50,21 +52,32 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
 
     // create a real topology
-    int FLUmemsize[3];
-    FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    int FLUnmemIn[3],FLUnmemOUT[3];
+    const FLUPS::Topology *topoIn    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    const int  nprocOut[3] = {1, 2, 1};
+    const int  nglobOut[3] = {17, 32, 64};
+    FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, false, NULL,FLUPS_ALIGNMENT);
+    topoOut->switch2complex();
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
-    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L, FLUprof);
+    FLUPS::Solver *mysolver = new FLUPS::Solver(topoIn, mybc, h, L, FLUprof);
 
     mysolver->set_GreenType(FLUPS::CHAT_2);
     mysolver->setup();
 
-    for(int i=0;i<3;i++)
-        FLUmemsize[i]=topo->nmem(i);
-    int FLUnlocIN[3] = {topo->nloc(0),topo->nloc(1),topo->nloc(2)};
 
+    for (int i = 0; i < 3; i++) {
+        FLUnmemIn[i]  = topoIn->nmem(i);
+        FLUnmemOUT[i] = topoOut->nmem(i);
+    }
+    int FLUnlocIN[3]  = {topoIn->nloc(0), topoIn->nloc(1), topoIn->nloc(2)};
+    int FLUnlocOUT[3] = {topoOut->nloc(0), topoOut->nloc(1), topoOut->nloc(2)};
+
+    int istartGloOut[3];
+    int FLUmemsizeOUT = topoOut->memsize();
+    
     //-------------------------------------------------------------------------
     /** - Initialize P3DFFT */
     //-------------------------------------------------------------------------
@@ -95,7 +108,7 @@ int main(int argc, char *argv[]) {
     p3dfft::trans_type3D type_ccr(type_ids2);
 
     // input grid
-    int  gdimsIN[3]      = {topo->nglob(0), topo->nglob(1), topo->nglob(2)};
+    int  gdimsIN[3]      = {topoIn->nglob(0), topoIn->nglob(1), topoIn->nglob(2)};
     int  mem_orderIN[3]  = {0, 1, 2};
     int  nprocIN[3]      = {nproc[0], nproc[1], nproc[2]};
     p3dfft::grid gridIN(gdimsIN,-1,nprocIN,proc_order,mem_orderIN,MPI_COMM_WORLD); 
@@ -150,7 +163,7 @@ int main(int argc, char *argv[]) {
     // /** - allocate rhs and solution */
     // //-------------------------------------------------------------------------
     if (rank == 0){
-        printf("[FLUPS] topo phys loc : %d*%d*%d = %d (check: %d %d %d)\n",topo->nmem(0),topo->nmem(1),topo->nmem(2),topo->memsize(),topo->nloc(0),topo->nloc(1),topo->nloc(2));
+        printf("[FLUPS] topo phys loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
         printf("[FLUPS] topo 0 glob : %d %d %d \n",mysolver->get_globMemsize(0,0),mysolver->get_globMemsize(1,0),mysolver->get_globMemsize(2,0));
         printf("[FLUPS] topo 0 loc  : %d %d %d  \n",mysolver->get_locMemsize(0,0),mysolver->get_locMemsize(1,0),mysolver->get_locMemsize(2,0));
         printf("[FLUPS] topo 2 glob : %d %d %d (doubles) \n",mysolver->get_globMemsize(0,2),mysolver->get_globMemsize(1,2),mysolver->get_globMemsize(2,2));
@@ -164,35 +177,35 @@ int main(int argc, char *argv[]) {
 
 
 
-    printf("I am going to allocate FLUPS: %d , P3D: %d \n",topo->memsize(),P3DmemsizeIN);
+    printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",topoIn->memsize(),FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topoIn->memsize());
+    double *solFLU   = (double *)fftw_malloc(sizeof(double) * topoOut->memsize());
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
-    p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(double) * P3DmemsizeOUT);
+    p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * topo->memsize());
-    std::memset(solFLU, 0, sizeof(double ) * topo->memsize()); //this is actually wrong because the copy from topo2 to phys involves loss of data and is not in the same topo...
+    std::memset(rhsFLU, 0, sizeof(double ) * topoIn->memsize());
+    std::memset(solFLU, 0, sizeof(double ) * topoOut->memsize()); 
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
     
     int istartGlo[3];
-    topo->get_istart_glob(istartGlo);
+    topoIn->get_istart_glob(istartGlo);
 
     printf("istart: %d %d %d =? %d %d %d(P3D)\n",istartGlo[0],istartGlo[1],istartGlo[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
 
     double f = 1;
 
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    for (int i2 = 0; i2 < topoIn->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topoIn->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topoIn->nloc(0); i0++) {
                 double       x    = (istartGlo[0] + i0 ) * h[0]; //+ 0.5
                 double       y    = (istartGlo[1] + i1 ) * h[1]; //+ 0.5
                 double       z    = (istartGlo[2] + i2 ) * h[2]; //+ 0.5
 
                 size_t id;
-                id    = localIndex(0, i0, i1, i2, 0, FLUmemsize, 1);
+                id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
                 
                 //p3d does not care of the size you allocate, juste fill the first isize elements
@@ -236,20 +249,16 @@ int main(int argc, char *argv[]) {
 
         // ------------------FLUPS---------------:
         MPI_Barrier(MPI_COMM_WORLD);
-        mysolver->solve(topo, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
+        mysolver->solve(topoOut,topoIn, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
         
 #ifdef PRINT_RES
-        int istartGloOut[3];
-        int FLUmemsizeOUT = topo->memsize();
-        int FLUnlocOUT[3] = {topo->nloc(0),topo->nloc(1),topo->nloc(2)};
-        topo->get_istart_glob(istartGloOut);
-        printf("[FLUPS] topo 0 loc : %d*%d*%d = %d (check: %d %d %d)\n",topo->nmem(0),topo->nmem(1),topo->nmem(2),topo->memsize(),topo->nloc(0),topo->nloc(1),topo->nloc(2));
-        printf("[FLUPS] topo 0 glo  : %d %d %d (is: %d %d %d) \n",topo->nglob(0),topo->nglob(1),topo->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
-
+        topoOut->get_istart_glob(istartGloOut);
+        printf("[FLUPS] topoOut 0 loc : %d*%d*%d = %d (check: %d %d %d)\n",topoOut->nmem(0),topoOut->nmem(1),topoOut->nmem(2),topoOut->memsize(),topoOut->nloc(0),topoOut->nloc(1),topoOut->nloc(2));
+        printf("[FLUPS] topoOut 0 glo  : %d %d %d (is: %d %d %d) \n",topoOut->nglob(0),topoOut->nglob(1),topoOut->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
+        
         for(int id = 0; id<FLUmemsizeOUT; id++){
             solFLU[id] *= factor;
         }
-        //anyway this is all wrong because wrong topo
         print_res(solFLU,FLUnlocOUT,istartGloOut);
 #endif
     }
@@ -301,6 +310,8 @@ int main(int argc, char *argv[]) {
     fftw_free(rhsP3D);
     fftw_free(rhsFLU);
 
+    topoIn->~Topology();
+    topoOut->~Topology();
     mysolver->~Solver();
     p3dfft::cleanup();
 
@@ -317,9 +328,9 @@ void print_res(double *A,int *sdims,int *gstart)
   int imo[3],i,j;
   p = A;
 
-  for(z=0;z < sdims[2];z++)
+  for(x=0;x < sdims[0];x++)
     for(y=0;y < sdims[1];y++)
-      for(x=0;x < sdims[0];x++) {
+      for(z=0;z < sdims[2];z++) {
         if(std::fabs(p[0])+std::fabs(p[1]) > 1.25e-4) 
             printf("FLU(%d %d %d) %lg %lg\n",x+gstart[0],y+gstart[1],z+gstart[2],p[0],p[1]);
         p+=2;
