@@ -22,19 +22,34 @@ cp $HOME_FLUPS/P3DFFT++/run/zenobe_kernel.sh $SCRATCH
 
 cd $SCRATCH
 
-######################################################
-# n = 3 - size = 256 - cpu = 128
+#####################   size = 64^3/proc  #################################
+# cpu = 64
 # same on large
 qsub -q large -v EXE=${EXE},MY_NY=8,MY_NZ=16,MY_SIZE=64,MY_NTH=1, -l select=32:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
 
-# n = 3 - size = 256 - cpu = 256
+# cpu = 256
 qsub -q large -v EXE=${EXE},MY_NY=16,MY_NZ=16,MY_SIZE=64,MY_NTH=1, -l select=64:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
 
-# n = 4 - size = 512 - cpu = 512
+# cpu = 512
 qsub -q large -v EXE=${EXE},MY_NY=16,MY_NZ=32,MY_SIZE=64,MY_NTH=1, -l select=128:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
 
-# n = 4 - size = 512 - cpu = 1024
+# cpu = 1024
 qsub -q large -v EXE=${EXE},MY_NY=32,MY_NZ=32,MY_SIZE=64,MY_NTH=1, -l select=256:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
+
+
+#####################   size = 128^3/proc  #################################
+# cpu = 64
+# same on large
+qsub -q large -v EXE=${EXE},MY_NY=8,MY_NZ=16,MY_SIZE=128,MY_NTH=1, -l select=32:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
+
+# cpu = 256
+qsub -q large -v EXE=${EXE},MY_NY=16,MY_NZ=16,MY_SIZE=128,MY_NTH=1, -l select=64:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
+
+# cpu = 512
+qsub -q large -v EXE=${EXE},MY_NY=16,MY_NZ=32,MY_SIZE=128,MY_NTH=1, -l select=128:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
+
+# cpu = 1024
+qsub -q large -v EXE=${EXE},MY_NY=32,MY_NZ=32,MY_SIZE=128,MY_NTH=1, -l select=256:ncpus=4:mem=10500mb:mpiprocs=4:ompthreads=1 ./zenobe_kernel.sh
 
 
 #end of file
