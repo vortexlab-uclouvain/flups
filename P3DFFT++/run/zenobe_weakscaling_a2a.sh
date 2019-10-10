@@ -17,7 +17,7 @@ mkdir -p $SCRATCH
 mkdir -p $SCRATCH/data
 mkdir -p $SCRATCH/prof
 # copy the needed info
-cp $HOME_FLUPS/P3DFFT++/$EXEC $SCRATCH
+cp $HOME_FLUPS/P3DFFT++/$EXE $SCRATCH
 cp $HOME_FLUPS/P3DFFT++/run/zenobe_kernel.sh $SCRATCH
 
 cd $SCRATCH
