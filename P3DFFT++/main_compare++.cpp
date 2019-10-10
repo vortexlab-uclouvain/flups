@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
     int FLUnlocOUT[3] = {topoOut->nloc(0), topoOut->nloc(1), topoOut->nloc(2)};
 
     int istartGloOut[3];
+    int FLUmemsizeIN = topoIn->memsize();
     int FLUmemsizeOUT = topoOut->memsize();
     
     //-------------------------------------------------------------------------
@@ -177,16 +178,16 @@ int main(int argc, char *argv[]) {
 
 
 
-    printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",topoIn->memsize(),FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
+    printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topoIn->memsize());
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * topoOut->memsize());
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
+    double *solFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeOUT);
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
     p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * topoIn->memsize());
-    std::memset(solFLU, 0, sizeof(double ) * topoOut->memsize()); 
+    std::memset(rhsFLU, 0, sizeof(double ) * FLUmemsizeIN);
+    std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
     
@@ -238,7 +239,7 @@ int main(int argc, char *argv[]) {
         trans_f.exec(rhsP3D,solP3D,false);  // Execute forward real-to-complex FFT
         P3Dprof->stop("FFTandSwitch");
 
-#define PRINT_RES
+// #define PRINT_RES
 #ifdef PRINT_RES
         /* normallize */
         for(int id = 0; id<P3DmemsizeOUT; id++){
