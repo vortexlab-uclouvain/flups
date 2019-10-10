@@ -815,7 +815,11 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
  * -----------------------------------------------
  * We perform the following operations:
  */
-void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType type) {
+void Solver::solve(const Topology *topo, double *field, double *rhs, const SolverType type) {
+    solve(topo,topo,field,rhs,type);
+}
+
+void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -834,7 +838,7 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    size_t size_tot = topo->memsize();
+    size_t size_tot = topo_rhs->memsize();
     for (int id = 0; id < 3; id++) {
         size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
     }
@@ -843,22 +847,22 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(topo->nf() == 1, "The RHS topology cannot be complex", LOCATION);
+    FLUPS_CHECK(topo_rhs->nf() == 1, "The RHS topology cannot be complex", LOCATION);
 
     if (_prof != NULL) {
         _prof->start("copy");
     }
 
     {
-        const int    ax0     = topo->axis();
+        const int    ax0     = topo_rhs->axis();
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
-        const size_t inmax   = topo->nloc(ax0);
+        const int    nmem[3] = {topo_rhs->nmem(0), topo_rhs->nmem(1), topo_rhs->nmem(2)};
+        const size_t onmax   = topo_rhs->nloc(ax1) * topo_rhs->nloc(ax2);
+        const size_t inmax   = topo_rhs->nloc(ax0);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
-        if (FLUPS_ISALIGNED(myrhs) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+        if (FLUPS_ISALIGNED(myrhs) && (nmem[ax0] * topo_rhs->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
             // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
             for (int io = 0; io < onmax; io++) {
@@ -870,7 +874,7 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
             }
         } else {
             // do the loop
-            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo_rhs->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
             for (int io = 0; io < onmax; io++) {
                 double *__restrict rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -886,7 +890,7 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
     }
 
 #ifdef DUMP_H5
-    hdf5_dump(topo, "rhs", mydata);
+    hdf5_dump(topo_rhs, "rhs", mydata);
 #endif
     if(type != FFT_BACKWARD){
         //-------------------------------------------------------------------------
@@ -954,18 +958,21 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
             }
             _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD, ip);
         }
-    }   
+    }    
 
     if(type == FFT_FORWARD){
-        FLUPS_WARNING("I have destroyed your topo and I will return new one",LOCATION);
-        delete (topo);
-        *topo=*_topo_hat[2];
+        for (int ip = 0;ip<2;ip++){
+            if(_plan_forward[ip]->isr2c()){
+                _topo_hat[ip]->switch2real();
+            }
+        }
     } else if (type == FFT_BACKWARD) {
-        FLUPS_WARNING("I have destroyed your topo and I will return new one",LOCATION);
-        delete (topo);
-        *topo=*_topo_hat[0];
+        for (int ip = 0;ip<2;ip++){
+            if(_plan_backward[ip]->isr2c()){
+                _topo_hat[ip]->switch2complex();
+            }
+        }  
     }
-    
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
@@ -975,15 +982,15 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
     }
 
     {
-        const int    ax0     = topo->axis();
+        const int    ax0     = topo_field->axis();
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
-        const size_t inmax   = topo->nloc(ax0);
+        const int    nmem[3] = {topo_field->nmem(0), topo_field->nmem(1), topo_field->nmem(2)};
+        const size_t onmax   = topo_field->nloc(ax1) * topo_field->nloc(ax2);
+        const size_t inmax   = topo_field->nloc(ax0);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
-        if (FLUPS_ISALIGNED(myfield) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+        if (FLUPS_ISALIGNED(myfield) && (nmem[ax0] * topo_field->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
             // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
             for (int io = 0; io < onmax; io++) {
@@ -995,7 +1002,7 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
             }
         } else {
             // do the loop
-            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo_field->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
             for (int io = 0; io < onmax; io++) {
                 double *__restrict fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -1010,7 +1017,7 @@ void Solver::solve(Topology *topo, double *field, double *rhs, const SolverType 
         _prof->stop("copy");
     }
     // io if needed
-    hdf5_dump(topo, "sol", myfield);
+    hdf5_dump(topo_field, "sol", myfield);
     // stop the whole timer
     if (_prof != NULL) _prof->stop("solve");
     END_FUNC;

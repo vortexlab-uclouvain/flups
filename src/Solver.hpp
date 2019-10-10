@@ -176,7 +176,8 @@ class FLUPS::Solver {
      * 
      * @{
      */
-    void solve(Topology* topo, double* field, double* rhs, const SolverType type);
+    void solve(const Topology* topo_field, const Topology* topo_rhs, double* field, double* rhs, const SolverType type);
+    void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
     /**@} */
 
     /**
