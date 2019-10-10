@@ -163,9 +163,11 @@ int main(int argc, char *argv[]) {
 
     /* Initialize P3DFFT */
     P3Dprof->start("init");
-    printf("Initilizing P3D...\n");    fflush(stdout);
+    if(rank==0)
+        printf("Initilizing P3D...\n");    fflush(stdout);
     p3dfft::setup();
-    printf("...set up.\n");    fflush(stdout);
+    if(rank==0)
+        printf("...set up.\n");    fflush(stdout);
 
     // Define the transform types for these two transforms
     int type_ids1[3] = {p3dfft::R2CFFT_D,p3dfft::CFFT_FORWARD_D ,p3dfft::CFFT_FORWARD_D };
@@ -179,7 +181,8 @@ int main(int argc, char *argv[]) {
     int  nprocIN[3]      = {nproc[0], nproc[1], nproc[2]};
     p3dfft::grid gridIN(gdimsIN,-1,nprocIN,proc_order,mem_orderIN,MPI_COMM_WORLD); 
 
-    printf("...input grid.\n");    fflush(stdout);
+    if(rank==0)
+        printf("...input grid.\n");    fflush(stdout);
 
     // ouput grid
     int gdimsOUT[3];
@@ -190,16 +193,19 @@ int main(int argc, char *argv[]) {
     int nprocOUT[3]      = {dims[0],dims[1],1};
     p3dfft::grid gridOUT(gdimsOUT,0,nprocOUT,proc_order,mem_orderOUT,MPI_COMM_WORLD); 
 
-    printf("...output grid.\n");    fflush(stdout);
+    if(rank==0)
+        printf("...output grid.\n");    fflush(stdout);
 
     // Set up 3D transforms, including stages and plans, for forward trans.
     p3dfft::transform3D<double,p3dfft::complex_double> trans_f(gridIN,gridOUT,&type_rcc);
     // Set up 3D transforms, including stages and plans, for backward trans.
     p3dfft::transform3D<p3dfft::complex_double,double> trans_b(gridOUT,gridIN,&type_ccr);
-    printf("...transforms.\n");    fflush(stdout);
+    if(rank==0)
+        printf("...transforms.\n");    fflush(stdout);
 
     P3Dprof->stop("init");
-    printf("Done with P3D init.\n");    fflush(stdout);
+    if(rank==0)
+        printf("Done with P3D init.\n");    fflush(stdout);
 
     p3dfft::timers.init();
 
