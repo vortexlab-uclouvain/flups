@@ -82,8 +82,9 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 
     _topo_in  = topo_input;
     _topo_out = topo_output;
+#ifdef PROF    
     _prof     = prof;
-
+#endif
     //-------------------------------------------------------------------------
     /** - get the starting and ending index of the shared zone */
     //-------------------------------------------------------------------------
@@ -167,28 +168,29 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
+#ifdef PROF    
     if (_prof != NULL) {
         _prof->create("reorder", "solve");
 
         _prof->create("switch0", "reorder");
-        _prof->create("0mem2buf", "switch0");
-        _prof->create("0buf2mem", "switch0");
-        _prof->create("0all_2_all", "switch0");
-        _prof->create("0all_2_all_v", "switch0");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("all_2_all0", "switch0");
+        _prof->create("all_2_all_v0", "switch0");
 
         _prof->create("switch1", "reorder");
-        _prof->create("1mem2buf", "switch1");
-        _prof->create("1buf2mem", "switch1");
-        _prof->create("1all_2_all", "switch1");
-        _prof->create("1all_2_all_v", "switch1");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("all_2_all1", "switch1");
+        _prof->create("all_2_all_v1", "switch1");
 
         _prof->create("switch2", "reorder");
-        _prof->create("2mem2buf", "switch2");
-        _prof->create("2buf2mem", "switch2");
-        _prof->create("2all_2_all", "switch2");
-        _prof->create("2all_2_all_v", "switch2");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("all_2_all2", "switch2");
+        _prof->create("all_2_all_v2", "switch2");
     }
-
+#endif
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -399,8 +401,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
     // MPI_Comm_rank(_subcomm, &rank);
     MPI_Comm_size(_subcomm, &comm_size);
 
-    string profName;
-    if (_prof != NULL) _prof->start("reorder");
+    PROF_START("reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -428,6 +429,8 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
     int* recv_start;
 
     const int nByBlock[3] = {_nByBlock[0], _nByBlock[1], _nByBlock[2]};
+
+
 
     fftw_plan* shuffle = NULL;
 
@@ -511,9 +514,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
 
         if(condition){
             FLUPS_INFO("Skipping switchtopo: in and out topos are the same");
-            if (_prof != NULL) {
-                _prof->stop("reorder");
-            }
+            PROF_STOP("reorder")
             END_FUNC;
             return;
         }
@@ -529,12 +530,9 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
     const int oax2 = (oax0 + 2) % 3;
     const int nf   = topo_in->nf();
 
-    if (_prof != NULL) {
-        profName = "switch"+to_string(iswitch);
-        _prof->start(profName);
-        profName = to_string(iswitch) + "mem2buf";
-        _prof->start(profName);
-    }
+    PROF_STARTi("switch",iswitch);
+    PROF_STARTi("mem2buf",iswitch);
+
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
@@ -570,39 +568,37 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
             }
         }
     }
-    if (_prof != NULL) {
-        _prof->stop(profName); //mem2buf
-    }
+    PROF_STOPi("mem2buf",iswitch);
 
     //-------------------------------------------------------------------------
     /** - Do the communication */
     //-------------------------------------------------------------------------
     if (_is_all2all) {
-        if (_prof != NULL) {
-            profName = to_string(iswitch) + "all_2_all";
-            _prof->start(profName);
-        }
+        PROF_STARTi("all_2_all",iswitch);
         MPI_Alltoall(sendBuf[0], send_count[0], MPI_DOUBLE, recvBuf[0], recv_count[0], MPI_DOUBLE, _subcomm);
+#ifdef PROF        
         if (_prof != NULL) {
-            _prof->stop(profName);//all_2_all
+            string profName = "all_2_all"+to_string(iswitch);
+            _prof->stop(profName);
             int loc_mem = send_count[0] * comm_size;
             _prof->addMem(profName, loc_mem*sizeof(double));
         }
+#endif
 
     } else {
-        if (_prof != NULL) {
-            profName = to_string(iswitch) + "all_2_all_v";
-            _prof->start(profName);
-        }
+        PROF_STARTi("all_2_all_v",iswitch)
         MPI_Alltoallv(sendBuf[0], send_count, send_start, MPI_DOUBLE, recvBuf[0], recv_count, recv_start, MPI_DOUBLE, _subcomm);
+#ifdef PROF        
         if (_prof != NULL) {
-            _prof->stop(profName); //all_2_all_v
+            string profName = "all_2_all_v"+to_string(iswitch);
+            _prof->stop(profName);
             int loc_mem = 0;
             for (int ir = 0; ir < comm_size; ir++) {
                 loc_mem += send_count[ir];
             }
             _prof->addMem(profName, loc_mem*sizeof(double));
         }
+#endif        
     }
 
     //-------------------------------------------------------------------------
@@ -622,10 +618,7 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
     const int nblocks_recv = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     const int out_axis     = topo_out->axis();
     // for each block
-    if (_prof != NULL) {
-        profName = to_string(iswitch) + "buf2mem";
-        _prof->start(profName);
-    }
+    PROF_STARTi("buf2mem",iswitch);
 
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2)
     for (int bid = 0; bid < nblocks_recv; bid++) {
@@ -668,12 +661,9 @@ void SwitchTopo_a2a::execute(opt_double_ptr v, const int sign, const int iswitch
         }
     }
 
-    if (_prof != NULL) {
-        _prof->stop(profName);//buf2mem
-        profName = "switch"+to_string(iswitch);
-        _prof->stop(profName);
-        _prof->stop("reorder");
-    }
+    PROF_STOPi("buf2mem",iswitch);
+    PROF_STOPi("switch",iswitch);
+    PROF_STOP("reorder");
     END_FUNC;
 }
 

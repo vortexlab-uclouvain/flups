@@ -73,6 +73,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
 
     flups_free(data);
 
+#ifdef PROF
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
@@ -93,8 +94,10 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     if (_prof != NULL) _prof->create("copy", "solve");
     if (_prof != NULL) _prof->create("fftw", "solve");
     if (_prof != NULL) _prof->create("domagic", "solve");
+#endif    
 
-    if (_prof != NULL) _prof->start("init");
+    PROF_START("init");
+
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans and sort them type */
     //-------------------------------------------------------------------------
@@ -138,8 +141,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
         if (_plan_green[ip]->imult())
             _nbr_imult++;
     }
-    if (_prof != NULL) _prof->stop("init");
-    END_FUNC;
+    PROF_STOP("init");
 }
 
 /**
@@ -152,35 +154,34 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
  */
 void Solver::setup() {
     BEGIN_FUNC;
-    if (_prof != NULL) _prof->start("setup");
-    if (_prof != NULL) _prof->start("alloc_data");
+    PROF_START("setup");
+    PROF_START("alloc_data");
     //-------------------------------------------------------------------------
     /** - allocate the data for the field and Green */
     //-------------------------------------------------------------------------
     _allocate_data(_topo_hat, &_data);
     _allocate_data(_topo_green, &_green);
-    if (_prof != NULL) _prof->stop("alloc_data");
-
+    PROF_STOP("alloc_data");
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_plans");
+    PROF_START("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
-    if (_prof != NULL) _prof->stop("alloc_plans");
+    PROF_STOP("alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("green");
-    if (_prof != NULL) _prof->start("green_plan");
+    PROF_START("green");
+    PROF_START("green_plan");
     _allocate_plans(_topo_green, _plan_green, _green);
-    if (_prof != NULL) _prof->stop("green_plan");
+    PROF_STOP("green_plan");
     // setup the buffers for Green
     _allocate_switchTopo(3, _switchtopo_green, &_sendBuf, &_recvBuf);
-    if (_prof != NULL) _prof->start("green_func");
+    PROF_START("green_func");
     _cmptGreenFunction(_topo_green, _green, _plan_green);
-    if (_prof != NULL) _prof->stop("green_func");
+    PROF_STOP("green_func");
     // delete the switchTopos
     _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
     _delete_switchtopos(_switchtopo_green);
@@ -189,14 +190,14 @@ void Solver::setup() {
     /** - Finalize the Green's function by doing a last switch to the field
      * topo and clean allocated topo and plans */
     //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("green_final");
+    PROF_START("green_final");
     _finalizeGreenFunction(_topo_hat, _green, _topo_green, _plan_green);
-    if (_prof != NULL) _prof->stop("green_final");
+    PROF_STOP("green_final");
     // delete the topologies and plans no more needed
     _delete_topologies(_topo_green);
     _delete_plans(_plan_green);
-    if (_prof != NULL) _prof->stop("green");
-    if (_prof != NULL) _prof->stop("setup");
+    PROF_STOP("green");
+    PROF_STOP("setup");
 
     //-------------------------------------------------------------------------
     /** - Allocate the buffers for the SwitchTopos */
@@ -731,7 +732,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
     // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact, ax0)
     for (int io = 0; io < onmax; io++) {
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
         for (size_t ii = 0; ii < inmax; ii++) {
@@ -835,8 +836,8 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
     opt_double_ptr       myfield = field;
     opt_double_ptr       mydata  = _data;
     const opt_double_ptr myrhs   = rhs;
-
-    if (_prof != NULL) _prof->start("solve");
+    
+    PROF_START("solve");
 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
@@ -852,9 +853,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
     //-------------------------------------------------------------------------
     FLUPS_CHECK(topo_rhs->nf() == 1, "The RHS topology cannot be complex", LOCATION);
 
-    if (_prof != NULL) {
-        _prof->start("copy");
-    }
+    PROF_START("copy");
 
     {
         const int    ax0     = topo_rhs->axis();
@@ -867,7 +866,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(myrhs) && (nmem[ax0] * topo_rhs->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
             // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem, ax0)
             for (int io = 0; io < onmax; io++) {
                 opt_double_ptr rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
                 opt_double_ptr dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -878,7 +877,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         } else {
             // do the loop
             FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo_rhs->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myrhs, nmem, ax0)
             for (int io = 0; io < onmax; io++) {
                 double *__restrict rhsloc  = myrhs + collapsedIndex(ax0, 0, io, nmem, 1);
                 double *__restrict dataloc = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -888,9 +887,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
             }
         }
     }
-    if (_prof != NULL) {
-        _prof->stop("copy");
-    }
+    PROF_STOP("copy");
 
 #ifdef DUMP_H5
     hdf5_dump(topo_rhs, "rhs", mydata);
@@ -903,9 +900,9 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
             // go to the correct topo
             _switchtopo[ip]->execute(mydata, FLUPS_FORWARD, ip);
             // run the FFT
-            if (_prof != NULL) _prof->start("fftw");
+            PROF_START("fftw");
             _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
-            if (_prof != NULL) _prof->stop("fftw");
+            PROF_STOP("fftw");
             // get if we are now complex
             if (_plan_forward[ip]->isr2c()) {
                 _topo_hat[ip]->switch2complex();
@@ -921,7 +918,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         //-------------------------------------------------------------------------
         /** - Perform the magic */
         //-------------------------------------------------------------------------
-        if (_prof != NULL) _prof->start("domagic");
+        PROF_START("domagic");
         if (type == SRHS) {
             if (!_topo_hat[2]->isComplex()) {
                 //-> there is only the case of 3dirSYM in which we could stay real for the whole process
@@ -942,7 +939,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
             FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
         }
 
-        if (_prof != NULL) _prof->stop("domagic");
+        PROF_STOP("domagic");
         // io if needed
         hdf5_dump(_topo_hat[2], "sol_h", mydata);
     }
@@ -952,9 +949,9 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         /** - go back to reals */
         //-------------------------------------------------------------------------
         for (int ip = 2; ip >= 0; ip--) {
-            if (_prof != NULL) _prof->start("fftw");
+            PROF_START("fftw");
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
-            if (_prof != NULL) _prof->stop("fftw");
+            PROF_STOP("fftw");
             // get if we are now complex
             if (_plan_forward[ip]->isr2c()) {
                 _topo_hat[ip]->switch2real();
@@ -980,9 +977,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
-    if (_prof != NULL) {
-        _prof->start("copy");
-    }
+    PROF_START("copy");
 
     {
         const int    ax0     = topo_field->axis();
@@ -995,7 +990,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(myfield) && (nmem[ax0] * topo_field->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
             // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem, ax0)
             for (int io = 0; io < onmax; io++) {
                 opt_double_ptr fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
                 opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -1006,7 +1001,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         } else {
             // do the loop
             FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(myfield), (nmem[ax0] * topo_field->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, mydata, myfield, nmem, ax0)
             for (int io = 0; io < onmax; io++) {
                 double *__restrict fieldloc = myfield + collapsedIndex(ax0, 0, io, nmem, 1);
                 double *__restrict dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -1016,13 +1011,11 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
             }
         }
     }
-    if (_prof != NULL) {
-        _prof->stop("copy");
-    }
+    PROF_STOP("copy");
     // io if needed
     hdf5_dump(topo_field, "sol", myfield);
     // stop the whole timer
-    if (_prof != NULL) _prof->stop("solve");
+    PROF_STOP("solve");
     END_FUNC;
 }
 
@@ -1051,7 +1044,7 @@ void Solver::dothemagic_rhs_real() {
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
@@ -1087,7 +1080,7 @@ void Solver::dothemagic_rhs_complex_nmult0() {
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);

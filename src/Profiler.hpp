@@ -38,6 +38,18 @@
 
 using namespace std;
 
+#if defined(PROF)
+#define PROF_START(name) if (_prof != NULL) _prof->start(name);
+#define PROF_STARTi(name,ip) if (_prof != NULL) _prof->start(name+to_string(ip));
+#define PROF_STOP(name) if (_prof != NULL) _prof->stop(name);
+#define PROF_STOPi(name,ip) if (_prof != NULL) _prof->stop(name+to_string(ip));
+#else
+#define PROF_START(name) ((void)0);
+#define PROF_STARTi(name,ip) ((void)0);
+#define PROF_STOP(name) ((void)0);
+#define PROF_STOPi(name,ip) ((void)0);
+#endif
+
 class TimerAgent {
    protected:
     bool   _isroot  = true;

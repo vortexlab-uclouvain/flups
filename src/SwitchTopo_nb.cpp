@@ -81,8 +81,9 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 
     _topo_in  = topo_input;
     _topo_out = topo_output;
+#ifdef PROF
     _prof     = prof;
-
+#endif
     //-------------------------------------------------------------------------
     /** - get the starting and ending index of the shared zone */
     //-------------------------------------------------------------------------
@@ -174,25 +175,26 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
+#ifdef PROF
     if (_prof != NULL) {
         _prof->create("reorder","solve");
 
         _prof->create("switch0", "reorder");
-        _prof->create("0mem2buf", "switch0");
-        _prof->create("0buf2mem", "switch0");
-        _prof->create("0waiting", "0buf2mem");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("waiting0", "switch0");
 
         _prof->create("switch1", "reorder");
-        _prof->create("1mem2buf", "switch1");
-        _prof->create("1buf2mem", "switch1");
-        _prof->create("1waiting", "1buf2mem");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("waiting1", "switch1");
 
         _prof->create("switch2", "reorder");
-        _prof->create("2mem2buf", "switch2");
-        _prof->create("2buf2mem", "switch2");
-        _prof->create("2waiting", "2buf2mem");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("waiting2", "switch2");
     }
-
+#endif
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -406,8 +408,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
-    string profName;
-    if (_prof != NULL) _prof->start("reorder");
+    PROF_START("reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -518,12 +519,8 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
         }
     }
 
-    if (_prof != NULL) {
-        profName = "switch"+to_string(iswitch);
-        _prof->start(profName);
-        profName = to_string(iswitch)+"mem2buf";
-        _prof->start(profName);
-    }
+    PROF_STARTi("switch",iswitch);
+    PROF_STARTi("mem2buf",iswitch);
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
@@ -580,9 +577,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
         }
     }
 
-    if (_prof != NULL) {
-        _prof->stop(profName); //mem2buf
-    }
+    PROF_STOPi("mem2buf",iswitch);
 
     //-------------------------------------------------------------------------
     /** - reset the memory to 0 */
@@ -605,7 +600,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
     MPI_Status status;
 
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2, recvRequest,profName, iswitch, shuffle)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2, recvRequest, iswitch, shuffle)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
         int bid = -1;
@@ -615,10 +610,7 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
 #pragma omp master
             {
                 FLUPS_INFO("doing the block in self: %d",bid);
-                if (_prof != NULL) {
-                    profName = to_string(iswitch)+"buf2mem";
-                    _prof->start(profName);
-                }
+                PROF_STARTi("buf2mem",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {
                     fftw_execute(shuffle[bid]);
@@ -628,19 +620,12 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
         } else {
 #pragma omp master
             {
-                if (_prof != NULL) {
-                    profName = to_string(iswitch)+"waiting";
-                    _prof->start(profName);
-                }
+                PROF_STARTi("waiting",iswitch);
                 int request_index;
                 MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
-                if (_prof != NULL) {
-                    _prof->stop(profName); //waiting
-                }
-                if (_prof != NULL) {
-                    profName = to_string(iswitch)+"buf2mem";
-                    _prof->start(profName);
-                }
+                PROF_STOPi("waiting",iswitch);
+                PROF_STARTi("buf2mem",iswitch);
+                
                 // bid is set for the master
                 bid = status.MPI_TAG;
                 // only the master call the fftw_execute which is executed in multithreading                
@@ -657,9 +642,11 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
         // add the bandwith info
         #pragma omp master
         {
+#ifdef PROF            
             if (_prof != NULL) {
-                _prof->addMem(profName, get_bufMemSize()*sizeof(double)); //waiting
+                _prof->addMem("waiting"+to_string(iswitch), get_bufMemSize()*sizeof(double));
             }
+#endif
         }
         
         // get the indexing of the block in 012-indexing
@@ -692,20 +679,14 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
 
 #pragma omp master
         {
-            if (_prof != NULL) {
-                profName = to_string(iswitch)+"buf2mem";
-                _prof->stop(profName);
-            }
+            PROF_STOPi("buf2mem",iswitch);
         }
     }
     // now that we have received everything, close the send requests
     MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
 
-    if (_prof != NULL) {
-        profName = "switch"+to_string(iswitch);
-        _prof->stop(profName);
-        _prof->stop("reorder");
-    }
+    PROF_STOPi("switch",iswitch);
+    PROF_STOP("reorder");
     END_FUNC;
 }
 
