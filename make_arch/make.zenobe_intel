@@ -6,7 +6,7 @@ CXX = mpiicpc
 
 # set the flag (optimisation or not)
 # CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -qopt-report=5 -qopt-report-phase=all -restrict -guide -guide-file=guide.txt
-CXXFLAGS := -qopenmp -O3 -xavx -axcore-avx2 -g -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all
+CXXFLAGS := -qopenmp -O3 -xavx -axcore-avx2 -g -DNDEBUG -stdc++11 -restrict -fargument-noalias -DPROF -qopt-report=5 -qopt-report-phase=all
 #CXXFLAGS := -g -qopenmp -xcore-avx2 -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE
 
 LDFLAGS := -qopenmp
