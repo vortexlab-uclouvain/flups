@@ -15,11 +15,12 @@ compil dbg :
     - merge_requests
   artifacts: 
     paths: 
-      - flups_validation
+      - flups_validation_nb
+      - flups_validation_a2a
     when: on_success
   script:
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
-    - make -j4
+    - make validation -j4
 
 compil opt :
   stage: build
@@ -29,31 +30,12 @@ compil opt :
     - merge_requests
   artifacts: 
     paths: 
-      - flups_validation
+      - flups_validation_nb
+      - flups_validation_a2a
     when: on_success
   script:
     - export ARCH_FILE=make_arch/make.docker_valid_opt
-    - make -j4
-
-compil all2all :
-  stage: build
-  only:
-    - master@examples/flups
-    - /^[0-9]-job-failed.*$/i@examples/flups
-    - merge_requests
-  script:
-    - export ARCH_FILE=make_arch/make.docker_valid_dbg
-    - make -j4 all2all
-
-compil nb :
-  stage: build
-  only:
-    - master@examples/flups
-    - /^[0-9]-job-failed.*$/i@examples/flups
-    - merge_requests
-  script:
-    - export ARCH_FILE=make_arch/make.docker_valid_dbg
-    - make -j4 nonblocking
+    - make validation -j4
 
 compil lib :
   stage: build
@@ -66,131 +48,134 @@ compil lib :
     - make -j4 lib
 
 #checks that the code runs without error in serial dbg
-run serial 1:1:
+################################################################################
+# ALL TO ALL
+################################################################################
+run serial a2a 1:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - ./flups_validation -bc 3 3 3 3 3 3
+    - ./flups_validation_a2a -bc 3 3 3 3 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run serial 2:1:
+
+run serial a2a 2:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - ./flups_validation -bc 0 1 4 4 1 1
+    - ./flups_validation_a2a -bc 0 1 4 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run serial 3:1:
+run serial a2a 3:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - ./flups_validation -bc 3 3 1 4 1 1
+    - ./flups_validation_a2a -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run serial 4:1:
+run serial a2a 4:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - ./flups_validation -bc 3 3 0 0 1 1
+    - ./flups_validation_a2a -bc 3 3 0 0 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
 
 #checks that the code runs without error in MPI dbg
-run MPI 1:1:
+run MPI a2a 1:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - echo $OMP_NUM_THREADS
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run MPI 2:1:
+run MPI a2a 2:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
   dependencies: 
     - compil dbg
 
-run MPI 3:1:
+run MPI a2a 3:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
-run MPI 4:1:
+run MPI a2a 4:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg    
 
-run MPI 5:1:
+run MPI a2a 5:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - mpirun -np 4 ./flups_validation -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_443310_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
     
-run MPI 6:1:
+run MPI a2a 6:1:
   stage: test
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - mpirun -np 3 ./flups_validation -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
+    - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
 
 #checks that the code runs without error in MPI-OMP dbg
-run MPI-OMP 1:1:
+run MPI-OMP a2a 1:1:
   stage: test
   only:
     - master@examples/flups
@@ -199,12 +184,158 @@ run MPI-OMP 1:1:
   script:
     - export OMP_NUM_THREADS=2
     - echo $OMP_NUM_THREADS
-    - mpirun -np 2 ./flups_validation -np 1 2 1 -res 32 32 32 -bc 4 1 4 4 3 3
+    - mpirun -np 2 ./flups_validation_a2a -np 1 2 1 -res 32 32 32 -bc 4 1 4 4 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
 
+################################################################################
+# NON BLOCKING
+################################################################################
+run serial nb 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - ./flups_validation_nb -bc 3 3 3 3 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+
+run serial nb 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - ./flups_validation_nb -bc 0 1 4 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run serial nb 3:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - ./flups_validation_nb -bc 3 3 1 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run serial nb 4:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - ./flups_validation_nb -bc 3 3 0 0 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+
+#checks that the code runs without error in MPI dbg
+run MPI nb 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run MPI nb 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+  dependencies: 
+    - compil dbg
+
+run MPI nb 3:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run MPI nb 4:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg    
+
+run MPI nb 5:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_443310_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg  
+    
+run MPI nb 6:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg  
+
+#checks that the code runs without error in MPI-OMP dbg
+run MPI-OMP nb 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - export OMP_NUM_THREADS=2
+    - echo $OMP_NUM_THREADS
+    - mpirun -np 2 ./flups_validation_nb -np 1 2 1 -res 32 32 32 -bc 4 1 4 4 3 3
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+
+
+################################################################################
+# VALIDATION
+################################################################################
 #validation all types of BCs with 1 kernel (serial)
 validate3D all BCs:
   stage: validation

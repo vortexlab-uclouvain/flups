@@ -36,7 +36,8 @@ using namespace FLUPS;
  * @param nproc the number of proc per dim
  * @param isComplex indicate if the Topology uses complex indexing or not
  * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
- * @param alignment the number of bytes on which each 
+ * @param alignment the number of bytes on which we want the topology to be aligned along the #axis only
+ * 
  */
 Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment) {
     BEGIN_FUNC;
@@ -164,7 +165,7 @@ void Topology::disp() const {
 
 void Topology::disp_rank() const{
     // we only focus on the real size = local size
-    double* rankdata = (double*) fftw_malloc(sizeof(double)*this->locsize());
+    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize());
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     for(int i=0; i<this->locsize(); i++){

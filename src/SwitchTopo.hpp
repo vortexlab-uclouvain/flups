@@ -72,6 +72,9 @@ class FLUPS::SwitchTopo {
     opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
 
+    fftw_plan* _i2o_shuffle = NULL;
+    fftw_plan* _o2i_shuffle = NULL;
+
     Profiler* _prof = NULL;
 
    public:
@@ -117,14 +120,30 @@ class FLUPS::SwitchTopo {
         return total;
     };
 
+    /**
+     * @brief return the stride for a given dimension
+     * 
+     */
+    inline size_t get_blockStride(const int ax, const int idim, const int bSize[3]) const {
+        int    id     = ax;
+        size_t stride = 1;
+        while (id != idim) {
+            stride = stride * ((size_t)bSize[id]);
+            // update the id
+            id = (id + 1) % 3;
+        }
+        return stride;
+    };
+
    protected:
     void _cmpt_nByBlock();
-    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag);
-    void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int *nBlockSize[3]);
-    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const FLUPS::Topology *topo, int nBlock[3], int blockIDStart[3], int *nBlockEachProc);
+    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology* topo, const int* nBlockEachProc, int* destRank, int* destTag);
+    void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]);
+    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const FLUPS::Topology* topo, int nBlock[3], int blockIDStart[3], int* nBlockEachProc);
 
     void _cmpt_commSplit();
-    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start) ;
+    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start);
+    void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
 };
 
 static inline int gcd(int a, int b) {
