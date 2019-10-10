@@ -64,7 +64,7 @@ LIB += -L$(P3DFFTDIR)/lib -lp3dfft
 
 #---- FFTW
 INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
+LIB += -L$(FFTWDIR)/lib -lfftw3 -lfftw3_threads  -Wl,-rpath,$(FFTWDIR)/lib
 
 #---- HDF5
 HDF5LIB ?= -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib

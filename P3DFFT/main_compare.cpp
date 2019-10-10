@@ -5,7 +5,7 @@
 #include "p3dfft.h"
 
 void print_all_P3D(double *A,long int nar);
-void print_all_FLUPS(double *A,long int nar, int istart[3], int size[3]);
+void print_res(double *A,int *sdims,int *gstart);
 
 int main(int argc, char *argv[]) {
     
@@ -49,19 +49,32 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
 
     // create a real topology
-    int FLUmemsize[3];
-    const FLUPS::Topology *topo    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    int FLUnmemIn[3],FLUnmemOUT[3];
+    const FLUPS::Topology *topoIn    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    const int  nprocOut[3] = {1, 2, 1};
+    const int  nglobOut[3] = {17, 32, 64};
+    FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, false, NULL,FLUPS_ALIGNMENT);
+    topoOut->switch2complex();
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
-    FLUPS::Solver *mysolver = new FLUPS::Solver(topo, mybc, h, L, FLUprof);
+    FLUPS::Solver *mysolver = new FLUPS::Solver(topoIn, mybc, h, L, FLUprof);
 
     mysolver->set_GreenType(FLUPS::CHAT_2);
     mysolver->setup();
 
-    for(int i=0;i<3;i++)
-        FLUmemsize[i]=topo->nmem(i);
+
+    for (int i = 0; i < 3; i++) {
+        FLUnmemIn[i]  = topoIn->nmem(i);
+        FLUnmemOUT[i] = topoOut->nmem(i);
+    }
+    int FLUnlocIN[3]  = {topoIn->nloc(0), topoIn->nloc(1), topoIn->nloc(2)};
+    int FLUnlocOUT[3] = {topoOut->nloc(0), topoOut->nloc(1), topoOut->nloc(2)};
+
+    int istartGloOut[3];
+    int FLUmemsizeIN = topoIn->memsize();
+    int FLUmemsizeOUT = topoOut->memsize();
 
     //-------------------------------------------------------------------------
     /** - Initialize P3DFFT */
@@ -111,10 +124,11 @@ int main(int argc, char *argv[]) {
     // /** - allocate rhs and solution */
     // //-------------------------------------------------------------------------
     if (rank == 0){
-        printf("[FLUPS] topo phys   : %d*%d*%d = %d (%d %d %d)\n",topo->nmem(0),topo->nmem(1),topo->nmem(2),topo->memsize(),topo->nloc(0),topo->nloc(1),topo->nloc(2));
-        printf("[FLUPS] topo 0 loc  : %d %d %d  \n",mysolver->get_locMemsize(0,0),mysolver->get_locMemsize(1,0),mysolver->get_locMemsize(2,0));
+        printf("[FLUPS] topo phys loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
         printf("[FLUPS] topo 0 glob : %d %d %d \n",mysolver->get_globMemsize(0,0),mysolver->get_globMemsize(1,0),mysolver->get_globMemsize(2,0));
-        printf("[FLUPS] topo 2 loc  : %d %d %d \n\n",mysolver->get_locMemsize(0,2),mysolver->get_locMemsize(1,2),mysolver->get_locMemsize(2,2));
+        printf("[FLUPS] topo 0 loc  : %d %d %d  \n",mysolver->get_locMemsize(0,0),mysolver->get_locMemsize(1,0),mysolver->get_locMemsize(2,0));
+        printf("[FLUPS] topo 2 glob : %d %d %d (doubles) \n",mysolver->get_globMemsize(0,2),mysolver->get_globMemsize(1,2),mysolver->get_globMemsize(2,2));
+        printf("[FLUPS] topo 2 loc  : %d %d %d (doubles)\n\n",mysolver->get_locMemsize(0,2),mysolver->get_locMemsize(1,2),mysolver->get_locMemsize(2,2));
     }
 
     printf("[P3DFFT] topo 0 loc : %d %d %d  - (is: %d %d %d ie: %d %d %d size: %d %d %d) \n",P3Dmemsize[0],P3Dmemsize[1],P3Dmemsize[2],istart[0],istart[1],istart[2], iend[0],iend[1],iend[2], isize[0],isize[1],isize[2]);
@@ -129,35 +143,35 @@ int main(int argc, char *argv[]) {
     //     nm = fsize[0]*fsize[1]*fsize[2]*2;
     // }
     int nm = tsize[0]*tsize[1]*tsize[2]; //this is in double
-    printf("I am going to allocate FLUPS: %d , P3D: %d (check: %d)\n",topo->memsize(),nm, tsize[0]*tsize[1]*tsize[2]);
+    printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,nm, tsize[0]*tsize[1]*tsize[2]);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * topo->memsize());
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
+    double *solFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeOUT);
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * nm);
     double *solP3D   = (double *)fftw_malloc(sizeof(double) * nm);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * topo->memsize());
-    std::memset(solFLU, 0, sizeof(double ) * topo->memsize());
+    std::memset(rhsFLU, 0, sizeof(double ) * FLUmemsizeIN);
+    std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     std::memset(rhsP3D, 0, sizeof(double ) * nm);
     std::memset(solP3D, 0, sizeof(double ) * nm);
     
     int istartGlo[3];
-    topo->get_istart_glob(istartGlo);
+    topoIn->get_istart_glob(istartGlo);
 
     printf("istart: %d %d %d =? %d %d %d(P3D)\n",istartGlo[0],istartGlo[1],istartGlo[2],istart[0],istart[1],istart[2]);
 
     double f = 1;
 
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+    for (int i2 = 0; i2 < topoIn->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topoIn->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topoIn->nloc(0); i0++) {
                 double       x    = (istartGlo[0] + i0 ) * h[0]; //+ 0.5
                 double       y    = (istartGlo[1] + i1 ) * h[1]; //+ 0.5
                 double       z    = (istartGlo[2] + i2 ) * h[2]; //+ 0.5
 
                 size_t id;
-                id    = localIndex(0, i0, i1, i2, 0, FLUmemsize, 1);
+                id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
                 
                 //p3d does not care of the size you allocate, juste fill the first isize elements
@@ -174,14 +188,7 @@ int main(int argc, char *argv[]) {
     int Ntot = fsize[0]*fsize[1];
     Ntot *= fsize[2]*2; //the number of real corresponding to the complex numbers
     
-    int FLUNtot = mysolver->get_locMemsize(0,2)*mysolver->get_locMemsize(1,2)*mysolver->get_locMemsize(2,2)*2;
-    // int lastTopoSize[3] = {mysolver->get_locMemsize(0,2),mysolver->get_locMemsize(1,2),mysolver->get_locMemsize(2,2)};
-    int lastTopoSize[3] = {topo->nmem(0),topo->nmem(1),topo->nmem(2)};
-    int tmp[3] = {0,0,0};
-
     double factor = 1.0/(nglob[0]* nglob[1]*nglob[2]);
-
-    printf("ntot: FLU= %d, P3D=%d\n",FLUNtot,Ntot);
 
     for (int iter=0;iter<n_iter;iter++){
         
@@ -207,15 +214,18 @@ int main(int argc, char *argv[]) {
 #endif
 
         // ------------------FLUPS---------------:
-
-        mysolver->solve(topo, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
+        MPI_Barrier(MPI_COMM_WORLD);
+        mysolver->solve(topoOut,topoIn, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
 
 #ifdef PRINT_RES
-        for(int id = 0; id<FLUNtot; id++){
+        topoOut->get_istart_glob(istartGloOut);
+        printf("[FLUPS] topoOut 0 loc : %d*%d*%d = %d (check: %d %d %d)\n",topoOut->nmem(0),topoOut->nmem(1),topoOut->nmem(2),topoOut->memsize(),topoOut->nloc(0),topoOut->nloc(1),topoOut->nloc(2));
+        printf("[FLUPS] topoOut 0 glo  : %d %d %d (is: %d %d %d) \n",topoOut->nglob(0),topoOut->nglob(1),topoOut->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
+        
+        for(int id = 0; id<FLUmemsizeOUT; id++){
             solFLU[id] *= factor;
         }
-        //anyway this is all wrong because wrong topo
-        print_all_FLUPS(solFLU,FLUNtot,tmp, lastTopoSize);
+        print_res(solFLU,FLUnlocOUT,istartGloOut);
 #endif
     }
 
@@ -303,19 +313,22 @@ void print_all_P3D(double *A,long int nar)
       z = i/(2*Fsize[0]*Fsize[1]);
       y = i/(2*Fsize[0]) - z*Fsize[1];
       x = i/2-z*Fsize[0]*Fsize[1] - y*Fsize[0];
-      printf("(%d,%d,%d) %.16lg %.16lg\n",x+Fstart[0],y+Fstart[1],z+Fstart[2],A[i],A[i+1]);
+      printf("P3D(%d,%d,%d) %.16lg %.16lg\n",x+Fstart[0],y+Fstart[1],z+Fstart[2],A[i],A[i+1]);
     }
 }
 
-void print_all_FLUPS(double *A,long int nar, int istart[3], int size[3])
+void print_res(double *A,int *sdims,int *gstart)
 {
-  int x,y,z,conf;
-  long int i;
+  int x,y,z;
+  double *p;
+  int imo[3],i,j;
+  p = A;
 
-  for(i=0;i < nar;i+=2)
-    if(fabs(A[i]) + fabs(A[i+1]) > 1.25e-4) {
-        localSplit(i, size, 2, &x, &y, &z, 2);
-      
-        printf("(%d,%d,%d) %.16lg %.16lg\n",istart[0]+x,istart[1]+y,istart[2]+z,A[i],A[i+1]);
-    }
+  for(x=0;x < sdims[0];x++)
+    for(y=0;y < sdims[1];y++)
+      for(z=0;z < sdims[2];z++) {
+        if(std::fabs(p[0])+std::fabs(p[1]) > 1.25e-4) 
+            printf("FLU(%d %d %d) %lg %lg\n",x+gstart[0],y+gstart[1],z+gstart[2],p[0],p[1]);
+        p+=2;
+      }
 }
