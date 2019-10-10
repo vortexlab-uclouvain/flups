@@ -9,6 +9,75 @@ void print_res(p3dfft::complex_double *A,int *sdims,int *gstart);
 void print_res(double *A,int *sdims,int *gstart);
 
 int main(int argc, char *argv[]) {
+    //-------------------------------------------------------------------------
+    // Default values
+    //-------------------------------------------------------------------------
+    int n_iter = 100;
+    int res[3] = {32,32,64};
+    int nproc2D[2] = {1,2};
+
+    //-------------------------------------------------------------------------
+    // Parse arguments
+    //-------------------------------------------------------------------------
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if ((arg == "-h") || (arg == "--help")) {
+            printf(" --nprocs, -np Nj Nk :          the number of MPI processes for a pencil decomposition in x (!! Nj<=Np !!)\n");
+            printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of points in each direction \n");
+            printf(" --niter, -ni Ni :              Ni is the number of times we call the same 3D FFT (for statistics on the profiler) \n");
+            return 0;
+        } else if ((arg == "-np") || (arg == "--nprocs")) {
+            for (int j = 0; j<2;j++){
+                if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+                    nproc2D[j] = atoi(argv[i+j+1]); 
+                    if(nproc2D[j]<1){
+                        fprintf(stderr, "nprocs must be >0\n");
+                        return 1;
+                    }
+                } else { //Missing argument
+                    fprintf(stderr, "missing argument in --nprocs\n");
+                    return 1;
+                }  
+            }
+            i+=2;
+        }  else if ((arg == "-res")|| (arg== "--resolution") ) {
+            for (int j = 0; j<3;j++){
+                if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+                    res[j] = atoi(argv[i+j+1]); 
+                    if(res[j]<=0.0){
+                        fprintf(stderr, "res must be >0\n");
+                        return 1;
+                    }
+                } else { //Missing argument
+                    fprintf(stderr, "missing argument in -res\n");
+                    return 1;
+                }  
+            }
+            i+=3;
+        }  else if ((arg == "-ni")|| (arg== "--niter") ) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                n_iter = atoi(argv[i+1]); 
+                if(n_iter<1){
+                    fprintf(stderr, "niter must be >0\n");
+                    return 1;
+                }
+            } else { //Missing argument
+                fprintf(stderr, "missing --niter\n");
+                return 1;
+            }  
+            i++;
+        // } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
+        //     for (int j = 0; j<6;j++){
+        //         if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+        //             bcdef[j/2][j%2] = (FLUPS::BoundaryType) atoi(argv[i+j+1]); 
+        //         } else { //Missing argument
+        //             fprintf(stderr, "missing argument in --boundary-conditions\n");
+        //             return 1;
+        //         }  
+        //     }
+        //     i+=6;
+        }
+    }
     
     //-------------------------------------------------------------------------
     // Initialize MPI
@@ -29,10 +98,8 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     //Definition of the problem
     //-------------------------------------------------------------------------
-    const int     nglob[3] = {512, 512, 512};
-    const int     nproc[3] = {1, 8, 8}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
-    // const int     nglob[3] = {32, 32, 64};
-    // const int     nproc[3] = {1, 1, 2}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
+    const int     nglob[3] = {res[0], res[1], res[2]};
+    const int     nproc[3] = {1, nproc2D[0], nproc2D[1]}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
     const double  L[3]     = {1., 1., 1.};;
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
@@ -40,8 +107,6 @@ int main(int argc, char *argv[]) {
     const FLUPS::BoundaryType mybc[3][2] = {FLUPS::PER, FLUPS::PER,
                                             FLUPS::PER, FLUPS::PER,
                                             FLUPS::PER, FLUPS::PER};
-
-    const int n_iter = 100;
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
         FLUPS_ERROR("Invalid number of procs",LOCATION);
