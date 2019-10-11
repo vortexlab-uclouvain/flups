@@ -929,6 +929,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
  */
 void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     BEGIN_FUNC;
+    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
 
     opt_double_ptr owndata = _data; 
     opt_double_ptr argdata = data;  
@@ -946,7 +947,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         const size_t inmax   = topo->nloc(ax0);
 
         //CHECK THAT THE PROVIDED TOPO IS COMPATIBLE WITH THE STORED topo_hat[0]
-        FLUPS_CHECK(topo->isCompatibleWith(_topo_hat[0]),"Incompatible topologies, I can't do the %d copy.",sign,LOCATION);
+        FLUPS_CHECK(topo->isCompatibleWith(_topo_hat[0]),"Incompatible topologies, I can't do the %s copy.",sign==1?"BCKWD":"FWD",LOCATION);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
@@ -1012,6 +1013,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
  */
 void Solver::do_FFT(double *data, const int sign){
     BEGIN_FUNC;
+    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
     
     opt_double_ptr  mydata  = data;
 
@@ -1051,6 +1053,7 @@ void Solver::do_FFT(double *data, const int sign){
  */
 void Solver::do_mult(double *data, const SolverType type){
     BEGIN_FUNC;
+    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
     
     if (_prof != NULL) _prof->start("domagic");
     if (type == SRHS) {
