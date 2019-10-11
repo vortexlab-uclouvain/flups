@@ -69,7 +69,6 @@
  * @param shift the shift is the position of the (0,0,0) of topo_input in the topo_output indexing (in XYZ-indexing)
  * @param prof the profiler to use to profile the execution of the SwitchTopo
  */
-using namespace FLUPS;
 
 SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC;

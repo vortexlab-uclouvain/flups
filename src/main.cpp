@@ -39,8 +39,8 @@ const static int                 d_nsample   = 1;
 const static int                 d_startSize = 16;
 const static int                 d_nprocs[3] = {1, 1, 1};
 const static double              d_L[3]      = {1., 1., 1.};
-const static FLUPS::GreenType    d_kernel    = FLUPS::CHAT_2;
-const static FLUPS::BoundaryType d_bcdef     = FLUPS::UNB;
+const static FLUPS_GreenType     d_kernel    = CHAT_2;
+const static FLUPS_BoundaryType  d_bcdef     = UNB;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");
@@ -56,7 +56,7 @@ static void print_help(){
     printf(" --predefined-test, -pt :       runs a predefined validation test with several combination of UNB BCs and all the Green Kernels (excludes -L, -k and -bc) \n ");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS::BoundaryType bcdef[3][2], int *predef, FLUPS::GreenType *kernel, int *nsample, int **size, int *nsolve){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], int *predef, FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve){
     BEGIN_FUNC;
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
@@ -151,7 +151,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
             i++;
         } else if ((arg == "-k") || (arg == "--kernel")) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                *kernel = (FLUPS::GreenType) atoi(argv[i+1]); 
+                *kernel = (FLUPS_GreenType) atoi(argv[i+1]); 
             } else { //Missing argument
                 fprintf(stderr, "missing --kernel\n");
                 return 1;
@@ -160,7 +160,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
         } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
             for (int j = 0; j<6;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
-                    bcdef[j/2][j%2] = (FLUPS::BoundaryType) atoi(argv[i+j+1]); 
+                    bcdef[j/2][j%2] = (FLUPS_BoundaryType) atoi(argv[i+j+1]); 
                 } else { //Missing argument
                     fprintf(stderr, "missing argument in --boundary-conditions\n");
                     return 1;
@@ -191,8 +191,8 @@ int main(int argc, char *argv[]) {
     int nprocs[3];
     double L[3];
     int *size = NULL;
-    FLUPS::GreenType kernel;
-    FLUPS::BoundaryType bcdef[3][2];
+    FLUPS_GreenType kernel;
+    FLUPS_BoundaryType bcdef[3][2];
     
     int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
 
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
                 valCase.mybc[ip][0] = bcdef[ip][0];
                 valCase.mybc[ip][1] = bcdef[ip][1];
             }
-            validation_3d(valCase, FLUPS::SRHS, kernel, nsolve);
+            validation_3d(valCase, SRHS, kernel, nsolve);
         }
 
     } else {
@@ -263,51 +263,51 @@ int main(int argc, char *argv[]) {
             }
 
             if (rank == 0) printf("\n==============================  FULLY UNBOUNDED TEST ============================================\n");
-            valCase.mybc[0][0] = FLUPS::UNB;
-            valCase.mybc[0][1] = FLUPS::UNB;
-            valCase.mybc[1][0] = FLUPS::UNB;
-            valCase.mybc[1][1] = FLUPS::UNB;
-            valCase.mybc[2][0] = FLUPS::UNB;
-            valCase.mybc[2][1] = FLUPS::UNB;
+            valCase.mybc[0][0] = UNB;
+            valCase.mybc[0][1] = UNB;
+            valCase.mybc[1][0] = UNB;
+            valCase.mybc[1][1] = UNB;
+            valCase.mybc[2][0] = UNB;
+            valCase.mybc[2][1] = UNB;
 
             if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2, nsolve);
+            validation_3d(valCase, SRHS, HEJ_2, nsolve);
             if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4, nsolve);
+            validation_3d(valCase, SRHS, HEJ_4, nsolve);
             if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6, nsolve);
+            validation_3d(valCase, SRHS, HEJ_6, nsolve);
             if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2, nsolve);
+            validation_3d(valCase, SRHS, CHAT_2, nsolve);
 
             if (rank == 0) printf("\n==============================  MIX UNBOUNDED TEST ============================================\n");
             for (int id = 0; id < 3; id++) {
                 for (int lr = 0; lr < 2; lr++) {
-                    valCase.mybc[0][0] = FLUPS::UNB;
-                    valCase.mybc[0][1] = FLUPS::UNB;
-                    valCase.mybc[1][0] = FLUPS::UNB;
-                    valCase.mybc[1][1] = FLUPS::UNB;
-                    valCase.mybc[2][0] = FLUPS::UNB;
-                    valCase.mybc[2][1] = FLUPS::UNB;
+                    valCase.mybc[0][0] = UNB;
+                    valCase.mybc[0][1] = UNB;
+                    valCase.mybc[1][0] = UNB;
+                    valCase.mybc[1][1] = UNB;
+                    valCase.mybc[2][0] = UNB;
+                    valCase.mybc[2][1] = UNB;
                     // set to even
-                    valCase.mybc[id][lr] = FLUPS::EVEN;
+                    valCase.mybc[id][lr] = EVEN;
                     if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
+                    validation_3d(valCase, SRHS, HEJ_2);
                     if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
+                    validation_3d(valCase, SRHS, HEJ_4);
                     if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
+                    validation_3d(valCase, SRHS, HEJ_6);
                     if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
+                    validation_3d(valCase, SRHS, CHAT_2);
                     // set to odd
-                    valCase.mybc[id][lr] = FLUPS::ODD;
+                    valCase.mybc[id][lr] = ODD;
                     if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
+                    validation_3d(valCase, SRHS, HEJ_2);
                     if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
+                    validation_3d(valCase, SRHS, HEJ_4);
                     if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
+                    validation_3d(valCase, SRHS, HEJ_6);
                     if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
+                    validation_3d(valCase, SRHS, CHAT_2);
                 }
             }
         }

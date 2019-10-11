@@ -25,8 +25,6 @@
 
 #include "Solver.hpp"
 
-using namespace FLUPS;
-
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 

@@ -53,7 +53,7 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class FLUPS::SwitchTopo_nb : public SwitchTopo {
+class SwitchTopo_nb : public SwitchTopo {
    protected:
     int _selfBlockN=0;
     int* _iselfBlockID = NULL;

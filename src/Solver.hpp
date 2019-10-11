@@ -60,7 +60,7 @@ using namespace std;
  *  
  * 
  */
-class FLUPS::Solver {
+class Solver {
     // the memory allocation is assumed to be data[iz][iy][ix]
     // so the fastest running index is n[0] then n[1] then n[2]
     // even is the dimension is 2, we allocate arrays of dimension 3

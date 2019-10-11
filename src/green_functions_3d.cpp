@@ -38,8 +38,6 @@
 // As an example, the final formula is then ( in the X direction):
 // `max( abs(2 symstart[0] - ix) , 1)`
 
-using namespace FLUPS;
-
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
