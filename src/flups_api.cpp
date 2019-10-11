@@ -36,54 +36,54 @@
  * TOPOLOGIES
  ********************************************************************* */
 
-FLUPS_Topo* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]){
+FLUPS_Topology* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]){
     Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, 1);
     return t;
 }
 
-FLUPS_Topo* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
+FLUPS_Topology* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
     Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment);
     return t;
 }
 
-void        flups_free_topo(FLUPS_Topo* t){
+void        flups_free_topo(FLUPS_Topology* t){
     t->~Topology();
 }
 
 
-bool flups_topo_get_isComplex(FLUPS_Topo* t){
+bool flups_topo_get_isComplex(FLUPS_Topology* t){
     return t->isComplex();
 }
 
-int flups_topo_get_axis(FLUPS_Topo* t){
+int flups_topo_get_axis(FLUPS_Topology* t){
     return t->axis();
 }
 
-int flups_topo_get_nglob(FLUPS_Topo* t, const int dim){
+int flups_topo_get_nglob(FLUPS_Topology* t, const int dim){
     return t->nglob(dim);
 }
 
-int flups_topo_get_nloc(FLUPS_Topo* t, const int dim){
+int flups_topo_get_nloc(FLUPS_Topology* t, const int dim){
     return t->nloc(dim);
 }
 
-int flups_topo_get_nmem(FLUPS_Topo* t, const int dim){
+int flups_topo_get_nmem(FLUPS_Topology* t, const int dim){
     return t->nmem(dim);
 }
 
-int flups_topo_get_nproc(FLUPS_Topo* t, const int dim){
+int flups_topo_get_nproc(FLUPS_Topology* t, const int dim){
     return t->nproc(dim);
 }
 
-void flups_topo_get_istartGlob(FLUPS_Topo* t, int istart[3]){
+void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]){
     t->get_istart_glob(istart);
 }
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topo* t){
+unsigned long long flups_topo_get_locsize(FLUPS_Topology* t){
     return (unsigned long long) t->locsize();
 }
 
-unsigned long long flups_topo_get_memsize(FLUPS_Topo* t){
+unsigned long long flups_topo_get_memsize(FLUPS_Topology* t){
     return (unsigned long long) t->memsize();
 }
 
@@ -94,12 +94,12 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topo* t){
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_new_solver(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+FLUPS_Solver* flups_new_solver(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
 #else
-FLUPS_Solver* flups_new_solver_timed(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
+FLUPS_Solver* flups_new_solver_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
@@ -120,7 +120,7 @@ void flups_setup(FLUPS_Solver* s){
 }
 
 // solve
-void flups_solve(FLUPS_Solver* s, const FLUPS_Topo* t, double* field, double* rhs, const FLUPS_SolverType type){
+void flups_solve(FLUPS_Solver* s, const FLUPS_Topology* t, double* field, double* rhs, const FLUPS_SolverType type){
     s->solve(t, field, rhs, type);
 }
 
@@ -130,14 +130,22 @@ void flups_solve(FLUPS_Solver* s, const FLUPS_Topo* t, double* field, double* rh
 void flups_set_alpha(FLUPS_Solver* s, const double alpha){
     s->set_alpha(alpha);   
 }
+
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-void flups_do_FFTfwd(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
-void flups_do_FFTbck(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
-void flups_do_mult(FLUPS_Solver* s, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
+void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign){
+    s->do_copy(topo,data,sign);
+}
 
+void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign){
+    s->do_FFT(data,sign);
+}
+
+void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type){
+    s->do_mult(data,type);
+}
 
 // //**********************************************************************
 // //  PROFILER - TIMERS

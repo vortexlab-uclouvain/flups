@@ -69,7 +69,7 @@ enum FLUPS_SolverType {
 #define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
 
 typedef struct Solver   FLUPS_Solver;
-typedef struct Topology FLUPS_Topo;
+typedef struct Topology FLUPS_Topology;
 typedef struct Profiler FLUPS_Profiler;
 
 /** *********************************************************************
@@ -77,17 +77,16 @@ typedef struct Profiler FLUPS_Profiler;
  * @{
  ********************************************************************* */
 
+FLUPS_Topology* flups_new_topo(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+void            flups_free_topo(FLUPS_Topology* t);
 
-FLUPS_Topo* flups_new_topo(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
-void        flups_free_topo(FLUPS_Topo* t);
-
-bool flups_topo_get_isComplex(FLUPS_Topo* t);
-int  flups_topo_get_axis(FLUPS_Topo* t);
-int  flups_topo_get_nglob(FLUPS_Topo* t, const int dim);
-int  flups_topo_get_nloc(FLUPS_Topo* t, const int dim);
-int  flups_topo_get_nmem(FLUPS_Topo* t, const int dim);
-int  flups_topo_get_nproc(FLUPS_Topo* t, const int dim);
-void flups_topo_get_istartGlob(FLUPS_Topo* t, int istart[3]);
+bool flups_topo_get_isComplex(FLUPS_Topology* t);
+int  flups_topo_get_axis(FLUPS_Topology* t);
+int  flups_topo_get_nglob(FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nloc(FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nmem(FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nproc(FLUPS_Topology* t, const int dim);
+void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
 
 /**
  * @brief returns the local size of on this proc
@@ -95,13 +94,13 @@ void flups_topo_get_istartGlob(FLUPS_Topo* t, int istart[3]);
  * @return long 
  */
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topo* t);
+unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-unsigned long long flups_topo_get_memsize(FLUPS_Topo* t);
+unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
 
 
 
@@ -115,9 +114,9 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topo* t);
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_new_solver(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_new_solver(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 #else
-FLUPS_Solver* flups_new_solver_timed(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof);
+FLUPS_Solver* flups_new_solver_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof);
 #endif
 
 // destroy the solver
@@ -129,17 +128,16 @@ void flups_setup(FLUPS_Solver* s);
 
 // solve
 //topo may be different from the one used to create the solver, but must be compatible !
-void flups_solve(FLUPS_Solver* s, const FLUPS_Topo* t, double* field, double* rhs, const FLUPS_SolverType type);
-
+void flups_solve(FLUPS_Solver* s, const FLUPS_Topology* t, double* field, double* rhs, const FLUPS_SolverType type);
 
 // -- ADVANCED FEATURES --
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
-void flups_do_FFTfwd(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
-void flups_do_FFTbck(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
-void flups_do_mult(FLUPS_Solver* s, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
+void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
+void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
+void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**@} *****************************************************************/
 
