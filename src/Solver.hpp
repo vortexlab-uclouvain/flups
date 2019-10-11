@@ -145,11 +145,11 @@ class Solver {
      * 
      * @{
      */
-    void dothemagic_rhs_real();
-    void dothemagic_rhs_complex_nmult0();
-    void dothemagic_rhs_complex_nmult1();
-    void dothemagic_rhs_complex_nmult2();
-    void dothemagic_rhs_complex_nmult3();
+    void dothemagic_rhs_real(double *data);
+    void dothemagic_rhs_complex_nmult0(double *data);
+    void dothemagic_rhs_complex_nmult1(double *data);
+    void dothemagic_rhs_complex_nmult2(double *data);
+    void dothemagic_rhs_complex_nmult3(double *data);
     /**@} */
 
     /**
@@ -170,7 +170,8 @@ class Solver {
 
     void setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
-
+    Topology* get_topo_spectral() ;
+    
     /**
      * @name Solver use
      * 
@@ -178,8 +179,8 @@ class Solver {
      */
     void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
     void do_copy(const Topology *topo, double *data, const int sign );
-    void do_FFT(Topology *topoSpec, double *dataPhys, double *dataSpec, const int sign);
-    void do_mult(Topology *topoSpec, double *fieldSpec, double *rhsSpec);
+    void do_FFT(double *data, const int sign);
+    void do_mult(double *data, const SolverType type);
     /**@} */
 
     /**
