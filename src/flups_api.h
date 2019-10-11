@@ -67,6 +67,7 @@ enum FLUPS_SolverType {
 
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topo;
+typedef struct Profiler FLUPS_Profiler;
 
 /** *********************************************************************
  * @name TOPOLOGIES
@@ -144,10 +145,10 @@ void flups_do_mult(FLUPS_Solver* s, const FLUPS_Topo* t_spec, double* data_phys,
 //  PROFILER - TIMERS
 //**********************************************************************
 
-Profiler* profiler_new();
-Profiler* profiler_new_n(char name[]);
-void      profiler_free(Profiler* p);
-void      profiler_disp();
+FLUPS_Profiler* profiler_new();
+FLUPS_Profiler* profiler_new_n(char name[]);
+void            profiler_free(FLUPS_Profiler* p);
+void            profiler_disp();
 
 #ifdef __cplusplus
 }

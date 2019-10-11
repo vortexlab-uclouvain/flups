@@ -36,7 +36,6 @@
  * TOPOLOGIES
  ********************************************************************* */
 
-
 FLUPS_Topo* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]){
     Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, 1);
     return t;
@@ -144,20 +143,20 @@ void flups_do_mult(FLUPS_Solver* s, const FLUPS_Topo* t_spec, double* data_phys,
 // //  PROFILER - TIMERS
 // //**********************************************************************
 
-Profiler* profiler_new() {
+FLUPS_Profiler* profiler_new() {
     Profiler* p = new Profiler();
     return p;
 }
 
-Profiler* profiler_new_n(char name[]){
+FLUPS_Profiler* profiler_new_n(char name[]){
     Profiler* p = new Profiler(name);
     return p;
 }
 
-void profiler_free(Profiler* p) {
+void profiler_free(FLUPS_Profiler* p) {
     p->~Profiler();
 }
 
-void profiler_disp(Profiler* p) {
+void profiler_disp(FLUPS_Profiler* p) {
     p->disp();
 }
