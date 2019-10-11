@@ -67,6 +67,7 @@ HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
+IN_A2A := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
@@ -75,6 +76,9 @@ $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp
 
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+
+$(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
 default: $(TARGET_EXE)
@@ -88,6 +92,8 @@ all2all: $(TARGET_EXE_A2A)
 nonblocking: $(TARGET_EXE_NB)
 
 lib: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
+
+preproc: $(IN_A2A)
 
 $(TARGET_EXE): $(OBJ_A2A)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
@@ -117,6 +123,7 @@ test:
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
+	rm -f $(OBJ_DIR)/*.in
 	rm -f $(TARGET_EXE)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
@@ -124,8 +131,6 @@ clean:
 	rm -f $(TARGET_LIB_NB)
 
 destroy:
-	rm -f $(OBJ_DIR)/*.o
-	rm -f $(OBJ_DIR)/*.d
 	rm -f $(TARGET_EXE)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
