@@ -177,6 +177,9 @@ class Solver {
      * @{
      */
     void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
+    void do_copy(const Topology *topo, double *data, const int sign );
+    void do_FFT(Topology *topoSpec, double *dataPhys, double *dataSpec, const int sign);
+    void do_mult(Topology *topoSpec, double *fieldSpec, double *rhsSpec);
     /**@} */
 
     /**

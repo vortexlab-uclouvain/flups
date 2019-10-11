@@ -65,6 +65,9 @@ enum FLUPS_SolverType {
     DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
 };
 
+#define FLUPS_FORWARD -1  // = FFTW_FORWARD
+#define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
+
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topo;
 typedef struct Profiler FLUPS_Profiler;
