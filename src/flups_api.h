@@ -48,10 +48,10 @@ enum FLUPS_BoundaryType {
  */
 enum FLUPS_GreenType {
     CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2  = 1,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
+    LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
+    HEJ_2  = 2, /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3, /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
 };
 
 /**
@@ -65,34 +65,25 @@ enum FLUPS_SolverType {
     DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
 };
 
-typedef struct Solver FLUPS_solver;
-typedef struct Topology FLUPS_topo;
-
+typedef struct Solver   FLUPS_Solver;
+typedef struct Topology FLUPS_Topo;
 
 /** *********************************************************************
  * @name TOPOLOGIES
  * @{
  ********************************************************************* */
 
-#define flups_new_topo(_1,_2,_3,_4,_5) flups_new_topo_(__VA_ARGS__) 
-FLUPS_topo* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
-#define flups_new_topo(_1,_2,_3,_4,_5,_6) flups_new_topo_i(__VA_ARGS__) 
-FLUPS_topo* flups_new_topo_a(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
-void        flups_free_topo(FLUPS_topo* t);
 
-int flups_topo_axis(FLUPS_topo* t);
-// int flups_topo_nf() const ;
-bool flups_topo_isComplex(FLUPS_topo* t);
-// int flups_topo_switch_toComplex(FLUPS_topo* t);
-// int flups_topo_switch_toReal(FLUPS_topo* t);
-int flups_topo_get_nglob(FLUPS_topo* t, const int dim);
-int flups_topo_get_nloc(FLUPS_topo* t, const int dim);
-int flups_topo_get_nmem(FLUPS_topo* t, const int dim);
-int flups_topo_get_nproc(FLUPS_topo* t, const int dim);
-// int flups_topo_get_rankd(FLUPS_topo* t,const int dim) ;
-// int flups_topo_get_nbyproc(FLUPS_topo* t,const int dim);
-// int flups_topo_get_axproc(FLUPS_topo* t,const int dim) ;
-void flups_topo_get_istartGlob(FLUPS_topo* t, int istart[3]);
+FLUPS_Topo* flups_new_topo(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+void        flups_free_topo(FLUPS_Topo* t);
+
+bool flups_topo_get_isComplex(FLUPS_Topo* t);
+int  flups_topo_get_axis(FLUPS_Topo* t);
+int  flups_topo_get_nglob(FLUPS_Topo* t, const int dim);
+int  flups_topo_get_nloc(FLUPS_Topo* t, const int dim);
+int  flups_topo_get_nmem(FLUPS_Topo* t, const int dim);
+int  flups_topo_get_nproc(FLUPS_Topo* t, const int dim);
+void flups_topo_get_istartGlob(FLUPS_Topo* t, int istart[3]);
 
 /**
  * @brief returns the local size of on this proc
@@ -100,13 +91,13 @@ void flups_topo_get_istartGlob(FLUPS_topo* t, int istart[3]);
  * @return long 
  */
 
-long flups_topo_locsize(FLUPS_topo* t);
+unsigned long long flups_topo_get_locsize(FLUPS_Topo* t);
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-long flups_topo_memsize(FLUPS_topo* t);
+unsigned long long flups_topo_get_memsize(FLUPS_Topo* t);
 
 
 
@@ -119,47 +110,44 @@ long flups_topo_memsize(FLUPS_topo* t);
  ********************************************************************* */
 
 // get a new solver
-FLUPS_solver* flups_new_solver(FLUPS_topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
-#ifdef PROF
-FLUPS_solver* flups_new_solver_timed(FLUPS_topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+#ifndef PROF
+FLUPS_Solver* flups_new_solver(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+#else
+FLUPS_Solver* flups_new_solver_timed(FLUPS_Topo* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof);
 #endif
 
 // destroy the solver
-void flups_free_solver(FLUPS_solver* s);
+void flups_free_solver(FLUPS_Solver* s);
 
 // setup the solver
-void flups_set_greenType(FLUPS_solver* s, const FLUPS_GreenType type);
-void flups_setup(FLUPS_solver* s);
+void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
+void flups_setup(FLUPS_Solver* s);
 
 // solve
-void flups_solve(FLUPS_solver* s, const FLUPS_topo* tIn, const FLUPS_topo* tOut);
+//topo may be different from the one used to create the solver, but must be compatible !
+void flups_solve(FLUPS_Solver* s, const FLUPS_Topo* t, double* field, double* rhs, const FLUPS_SolverType type);
 
 
 // -- ADVANCED FEATURES --
 
-void flups_set_alpha(const double alpha); //must be done before setup
-void flups_set_OrderDiff(const int order); //must be done before setup
+void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
+void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
-// void flups_do_FFTfwd(FLUPS_solver* s);
-// void flups_do_FFTbck(FLUPS_solver* s);
-// void flups_do_mult(FLUPS_solver* s);
+void flups_do_FFTfwd(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
+void flups_do_FFTbck(FLUPS_Solver* s, const FLUPS_Topo* t_phys, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
+void flups_do_mult(FLUPS_Solver* s, const FLUPS_Topo* t_spec, double* data_phys, double* data_spec);
 
 /**@} *****************************************************************/
 
 
-// #ifdef PROF
-// //**********************************************************************
-// //  PROFILER - TIMERS
-// //**********************************************************************
+//**********************************************************************
+//  PROFILER - TIMERS
+//**********************************************************************
 
-// typedef struct Profiler Profiler;
-
-// Profiler* profiler_new();
-// Profiler* profiler_new(char* name);
-// void    profiler_free(Profiler* p);
-// void profiler_disp();
-// #endif
-
+Profiler* profiler_new();
+Profiler* profiler_new_n(char name[]);
+void      profiler_free(Profiler* p);
+void      profiler_disp();
 
 #ifdef __cplusplus
 }
