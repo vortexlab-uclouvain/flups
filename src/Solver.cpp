@@ -845,8 +845,10 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
 /**
  * @brief Solve the Poisson equation
  * 
- * @param field 
- * @param rhs 
+ * @param topo the topoloy describing how field and rhs are layed out
+ * @param field pointer to the solution 
+ * @param rhs pointer to the field
+ * @param type type of solver
  * 
  * -----------------------------------------------
  * We perform the following operations:
@@ -918,7 +920,13 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     END_FUNC;
 }
 
-
+/**
+ * @brief copy from data to the object owned data or from the object owned data to data
+ * 
+ * @param topo 
+ * @param data 
+ * @param sign 
+ */
 void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     BEGIN_FUNC;
 
@@ -996,7 +1004,12 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     END_FUNC;
 }
 
-//only possible inplace
+/**
+ * @brief do the forward or backward fft on data (in place)
+ * 
+ * @param data 
+ * @param sign FLUPS_FORWARD or FLUPS_BACKWARD
+ */
 void Solver::do_FFT(double *data, const int sign){
     BEGIN_FUNC;
     
@@ -1030,6 +1043,12 @@ void Solver::do_FFT(double *data, const int sign){
     END_FUNC;
 }
 
+/**
+ * @brief actually do the convolution, i.e. multiply data by the Green's function (and optionially take the grad or the curl)
+ * 
+ * @param data 
+ * @param type 
+ */
 void Solver::do_mult(double *data, const SolverType type){
     BEGIN_FUNC;
     

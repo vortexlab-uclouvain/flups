@@ -174,11 +174,18 @@ class Solver {
     Topology* get_topo_spectral() ;
     
     /**
-     * @name Solver use
+     * @name Solver use 
      * 
      * @{
      */
     void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
+    /**@} */
+
+    /**
+     * @name Solver use (advanced)
+     * 
+     * @{
+     */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
     void do_mult(double *data, const SolverType type);

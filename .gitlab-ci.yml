@@ -107,7 +107,6 @@ run MPI a2a 1:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
@@ -120,7 +119,6 @@ run MPI a2a 2:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
@@ -133,7 +131,6 @@ run MPI a2a 3:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
@@ -146,7 +143,6 @@ run MPI a2a 4:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
@@ -159,7 +155,6 @@ run MPI a2a 5:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
@@ -172,7 +167,6 @@ run MPI a2a 6:1:
   only:
     - master@examples/flups
     - /^[0-9]-job-failed.*$/i@examples/flups
-    - dev_api_c@examples/flups
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
