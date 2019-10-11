@@ -135,6 +135,14 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
+FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s){
+    return s->get_topo_physical();
+}
+
+FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s){
+    return s->get_topo_spectral();
+}
+
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign){
     s->do_copy(topo,data,sign);
 }

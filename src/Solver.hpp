@@ -170,6 +170,7 @@ class Solver {
 
     void setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
+    Topology* get_topo_physical() ;
     Topology* get_topo_spectral() ;
     
     /**

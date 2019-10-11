@@ -140,6 +140,8 @@ class Topology {
         }
     }
 
+    bool isCompatibleWith(const Topology* topo) const;
+
     void disp() const;
     void disp_rank() const;
 };

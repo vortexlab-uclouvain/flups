@@ -173,3 +173,14 @@ void Topology::disp_rank() const{
     std::string name = "rank_topo_axis" + std::to_string(this->axis());
     hdf5_dump(this, name, rankdata);
 }
+
+bool Topology::isCompatibleWith(const Topology* topo) const{
+    bool cond = (_axis == topo->axis());
+    cond &= (isComplex() == topo->isComplex());
+    cond &= (memsize() <= topo->memsize());
+    
+    for (int ip = 0; ip < 2; ip++) {
+        cond &= (_axproc[ip] == topo->axproc(ip));
+    }
+    return cond;
+}

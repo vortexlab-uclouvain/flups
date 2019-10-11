@@ -130,10 +130,18 @@ void flups_setup(FLUPS_Solver* s);
 //topo may be different from the one used to create the solver, but must be compatible !
 void flups_solve(FLUPS_Solver* s, const FLUPS_Topology* t, double* field, double* rhs, const FLUPS_SolverType type);
 
-// -- ADVANCED FEATURES --
+/**@} *****************************************************************/
+
+/** *********************************************************************
+ * @name SOLVER (Advanced)
+ * @{
+ ********************************************************************* */
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
+
+FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s);
+FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s);
 
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);

@@ -228,10 +228,25 @@ Solver::~Solver() {
 }
 
 /**
- * @brief returns the topology corresponding to the fully transformed space
+ * @brief returns a copy of the topology corresponding to the physical space
  * 
  */
+Topology* Solver::get_topo_physical() {
+    const int axis = _topo_hat[0]->axis();
+    const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
+    const int nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
+    const int axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
+    const bool isComplex = _topo_hat[2]->isComplex();
+    const int align = FLUPS_ALIGNMENT;
+    Topology *topoSpe   = new Topology(axis, nglob, nproc,isComplex, axproc, align);
+    
+    return topoSpe;
+}
 
+/**
+ * @brief returns a copy of the topology corresponding to the fully transformed space
+ * 
+ */
 Topology* Solver::get_topo_spectral() {
     const int axis = _topo_hat[2]->axis();
     const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
@@ -922,8 +937,8 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
 
-
-        //--------------> CHECK THAT THE PROVIDED TOPO IS COMPATIBLE WITH THE STORED topo_hat[0]
+        //CHECK THAT THE PROVIDED TOPO IS COMPATIBLE WITH THE STORED topo_hat[0]
+        FLUPS_CHECK(topo->isCompatibleWith(_topo_hat[0]),"Incompatible topologies, I can't do the %d copy.",sign,LOCATION);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
