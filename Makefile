@@ -33,7 +33,6 @@ include $(ARCH_FILE)
 PREFIX ?= ./
 NAME := flups
 # executable naming
-TARGET_EXE := $(NAME)_validation
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
 # library naming
@@ -81,7 +80,7 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE)
+default: validation
 
 all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
 
@@ -94,9 +93,6 @@ nonblocking: $(TARGET_EXE_NB)
 lib: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
 
 preproc: $(IN_A2A)
-
-$(TARGET_EXE): $(OBJ_A2A)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_EXE_A2A): $(OBJ_A2A)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
