@@ -67,7 +67,7 @@ class FLUPS::SwitchTopo_a2a : public SwitchTopo {
     ~SwitchTopo_a2a();
 
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
-    void execute(opt_double_ptr v, const int sign, const int iswitch) const;
+    void execute(opt_double_ptr v, const int sign) const;
     void disp() const;
 };
 

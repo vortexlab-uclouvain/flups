@@ -75,12 +75,15 @@ class FLUPS::SwitchTopo {
     fftw_plan* _i2o_shuffle = NULL;
     fftw_plan* _o2i_shuffle = NULL;
 
-    Profiler* _prof = NULL;
+#ifdef PROF
+    Profiler* _prof    = NULL;
+#endif 
+    int       _iswitch = -1;
 
    public:
     virtual ~SwitchTopo() {};
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)    = 0;
-    virtual void execute(opt_double_ptr v, const int sign, const int iswitch) const = 0;
+    virtual void execute(opt_double_ptr v, const int sign) const = 0;
     virtual void disp() const                                                       = 0;
 
     /**

@@ -81,8 +81,13 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 
     _topo_in  = topo_input;
     _topo_out = topo_output;
-#ifdef PROF
+#ifdef PROF    
     _prof     = prof;
+    for (int ip=0;ip<3;ip++){
+        if(_topo_in->axis() == _topo_in->axproc(ip)){
+            _iswitch  = ip;
+        }
+    }
 #endif
     //-------------------------------------------------------------------------
     /** - get the starting and ending index of the shared zone */
@@ -402,13 +407,14 @@ SwitchTopo_nb::~SwitchTopo_nb() {
  * -----------------------------------------------
  * We do the following:
  */
-void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch) const {
+void SwitchTopo_nb::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
     PROF_START("reorder");
+    int iswitch = _iswitch;
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -599,7 +605,6 @@ void SwitchTopo_nb::execute(opt_double_ptr v, const int sign, const int iswitch)
     // create the status as a shared variable
     MPI_Status status;
 
-
 #pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2, recvRequest, iswitch, shuffle)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
@@ -750,12 +755,12 @@ void SwitchTopo_nb_test() {
     SwitchTopo* switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart, NULL);
 
     // printf("\n\n============ FORWARD =================");
-    switchtopo->execute(data, FLUPS_FORWARD, 0);
+    switchtopo->execute(data, FLUPS_FORWARD);
 
     hdf5_dump(topobig, "test_real_padd", data);
 
     // printf("\n\n============ BACKWARD =================");
-    switchtopo->execute(data, FLUPS_BACKWARD, 0);
+    switchtopo->execute(data, FLUPS_BACKWARD);
 
     hdf5_dump(topo, "test_real_returned", data);
 
@@ -792,11 +797,11 @@ void SwitchTopo_nb_test() {
     // printf("\n=============================");
     switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart2, NULL);
 
-    switchtopo->execute(data, FLUPS_FORWARD, 0);
+    switchtopo->execute(data, FLUPS_FORWARD);
 
     hdf5_dump(topobig, "test_complex_padd", data);
 
-    switchtopo->execute(data, FLUPS_BACKWARD, 0);
+    switchtopo->execute(data, FLUPS_BACKWARD);
 
     hdf5_dump(topo, "test_complex_returned", data);
 

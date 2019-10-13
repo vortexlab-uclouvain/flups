@@ -686,7 +686,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            _switchtopo_green[ip]->execute(green, FLUPS_FORWARD, ip);
+            _switchtopo_green[ip]->execute(green, FLUPS_FORWARD);
         }
 
         // execute the plan, if not already spectral
@@ -791,7 +791,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
         opt_double_ptr temp_recv;
         _allocate_switchTopo(1, &switchtopo, &temp_send, &temp_recv);
         // execute the switchtopo
-        switchtopo->execute(green, FLUPS_FORWARD, 2);
+        switchtopo->execute(green, FLUPS_FORWARD);
         // dallocate everything
         _deallocate_switchTopo(&switchtopo, &temp_send, &temp_recv);
         delete (switchtopo);
@@ -898,7 +898,7 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
         //-------------------------------------------------------------------------
         for (int ip = 0; ip < 3; ip++) {
             // go to the correct topo
-            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD, ip);
+            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
             // run the FFT
             PROF_START("fftw");
             _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
@@ -956,18 +956,18 @@ void Solver::solve(const Topology *topo_field, const Topology *topo_rhs, double 
             if (_plan_forward[ip]->isr2c()) {
                 _topo_hat[ip]->switch2real();
             }
-            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD, ip);
+            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
         }
     }    
 
     if(type == FFT_FORWARD){
-        for (int ip = 0;ip<2;ip++){
+        for (int ip = 0;ip<3;ip++){
             if(_plan_forward[ip]->isr2c()){
                 _topo_hat[ip]->switch2real();
             }
         }
     } else if (type == FFT_BACKWARD) {
-        for (int ip = 0;ip<2;ip++){
+        for (int ip = 0;ip<3;ip++){
             if(_plan_backward[ip]->isr2c()){
                 _topo_hat[ip]->switch2complex();
             }
