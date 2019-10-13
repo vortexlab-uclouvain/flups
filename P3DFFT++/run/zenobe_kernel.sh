@@ -30,9 +30,9 @@ echo
 echo "----------------- Start computation -------------"
 echo "Starting time : " $(date)
 
-MY_SIZE_X=$((${MY_SIZE}))
-MY_SIZE_Y=$((${MY_SIZE}*${MY_NY}))
-MY_SIZE_Z=$((${MY_SIZE}*${MY_NZ}))
+MY_SIZE_X=$((${MY_SIZE}*${LX}))
+MY_SIZE_Y=$((${MY_SIZE}*${LY}))
+MY_SIZE_Z=$((${MY_SIZE}*${LZ}))
 
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}
