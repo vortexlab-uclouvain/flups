@@ -71,6 +71,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `DUMP_H5`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
+- `NDEBUG`: use this flag to remove various checks inside the library
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
