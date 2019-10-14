@@ -29,15 +29,31 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <cstring>
 
-#include "Solver.hpp"
-#include "defines.hpp"
-#include "expint.hpp"
-
-#include "hdf5_io.hpp"
+#include "flups.h"
 #include "mpi.h"
 
 #define MANUFACTURED_SOLUTION
+
+
+static const double c_1opi     = 1.0 / (1.0 * M_PI);
+static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
+static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
+static const double c_1osqrtpi = 1.0 / sqrt(M_PI);
+static const double c_1o2      = 1.0 / 2.0;
+static const double c_1o4      = 1.0 / 4.0;
+static const double c_7o4      = 7. / 4.;
+static const double c_19o8     = 19. / 8;
+static const double c_2o3      = 2. / 3;
+static const double c_1o24     = 1. / 24;
+
+static const double c_1osqrt2 = 1.0 / M_SQRT2;
+
+static const double c_2pi = 2.0 * M_PI;
 
 
 struct DomainDescr {
@@ -52,10 +68,8 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-// void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen);
-// void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int nSolve);
-void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen);
-void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve);
+void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen);
+void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int nSolve);
 /**@} */
 
 

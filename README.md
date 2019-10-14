@@ -46,21 +46,32 @@ CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
 #---------------------------------------------------------
 FFTWDIR  := fftw_prefix
 HDF5DIR  := hdf5_prefix
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
 ```
-Then you need to reference the created configuration file inside the `Makefile` by changing the following line:
-```makefile
-# ARCH DEPENDENT VARIABLES
-include make_arch/make.vagrant_intel
+By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
+
+Then you need to reference the created configuration file and the prefix you wish to :
+```shell
+export ARCH_FILE=make_arch/my_arch_dependent_file
+export 
 ```
+You can now 
 
 Finally, go to the main folder and type the compilation command.
-- Build the exe with some validation cases:
+- Check the compilation details before doing the installation
 ```shell
-make -j
+make info
+## or
+ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make info
 ```
-- Build the library
+- Install the library
 ```shell
-PREFIX=/my/lib/prefix make install
+make install
+## or
+ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
 #### 3. The documentation

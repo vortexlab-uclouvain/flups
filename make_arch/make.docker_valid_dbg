@@ -1,6 +1,5 @@
 CXX = mpic++
 CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -fopenmp
 LDFLAGS += -fopenmp
-FFTWDIR  :=  /usr/
-HDF5INC := -I/usr/include/hdf5/openmpi
-HDF5LIB := -lhdf5_openmpi
+HDF5_INC := -I/usr/include/hdf5/openmpi
+HDF5_LIBNAME := -lhdf5_openmpi

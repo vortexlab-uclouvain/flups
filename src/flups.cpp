@@ -32,81 +32,83 @@
 #include "Solver.hpp"
 #include "Profiler.hpp"
 
-/** *********************************************************************
- * TOPOLOGIES
- ********************************************************************* */
 
-FLUPS_Topology* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]){
-    Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, 1);
-    return t;
+void * flups_malloc(size_t size){
+    return flups_mem_malloc(size);
 }
 
-FLUPS_Topology* flups_new_topo_(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
+void flups_free(void* data){
+    flups_mem_free(data);
+}
+
+
+//***********************************************************************
+// * TOPOLOGIES
+// **********************************************************************/
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
     Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment);
     return t;
 }
 
-void        flups_free_topo(FLUPS_Topology* t){
+void flups_topo_free(FLUPS_Topology* t) {
     t->~Topology();
 }
 
-
-bool flups_topo_get_isComplex(FLUPS_Topology* t){
+bool flups_topo_get_isComplex(FLUPS_Topology* t) {
     return t->isComplex();
 }
 
-int flups_topo_get_axis(FLUPS_Topology* t){
+int flups_topo_get_axis(FLUPS_Topology* t) {
     return t->axis();
 }
 
-int flups_topo_get_nglob(FLUPS_Topology* t, const int dim){
+int flups_topo_get_nglob(FLUPS_Topology* t, const int dim) {
     return t->nglob(dim);
 }
 
-int flups_topo_get_nloc(FLUPS_Topology* t, const int dim){
+int flups_topo_get_nloc(FLUPS_Topology* t, const int dim) {
     return t->nloc(dim);
 }
 
-int flups_topo_get_nmem(FLUPS_Topology* t, const int dim){
+int flups_topo_get_nmem(FLUPS_Topology* t, const int dim) {
     return t->nmem(dim);
 }
 
-int flups_topo_get_nproc(FLUPS_Topology* t, const int dim){
+int flups_topo_get_nproc(FLUPS_Topology* t, const int dim) {
     return t->nproc(dim);
 }
 
-void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]){
+void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]) {
     t->get_istart_glob(istart);
 }
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topology* t){
-    return (unsigned long long) t->locsize();
+unsigned long long flups_topo_get_locsize(FLUPS_Topology* t) {
+    return (unsigned long long)t->locsize();
 }
 
-unsigned long long flups_topo_get_memsize(FLUPS_Topology* t){
-    return (unsigned long long) t->memsize();
+unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
+    return (unsigned long long)t->memsize();
 }
 
-
-/** *********************************************************************
- *  SOLVER
- ********************************************************************* */
+//***********************************************************************
+//*  SOLVER
+//********************************************************************* */
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_new_solver(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
 #else
-FLUPS_Solver* flups_new_solver_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
 #endif
 
 // destroy the solver
-void flups_free_solver(FLUPS_Solver* s){
+void flups_cleanup(FLUPS_Solver* s){
     s->~Solver();
 }
 
@@ -126,6 +128,10 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
 
 
 // -- ADVANCED FEATURES --
+
+unsigned long long flups_get_allocSize(FLUPS_Solver* s){
+    return(unsigned long long) s->get_allocSize();
+}
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha){
     s->set_alpha(alpha);   
@@ -155,24 +161,29 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type){
     s->do_mult(data,type);
 }
 
-// //**********************************************************************
-// //  PROFILER - TIMERS
-// //**********************************************************************
+//**********************************************************************
+//  PROFILER - TIMERS
+//**********************************************************************
 
-FLUPS_Profiler* profiler_new() {
+FLUPS_Profiler* flups_profiler_new() {
     Profiler* p = new Profiler();
     return p;
 }
 
-FLUPS_Profiler* profiler_new_n(char name[]){
+FLUPS_Profiler* flups_profiler_new_n(const char name[]){
     Profiler* p = new Profiler(name);
     return p;
 }
 
-void profiler_free(FLUPS_Profiler* p) {
+void flups_profiler_free(FLUPS_Profiler* p) {
     p->~Profiler();
 }
 
-void profiler_disp(FLUPS_Profiler* p) {
+void flups_profiler_disp(FLUPS_Profiler* p) {
     p->disp();
+}
+
+void flups_profiler_disp_root(FLUPS_Profiler* p, char name[]) {
+    std::string myname(name);
+    p->disp(myname);
 }

@@ -22,7 +22,11 @@ CXXFLAGS := -O3 -g -DNDEBUG -std=c++17 -fopt-info-optall=optinfo.txt -Wno-variad
 #---------------------------------------------------------
 FFTWDIR  :=  /usr/local/Cellar/fftw/3.3.8_1
 HDF5DIR  :=  /opt/hdf5/gcc-9/v1.10.6
-
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+#_avx512
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
 
 #backups:
 # INC += -I/usr/local/Cellar/gcc/9.2.0/include/c++/9.2.0/

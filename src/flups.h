@@ -1,7 +1,7 @@
 /**
- * @file.h
+ * @file flups.h
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @brief 
+ * @brief This is the external API of the FLUPS library
  * @version
  * @date 2019-10-09
  * 
@@ -27,14 +27,21 @@
  * 
  */
 
+#ifndef FLUPS_H
+#define FLUPS_H
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** *********************************************************************
+
+//=============================================================================
+/**
  * @name Common definitions
  * @{
- ********************************************************************* */
+ */
+//=============================================================================
 
 
 /**
@@ -90,17 +97,88 @@ enum FLUPS_SolverType {
  */
 #define FLUPS_ALIGNMENT 16
 
+/**
+ * @brief FFTW planner flag
+ * 
+ */
+#define FFTW_FLAG FFTW_PATIENT
+
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
 typedef struct Profiler FLUPS_Profiler;
 
-/**@} *****************************************************************/
+/**@} */
 
+//=============================================================================
+/**
+ * @name MEMORY MANAGEMENT
+ * @{
+ */
+//=============================================================================
 
-/** *********************************************************************
+/**
+ * 
+ * @brief Allocate the memory aligned on FLUPS_ALIGNMENT
+ * 
+ * @param size the data to be allocated
+ */
+void * flups_malloc(size_t size);
+
+/**
+ * 
+ * @brief Free the memory allocated with flups_malloc
+ * 
+ * @param data the data to be freed
+ */
+void flups_free(void* data);
+
+/**
+ * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory.
+ * The returned value is in the axtrg-indexing
+ * 
+ * For example if going through a topology following the standard indexing:
+ * @code{.cpp}
+ *  const int ax0     = flups_topo_get_axis(topo);
+    const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
+                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
+ *                  
+ *              data[id] = ...;
+ *          }
+ *      }
+ *  }
+ * @endcode
+ * 
+ * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param i0 the index in the axsrc direction
+ * @param i1 the index in the (axsrc+1)%3 direction
+ * @param i2 the index in the (axsrc+2)%3 direction
+ * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
+ * @param size the size of the memory (012-indexing)
+ * @param nf the number of unknows in one element
+ * @return size_t 
+ */
+static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
+    const int i[3] = {i0, i1, i2};
+    const int dax0 = (3 + axtrg - axsrc) % 3;
+    const int dax1 = (dax0 + 1) % 3;
+    const int dax2 = (dax0 + 2) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
+
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
+}
+
+/**@} */
+
+//=============================================================================
+/**
  * @name TOPOLOGIES
  * @{
- ********************************************************************* */
+ */
+//=============================================================================
 
 /**
  * @brief Create and returns a topology.
@@ -113,14 +191,14 @@ typedef struct Profiler FLUPS_Profiler;
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-FLUPS_Topology* flups_new_topo(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
 
 /**
  * @brief Clean and free the topo.
  * 
  * @param t topo to be freed
  */
-void flups_free_topo(FLUPS_Topology* t);
+void flups_topo_free(FLUPS_Topology* t);
 
 /**
  * @brief 
@@ -158,40 +236,39 @@ unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
  */
 unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
 
+/**@} */
 
-
-/**@} *****************************************************************/
-
-
-/** *********************************************************************
+//=============================================================================
+/**
  * @name SOLVER
  * @{
- ********************************************************************* */
+ */
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_new_solver(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 #else
-FLUPS_Solver* flups_new_solver_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 #endif
 
 // destroy the solver
-void flups_free_solver(FLUPS_Solver* s);
+void flups_cleanup(FLUPS_Solver* s);
 
 // setup the solver
 void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
 void flups_setup(FLUPS_Solver* s);
 
 // solve
-//topo may be different from the one used to create the solver, but must be compatible !
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
 
-/**@} *****************************************************************/
+/**@} */
 
-/** *********************************************************************
+//=============================================================================
+/**
  * @name SOLVER (Advanced)
  * @{
- ********************************************************************* */
+ */
+unsigned long long flups_get_allocSize(FLUPS_Solver* s);
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
@@ -203,18 +280,25 @@ void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, co
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
 void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
-/**@} *****************************************************************/
+/**@} */
 
 
-//**********************************************************************
-//  PROFILER - TIMERS
-//**********************************************************************
+//=============================================================================
+/**
+ * @name PROFILER - TIMERS
+ * @{
+ */
 
-FLUPS_Profiler* profiler_new();
-FLUPS_Profiler* profiler_new_n(char name[]);
-void            profiler_free(FLUPS_Profiler* p);
-void            profiler_disp();
+FLUPS_Profiler* flups_profiler_new();
+FLUPS_Profiler* flups_profiler_new_n(const char name[]);
+void            flups_profiler_free(FLUPS_Profiler* p);
+void            flups_profiler_disp(FLUPS_Profiler* p);
+void            flups_profiler_disp_root(FLUPS_Profiler* p,char name[]);
+
+/**@} */
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

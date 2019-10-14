@@ -37,11 +37,6 @@
 
 #define GREEN_DIM 3
 
-// #define DUMP_H5
-#undef DUMP_H5
-
-#define FFTW_FLAG FFTW_PATIENT
-
 //=============================================================================
 // LOCATORS
 //=============================================================================
@@ -228,9 +223,6 @@ template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T
 static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
     ((void)0);
 };
-// static inline void BEGIN_FUNC() {
-//     ((void)0);
-// };
 #define BEGIN_FUNC { ((void)0);};
 #define END_FUNC { ((void)0);};
 #endif
@@ -421,7 +413,7 @@ typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_c
 //=============================================================================
 // MEMORY ALLOCATION AND FREE
 //=============================================================================
-static inline void* flups_malloc(size_t size) {
+static inline void* flups_mem_malloc(size_t size) {
 #if defined(__INTEL_COMPILER)
     return _mm_malloc(size, FLUPS_ALIGNMENT);
 #elif defined(__GNUC__)
@@ -431,7 +423,7 @@ static inline void* flups_malloc(size_t size) {
 #endif
 }
 
-static inline void flups_free(void* data) {
+static inline void flups_mem_free(void* data) {
 #if defined(__INTEL_COMPILER)
     _mm_free(data);
 #elif defined(__GNUC__)

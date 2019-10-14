@@ -872,11 +872,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    size_t size_tot = _topo_phys->memsize();
-    for (int id = 0; id < 3; id++) {
-        size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
-    }
-    std::memset(mydata, 0, sizeof(double) * size_tot);
+    std::memset(mydata, 0, sizeof(double) * get_allocSize());
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */

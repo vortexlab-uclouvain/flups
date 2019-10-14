@@ -173,7 +173,15 @@ class Solver {
     void set_OrderDiff(const int order) { _orderdiff = order; }
     Topology* get_innerTopo_physical() ;
     Topology* get_innerTopo_spectral() ;
-    
+
+    size_t get_allocSize() {
+        size_t size_tot = 1;
+        for (int id = 0; id < 3; id++) {
+            size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
+        }
+        return size_tot;
+    };
+
     /**
      * @name Solver use 
      * 
