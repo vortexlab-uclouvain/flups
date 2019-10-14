@@ -261,6 +261,20 @@ Topology* Solver::get_innerTopo_spectral() {
 }
 
 /**
+ * @brief 
+ * 
+ * @return size_t 
+ */
+size_t Solver::get_maxAllocatedSize() {
+    size_t size_tot = 1;
+    for (int id = 0; id < 3; id++) {
+        size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
+    }
+
+    return size_tot;
+}
+
+/**
  * @brief delete the FFTW_plan_dim stored in planmap
  * 
  * @param planmap 

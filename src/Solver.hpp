@@ -173,6 +173,7 @@ class Solver {
     void set_OrderDiff(const int order) { _orderdiff = order; }
     Topology* get_innerTopo_physical() ;
     Topology* get_innerTopo_spectral() ;
+    size_t get_maxAllocatedSize();
     
     /**
      * @name Solver use 

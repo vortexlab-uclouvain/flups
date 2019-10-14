@@ -132,6 +132,7 @@ int main(int argc, char *argv[]) {
     mysolver->set_GreenType(CHAT_2);
     mysolver->setup();
 
+    size_t max_size = mysolver->get_maxAllocatedSize();
 
     const Topology *topoPhys    = mysolver->get_innerTopo_physical();
     const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
@@ -256,13 +257,13 @@ int main(int argc, char *argv[]) {
     printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topoPhys->memsize());
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeOUT); //allocate with the larger size
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * max_size);
+    double *solFLU   = (double *)fftw_malloc(sizeof(double) * max_size); //allocate with the larger size
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
     p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * topoPhys->memsize());
-    std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
+    std::memset(rhsFLU, 0, sizeof(double ) * max_size);
+    std::memset(solFLU, 0, sizeof(double ) * max_size); 
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
     
