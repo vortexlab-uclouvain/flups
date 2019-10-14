@@ -112,7 +112,7 @@ install: $(TARGET_LIB_A2A) $(TARGET_LIB_NB)
 	cp $(TARGET_LIB_A2A) $(PREFIX)/lib
 	cp $(TARGET_LIB_NB) $(PREFIX)/lib
 	cp $(HEAD) $(PREFIX)/include
-	cp $(SRC_DIR)/flups_api.h $(PREFIX)/include/flups.h
+	cp $(SRC_DIR)/flups.h $(PREFIX)/include/flups.h
 
 test:
 	@echo $(SRC)
