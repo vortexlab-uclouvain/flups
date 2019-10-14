@@ -77,9 +77,13 @@ ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 #### 3. The documentation
 To build the documentation, go to the `doc` subfolder and type `doxygen`.
 
-
 ### How to use a solver?
 
+#### Detailed reference
+For a detailed view of the API, have a look at @ref flups.h
+
+
+#### FLUPS in a nutshell
 To use the solver, you first need to create a topology
 ```cpp
 int  axis      = 0;              // aligned along the first dimension
