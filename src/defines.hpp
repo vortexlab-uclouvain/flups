@@ -33,7 +33,7 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
-#include "flups_api.h"
+#include "flups.h"
 
 #define GREEN_DIM 3
 
