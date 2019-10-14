@@ -183,7 +183,7 @@ void flups_profiler_disp(FLUPS_Profiler* p) {
     p->disp();
 }
 
-void flups_profiler_disp_root(FLUPS_Profiler* p, char name[]) {
-    std::string myname(name);
+void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
+    const std::string myname(name);
     p->disp(myname);
 }

@@ -292,8 +292,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         flups_solve(mysolver,field, rhs, type);
     }
 
-    char name[15] = "solve";
-    flups_profiler_disp_root(prof,name);
+    flups_profiler_disp_root(prof,"solve");
     flups_profiler_free(prof);
 
     // lIs = 1.e10, gIs = 0.0;
