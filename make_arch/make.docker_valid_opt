@@ -1,5 +1,5 @@
 CXX = mpic++
-CXXFLAGS := -O3 -std=c++17 -fopenmp
+CXXFLAGS := -O3 -std=c++17 -fopenmp -DPROF
 LDFLAGS += -fopenmp
 HDF5_INC := /usr/include/hdf5/openmpi
 HDF5_LIBNAME := -lhdf5_openmpi
