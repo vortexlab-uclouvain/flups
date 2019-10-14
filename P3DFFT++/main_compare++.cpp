@@ -128,11 +128,9 @@ int main(int argc, char *argv[]) {
     // solver creation and init
     Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
     mysolver->set_GreenType(CHAT_2);
-    mysolver->setup();
+    double* solFLU = mysolver->setup(); //already allocated
 
     // retrieveing internal info from the solver
-    size_t max_size = mysolver->get_maxAllocSize();
-
     const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
 
     for (int i = 0; i < 3; i++) {
@@ -252,13 +250,13 @@ int main(int argc, char *argv[]) {
     printf("I am going to allocate FLUPS: %d (inside FLUPS: %d) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * max_size);
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * max_size); //allocate with the larger size
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
+    //solFLU   allocated by sflups setup with the larger size
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
     p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * max_size);
-    std::memset(solFLU, 0, sizeof(double ) * max_size); 
+    std::memset(rhsFLU, 0, sizeof(double ) * FLUmemsizeIN);
+    std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
     
@@ -385,7 +383,6 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
     
     fftw_free(solP3D);
-    fftw_free(solFLU);
     fftw_free(rhsP3D);
     fftw_free(rhsFLU);
 
@@ -395,27 +392,6 @@ int main(int argc, char *argv[]) {
     p3dfft::cleanup();
 
     MPI_Finalize();
-}
-
-void print_res_real(double *A, int *sdims, int *nmem, int *gstart) {
-    int     x, y, z;
-    double *p;
-    int     imo[3], i, j;
-    p = A;
-    int id;
-
-    for (x = 0; x < sdims[0]; x++) {
-        for (y = 0; y < sdims[1]; y++){
-            for (z = 0; z < sdims[2]; z++) {        
-                id = localIndex(0, x, y, z, 0, nmem, 1);
-
-                if ((x == 4 && y == 4)) {
-                    // if(std::fabs(p[0])+std::fabs(p[1]) > 1.25e-4){
-                    printf("FLU(%d %d %d) %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id]);
-                }
-            }
-        }
-    }
 }
 
 void print_res(double *A, const Topology* topo) {

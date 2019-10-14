@@ -149,7 +149,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
  * -------------------------------------------
  * We do the following operations
  */
-void Solver::setup() {
+double* Solver::setup() {
     BEGIN_FUNC;
     if (_prof != NULL) _prof->start("setup");
     if (_prof != NULL) _prof->start("alloc_data");
@@ -201,7 +201,9 @@ void Solver::setup() {
     /** - Allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+
     END_FUNC;
+    return _data;
 }
 
 /**

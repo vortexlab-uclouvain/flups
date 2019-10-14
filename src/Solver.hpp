@@ -169,7 +169,7 @@ class Solver {
     // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
     ~Solver();
 
-    void setup();
+    double* setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
     Topology* get_innerTopo_physical() ;
     Topology* get_innerTopo_spectral() ;
