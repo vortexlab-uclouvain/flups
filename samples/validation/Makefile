@@ -85,10 +85,10 @@ all2all: $(TARGET_EXE_A2A)
 nonblocking: $(TARGET_EXE_NB)
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ $(LIB) -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
 clean:
 	rm -f $(OBJ_DIR)/*.o

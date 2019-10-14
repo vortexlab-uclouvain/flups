@@ -117,10 +117,10 @@ lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
 lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $@ $^ $(LIB)
+	ar rvs $@ $^
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $@ $^ $(LIB)
+	ar rvs $@ $^
 	
 $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
