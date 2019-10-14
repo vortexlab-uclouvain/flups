@@ -20,7 +20,10 @@ compil dbg :
       - ./samples/validation/flups_validation_a2a
     when: on_success
   script:
+    - pwd
     - cd ../../
+    - pwd
+    - ls
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
     - make all -j4
     - cd ./samples/validation
