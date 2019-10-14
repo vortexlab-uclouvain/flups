@@ -233,14 +233,14 @@ Solver::~Solver() {
  * 
  */
 Topology* Solver::get_innerTopo_physical() {
-    const int axis = _topo_hat[0]->axis();
-    const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
-    const int nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
-    const int axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
-    const bool isComplex = _topo_hat[2]->isComplex();
-    const int align = FLUPS_ALIGNMENT;
-    Topology *topoPhys   = new Topology(axis, nglob, nproc,isComplex, axproc, align);
-    
+    const int  axis       = _topo_hat[0]->axis();
+    const int  nglob[3]   = {_topo_hat[0]->nglob(0), _topo_hat[0]->nglob(1), _topo_hat[0]->nglob(2)};
+    const int  nproc[3]   = {_topo_hat[0]->nproc(0), _topo_hat[0]->nproc(1), _topo_hat[0]->nproc(2)};
+    const int  axproc[3]  = {_topo_hat[0]->axproc(0), _topo_hat[0]->axproc(1), _topo_hat[0]->axproc(2)};
+    const bool isComplex  = _topo_hat[0]->isComplex();
+    const int  align      = FLUPS_ALIGNMENT;
+    Topology*  topoPhys   = new Topology(axis, nglob, nproc, isComplex, axproc, align);
+
     return topoPhys;
 }
 
@@ -249,14 +249,14 @@ Topology* Solver::get_innerTopo_physical() {
  * 
  */
 Topology* Solver::get_innerTopo_spectral() {
-    const int axis = _topo_hat[2]->axis();
-    const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
-    const int nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
-    const int axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
+    const int  axis      = _topo_hat[2]->axis();
+    const int  nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
+    const int  nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
+    const int  axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
     const bool isComplex = _topo_hat[2]->isComplex();
-    const int align = FLUPS_ALIGNMENT;
-    Topology *topoSpe   = new Topology(axis, nglob, nproc,isComplex, axproc, align);
-    
+    const int  align     = FLUPS_ALIGNMENT;
+    Topology*  topoSpe   = new Topology(axis, nglob, nproc, isComplex, axproc, align);
+
     return topoSpe;
 }
 
