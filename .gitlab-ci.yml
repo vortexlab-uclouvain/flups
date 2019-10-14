@@ -2,7 +2,7 @@ default :
   image : immc/flups-valid:v0.2
   before_script:
     - OMP_NUM_THREADS=1
-    - cd ./sample/validation
+    - cd ./samples/validation
 
 stages:
   - build
@@ -16,14 +16,14 @@ compil dbg :
     - merge_requests
   artifacts: 
     paths: 
-      - ./sample/validation/flups_validation_nb
-      - ./sample/validation/flups_validation_a2a
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
     when: on_success
   script:
     - cd ../../
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
     - make all -j4
-    - cd ./sample/validation
+    - cd ./samples/validation
     - make all -j4
 
 compil opt :
@@ -34,14 +34,14 @@ compil opt :
     - merge_requests
   artifacts: 
     paths: 
-      - ./sample/validation/flups_validation_nb
-      - ./sample/validation/flups_validation_a2a
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
     when: on_success
   script:
     - cd ../../
     - export ARCH_FILE=make_arch/make.docker_valid_opt
     - make all -j4
-    - cd ./sample/validation
+    - cd ./samples/validation
     - make all -j4
 
 #checks that the code runs without error in serial dbg
@@ -55,7 +55,6 @@ run serial a2a 1:1:
     - /^[0-9]-job-failed.*$/i@examples/flups
     - merge_requests
   script:
-    - cd ./sample/validation
     - ./flups_validation_a2a -bc 3 3 3 3 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
   dependencies: 
