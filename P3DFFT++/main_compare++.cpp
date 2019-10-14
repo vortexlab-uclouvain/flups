@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     mysolver->setup();
 
     // retrieveing internal info from the solver
-    size_t max_size = mysolver->get_maxAllocatedSize();
+    size_t max_size = mysolver->get_maxAllocSize();
 
     const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
 
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    printf("I am going to allocate FLUPS: %d (out done by FLUPS) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
+    printf("I am going to allocate FLUPS: %d (inside FLUPS: %d) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
     double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * max_size);
@@ -307,7 +307,7 @@ int main(int argc, char *argv[]) {
         trans_f.exec(rhsP3D,solP3D,false);  // Execute forward real-to-complex FFT
         P3Dprof->stop("FFTandSwitch");
 
-#define PRINT_RES
+// #define PRINT_RES
 #ifdef PRINT_RES
         /* normalize */
         for(int id = 0; id<P3DmemsizeOUT; id++){
@@ -320,11 +320,10 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(MPI_COMM_WORLD);
 
         //reinit sol to prepare for inplace 3D FFT
-        // std::memset(solFLU, 0, sizeof(double ) * max_size); 
         std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
 
         mysolver->do_FFT(solFLU,FLUPS_FORWARD);
-        
+
 #ifdef PRINT_RES
         /* normalize*/
         for(int id = 0; id<FLUmemsizeOUT; id++){
@@ -332,7 +331,9 @@ int main(int argc, char *argv[]) {
         }
         print_res(solFLU,topoSpec);
 #endif
-        
+        //Note: if we do several FFT in a raw, the results are wrong with FLUPS for iter>=1. This is because
+        // FLUPS would require to do the backward transform before doing a new forward transform (or a reset
+        // function, which we choose not to implement).
     }
 
     // //-------------------------------------------------------------------------
