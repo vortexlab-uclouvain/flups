@@ -1,4 +1,3 @@
-CXXFLAGS += P3DMODIF
 LDFLAGS += -lmpi_mpifh -lgfortran  
 
 #make && OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 4 --tag-output --oversubscribe ./flups_vs_p3dfft_nb > log.log

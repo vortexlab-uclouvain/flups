@@ -4,16 +4,17 @@
 #include "Solver.hpp"
 #include "p3dfft.h"
 
-
-void print_res(p3dfft::complex_double *A,int *sdims,int *gstart);
-void print_res(double *A,int *sdims,int *gstart);
+void print_res(p3dfft::complex_double *A, int *sdims, int *gstart);
+void print_res_real(double *A, int *sdims, int *nmem, int *gstart);
+void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart);
+void print_res_cplx(double *A, const Topology* topo);
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     // Default values
     //-------------------------------------------------------------------------
-    int n_iter = 100;
-    int res[3] = {32,32,64};
+    int n_iter = 1;
+    int res[3] = {16,16,16};
     int nproc2D[2] = {1,2};
 
     //-------------------------------------------------------------------------
@@ -69,7 +70,7 @@ int main(int argc, char *argv[]) {
         // } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
         //     for (int j = 0; j<6;j++){
         //         if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
-        //             bcdef[j/2][j%2] = (FLUPS::BoundaryType) atoi(argv[i+j+1]); 
+        //             bcdef[j/2][j%2] = (BoundaryType) atoi(argv[i+j+1]); 
         //         } else { //Missing argument
         //             fprintf(stderr, "missing argument in --boundary-conditions\n");
         //             return 1;
@@ -104,9 +105,9 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const FLUPS::BoundaryType mybc[3][2] = {FLUPS::PER, FLUPS::PER,
-                                            FLUPS::PER, FLUPS::PER,
-                                            FLUPS::PER, FLUPS::PER};
+    const BoundaryType mybc[3][2] = {PER, PER,
+                                    PER, PER,
+                                    PER, PER};
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
         FLUPS_ERROR("Invalid number of procs",LOCATION);
@@ -118,30 +119,33 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    const FLUPS::Topology *topoIn    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    const Topology *topoIn    = new Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
-    const  FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, true, NULL,FLUPS_ALIGNMENT);
+    // const  Topology *topoOut    = new Topology(2, nglobOut, nprocOut, true, NULL,FLUPS_ALIGNMENT);
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
-    FLUPS::Solver *mysolver = new FLUPS::Solver(topoIn, mybc, h, L, FLUprof);
+    Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
 
-    mysolver->set_GreenType(FLUPS::CHAT_2);
+    mysolver->set_GreenType(CHAT_2);
     mysolver->setup();
 
 
+    const Topology *topoPhys    = mysolver->get_innerTopo_physical();
+    const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
+
     for (int i = 0; i < 3; i++) {
         FLUnmemIn[i]  = topoIn->nmem(i);
-        FLUnmemOUT[i] = topoOut->nmem(i);
+        FLUnmemOUT[i] = topoSpec->nmem(i);
     }
     int FLUnlocIN[3]  = {topoIn->nloc(0), topoIn->nloc(1), topoIn->nloc(2)};
-    int FLUnlocOUT[3] = {topoOut->nloc(0), topoOut->nloc(1), topoOut->nloc(2)};
+    int FLUnlocOUT[3] = {topoSpec->nloc(0), topoSpec->nloc(1), topoSpec->nloc(2)};
 
     int istartGloOut[3];
     int FLUmemsizeIN = topoIn->memsize();
-    int FLUmemsizeOUT = topoOut->memsize();
+    int FLUmemsizeOUT = topoSpec->memsize();
     
     //-------------------------------------------------------------------------
     /** - Initialize P3DFFT */
@@ -235,10 +239,11 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     if (rank == 0){
         printf("[FLUPS] topo phys loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
-        printf("[FLUPS] topo 0 glob : %d %d %d \n",mysolver->get_globMemsize(0,0),mysolver->get_globMemsize(1,0),mysolver->get_globMemsize(2,0));
-        printf("[FLUPS] topo 0 loc  : %d %d %d  \n",mysolver->get_locMemsize(0,0),mysolver->get_locMemsize(1,0),mysolver->get_locMemsize(2,0));
-        printf("[FLUPS] topo 2 glob : %d %d %d (doubles) \n",mysolver->get_globMemsize(0,2),mysolver->get_globMemsize(1,2),mysolver->get_globMemsize(2,2));
-        printf("[FLUPS] topo 2 loc  : %d %d %d (doubles)\n\n",mysolver->get_locMemsize(0,2),mysolver->get_locMemsize(1,2),mysolver->get_locMemsize(2,2));
+        printf("[FLUPS] topo 0 glob : %d %d %d \n",topoPhys->nglob(0),topoPhys->nglob(1),topoPhys->nglob(2));
+        printf("[FLUPS] topo 0 loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoPhys->nmem(0),topoPhys->nmem(1),topoPhys->nmem(2),topoPhys->nf(),topoPhys->nloc(0),topoPhys->nloc(1),topoPhys->nloc(2));
+        printf("[FLUPS] topo 2 glob : %d %d %d \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2));
+        printf("[FLUPS] topo 2 loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoSpec->nmem(0),topoSpec->nmem(1),topoSpec->nmem(2),topoSpec->nf(),topoSpec->nloc(0),topoSpec->nloc(1),topoSpec->nloc(2));
+        printf("[FLUPS] topo 2 loc  : axproc=%d %d %d\n",topoSpec->axproc(0),topoSpec->axproc(1),topoSpec->axproc(2));
     }
 
     printf("[P3DFFT++] topo IN glob  : %d %d %d  \n",gdimsIN[0],gdimsIN[1],gdimsIN[2]);
@@ -251,12 +256,12 @@ int main(int argc, char *argv[]) {
     printf("I am going to allocate FLUPS: %d (out %d R) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
     
  
-    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
-    double *solFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeOUT);
+    double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * topoPhys->memsize());
+    double *solFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeOUT); //allocate with the larger size
     double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
     p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
 
-    std::memset(rhsFLU, 0, sizeof(double ) * FLUmemsizeIN);
+    std::memset(rhsFLU, 0, sizeof(double ) * topoPhys->memsize());
     std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
@@ -309,7 +314,7 @@ int main(int argc, char *argv[]) {
         trans_f.exec(rhsP3D,solP3D,false);  // Execute forward real-to-complex FFT
         P3Dprof->stop("FFTandSwitch");
 
-// #define PRINT_RES
+#define PRINT_RES
 #ifdef PRINT_RES
         /* normallize */
         for(int id = 0; id<P3DmemsizeOUT; id++){
@@ -320,18 +325,39 @@ int main(int argc, char *argv[]) {
 
         // ------------------FLUPS---------------:
         MPI_Barrier(MPI_COMM_WORLD);
-        mysolver->solve(topoOut,topoIn, solFLU, rhsFLU, FLUPS::FFT_FORWARD );
+
+        std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
+
+#ifdef DUMP_H5
+    hdf5_dump(topoIn, "INPUT", solFLU);
+#endif
+
+        mysolver->do_FFT(solFLU,FLUPS_FORWARD);
+        // mysolver->solve(solFLU, rhsFLU, SRHS );
         
+// #ifdef DUMP_H5
+//     hdf5_dump(topoIn, "OUTPUT", solFLU);
+// #endif
+
+
 #ifdef PRINT_RES
-        topoOut->get_istart_glob(istartGloOut);
-        printf("[FLUPS] topoOut 0 loc : %d*%d*%d = %d (check: %d %d %d)\n",topoOut->nmem(0),topoOut->nmem(1),topoOut->nmem(2),topoOut->memsize(),topoOut->nloc(0),topoOut->nloc(1),topoOut->nloc(2));
-        printf("[FLUPS] topoOut 0 glo  : %d %d %d (is: %d %d %d) \n",topoOut->nglob(0),topoOut->nglob(1),topoOut->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
+        topoSpec->get_istart_glob(istartGloOut);
+        // printf("[FLUPS] topo 2 glo  : %d %d %d (is: %d %d %d) \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
         
         for(int id = 0; id<FLUmemsizeOUT; id++){
             solFLU[id] *= factor;
         }
-        print_res(solFLU,FLUnlocOUT,istartGloOut);
+#ifdef DUMP_H5
+        hdf5_dump(topoSpec, "OUTPUTc", solFLU);
 #endif
+
+        // print_res_cplx(solFLU,topoSpec);
+        print_res_cplx(solFLU,FLUnlocOUT,FLUnmemOUT,istartGloOut);
+        
+
+        // print_res_real(solFLU,FLUnlocIN,FLUnmemIn,istartGlo);
+#endif
+        
     }
 
     // //-------------------------------------------------------------------------
@@ -388,30 +414,89 @@ int main(int argc, char *argv[]) {
     fftw_free(rhsFLU);
 
     topoIn->~Topology();
-    topoOut->~Topology();
+    topoSpec->~Topology();
+    topoPhys->~Topology();
     mysolver->~Solver();
     p3dfft::cleanup();
-
 
     MPI_Finalize();
 }
 
+void print_res_real(double *A, int *sdims, int *nmem, int *gstart) {
+    int     x, y, z;
+    double *p;
+    int     imo[3], i, j;
+    p = A;
+    int id;
 
+    for (x = 0; x < sdims[0]; x++) {
+        for (y = 0; y < sdims[1]; y++){
+            for (z = 0; z < sdims[2]; z++) {        
+                id = localIndex(0, x, y, z, 0, nmem, 1);
 
-void print_res(double *A,int *sdims,int *gstart)
-{
-  int x,y,z;
-  double *p;
-  int imo[3],i,j;
-  p = A;
+                if ((x == 4 && y == 4)) {
+                    // if(std::fabs(p[0])+std::fabs(p[1]) > 1.25e-4){
+                    printf("FLU(%d %d %d) %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id]);
+                }
+            }
+        }
+    }
+}
 
-  for(x=0;x < sdims[0];x++)
-    for(y=0;y < sdims[1];y++)
-      for(z=0;z < sdims[2];z++) {
-        if(std::fabs(p[0])+std::fabs(p[1]) > 1.25e-4) 
-            printf("FLU(%d %d %d) %lg %lg\n",x+gstart[0],y+gstart[1],z+gstart[2],p[0],p[1]);
-        p+=2;
-      }
+// void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart) {    
+void print_res_cplx(double *A, const Topology* topo) {
+    int     x, y, z;
+    double *p;
+    
+    const int ax0     = topo->axis();
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nf = topo->nf();
+    int nmem[3];
+    
+    for(int i=0;i<3;i++){
+        nmem[i] = topo->nmem(i);
+    }
+
+    int gstart[3];
+    topo->get_istart_glob(gstart);
+    
+    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+            //local indexes start
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,nf);
+            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                
+                if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
+                    printf("FLU(%d %d %d) %lg %lg\n", i0 + gstart[0], i1 + gstart[1], i2 + gstart[2], A[id], A[id + 1]);
+                }
+
+    // //assuming axproc = 3 1 2
+    // for (x = 0; x < sdims[0]; x++) {
+    //     for (y = 0; y < sdims[1]; y++)
+    //         for (z = 0; z < sdims[2]; z++) {
+    //             id = localIndex(0, x, y, z, 0, nmem, 2);
+                // if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
+                //     printf("FLU(%d %d %d) %lg %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id], A[id + 1]);
+                // }
+            }
+        }
+    }
+}
+
+void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart) {    
+    int     x, y, z;
+    
+    for (x = 0; x < sdims[0]; x++) {
+        for (y = 0; y < sdims[1]; y++){
+            for (z = 0; z < sdims[2]; z++) {
+                int id = localIndex(0, x, y, z, 0, nmem, 2);
+                if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
+                    printf("FLU(%d %d %d) %lg %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id], A[id + 1]);
+                }
+            }
+        }
+    }
 }
 
 void print_res(p3dfft::complex_double *A,int *sdims,int *gstart)

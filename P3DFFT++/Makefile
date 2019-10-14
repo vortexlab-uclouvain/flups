@@ -27,6 +27,7 @@ ARCH_FILE ?= make.osx_gcc
 #DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
 include ../make_arch/$(ARCH_FILE)
+include make_arch/$(ARCH_FILE)
 
 FLUPSDIR := ../
 #/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver
@@ -77,8 +78,6 @@ HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
-# OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
-# OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
 
@@ -112,8 +111,6 @@ clean:
 	rm -f $(TARGET_EXE_NB)
 	
 destroy:
-	rm -f $(OBJ_DIR)/*.o
-	rm -f $(OBJ_DIR)/*.d
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	rm -f $(OBJ_DIR)/*
