@@ -90,7 +90,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //     }
     // }
     _iswitch = _topo_out->axproc(_topo_out->axis());
-    printf("ISWITCH = %d\n",_iswitch);
 #endif
     //-------------------------------------------------------------------------
     /** - get the starting and ending index of the shared zone */

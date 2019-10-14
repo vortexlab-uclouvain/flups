@@ -53,8 +53,7 @@ int main(int argc, char *argv[]) {
     const FLUPS::Topology *topoIn    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
-    FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, false, NULL,FLUPS_ALIGNMENT);
-    topoOut->switch2complex();
+    const FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, true, NULL,FLUPS_ALIGNMENT);
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);

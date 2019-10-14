@@ -121,8 +121,7 @@ int main(int argc, char *argv[]) {
     const FLUPS::Topology *topoIn    = new FLUPS::Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
-    FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, false, NULL,FLUPS_ALIGNMENT);
-    topoOut->switch2complex();
+    const  FLUPS::Topology *topoOut    = new FLUPS::Topology(2, nglobOut, nprocOut, true, NULL,FLUPS_ALIGNMENT);
 
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
@@ -344,14 +343,17 @@ int main(int argc, char *argv[]) {
     delete(FLUprof);
 
     // --- P3DFFT -------
+#ifdef P3DMODIF
     double times[8][3];
     p3dfft::timers.get(times,MPI_COMM_WORLD);
+    string P3DNames[8] = {"Reorder_trans","Reorder_out","Reorder_in","Trans_exec","Packsend","Packsend_trans","Unpackrecv","Alltoall"};
+#endif
 
     double timeRef      = P3Dprof->get_timeAcc("FFTandSwitch");
     double timeInit     = P3Dprof->get_timeAcc("init");
-    string P3DNames[8] = {"Reorder_trans","Reorder_out","Reorder_in","Trans_exec","Packsend","Packsend_trans","Unpackrecv","Alltoall"};
 
     P3Dprof->disp("FFTandSwitch");
+#ifdef P3DMODIF    
     if(rank == 0) {
         // printf("===================================================================================================================================================\n");
         // printf("          TIMER P3DFFT %s\n",P3DFFTprof.c_str());
@@ -371,6 +373,9 @@ int main(int argc, char *argv[]) {
         }
         fclose(file);
     }   
+#else
+    p3dfft::timers.print(MPI_COMM_WORLD);
+#endif
     delete(P3Dprof);
 
     if(rank==0)
