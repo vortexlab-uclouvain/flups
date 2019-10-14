@@ -120,8 +120,8 @@ void flups_setup(FLUPS_Solver* s){
 }
 
 // solve
-void flups_solve(FLUPS_Solver* s, const FLUPS_Topology* t, double* field, double* rhs, const FLUPS_SolverType type){
-    s->solve(t, field, rhs, type);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type){
+    s->solve(field, rhs, type);
 }
 
 
@@ -135,12 +135,12 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s){
-    return s->get_topo_physical();
+FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
+    return s->get_innerTopo_physical();
 }
 
-FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s){
-    return s->get_topo_spectral();
+FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
+    return s->get_innerTopo_spectral();
 }
 
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign){

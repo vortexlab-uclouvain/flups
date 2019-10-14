@@ -173,31 +173,3 @@ void Topology::disp_rank() const{
     std::string name = "rank_topo_axis" + std::to_string(this->axis());
     hdf5_dump(this, name, rankdata);
 }
-
-/**
- * @brief 
- * 
- * @param topo 
- * @return true 
- * @return false 
- */
-bool Topology::isCompatibleWith(const Topology* topo) const{
-    bool cond= true;
-    // cond &= (this->_axis == topo->axis());
-    cond &= (isComplex() == topo->isComplex());
-    cond &= (memsize() <= topo->memsize());
-    // printf("XXX axis %d %d\n",_axis, topo->axis());
-    // printf("XXX complex? %d %d\n",isComplex(), topo->isComplex());
-    // printf("XXX memsize? %d %d\n",memsize(), topo->memsize());
-    
-    // for (int ip = 0; ip < 3; ip++) {
-        // cond &= (_nloc[ip] <= topo->nloc(ip));
-        // cond &= (_nmem[ip] <= topo->nmem(ip));
-        // cond &= (_axproc[ip] == topo->axproc(ip));
-        // printf("XXX nloc %d %d\n",_nloc[ip], topo->nloc(ip));
-        // printf("XXX nmem %d %d\n",_nmem[ip], topo->nmem(ip));
-        // printf("XXX nmem %d %d\n",_nmem[ip], topo->nmem(ip));
-        // printf("XXX axproc %d %d\n",_axproc[ip], topo->axproc(ip));
-    // }
-    return cond;
-}

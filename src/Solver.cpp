@@ -113,6 +113,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     //-------------------------------------------------------------------------
     /** - Initialise the plans and get the sizes */
     //-------------------------------------------------------------------------
+    _topo_phys = topo; //store pointer to the topo of the user
     _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
     _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
@@ -231,23 +232,23 @@ Solver::~Solver() {
  * @brief returns a copy of the topology corresponding to the physical space
  * 
  */
-Topology* Solver::get_topo_physical() {
+Topology* Solver::get_innerTopo_physical() {
     const int axis = _topo_hat[0]->axis();
     const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
     const int nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
     const int axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
     const bool isComplex = _topo_hat[2]->isComplex();
     const int align = FLUPS_ALIGNMENT;
-    Topology *topoSpe   = new Topology(axis, nglob, nproc,isComplex, axproc, align);
+    Topology *topoPhys   = new Topology(axis, nglob, nproc,isComplex, axproc, align);
     
-    return topoSpe;
+    return topoPhys;
 }
 
 /**
  * @brief returns a copy of the topology corresponding to the fully transformed space
  * 
  */
-Topology* Solver::get_topo_spectral() {
+Topology* Solver::get_innerTopo_spectral() {
     const int axis = _topo_hat[2]->axis();
     const int nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
     const int nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
@@ -843,9 +844,10 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
 }
 
 /**
- * @brief Solve the Poisson equation
+ * @brief Solve the Poisson equation of the specified type.
  * 
- * @param topo the topoloy describing how field and rhs are layed out
+ * The topology for field and rhs must be the same as that used at initilization of FLUPS.
+ * 
  * @param field pointer to the solution 
  * @param rhs pointer to the field
  * @param type type of solver
@@ -853,7 +855,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field[3], double *green, Topo
  * -----------------------------------------------
  * We perform the following operations:
  */
-void Solver::solve(const Topology *topo, double *field, double *rhs, const SolverType type) {
+void Solver::solve(double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - sanity checks */
@@ -870,7 +872,7 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    size_t size_tot = topo->memsize();
+    size_t size_tot = _topo_phys->memsize();
     for (int id = 0; id < 3; id++) {
         size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
     }
@@ -879,12 +881,12 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(topo->nf() == 1, "The RHS topology cannot be complex", LOCATION);
+    FLUPS_CHECK(_topo_phys->nf() == 1, "The RHS topology cannot be complex", LOCATION);
 
-    do_copy(topo, rhs, FLUPS_FORWARD);
+    do_copy(_topo_phys, rhs, FLUPS_FORWARD);
 
 #ifdef DUMP_H5
-    hdf5_dump(topo, "rhs", mydata);
+    hdf5_dump(_topo_phys, "rhs", mydata);
 #endif
     //-------------------------------------------------------------------------
     /** - go to Fourier */
@@ -911,10 +913,10 @@ void Solver::solve(const Topology *topo, double *field, double *rhs, const Solve
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
-    do_copy(topo, field, FLUPS_BACKWARD);
+    do_copy(_topo_phys, field, FLUPS_BACKWARD);
 
     // io if needed
-    hdf5_dump(topo, "sol", myfield);
+    hdf5_dump(_topo_phys, "sol", myfield);
     // stop the whole timer
     if (_prof != NULL) _prof->stop("solve");
     END_FUNC;
@@ -945,9 +947,6 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
         const size_t inmax   = topo->nloc(ax0);
-
-        //CHECK THAT THE PROVIDED TOPO IS COMPATIBLE WITH THE STORED topo_hat[0]
-        FLUPS_CHECK(topo->isCompatibleWith(_topo_hat[0]),"Incompatible topologies, I can't do the %s copy.",sign==1?"BCKWD":"FWD",LOCATION);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
@@ -1008,7 +1007,9 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
 /**
  * @brief do the forward or backward fft on data (in place)
  * 
- * @param data 
+ * The topo assumed for data is the same as that used at FLUPS init.
+ * 
+ * @param data pointer to data
  * @param sign FLUPS_FORWARD or FLUPS_BACKWARD
  */
 void Solver::do_FFT(double *data, const int sign){
@@ -1047,6 +1048,7 @@ void Solver::do_FFT(double *data, const int sign){
 
 /**
  * @brief actually do the convolution, i.e. multiply data by the Green's function (and optionially take the grad or the curl)
+ * 
  * 
  * @param data 
  * @param type 

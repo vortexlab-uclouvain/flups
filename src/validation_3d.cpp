@@ -287,7 +287,7 @@ void validation_3d(const DomainDescr myCase, const SolverType type, const GreenT
     /** - solve the equations */
     //-------------------------------------------------------------------------
     for(int is=0; is<nSolve; is++){
-        mysolver->solve(topo, field, rhs, type);
+        mysolver->solve(field, rhs, type);
     }
 
     prof->disp("solve");

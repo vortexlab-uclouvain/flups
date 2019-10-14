@@ -83,6 +83,7 @@ class Solver {
     /**@{ */
     FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
     // opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
@@ -170,15 +171,15 @@ class Solver {
 
     void setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
-    Topology* get_topo_physical() ;
-    Topology* get_topo_spectral() ;
+    Topology* get_innerTopo_physical() ;
+    Topology* get_innerTopo_spectral() ;
     
     /**
      * @name Solver use 
      * 
      * @{
      */
-    void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
+    void solve(double* field, double* rhs, const SolverType type);
     /**@} */
 
     /**

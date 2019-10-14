@@ -128,7 +128,7 @@ void flups_setup(FLUPS_Solver* s);
 
 // solve
 //topo may be different from the one used to create the solver, but must be compatible !
-void flups_solve(FLUPS_Solver* s, const FLUPS_Topology* t, double* field, double* rhs, const FLUPS_SolverType type);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
 
 /**@} *****************************************************************/
 
