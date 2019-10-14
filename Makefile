@@ -125,7 +125,7 @@ $(TARGET_LIB_NB).a: $(OBJ_NB)
 $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_NB): $(OBJ_NB)
+$(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 test:
