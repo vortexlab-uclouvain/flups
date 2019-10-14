@@ -66,6 +66,13 @@ PREFIX=/my/lib/prefix make install
 #### 3. The documentation
 To build the documentation, go to the `doc` subfolder and type `doxygen`.
 
+#### 4. Compilation flags
+Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
+- `DUMP_H5`: if specified, the solver will I/O fields using the HDF5 library.
+- `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
+- `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
+
+:warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
 ### How to use a solver?
 
@@ -152,12 +159,3 @@ for(int iz=0; iz<n[2]; iz++){
     }
 }
 ```
-
-### Authors
-By alphabetical order
-- Denis-Gabriel Caprace (main author)
-- Thomas Gillis (main author)
-
-
-### Citation
-Please cite the following paper
