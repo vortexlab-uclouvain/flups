@@ -5,9 +5,7 @@
 #include "p3dfft.h"
 
 void print_res(p3dfft::complex_double *A, int *sdims, int *gstart);
-void print_res_real(double *A, int *sdims, int *nmem, int *gstart);
-void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart);
-void print_res_cplx(double *A, const Topology* topo);
+void print_res(double *A, const Topology* topo);
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
@@ -122,16 +120,17 @@ int main(int argc, char *argv[]) {
     const Topology *topoIn    = new Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
-    // const  Topology *topoOut    = new Topology(2, nglobOut, nprocOut, true, NULL,FLUPS_ALIGNMENT);
-
+    
+    // prepare profiling
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
+    // solver creation and init
     Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
-
     mysolver->set_GreenType(CHAT_2);
     mysolver->setup();
 
+    // retrieveing internal info from the solver
     size_t max_size = mysolver->get_maxAllocatedSize();
 
     const Topology *topoPhys    = mysolver->get_innerTopo_physical();
@@ -327,20 +326,11 @@ int main(int argc, char *argv[]) {
         // ------------------FLUPS---------------:
         MPI_Barrier(MPI_COMM_WORLD);
 
+        //reinit sol to prepare for inplace 3D FFT
         std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
 
-#ifdef DUMP_H5
-    hdf5_dump(topoIn, "INPUT", solFLU);
-#endif
-
         mysolver->do_FFT(solFLU,FLUPS_FORWARD);
-        // mysolver->solve(solFLU, rhsFLU, SRHS );
         
-// #ifdef DUMP_H5
-//     hdf5_dump(topoIn, "OUTPUT", solFLU);
-// #endif
-
-
 #ifdef PRINT_RES
         topoSpec->get_istart_glob(istartGloOut);
         // printf("[FLUPS] topo 2 glo  : %d %d %d (is: %d %d %d) \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2),istartGloOut[0],istartGloOut[1],istartGloOut[2]);
@@ -348,15 +338,8 @@ int main(int argc, char *argv[]) {
         for(int id = 0; id<FLUmemsizeOUT; id++){
             solFLU[id] *= factor;
         }
-#ifdef DUMP_H5
-        hdf5_dump(topoSpec, "OUTPUTc", solFLU);
-#endif
 
-        // print_res_cplx(solFLU,topoSpec);
-        print_res_cplx(solFLU,FLUnlocOUT,FLUnmemOUT,istartGloOut);
-        
-
-        // print_res_real(solFLU,FLUnlocIN,FLUnmemIn,istartGlo);
+        print_res(solFLU,topoSpec);
 #endif
         
     }
@@ -444,15 +427,11 @@ void print_res_real(double *A, int *sdims, int *nmem, int *gstart) {
     }
 }
 
-// void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart) {    
-void print_res_cplx(double *A, const Topology* topo) {
-    int     x, y, z;
-    double *p;
-    
+void print_res(double *A, const Topology* topo) {
     const int ax0     = topo->axis();
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
-    const int nf = topo->nf();
+    const int nf = 2;//topo->nf()
     int nmem[3];
     
     for(int i=0;i<3;i++){
@@ -461,39 +440,30 @@ void print_res_cplx(double *A, const Topology* topo) {
 
     int gstart[3];
     topo->get_istart_glob(gstart);
-    
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,nf);
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                
-                if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
-                    printf("FLU(%d %d %d) %lg %lg\n", i0 + gstart[0], i1 + gstart[1], i2 + gstart[2], A[id], A[id + 1]);
-                }
 
-    // //assuming axproc = 3 1 2
-    // for (x = 0; x < sdims[0]; x++) {
-    //     for (y = 0; y < sdims[1]; y++)
-    //         for (z = 0; z < sdims[2]; z++) {
-    //             id = localIndex(0, x, y, z, 0, nmem, 2);
-                // if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
-                //     printf("FLU(%d %d %d) %lg %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id], A[id + 1]);
-                // }
+    if (topo->isComplex()){
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                //local indexes start
+                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,2);
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    
+                    if (std::fabs(A[id+i0*2]) + std::fabs(A[id+i0*2 + 1]) > 1.25e-4) {
+                        printf("FLU(%d %d %d) %lg +i1* %lg\n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id+i0*2], A[id+i0*2 + 1]);
+                    }
+                }
             }
         }
-    }
-}
-
-void print_res_cplx(double *A, int *sdims, int *nmem, int *gstart) {    
-    int     x, y, z;
-    
-    for (x = 0; x < sdims[0]; x++) {
-        for (y = 0; y < sdims[1]; y++){
-            for (z = 0; z < sdims[2]; z++) {
-                int id = localIndex(0, x, y, z, 0, nmem, 2);
-                if (std::fabs(A[id]) + std::fabs(A[id + 1]) > 1.25e-4) {
-                    printf("FLU(%d %d %d) %lg %lg\n", x + gstart[0], y + gstart[1], z + gstart[2], A[id], A[id + 1]);
+    } else {
+        for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+                //local indexes start
+                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,1);
+                for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+                    
+                    if (std::fabs(A[id+i0]) > 1.25e-4) {
+                        printf("FLU(%d %d %d) %lg \n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id+i0]);
+                    }
                 }
             }
         }
@@ -511,7 +481,7 @@ void print_res(p3dfft::complex_double *A,int *sdims,int *gstart)
     for(y=0;y < sdims[1];y++)
       for(x=0;x < sdims[0];x++) {
         if(std::fabs(p->real())+std::fabs(p->imag()) > 1.25e-4) 
-            printf("P3D(%d %d %d) %lg %lg\n",x+gstart[0],y+gstart[1],z+gstart[2],p->real(),p->imag());
+            printf("P3D(%d %d %d) %lg +i1* %lg\n",x+gstart[0],y+gstart[1],z+gstart[2],p->real(),p->imag());
         p++;
       }
 }
