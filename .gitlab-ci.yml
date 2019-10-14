@@ -22,7 +22,7 @@ compil dbg :
   script:
     - cd ../../
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
-    - make all -j4
+    - make validation -j4
     - cd ./samples/validation
     - export ARCH_FILE=../../make_arch/make.docker_valid_dbg
     - make all -j4
@@ -41,7 +41,7 @@ compil opt :
   script:
     - cd ../../
     - export ARCH_FILE=make_arch/make.docker_valid_opt
-    - make all -j4
+    - make validation -j4
     - cd ./samples/validation
     - export ARCH_FILE=../../make_arch/make.docker_valid_opt
     - make all -j4
@@ -59,7 +59,7 @@ run serial a2a 1:1:
   script:
     - ./flups_validation_a2a -bc 3 3 3 3 3 3
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
-  dependencies: 
+  dependencies:
     - compil dbg
 
 
