@@ -97,7 +97,7 @@ mysolver->setup();
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(topo, rhs, rhs, FLUPS::SRHS);
+mysolver->solve(rhs, rhs, FLUPS::SRHS);
 ```
 
 Then, destroy the solver

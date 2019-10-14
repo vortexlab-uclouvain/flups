@@ -60,7 +60,7 @@ using namespace std;
  *  
  * 
  */
-class FLUPS::Solver {
+class Solver {
     // the memory allocation is assumed to be data[iz][iy][ix]
     // so the fastest running index is n[0] then n[1] then n[2]
     // even is the dimension is 2, we allocate arrays of dimension 3
@@ -81,10 +81,11 @@ class FLUPS::Solver {
      * transforms related objects
      */
     /**@{ */
-    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
-    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
-    Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
-    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    FFTW_plan_dim*  _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim*  _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    const Topology* _topo_phys     = NULL;
+    Topology*       _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
+    SwitchTopo*     _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
     // opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
     // opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
     opt_double_ptr _sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
@@ -145,11 +146,11 @@ class FLUPS::Solver {
      * 
      * @{
      */
-    void dothemagic_rhs_real();
-    void dothemagic_rhs_complex_nmult0();
-    void dothemagic_rhs_complex_nmult1();
-    void dothemagic_rhs_complex_nmult2();
-    void dothemagic_rhs_complex_nmult3();
+    void dothemagic_rhs_real(double *data);
+    void dothemagic_rhs_complex_nmult0(double *data);
+    void dothemagic_rhs_complex_nmult1(double *data);
+    void dothemagic_rhs_complex_nmult2(double *data);
+    void dothemagic_rhs_complex_nmult3(double *data);
     /**@} */
 
     /**
@@ -170,23 +171,25 @@ class FLUPS::Solver {
 
     void setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
-
+    Topology* get_innerTopo_physical() ;
+    Topology* get_innerTopo_spectral() ;
+    
     /**
-     * @name Solver use
+     * @name Solver use 
      * 
      * @{
      */
-    void solve(const Topology* topo_field, const Topology* topo_rhs, double* field, double* rhs, const SolverType type);
-    void solve(const Topology* topo, double* field, double* rhs, const SolverType type);
+    void solve(double* field, double* rhs, const SolverType type);
     /**@} */
 
     /**
-     * @name Solver info
+     * @name Solver use (advanced)
      * 
      * @{
      */
-    int get_locMemsize(int i, int topo)  { return _topo_hat[topo]->nloc(i); }
-    int get_globMemsize(int i, int topo) { return _topo_hat[topo]->nglob(i); }
+    void do_copy(const Topology *topo, double *data, const int sign );
+    void do_FFT(double *data, const int sign);
+    void do_mult(double *data, const SolverType type);
     /**@} */
 
     /**

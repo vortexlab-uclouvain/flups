@@ -33,6 +33,7 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
+#include "flups.h"
 
 #define GREEN_DIM 3
 
@@ -402,11 +403,6 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5
 
 #define GAMMA 0.5772156649015328606
 
-#define FLUPS_FORWARD -1  // = FFTW_FORWARD
-#define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
-
-#define FLUPS_ALIGNMENT 16
-
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;
@@ -443,50 +439,9 @@ static inline void flups_free(void* data) {
 #endif
 }
 
-namespace FLUPS {
-/**
-     * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded
-     * 
-     */
-enum BoundaryType {
-    EVEN = 0, /**< EVEN boundary condition = zero flux  */
-    ODD  = 1, /**< ODD boundary condition = zero value */
-    PER  = 3, /**< PERiodic boundary conditions */
-    UNB  = 4  /**< UNBounded boundary condition */
-};
-
-/**
-     * @brief The type of Green's function used for the Poisson solver
-     * 
-     */
-enum GreenType {
-    CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2  = 1,  /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2,  /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3,  /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4,  /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-};
-
-/**
-     * @brief Type of Poisson equation solved
-     * 
-     */
-enum SolverType {
-    SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
-    VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
-    ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    DIV,   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
-    FFT_FORWARD,   /**<@brief only execute the forward fft as planned */
-    FFT_BACKWARD   /**<@brief only executes the backward fft as planned */
-};
-
-class Solver;
-class FFTW_plan_dim;
-class Topology;
-class SwitchTopo;
-class SwitchTopo_nb;
-class SwitchTopo_a2a;
-}  // namespace FLUPS
+typedef enum FLUPS_BoundaryType BoundaryType;
+typedef enum FLUPS_GreenType    GreenType;
+typedef enum FLUPS_SolverType   SolverType;
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);

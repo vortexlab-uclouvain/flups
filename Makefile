@@ -63,6 +63,7 @@ LIB += $(HDF5LIB)
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
 HEAD := $(wildcard $(SRC_DIR)/*.hpp)
+API := $(wildcard $(SRC_DIR)/*.h)
 
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
@@ -70,10 +71,10 @@ OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
-$(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
-$(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
@@ -127,6 +128,7 @@ install_static: lib_static
 	cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	cp $(TARGET_LIB_NB).a $(PREFIX)/lib
 	cp $(HEAD) $(PREFIX)/include
+	cp $(SRC_DIR)/flups.h $(PREFIX)/include/flups.h
 	
 install: install_static
 
