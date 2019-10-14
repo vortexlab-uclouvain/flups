@@ -15,5 +15,8 @@ LDFLAGS := -qopenmp
 # DEPENDENCES DIRECTORIES
 #---------------------------------------------------------
 FFTWDIR  := ${HOME}/soft/fftw-3.3.8-intel2018b
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
 #_avx512
-HDF5DIR  := ${HDF5_DIR}
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
