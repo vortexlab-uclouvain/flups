@@ -1,5 +1,5 @@
 /**
- * @file flups_api.cpp
+ * @file flups.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief 
  * @version

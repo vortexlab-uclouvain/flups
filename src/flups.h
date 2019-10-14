@@ -31,9 +31,16 @@
 extern "C" {
 #endif
 
+/** *********************************************************************
+ * @name Common definitions
+ * @{
+ ********************************************************************* */
+
+
 /**
- * @brief the boundary condition can be EVEN, ODD, PERiodic or UNBounded
+ * @brief List of supported boundary conditions
  * 
+ * The boundary condition can be EVEN, ODD, PERiodic or UNBounded.
  */
 enum FLUPS_BoundaryType {
     EVEN = 0, /**< EVEN boundary condition = zero flux  */
@@ -60,27 +67,76 @@ enum FLUPS_GreenType {
  */
 enum FLUPS_SolverType {
     SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
-    VRHS, /**<@brief vectorial \f$ \nabla^2 f = rhs \f$ */
-    ROT,  /**<@brief vectorial \f$ \nabla^2 f = \nabla \times rhs \f$ */
+    VRHS, /**<@brief vector \f$ \nabla^2 f = rhs \f$ */
+    ROT,  /**<@brief vector \f$ \nabla^2 f = \nabla \times rhs \f$ */
     DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
 };
 
+/**
+ * @brief to be used as "sign" for all of the FORARD tranform
+ * 
+ */
 #define FLUPS_FORWARD -1  // = FFTW_FORWARD
+
+/**
+ * @brief to be used as "sign" for all of the BACKWARD tranform
+ * 
+ */
 #define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
+
+/**
+ * @brief Memory alignment constant in bytes.
+ * 
+ */
+#define FLUPS_ALIGNMENT 16
 
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
 typedef struct Profiler FLUPS_Profiler;
+
+/**@} *****************************************************************/
+
 
 /** *********************************************************************
  * @name TOPOLOGIES
  * @{
  ********************************************************************* */
 
+/**
+ * @brief Create and returns a topology.
+ * 
+ * @param axis The direction which is aligned with the fastest rotating index
+ * @param nglob The global number of points in each direction of the domain
+ * @param nproc The number of processors per direction.
+ * @param isComplex The state of the topo: real (false) or complex (true)
+ * @param axproc The correspondance between the physical dimensions and the dimensions in memory, otherwise NULL.
+ * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
+ * @return FLUPS_Topology* pointer to the topology
+ */
 FLUPS_Topology* flups_new_topo(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
-void            flups_free_topo(FLUPS_Topology* t);
 
+/**
+ * @brief Clean and free the topo.
+ * 
+ * @param t topo to be freed
+ */
+void flups_free_topo(FLUPS_Topology* t);
+
+/**
+ * @brief 
+ * 
+ * @param t 
+ * @return true if the topo is on complex numbers
+ * @return false if the topo is on real numbers
+ */
 bool flups_topo_get_isComplex(FLUPS_Topology* t);
+
+/**
+ * @brief 
+ * 
+ * @param t 
+ * @return int 
+ */
 int  flups_topo_get_axis(FLUPS_Topology* t);
 int  flups_topo_get_nglob(FLUPS_Topology* t, const int dim);
 int  flups_topo_get_nloc(FLUPS_Topology* t, const int dim);
