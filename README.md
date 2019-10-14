@@ -113,7 +113,23 @@ Then, destroy the solver
 delete (mysolver);
 ```
 
-### Implementation details
+#### Memory usage
+
+For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
+- the all to all version uses ~530Mb (O.253kB/unknown)
+- the non-blocking version uses ~560Mb (O.267kB/unknown)
+
+<!--
+(1500/(560/128^3))^(1/3)
+For 1.5Go, max 168
+14*12
+21*8 
+7*24-->
+
+**CAUTION**
+FLUPS was nerver tested above 1024^3 unknowns per core.
+
+### Implementation details and developers guide
 #### C++ use
 We use the C++ language in a very limited way, on purpose.
 The features used are the object oriented layout and some usefull features of the standard library.
