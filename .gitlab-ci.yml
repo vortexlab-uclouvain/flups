@@ -20,7 +20,7 @@ compil dbg :
     when: on_success
   script:
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
-    - make validation -j4
+    - make all -j4
 
 compil opt :
   stage: build
@@ -35,17 +35,7 @@ compil opt :
     when: on_success
   script:
     - export ARCH_FILE=make_arch/make.docker_valid_opt
-    - make validation -j4
-
-compil lib :
-  stage: build
-  only:
-    - master@examples/flups
-    - /^[0-9]-job-failed.*$/i@examples/flups
-    - merge_requests
-  script:
-    - export ARCH_FILE=make_arch/make.docker_valid_opt
-    - make -j4 lib
+    - make all -j4
 
 #checks that the code runs without error in serial dbg
 ################################################################################
