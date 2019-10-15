@@ -1,5 +1,4 @@
 #include <math.h>
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -112,6 +111,17 @@ int main(int argc, char *argv[]) {
     memcpy(solFLU, rhsFLU, sizeof(double ) * memsizeIN);
 
     // //-------------------------------------------------------------------------
+    // /** - Skip the copy of data
+    // //-------------------------------------------------------------------------
+    // By using the advanced features of the API, we skip the copy which is done
+    // in flups_solve: data are copied from the location the user allocated himself,
+    // to an inner memory reserved by flups, and ensuring proper alignment.
+    // In this example, we have directly filled that "inner memory" (solFlu) with 
+    // the initial condition
+    
+    // flups_do_copy(mysolver,topoIn,solFLU,FLUPS_FORWARD);
+
+    // //-------------------------------------------------------------------------
     // /** - Proceed to the FWD 3D FFT */
     // //-------------------------------------------------------------------------
     
@@ -126,16 +136,38 @@ int main(int argc, char *argv[]) {
     // /** - Gaussian filtering of the solution */
     // //-------------------------------------------------------------------------
 
-    for (int i2 = 0; i2 < flups_topo_get_nloc(topoIn,2); i2++) {
-        for (int i1 = 0; i1 < flups_topo_get_nloc(topoIn,1); i1++) {
-            for (int i0 = 0; i0 < flups_topo_get_nloc(topoIn,0); i0++) {
-                double       x    = (istartIn[0] + i0 + 0.5) * h[0];
-                double       y    = (istartIn[1] + i1 + 0.5) * h[1];
-                double       z    = (istartIn[2] + i2 + 0.5) * h[2];
+    double kfact[3], koffset[3], symstart[3];
+    flups_get_spectralInfo(mysolver,kfact,koffset,symstart);
 
-                FLUPS_SIZE id;
-                id    = flups_locID(0, i0, i1, i2, 0, nmemIn, 1);
-                rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
+    printf("%lf %lf %lf  %lf %lf %lf  %lf %lf %lf  \n",kfact[0],kfact[1],kfact[2],koffset[0],koffset[1],koffset[2],symstart[0],symstart[1],symstart[2]);
+
+    const int ax0     = flups_topo_get_axis(topoSpec);
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nf      = 2; //topoSpec is full spectral, there are two doubles per element  
+    
+    // int nmemSpec[3];
+    // for(int i=0;i<3;i++){
+    //     nmemSpec[i] = flups_topo_get_nmem(topoSpec,i);
+    // }
+        
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
+            //local indexes start
+            const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
+                int is[3];
+                flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
+
+                // (symmetrized) wave number
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+
+                const double ksqr   = k0 * k0 + k1 * k1 + k2 * k2;
+
+                solFLU[id + i0 * nf] *= exp(-ksqr); //REAL part
+                solFLU[id + i0 * nf + 1] *= exp(-ksqr); //COMPLEX part
             }
         }
     }
@@ -146,6 +178,12 @@ int main(int argc, char *argv[]) {
     // /** - Proceed to the BACKWARD 3D FFT */
     // //-------------------------------------------------------------------------
     flups_do_FFT(mysolver,solFLU,FLUPS_BACKWARD);
+
+    // //-------------------------------------------------------------------------
+    // /** - Skip the copy back of data
+    // //-------------------------------------------------------------------------
+
+    // flups_do_copy(mysolver,topoIn,solFLU,FLUPS_BACKWARD);
 
     // //-------------------------------------------------------------------------
     // /** - Export results */

@@ -188,6 +188,21 @@ class Solver {
     };
 
     /**
+     * @brief Get the spectral information to compute the modes k in full spectral space
+     * 
+     * @param kfact  multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+     * @param koffset  add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+     */
+    void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
+        for (int ip = 0; ip < 3; ip++) {
+            const int dimID = _plan_forward[ip]->dimID();
+            kfact[dimID]    = _plan_forward[ip]->kfact();
+            koffset[dimID]  = _plan_forward[ip]->koffset();
+            symstart[dimID] = _plan_forward[ip]->symstart();
+        }
+    }
+
+    /**
      * @name Solver use 
      * 
      * @{

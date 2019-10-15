@@ -30,7 +30,6 @@
 #ifndef FLUPS_H
 #define FLUPS_H
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -163,7 +162,7 @@ void flups_free(void* data);
  *  }
  * @endcode
  * 
- * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param axsrc the FRI, reference axis aligned with index i0
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
@@ -183,6 +182,72 @@ static inline FLUPS_SIZE flups_locID(const int axsrc, const int i0, const int i1
     return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
 }
 
+#ifdef __cplusplus
+#define MAX(a,b) std::max(a,b)
+#else
+#define MAX(a,b) a>b?a:b;
+#endif
+
+/**
+ * @brief compute the local k-index in spectral coordinates for a point (i0,i1,i2) in axsrc-indexing.
+ * The returned value is in the axtrg-indexing.
+ * 
+ * For example if going through a topology following the standard indexing:
+ * @code{.cpp}
+ *  const int ax0     = flups_topo_get_axis(topoSpec);
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nf      = 2; //topo is complex
+    
+    int nmemSpec[3];
+    for(int i=0;i<3;i++){
+        nmemSpec[i] = flups_topo_get_nmem(topoSpec,i);
+    }
+        
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
+            //local indexes start
+            const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
+                int is[3];
+                flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
+
+                // the (symmetrized) wave numbers:
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+
+                data[id + i0 * nf] = ...; //REAL part
+                data[id + i0 * nf + 1] = ...; //COMPLEX part
+            }
+        }
+    }
+ * @endcode
+ * 
+ * @param axsrc the FRI, reference axis aligned with index i0
+ * @param i0 the index in the axsrc direction
+ * @param i1 the index in the (axsrc+1)%3 direction
+ * @param i2 the index in the (axsrc+2)%3 direction
+ * @param istart start index of the local block (as provided by @flups_get_istartGlob)
+ * @param symstart indexes where the symmetry starts (as provided by @flups_get_spectralInfo)
+ * @param axtrg the FRI of the target topology, i.e. the way the memory is aligned in the current topology
+ * @param is the spectral index
+ */
+static inline void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+    // get the global indexes in the axsrc configuration
+    const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
+    // cmpt the shift in axis and the axis for the symstart
+    const int dax0 = (3 + axtrg - axsrc) % 3;
+    const int dax1 = (dax0 + 1) % 3;
+    const int dax2 = (dax0 + 2) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
+    const int ax2  = (ax0 + 2) % 3;
+    // fill the array in the axtrg configuration
+    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : MAX((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
+    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : MAX((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
+    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : MAX((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
+}
 /**@} */
 
 //=============================================================================
@@ -278,6 +343,8 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  * @{
  */
 FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s);
+
+void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
