@@ -559,7 +559,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
 
 void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     BEGIN_FUNC;
-    size_t max_mem = 0;
+    FLUPS_SIZE max_mem = 0;
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
@@ -617,7 +617,7 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     /** - Do the memory allocation */
     //-------------------------------------------------------------------------
     // the biggest size will be along the pencils
-    size_t size_tot = 1;
+    FLUPS_SIZE size_tot = 1;
     for (int id = 0; id < 3; id++) {
         size_tot = std::max(topo[id]->memsize(), size_tot);
     }
@@ -758,8 +758,8 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
 
     const int    nf      = topo->nf();
     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
-    const size_t inmax   = topo->nloc(ax0) * topo->nf();
+    const FLUPS_SIZE onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+    const FLUPS_SIZE inmax   = topo->nloc(ax0) * topo->nf();
     const double volfact = _volfact;
 
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
@@ -768,7 +768,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact, ax0)
     for (int io = 0; io < onmax; io++) {
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
-        for (size_t ii = 0; ii < inmax; ii++) {
+        for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
             dataloc[ii] = dataloc[ii] * volfact;
         }
     }
@@ -943,8 +943,8 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
         const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
-        const size_t inmax   = topo->nloc(ax0);
+        const FLUPS_SIZE onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+        const FLUPS_SIZE inmax   = topo->nloc(ax0);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
         if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
@@ -955,7 +955,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    for (size_t ii = 0; ii < inmax; ii++) {
+                    for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                         ownloc[ii] = argloc[ii];
                     }
                 }
@@ -965,7 +965,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    for (size_t ii = 0; ii < inmax; ii++) {
+                    for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                         argloc[ii] = ownloc[ii];
                     }
                 }
@@ -979,7 +979,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     double *__restrict ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    for (size_t ii = 0; ii < inmax; ii++) {
+                    for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                         ownloc[ii] = argloc[ii];
                     }
                 }
@@ -989,7 +989,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     double *__restrict ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    for (size_t ii = 0; ii < inmax; ii++) {
+                    for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                         argloc[ii] = ownloc[ii];
                     }
                 }
@@ -1096,8 +1096,8 @@ void Solver::dothemagic_rhs_real(double *data) {
     opt_double_ptr       mydata   = data;
     const opt_double_ptr mygreen  = _green;
     {
-        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
-        const size_t inmax   = _topo_hat[2]->nloc(ax0);
+        const FLUPS_SIZE onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
+        const FLUPS_SIZE inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
         FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
@@ -1108,7 +1108,7 @@ void Solver::dothemagic_rhs_real(double *data) {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            for (size_t ii = 0; ii < inmax; ii++) {
+            for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                 dataloc[ii] *= normfact * greenloc[ii];
             }
         }
@@ -1132,8 +1132,8 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     opt_double_ptr       mydata   = data;
     const opt_double_ptr mygreen  = _green;
     {
-        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
-        const size_t inmax   = _topo_hat[2]->nloc(ax0);
+        const FLUPS_SIZE onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
+        const FLUPS_SIZE inmax   = _topo_hat[2]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
 
         FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
@@ -1144,7 +1144,7 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
-            for (size_t ii = 0; ii < inmax; ii++) {
+            for (FLUPS_SIZE ii = 0; ii < inmax; ii++) {
                 const double a = dataloc[ii * 2 + 0];
                 const double b = dataloc[ii * 2 + 1];
                 const double c = greenloc[ii * 2 + 0];

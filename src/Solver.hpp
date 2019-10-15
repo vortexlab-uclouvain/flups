@@ -55,7 +55,7 @@ using namespace std;
  * The memory alignement follows the rules explained on the mainpage.
  * Yet, a transposition of the data is required to perfom the transfroms in the correct order.
  * For an element (ix,iy,iz) its tranposed location is computed as\code{.cpp}
- * const size_t id_transposed = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
+ * const FLUPS_SIZE id_transposed = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
  * \endcode
  *  
  * 
@@ -177,10 +177,10 @@ class Solver {
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)
      * 
-     * @return size_t 
+     * @return FLUPS_SIZE 
      */
-    size_t get_allocSize() {
-        size_t size_tot = 1;
+    FLUPS_SIZE get_allocSize() {
+        FLUPS_SIZE size_tot = 1;
         for (int id = 0; id < 3; id++) {
             size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
         }

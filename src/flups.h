@@ -36,6 +36,14 @@ extern "C" {
 #endif
 
 
+/**
+ * @brief type to descive the number of data per proc.
+ * 
+ * If your application is C++, you can replace this by size_t.
+ * 
+ */
+#define FLUPS_SIZE unsigned long long
+
 //=============================================================================
 /**
  * @name Common definitions
@@ -122,7 +130,7 @@ typedef struct Profiler FLUPS_Profiler;
  * 
  * @param size the data to be allocated
  */
-void * flups_malloc(size_t size);
+void * flups_malloc(FLUPS_SIZE size);
 
 /**
  * 
@@ -143,7 +151,7 @@ void flups_free(void* data);
     for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
             for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
-                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
+                const FLUPS_SIZE id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
  *                  
  *              data[id] = ...;
  *          }
@@ -158,9 +166,9 @@ void flups_free(void* data);
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @return size_t 
+ * @return FLUPS_SIZE 
  */
-static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
+static inline FLUPS_SIZE flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
@@ -201,7 +209,7 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
 void flups_topo_free(FLUPS_Topology* t);
 
 /**
- * @brief 
+ * @brief Determines if the topo works on real or complex numbers
  * 
  * @param t 
  * @return true if the topo is on complex numbers
@@ -210,7 +218,7 @@ void flups_topo_free(FLUPS_Topology* t);
 bool flups_topo_get_isComplex(FLUPS_Topology* t);
 
 /**
- * @brief 
+ * @brief Determines the physical direction aligned in memory
  * 
  * @param t 
  * @return int 
@@ -268,7 +276,7 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  * @name SOLVER (Advanced)
  * @{
  */
-unsigned long long flups_get_allocSize(FLUPS_Solver* s);
+FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s);
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup

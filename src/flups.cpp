@@ -33,7 +33,9 @@
 #include "Profiler.hpp"
 
 
-void * flups_malloc(size_t size){
+extern "C" {
+
+void * flups_malloc(FLUPS_SIZE size){
     return flups_mem_malloc(size);
 }
 
@@ -129,8 +131,8 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
 
 // -- ADVANCED FEATURES --
 
-unsigned long long flups_get_allocSize(FLUPS_Solver* s){
-    return(unsigned long long) s->get_allocSize();
+FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s){
+    return(FLUPS_SIZE) s->get_allocSize();
 }
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha){
@@ -141,11 +143,11 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
+FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();
 }
 
-FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
+FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s){
     return s->get_innerTopo_spectral();
 }
 
@@ -186,4 +188,6 @@ void flups_profiler_disp(FLUPS_Profiler* p) {
 void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
     const std::string myname(name);
     p->disp(myname);
+}
+
 }

@@ -90,15 +90,15 @@ class Topology {
     /**
      * @brief returns the local size of on this proc
      * 
-     * @return size_t 
+     * @return FLUPS_SIZE 
      */
-    inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
+    inline FLUPS_SIZE locsize() const { return (FLUPS_SIZE)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
     /**
      * @brief returns the memory size of on this proc
      * 
-     * @return size_t 
+     * @return FLUPS_SIZE 
      */
-    inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
+    inline FLUPS_SIZE memsize() const { return (FLUPS_SIZE)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
 
     /**
      * @brief returns the starting global index of the current proc
@@ -181,9 +181,9 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
 //  * @param iy index in the Y direction
 //  * @param iz index in the Z direction
 //  * @param topo 
-//  * @return size_t 
+//  * @return FLUPS_SIZE 
 //  */
-// inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const Topology *topo) {
+// inline static FLUPS_SIZE localindex_xyz(const int ix, const int iy, const int iz, const Topology *topo) {
 //     const int nf = topo->nf();
 
 //     const int i[3] = {ix, iy, iz};
@@ -201,9 +201,9 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
 //  * @param i1 index along the ax1 direction
 //  * @param i2 index along the ax2 direction
 //  * @param topo 
-//  * @return size_t 
+//  * @return FLUPS_SIZE 
 //  */
-// inline static size_t localindex_ao(const int i0, const int i1, const int i2, const Topology *topo) {
+// inline static FLUPS_SIZE localindex_ao(const int i0, const int i1, const int i2, const Topology *topo) {
 //     const int nf  = topo->nf();
 //     const int ax0 = topo->axis();
 //     const int ax1 = (ax0 + 1) % 3;
@@ -218,9 +218,9 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
 //  * @param iy index in the Y direction
 //  * @param iz index in the Z direction
 //  * @param topo 
-//  * @return size_t 
+//  * @return FLUPS_SIZE 
 //  */
-// inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
+// inline static FLUPS_SIZE localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
 //     const int nf   = topo->nf();
 //     const int i[3] = {i0, i1, i2};
 //     // compute the shift to perform from the axis reference to
@@ -244,9 +244,9 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param axtrg the target FRI
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @return size_t 
+ * @return FLUPS_SIZE 
  */
-static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+static inline FLUPS_SIZE localIndex(const int axsrc, const int i0, const int i1, const int i2,
                                 const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
@@ -268,9 +268,9 @@ static inline size_t localIndex(const int axsrc, const int i0, const int i1, con
  * @param id the collapsed id of the outer two loops
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @return size_t 
+ * @return FLUPS_SIZE 
  */
-static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
+static inline FLUPS_SIZE collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
     const int ax0  = axsrc;
     return i0 * nf + size[ax0] * nf * id;
 }
@@ -283,7 +283,7 @@ static inline size_t collapsedIndex(const int axsrc, const int i0, const int id,
  * @param axtrg the target axis
  * @param idv the indexes along each directions
  */
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
+static inline void localSplit(const FLUPS_SIZE id, const int size[3], const int axtrg, int idv[3], const int nf) {
     const int ax0   = axtrg;
     const int ax1   = (ax0 + 1) % 3;
     const int ax2   = (ax0 + 2) % 3;
@@ -293,7 +293,7 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
     idv[ax1] = (id % (size0 * size[ax1])) / size0;
     idv[ax2] = id / (size0 * size[ax1]);
 }
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
+static inline void localSplit(const FLUPS_SIZE id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
     const int ax0   = axtrg;
     const int ax1   = (ax0 + 1) % 3;
     const int size0 = (size[ax0] * nf);
