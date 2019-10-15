@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
                 double       y    = (istartGlo[1] + i1 ) * h[1]; //+ 0.5
                 double       z    = (istartGlo[2] + i2 ) * h[2]; //+ 0.5
 
-                size_t id;
+                FLUPS_SIZE id;
                 id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
                 
@@ -412,7 +412,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,2);
+                const FLUPS_SIZE id = localIndex(ax0, 0, i1, i2, ax0, nmem,2);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0*2]) + std::fabs(A[id+i0*2 + 1]) > 1.25e-4) {
@@ -425,7 +425,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,1);
+                const FLUPS_SIZE id = localIndex(ax0, 0, i1, i2, ax0, nmem,1);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0]) > 1.25e-4) {
