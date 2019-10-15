@@ -6,8 +6,7 @@
 #include "flups.h"
 #include "mpi.h"
 
-// void print_res(double *A, const Topology* topo);
-
+void print_res(double *A, const FLUPS_Topology* topo);
 
 int main(int argc, char *argv[]) {    
     printf("Starting...\n");
@@ -81,12 +80,10 @@ int main(int argc, char *argv[]) {
     // /** - allocate rhs and solution */
     // //-------------------------------------------------------------------------
     
-    // printf("[FLUPS] topo IN glob : %d %d %d \n",topoIn->nglob(0),topoIn->nglob(1),topoIn->nglob(2));
-    // printf("[FLUPS] topo IN loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
-    // printf("[FLUPS] topo OUT glob : %d %d %d \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2));
-    // printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoSpec->nmem(0),topoSpec->nmem(1),topoSpec->nmem(2),topoSpec->nf(),topoSpec->nloc(0),topoSpec->nloc(1),topoSpec->nloc(2));
-
-    
+    printf("[FLUPS] topo IN glob : %d %d %d \n",flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
+    printf("[FLUPS] topo IN loc : %d*%d*%d = %d (check: %d %d %d)\n",flups_topo_get_nmem(topoIn,0),flups_topo_get_nmem(topoIn,1),flups_topo_get_nmem(topoIn,2),flups_topo_get_memsize(topoIn),flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
+    printf("[FLUPS] topo OUT glob : %d %d %d \n",flups_topo_get_nglob(topoSpec,0),flups_topo_get_nglob(topoSpec,1),flups_topo_get_nglob(topoSpec,2));
+    printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d complex?:%d (nloc: %d %d %d)  \n",flups_topo_get_nmem(topoSpec,0),flups_topo_get_nmem(topoSpec,1),flups_topo_get_nmem(topoSpec,2),flups_topo_get_isComplex(topoSpec),flups_topo_get_nloc(topoSpec,0),flups_topo_get_nloc(topoSpec,1),flups_topo_get_nloc(topoSpec,2));
 
     printf("I am going to allocate rhs: %d \n",memsizeIN);
     fflush(stdout);
@@ -96,8 +93,6 @@ int main(int argc, char *argv[]) {
     memset(rhsFLU, 0, sizeof(double ) * memsizeIN);
     // memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     
-    // printf("istart: %d %d %d =? %d %d %d(P3D)\n",istartIn[0],istartIn[1],istartIn[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
-
     double f = 1; //frequency of the wave
     const double c_2pi = 2.0*M_PI;
 
@@ -145,20 +140,24 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    flups_hdf5_dump(topoSpec,"spectrum",solFLU);
+
     // //-------------------------------------------------------------------------
     // /** - Proceed to the BACKWARD 3D FFT */
     // //-------------------------------------------------------------------------
     flups_do_FFT(mysolver,solFLU,FLUPS_BACKWARD);
 
-// #define PRINT_RES 
+    // //-------------------------------------------------------------------------
+    // /** - Export results */
+    // //-------------------------------------------------------------------------
+
+// #define PRINT_RES
 #ifdef PRINT_RES
     /* normalize*/
     print_res(solFLU,topoIn);
 #endif
 
-#ifdef H5_DUMP
-    
-#endif
+    flups_hdf5_dump(topoIn,"result",solFLU);
 
     // //-------------------------------------------------------------------------
     // /** - CLEAN */
@@ -170,45 +169,45 @@ int main(int argc, char *argv[]) {
     
     flups_free(rhsFLU);
 
-    // topoIn->~Topology();
-    // topoSpec->~Topology();
-    // mysolver->~Solver();
-
+    flups_topo_free(topoIn);
+    flups_topo_free(topoSpec);
+    flups_cleanup(mysolver);
+    
     MPI_Finalize();
 }
 
-// void print_res(double *A, const Topology* topo) {
-//     const int ax0     = topo->axis();
-//     const int ax1     = (ax0 + 1) % 3;
-//     const int ax2     = (ax0 + 2) % 3;
-//     int nmem[3];
+void print_res(double *A, const FLUPS_Topology* topo) {
+    const int ax0     = flups_topo_get_axis(topo);
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    int nmem[3];
     
-//     for(int i=0;i<3;i++){
-//         nmem[i] = topo->nmem(i);
-//     }
+    for(int i=0;i<3;i++){
+        nmem[i] = flups_topo_get_nmem(topo,i);
+    }
 
-//     int gstart[3];
-//     topo->get_istart_glob(gstart);
+    int gstart[3];
+    flups_topo_get_istartGlob(topo,gstart);
 
-//     if (topo->isComplex()){
-//         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-//             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-//                 //local indexes start
-//                 const FLUPS_SIZE id = localIndex(ax0, 0, i1, i2, ax0, nmem,2);
-//                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-//                     printf("(%d %d %d) %lg +i1* %lg\n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0 * 2], A[id + i0 * 2 + 1]);
-//                 }
-//             }
-//         }
-//     } else {
-//         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-//             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-//                 //local indexes start
-//                 const FLUPS_SIZE id = localIndex(ax0, 0, i1, i2, ax0, nmem,1);
-//                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-//                     printf("(%d %d %d) %lg \n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0]);
-//                 }
-//             }
-//         }
-//     }
-// }
+    if (flups_topo_get_isComplex(topo)){
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                //local indexes start
+                const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmem,2);
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                    printf("(%d %d %d) %lg +i1* %lg\n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0 * 2], A[id + i0 * 2 + 1]);
+                }
+            }
+        }
+    } else {
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                //local indexes start
+                const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmem,1);
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                    printf("(%d %d %d) %lg \n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0]);
+                }
+            }
+        }
+    }
+}
