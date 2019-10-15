@@ -431,6 +431,12 @@ static inline void flups_mem_free(void* data) {
 #endif
 }
 
+#if defined(__INTEL_COMPILER)
+    #define FLUPS_ASSUME_ALIGN(a) __assume_align(a)
+#elif defined(__GNUC__)
+    #define FLUPS_ASSUME_ALIGN(a) __builtin_assume_align(a)
+#endif
+
 typedef enum FLUPS_BoundaryType BoundaryType;
 typedef enum FLUPS_GreenType    GreenType;
 typedef enum FLUPS_SolverType   SolverType;

@@ -767,7 +767,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     for (int io = 0; io < onmax; io++) {
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
         // set the alignment
-        __assume_aligned(dataloc, FLUPS_ALIGNMENT);
+        FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         for (size_t ii = 0; ii < inmax; ii++) {
             dataloc[ii] = dataloc[ii] * volfact;
         }
@@ -956,8 +956,8 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                     opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
                     // set the alignment
-                    __assume_aligned(argloc, FLUPS_ALIGNMENT);
-                    __assume_aligned(ownloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                     for (size_t ii = 0; ii < inmax; ii++) {
                         ownloc[ii] = argloc[ii];
                     }
@@ -969,8 +969,8 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                     opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
                     // set the alignment
-                    __assume_aligned(argloc, FLUPS_ALIGNMENT);
-                    __assume_aligned(ownloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                     for (size_t ii = 0; ii < inmax; ii++) {
                         argloc[ii] = ownloc[ii];
                     }
@@ -985,7 +985,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    __assume_aligned(ownloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                     for (size_t ii = 0; ii < inmax; ii++) {
                         ownloc[ii] = argloc[ii];
                     }
@@ -996,7 +996,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 for (int io = 0; io < onmax; io++) {
                     double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
                     opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    __assume_aligned(ownloc, FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                     for (size_t ii = 0; ii < inmax; ii++) {
                         argloc[ii] = ownloc[ii];
                     }
@@ -1103,8 +1103,8 @@ void Solver::dothemagic_rhs_real(double *data) {
     const double         normfact = _normfact;
     opt_double_ptr       mydata   = data;
     const opt_double_ptr mygreen  = _green;
-    __assume_aligned(mydata,FLUPS_ALIGNMENT);
-    __assume_aligned(mygreen,FLUPS_ALIGNMENT);
+    FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
+    FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
         const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
@@ -1118,8 +1118,8 @@ void Solver::dothemagic_rhs_real(double *data) {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            __assume_aligned(dataloc,FLUPS_ALIGNMENT);
-            __assume_aligned(greenloc,FLUPS_ALIGNMENT);
+            FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+            FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
             for (size_t ii = 0; ii < inmax; ii++) {
                 dataloc[ii] *= normfact * greenloc[ii];
             }
@@ -1143,8 +1143,8 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     const double         normfact = _normfact;
     opt_double_ptr       mydata   = data;
     const opt_double_ptr mygreen  = _green;
-    __assume_aligned(mydata,FLUPS_ALIGNMENT);
-    __assume_aligned(mygreen,FLUPS_ALIGNMENT);
+    FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
+    FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
         const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
         const size_t inmax   = _topo_hat[2]->nloc(ax0);
@@ -1158,8 +1158,8 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
         for (int io = 0; io < onmax; io++) {
             opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
-            __assume_aligned(dataloc,FLUPS_ALIGNMENT);
-            __assume_aligned(greenloc,FLUPS_ALIGNMENT);
+            FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+            FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
             for (size_t ii = 0; ii < inmax; ii++) {
                 const double a = dataloc[ii * 2 + 0];
                 const double b = dataloc[ii * 2 + 1];
