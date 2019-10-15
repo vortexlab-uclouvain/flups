@@ -240,13 +240,13 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
  * @return long 
  */
 
-unsigned long long flups_topo_get_locsize(const FLUPS_Topology* t);
+FLUPS_SIZE flups_topo_get_locsize(const FLUPS_Topology* t);
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-unsigned long long flups_topo_get_memsize(const FLUPS_Topology* t);
+FLUPS_SIZE flups_topo_get_memsize(const FLUPS_Topology* t);
 
 /**@} */
 
@@ -257,11 +257,8 @@ unsigned long long flups_topo_get_memsize(const FLUPS_Topology* t);
  */
 
 // get a new solver
-#ifndef PROF
 FLUPS_Solver* flups_init(const FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
-#else
-FLUPS_Solver* flups_init(const  FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
-#endif
+FLUPS_Solver* flups_init_timed(const  FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s);

@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         printf("The MPI-provided thread behavior does not match\n");
-        MPI_Abort(MPI_COMM_WORLD);
+        MPI_Abort(MPI_COMM_WORLD,1);
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
