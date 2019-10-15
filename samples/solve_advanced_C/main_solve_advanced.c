@@ -56,8 +56,6 @@ int main(int argc, char *argv[]) {
     const FLUPS_Topology *topoIn      = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT);
     const int             nprocOut[3] = {1, 2, 1};
 
-    return;
-
     
     // solver creation and init
     FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L);

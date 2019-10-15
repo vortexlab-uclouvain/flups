@@ -47,48 +47,48 @@ void flups_free(void* data){
 //***********************************************************************
 // * TOPOLOGIES
 // **********************************************************************/
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
+const FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
     Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment);
     return t;
 }
 
-void flups_topo_free(FLUPS_Topology* t) {
+void flups_topo_free(const FLUPS_Topology* t) {
     t->~Topology();
 }
 
-bool flups_topo_get_isComplex(FLUPS_Topology* t) {
+bool flups_topo_get_isComplex(const FLUPS_Topology* t) {
     return t->isComplex();
 }
 
-int flups_topo_get_axis(FLUPS_Topology* t) {
+int flups_topo_get_axis(const FLUPS_Topology* t) {
     return t->axis();
 }
 
-int flups_topo_get_nglob(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nglob(const FLUPS_Topology* t, const int dim) {
     return t->nglob(dim);
 }
 
-int flups_topo_get_nloc(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nloc(const FLUPS_Topology* t, const int dim) {
     return t->nloc(dim);
 }
 
-int flups_topo_get_nmem(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nmem(const FLUPS_Topology* t, const int dim) {
     return t->nmem(dim);
 }
 
-int flups_topo_get_nproc(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nproc(const FLUPS_Topology* t, const int dim) {
     return t->nproc(dim);
 }
 
-void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]) {
+void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]) {
     t->get_istart_glob(istart);
 }
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topology* t) {
+unsigned long long flups_topo_get_locsize(const FLUPS_Topology* t) {
     return (unsigned long long)t->locsize();
 }
 
-unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
+unsigned long long flups_topo_get_memsize(const FLUPS_Topology* t) {
     return (unsigned long long)t->memsize();
 }
 
@@ -98,12 +98,12 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+FLUPS_Solver* flups_init(const FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
 #else
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
+FLUPS_Solver* flups_init(const FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
@@ -143,11 +143,11 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();
 }
 
-FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s){
     return s->get_innerTopo_spectral();
 }
 

@@ -203,14 +203,14 @@ static inline FLUPS_SIZE flups_locID(const int axsrc, const int i0, const int i1
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+const FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
 
 /**
  * @brief Clean and free the topo.
  * 
  * @param t topo to be freed
  */
-void flups_topo_free(FLUPS_Topology* t);
+void flups_topo_free(const FLUPS_Topology* t);
 
 /**
  * @brief Determines if the topo works on real or complex numbers
@@ -219,7 +219,7 @@ void flups_topo_free(FLUPS_Topology* t);
  * @return true if the topo is on complex numbers
  * @return false if the topo is on real numbers
  */
-bool flups_topo_get_isComplex(FLUPS_Topology* t);
+bool flups_topo_get_isComplex(const FLUPS_Topology* t);
 
 /**
  * @brief Determines the physical direction aligned in memory
@@ -227,12 +227,12 @@ bool flups_topo_get_isComplex(FLUPS_Topology* t);
  * @param t 
  * @return int 
  */
-int  flups_topo_get_axis(FLUPS_Topology* t);
-int  flups_topo_get_nglob(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nloc(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nmem(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nproc(FLUPS_Topology* t, const int dim);
-void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
+int  flups_topo_get_axis(const FLUPS_Topology* t);
+int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nloc(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nmem(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
+void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
  * @brief returns the local size of on this proc
@@ -240,13 +240,13 @@ void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
  * @return long 
  */
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
+unsigned long long flups_topo_get_locsize(const FLUPS_Topology* t);
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
+unsigned long long flups_topo_get_memsize(const FLUPS_Topology* t);
 
 /**@} */
 
@@ -258,9 +258,9 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init(const FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 #else
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init(const  FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 #endif
 
 // destroy the solver
@@ -285,8 +285,8 @@ FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s);
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
-FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s);
-FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s);
 
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);

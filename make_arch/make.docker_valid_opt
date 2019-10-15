@@ -1,5 +1,7 @@
 CXX = mpic++
 CXXFLAGS := -O3 -std=c++17 -fopenmp -Wno-format-security -DPROF
+CC = mpicc
+CC := -O3 -fopenmp -Wno-format-security
 LDFLAGS += -fopenmp
 FFTW_LIB := /usr/lib/x86_64-linux-gnu
 HDF5_INC := /usr/include/hdf5/openmpi

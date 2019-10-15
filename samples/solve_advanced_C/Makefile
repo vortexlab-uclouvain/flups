@@ -23,9 +23,9 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_archC/make.osx_gcc
+ARCH_FILE ?= make_arch/make.osx_gcc
 
-include $(ARCH_FILE)
+include ../../$(ARCH_FILE)
 
 FLUPSDIR := ../../
 
