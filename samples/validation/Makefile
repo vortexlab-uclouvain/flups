@@ -23,8 +23,8 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= ../../make_arch/make.vagrant_intel
-include $(ARCH_FILE)
+ARCH_FILE ?= make_arch/make.vagrant_intel
+include ../../$(ARCH_FILE)
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH

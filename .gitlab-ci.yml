@@ -24,7 +24,6 @@ compil dbg :
     - export ARCH_FILE=make_arch/make.docker_valid_dbg
     - make validation -j4
     - cd ./samples/validation
-    - export ARCH_FILE=../../make_arch/make.docker_valid_dbg
     - make all -j4
 
 compil opt :
@@ -43,7 +42,6 @@ compil opt :
     - export ARCH_FILE=make_arch/make.docker_valid_opt
     - make validation -j4
     - cd ./samples/validation
-    - export ARCH_FILE=../../make_arch/make.docker_valid_opt
     - make all -j4
 
 #checks that the code runs without error in serial dbg
