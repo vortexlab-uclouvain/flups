@@ -117,8 +117,8 @@ void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type){
     s->set_GreenType(type);
 }
 
-void flups_setup(FLUPS_Solver* s){
-    s->setup();
+double* flups_setup(FLUPS_Solver* s){
+    return s->setup();
 }
 
 // solve

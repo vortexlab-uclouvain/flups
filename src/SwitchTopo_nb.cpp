@@ -80,8 +80,14 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 
     _topo_in  = topo_input;
     _topo_out = topo_output;
+#ifdef PROF    
     _prof     = prof;
-
+    for (int ip=0;ip<3;ip++){
+        if(_topo_in->axis() == _topo_in->axproc(ip)){
+            _iswitch  = ip;
+        }
+    }
+#endif
     //-------------------------------------------------------------------------
     /** - get the starting and ending index of the shared zone */
     //-------------------------------------------------------------------------
@@ -173,13 +179,26 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
+#ifdef PROF
     if (_prof != NULL) {
         _prof->create("reorder","solve");
-        _prof->create("mem2buf","reorder");
-        _prof->create("buf2mem","reorder");
-        _prof->create("waiting","reorder");
-    }
 
+        _prof->create("switch0", "reorder");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("waiting0", "switch0");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("waiting1", "switch1");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("waiting2", "switch2");
+    }
+#endif
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -393,7 +412,8 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
-    if (_prof != NULL) _prof->start("reorder");
+    PROF_START("reorder");
+    int iswitch = _iswitch;
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -504,9 +524,8 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         }
     }
 
-    if (_prof != NULL) {
-        _prof->start("mem2buf");
-    }
+    PROF_STARTi("switch",iswitch);
+    PROF_STARTi("mem2buf",iswitch);
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
@@ -622,9 +641,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         }
     }
 
-    if (_prof != NULL) {
-        _prof->stop("mem2buf");
-    }
+    PROF_STOPi("mem2buf",iswitch);
 
     //-------------------------------------------------------------------------
     /** - reset the memory to 0 */
@@ -655,7 +672,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     // create the status as a shared variable
     MPI_Status status;
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2, recvRequest,shuffle)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2, recvRequest, iswitch, shuffle)
     for (int count = 0; count < nblocks_recv; count++) {
         // only the master receive the call
         int bid = -1;
@@ -665,9 +682,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 #pragma omp master
             {
                 FLUPS_INFO("doing the block in self: %d",bid);
-                if (_prof != NULL) {
-                    _prof->start("buf2mem");
-                }
+                PROF_STARTi("buf2mem",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {
                     fftw_execute(shuffle[bid]);
@@ -677,17 +692,12 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         } else {
 #pragma omp master
             {
-                if (_prof != NULL) {
-                    _prof->start("waiting");
-                }
+                PROF_STARTi("waiting",iswitch);
                 int request_index;
                 MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
-                if (_prof != NULL) {
-                    _prof->stop("waiting");
-                }
-                if (_prof != NULL) {
-                    _prof->start("buf2mem");
-                }
+                PROF_STOPi("waiting",iswitch);
+                PROF_STARTi("buf2mem",iswitch);
+                
                 // bid is set for the master
                 bid = status.MPI_TAG;
                 // only the master call the fftw_execute which is executed in multithreading                
@@ -704,9 +714,11 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         // add the bandwith info
         #pragma omp master
         {
+#ifdef PROF            
             if (_prof != NULL) {
-                _prof->addMem("waiting", get_bufMemSize()*sizeof(double));
+                _prof->addMem("waiting"+to_string(iswitch), get_bufMemSize()*sizeof(double));
             }
+#endif
         }
         
         // get the indexing of the block in 012-indexing
@@ -794,17 +806,14 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 
 #pragma omp master
         {
-            if (_prof != NULL) {
-                _prof->stop("buf2mem");
-            }
+            PROF_STOPi("buf2mem",iswitch);
         }
     }
     // now that we have received everything, close the send requests
     MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
 
-    if (_prof != NULL) {
-        _prof->stop("reorder");
-    }
+    PROF_STOPi("switch",iswitch);
+    PROF_STOP("reorder");
     END_FUNC;
 }
 

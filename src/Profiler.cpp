@@ -387,6 +387,26 @@ void Profiler::addMem(string name,size_t mem) {
 }
 
 /**
+ * @brief get the accumulated time
+ * 
+ * @param name 
+ * @return double 
+ */
+double Profiler::get_timeAcc(const std::string ref){
+
+    int commSize;
+    double localTotalTime = _timeMap[ref]->timeAcc();
+    double totalTime;
+    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+
+    MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    totalTime /= commSize;
+
+    return totalTime;
+}
+
+
+/**
  * @brief display the whole profiler using 
  * 
  */
@@ -438,10 +458,8 @@ void Profiler::disp(const std::string ref) {
         printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
     // get the global timing
-    double localTotalTime = _timeMap[ref]->timeAcc();
-    double totalTime;
-    MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    totalTime /= commSize;
+    double totalTime = this->get_timeAcc(ref);
+
     // display root with the total time
     _timeMap["root"]->disp(file,0,totalTime);
     // display footer
