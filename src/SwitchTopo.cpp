@@ -31,8 +31,6 @@
 #include "SwitchTopo.hpp"
 #include "Topology.hpp"
 
-using namespace FLUPS;
-
 
 void SwitchTopo::_cmpt_nByBlock(){
     BEGIN_FUNC;
@@ -82,7 +80,7 @@ void SwitchTopo::_cmpt_nByBlock(){
  * @param nBlockOnProc the number of block on each proc in the destination topology
  * @param destRank the computed destination rank for each block
  */
-void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag) {
+void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag) {
     BEGIN_FUNC;
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -180,7 +178,7 @@ void SwitchTopo::_cmpt_blockSize(const int nBlock[3], const int blockIDStart[3],
  * @param blockIDStart the starting point of the block (0,0,0)
  * @param nBlockEachProc the number of procs on each proc
  */
-void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const FLUPS::Topology *topo,
+void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
                                      int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
     BEGIN_FUNC;
     int comm_size;

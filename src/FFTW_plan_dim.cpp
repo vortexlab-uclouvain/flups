@@ -25,8 +25,6 @@
 
 #include "FFTW_plan_dim.hpp"
 
-using namespace FLUPS;
-
 /**
  * @brief Construct a new FFTW_plan_dim object
  * 

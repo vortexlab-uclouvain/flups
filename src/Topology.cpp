@@ -25,8 +25,6 @@
 
 #include "Topology.hpp"
 
-using namespace FLUPS;
-
 /**
  * @brief Construct a new Topology
  * 

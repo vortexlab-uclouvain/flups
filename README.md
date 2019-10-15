@@ -46,21 +46,32 @@ CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
 #---------------------------------------------------------
 FFTWDIR  := fftw_prefix
 HDF5DIR  := hdf5_prefix
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
 ```
-Then you need to reference the created configuration file inside the `Makefile` by changing the following line:
-```makefile
-# ARCH DEPENDENT VARIABLES
-include make_arch/make.vagrant_intel
+By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
+
+Then you need to reference the created configuration file and the prefix you wish to :
+```shell
+export ARCH_FILE=make_arch/my_arch_dependent_file
+export 
 ```
+You can now 
 
 Finally, go to the main folder and type the compilation command.
-- Build the exe with some validation cases:
+- Check the compilation details before doing the installation
 ```shell
-make -j
+make info
+## or
+ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make info
 ```
-- Build the library
+- Install the library
 ```shell
-PREFIX=/my/lib/prefix make install
+make install
+## or
+ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
 #### 3. The documentation
@@ -72,11 +83,17 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to remove various checks inside the library
+- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
 ### How to use a solver?
 
+#### Detailed reference
+For a detailed view of the API, have a look at @ref flups.h
+
+
+#### FLUPS in a nutshell
 To use the solver, you first need to create a topology
 ```cpp
 int  axis      = 0;              // aligned along the first dimension
@@ -105,7 +122,7 @@ mysolver->setup();
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(topo, rhs, rhs, FLUPS::SRHS);
+mysolver->solve(rhs, rhs, FLUPS::SRHS);
 ```
 
 Then, destroy the solver
