@@ -432,9 +432,9 @@ static inline void flups_mem_free(void* data) {
 }
 
 #if defined(__INTEL_COMPILER)
-    #define FLUPS_ASSUME_ALIGN(a) __assume_align(a)
+    #define FLUPS_ASSUME_ALIGNED(a) __assume_aligned(a)
 #elif defined(__GNUC__)
-    #define FLUPS_ASSUME_ALIGN(a) __builtin_assume_align(a)
+    #define FLUPS_ASSUME_ALIGNED(a) __builtin_assume_aligned(a)
 #endif
 
 typedef enum FLUPS_BoundaryType BoundaryType;
