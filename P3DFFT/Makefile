@@ -23,11 +23,11 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make.osx_gcc
+ARCH_FILE ?= make_arch/make.osx_gcc
 #DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
-include ../make_arch/$(ARCH_FILE)
-include make_arch/$(ARCH_FILE)
+include ../$(ARCH_FILE)
+include $(ARCH_FILE)
 
 #CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE 
 
@@ -49,12 +49,9 @@ BUILDDIR := ./build
 SRC_DIR := ./
 OBJ_DIR := ./build
 
-## add the headers to the vpaths
-INC := -I$(SRC_DIR)
-
 #-----------------------------------------------------------------------------
 #---- FLUPS
-INC += -I$(FLUPSDIR)/include
+INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src 
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
 
@@ -63,14 +60,18 @@ INC += -I$(P3DFFTDIR)/include
 LIB += -L$(P3DFFTDIR)/lib -lp3dfft
 
 #---- FFTW
-INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3 -lfftw3_threads  -Wl,-rpath,$(FFTWDIR)/lib
+FFTW_INC ?= /usr/include
+FFTW_LIB ?= /usr/lib
+FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3_threads
+INC += -I$(FFTW_INC)
+LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
 #---- HDF5
-HDF5LIB ?= -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
-HDF5INC ?= -I$(HDF5DIR)/include
-INC += $(HDF5INC)
-LIB += $(HDF5LIB)
+HDF5_INC ?= /usr/include
+HDF5_LIB ?= /usr/lib
+HDF5_LIBNAME ?= -lhdf5
+INC += -I$(HDF5_INC)
+LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
