@@ -171,5 +171,7 @@ void Topology::disp_rank() const{
     }
 
     std::string name = "rank_topo_axis" + std::to_string(this->axis());
+#ifdef DUMP_H5
     hdf5_dump(this, name, rankdata);
+#endif
 }

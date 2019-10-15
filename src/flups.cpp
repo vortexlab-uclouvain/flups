@@ -190,4 +190,14 @@ void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
     p->disp(myname);
 }
 
+//**********************************************************************
+//  HDF5
+//**********************************************************************
+
+void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data){
+    const std::string fn(filename);
+    hdf5_dump(topo,fn, data);
+}
+
+
 }

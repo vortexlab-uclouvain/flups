@@ -26,12 +26,10 @@
 #include "hdf5_io.hpp"
 
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
-#ifdef DUMP_H5
     BEGIN_FUNC;
     xmf_write(topo, filename, "data");
     hdf5_write(topo, filename, "data", data);
     END_FUNC;
-#endif
 }
 
 /**
