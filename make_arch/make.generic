@@ -1,0 +1,31 @@
+
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+
+#Assuming GCC
+CXX = mpic++
+
+# set the flag (optimisation or not)
+
+## For debugging:
+# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_H5
+## For profiling:
+# CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
+## For production:
+CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros
+
+
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+
+## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
+# FFTW_DIR  :=  /path/to/fftw/3.3.8_1
+# FFTW_LIB := ${FFTW_DIR}/lib
+# FFTW_INC := ${FFTW_DIR}/include
+
+## Specify the location of HDF5 (by default, assumed to be /usr/lib/)
+# HDF5_DIR  :=  /path/to/hdf5/v1.10.6
+# HDF5_LIB := ${HDF5_DIR}/lib
+# HDF5_INC := ${HDF5_DIR}/include
