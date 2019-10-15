@@ -34,7 +34,7 @@ PREFIX ?= ./
 NAME := flups
 # library naming
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
-TARGET_LIB_NB := build/lib$(NAME)_nb
+TARGET_LIB_NB  := build/lib$(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -82,35 +82,13 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-default: install
+default: lib_static info
 
 # for the validation, do a static lib
-validation: lib_static
-	@mkdir -p $(PREFIX)/lib
-	@mkdir -p $(PREFIX)/include
-	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
-	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
-	@cp $(API) $(PREFIX)/include
+validation: install_static
 
-# for a standard installation, do the dynamic link
-install: lib_dynamic info
-	@mkdir -p $(PREFIX)/lib
-	@mkdir -p $(PREFIX)/include
-	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
-	@cp $(API) $(PREFIX)/include
-
-# install everything
+# compile static and dynamic lib
 all: lib_static lib_dynamic
-	@mkdir -p $(PREFIX)/lib
-	@mkdir -p $(PREFIX)/include
-	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
-	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
-	@cp $(API) $(PREFIX)/include
-
-
 
 all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
@@ -120,17 +98,36 @@ lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
 
 lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
 
-$(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $@ $^
+lib: lib_static
 
-$(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $@ $^
-	
 $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_A2A).a: $(OBJ_A2A)
+	ar rvs $@  $^  
+
+$(TARGET_LIB_NB).a: $(OBJ_NB)
+	ar rvs $@  $^  
+
+install_dynamic: lib_dynamic
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+
+install_static: lib_static 
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+
+# for a standard installation, do the dynamic link	
+install: install_static logo
 
 test:
 	@echo $(SRC)

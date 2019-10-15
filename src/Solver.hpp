@@ -168,11 +168,16 @@ class Solver {
     // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
     ~Solver();
 
-    void setup();
+    double* setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
     Topology* get_innerTopo_physical() ;
     Topology* get_innerTopo_spectral() ;
 
+    /**
+     * @brief Get the total allocated size of the pointer data (returned by setup)
+     * 
+     * @return size_t 
+     */
     size_t get_allocSize() {
         size_t size_tot = 1;
         for (int id = 0; id < 3; id++) {

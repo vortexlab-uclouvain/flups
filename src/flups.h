@@ -255,8 +255,8 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], c
 void flups_cleanup(FLUPS_Solver* s);
 
 // setup the solver
-void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
-void flups_setup(FLUPS_Solver* s);
+void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
+double* flups_setup(FLUPS_Solver* s);
 
 // solve
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);

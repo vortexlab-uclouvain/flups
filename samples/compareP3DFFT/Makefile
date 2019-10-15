@@ -23,30 +23,46 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.vagrant_intel
-include ../../$(ARCH_FILE)
+ARCH_FILE ?= make_arch/make.osx_gcc
+#DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
+
+include ../$(ARCH_FILE)
+include $(ARCH_FILE)
+
+#CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE 
+
+FLUPSDIR := ../
+#/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver
+P3DFFTDIR := ./
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
-NAME := flups
+PREFIX ?= ./
+NAME := flups_vs_p3dfft
 # executable naming
-TARGET_EXE_A2A := $(NAME)_validation_a2a
-TARGET_EXE_NB := $(NAME)_validation_nb
+TARGET_EXE_A2A := $(NAME)_a2a
+TARGET_EXE_NB := $(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
-SRC_DIR := ./src
+SRC_DIR := ./
 OBJ_DIR := ./build
 
-## add the headers to the vpaths
-INC := -I$(SRC_DIR)
-
 #-----------------------------------------------------------------------------
+#---- FLUPS
+INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src 
+LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
+LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
+
+#---- P3DFFT
+INC += -I$(P3DFFTDIR)/include
+LIB += -L$(P3DFFTDIR)/lib -lp3dfft
+
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
+FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3_threads
 INC += -I$(FFTW_INC)
 LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
@@ -57,11 +73,6 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
-#---- FLUPS
-FLUPS_INC ?= ../../include
-FLUPS_LIB ?= ../../lib
-INC += -I$(FLUPS_INC)
-
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
@@ -70,42 +81,50 @@ HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
+# OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
+# OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
+
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: all
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
-
-all2all: $(TARGET_EXE_A2A)
-
-nonblocking: $(TARGET_EXE_NB)
+all: default
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
+
+install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+	mkdir -p $(PREFIX)/bin
+	cp $(TARGET_EXE_A2A) $(PREFIX)/bin
+	cp $(TARGET_EXE_NB) $(PREFIX)/bin
+
+test:
+	@echo $(SRC)
+	@echo $(INC)
+	@echo $(LIB)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-
+	
 destroy:
+	rm -f $(OBJ_DIR)/*.o
+	rm -f $(OBJ_DIR)/*.d
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	rm -f $(OBJ_DIR)/*
-	rm -rf include
-	rm -rf lib
-
+	
 info:
 	@echo $(ARCH_FILE)
 	$(info SRC = $(SRC))
-	$(info OBJ = $(OBJ))
 	$(info OBJ = $(OBJ))
 	$(info DEP = $(DEP))
 
