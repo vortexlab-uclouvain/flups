@@ -34,7 +34,7 @@
  * @brief A FFTW plan in one dimension
  * 
  */
-class FLUPS::FFTW_plan_dim {
+class FFTW_plan_dim {
     /**
      * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
      * 

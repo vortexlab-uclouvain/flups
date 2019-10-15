@@ -80,12 +80,12 @@ class Profiler {
    protected:
     map<string, TimerAgent*> _timeMap;
 
-    string _name;
+    const string _name;
     void _createSingle(string name);
 
    public:
     Profiler();
-    Profiler(string myname);
+    Profiler(const string myname);
     ~Profiler();
 
     void create(string name);

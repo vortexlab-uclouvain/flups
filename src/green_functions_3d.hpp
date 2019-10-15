@@ -27,7 +27,7 @@
 #include "Topology.hpp"
 #include "bessel.hpp"
 
-void cmpt_Green_3D_3dirunbounded_0dirspectral(const FLUPS::Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, FLUPS::GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_2dirunbounded_1dirspectral(const FLUPS::Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, FLUPS::GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_1dirunbounded_2dirspectral(const FLUPS::Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, FLUPS::GreenType typeGreen, const double alpha);
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const FLUPS::Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, FLUPS::GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha);
+void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double alpha);

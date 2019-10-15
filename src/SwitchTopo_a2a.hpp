@@ -53,7 +53,7 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class FLUPS::SwitchTopo_a2a : public SwitchTopo {
+class SwitchTopo_a2a : public SwitchTopo {
    protected:
     bool _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
 
