@@ -16,3 +16,7 @@ LDFLAGS := -qopenmp
 #---------------------------------------------------------
 FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
+FFTW_INC := $(FFTWDIR)/include
+FFTW_LIB := $(FFTWDIR)/lib
+HDF5_INC := $(HDF5DIR)/include
+HDF5_LIB := $(HDF5DIR)/lib

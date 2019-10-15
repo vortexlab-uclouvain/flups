@@ -26,12 +26,13 @@
 #include <cmath>
 #include <iostream>
 
-#include "expint.hpp"
-
-#include "Solver.hpp"
+#include "mpi.h"
+#include "flups.h"
+#include <iostream>
+#include <cstring>
 #include "validation_3d.hpp"
 
-#include "mpi.h"
+using namespace std;
 
 //default values
 const static int                 d_nsolve    = 1;
@@ -57,7 +58,6 @@ static void print_help(){
 }
 
 int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], int *predef, FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve){
-    BEGIN_FUNC;
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -180,7 +180,6 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
         (*size)[i+1] = startSize[1] * pow(2,i/3);
         (*size)[i+2] = startSize[2] * pow(2,i/3);
     }
-    END_FUNC;
     return 0;
 }
 
@@ -209,7 +208,7 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
+        // FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -218,15 +217,15 @@ int main(int argc, char *argv[]) {
     if (predef == 0){
         // Display
         if (rank == 0) {
-            FLUPS_INFO("I will run with:");
-            FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
-            FLUPS_INFO("  -L: %lf,%lf,%lf", L[0], L[1], L[2]);
-            FLUPS_INFO("  -bc: %d,%d ; %d,%d ; %d,%d", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
-            FLUPS_INFO("  --kernel: %d", kernel);
-            FLUPS_INFO("  --nsolve: %d", nsolve);
-            for (int i = 0; i < nsample; i++) {
-                FLUPS_INFO("   -> sample %d: %d %d %d", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
-            }
+            // FLUPS_INFO("I will run with:");
+            // FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
+            // FLUPS_INFO("  -L: %lf,%lf,%lf", L[0], L[1], L[2]);
+            // FLUPS_INFO("  -bc: %d,%d ; %d,%d ; %d,%d", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
+            // FLUPS_INFO("  --kernel: %d", kernel);
+            // FLUPS_INFO("  --nsolve: %d", nsolve);
+            // for (int i = 0; i < nsample; i++) {
+            //     FLUPS_INFO("   -> sample %d: %d %d %d", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
+            // }
         }
 
         for (int is = 0; is < nsample; is++) {

@@ -273,12 +273,12 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 //===============================================================================================================================
 
 
-Profiler::Profiler(){
-    _name = "default";
+Profiler::Profiler(): _name("default")
+{
     _createSingle("root");
 }
-Profiler::Profiler(string myname){
-    _name = myname;
+Profiler::Profiler(const string myname): _name(myname)
+{
     _createSingle("root");
 }
 Profiler::~Profiler() {
