@@ -77,6 +77,16 @@ ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 #### 3. The documentation
 To build the documentation, go to the `doc` subfolder and type `doxygen`.
 
+#### 4. Compilation flags
+Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
+- `DUMP_H5`: if specified, the solver will I/O fields using the HDF5 library.
+- `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
+- `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
+- `NDEBUG`: use this flag to remove various checks inside the library
+- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve
+
+:warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
+
 ### How to use a solver?
 
 #### Detailed reference
@@ -120,7 +130,23 @@ Then, destroy the solver
 delete (mysolver);
 ```
 
-### Implementation details
+#### Memory usage
+
+For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
+- the all to all version uses ~530Mb (O.253kB/unknown)
+- the non-blocking version uses ~560Mb (O.267kB/unknown)
+
+<!--
+(1500/(560/128^3))^(1/3)
+For 1.5Go, max 168
+14*12
+21*8 
+7*24-->
+
+**CAUTION**
+FLUPS was nerver tested above 1024^3 unknowns per core.
+
+### Implementation details and developers guide
 #### C++ use
 We use the C++ language in a very limited way, on purpose.
 The features used are the object oriented layout and some usefull features of the standard library.
@@ -167,12 +193,3 @@ for(int iz=0; iz<n[2]; iz++){
     }
 }
 ```
-
-### Authors
-By alphabetical order
-- Denis-Gabriel Caprace (main author)
-- Thomas Gillis (main author)
-
-
-### Citation
-Please cite the following paper

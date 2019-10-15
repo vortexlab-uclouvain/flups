@@ -1,7 +1,7 @@
 #!/bin/sh
 ## RM the previous validation dir
 
-HOME_FLUPS=/home/acad/ucl-tfl/tgillis/flups
+HOME_FLUPS=/home/acad/ucl-tfl/tgillis/flups/samples/validation
 EXEC_FLUPS=flups_validation_a2a
 
 ######### STRONG -> increase the number of CPU, same size
