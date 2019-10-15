@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.osx_gcc
+ARCH_FILE ?= make_arch/make.vagrant_intel
 
 include $(ARCH_FILE)
 
