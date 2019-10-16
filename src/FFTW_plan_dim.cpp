@@ -459,8 +459,8 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     /** - Compute howmany and the stride to run the loop in the execute  */
     //-------------------------------------------------------------------------
     _howmany = 1;
-    for (int id = 0; id < _dimID; id++) _howmany *= memsize[id];
-    for (int id = _dimID + 1; id < 3; id++) _howmany *= memsize[id];
+    for (int id = 0; id < _dimID; id++) _howmany *= topo->nloc(id);
+    for (int id = _dimID + 1; id < 3; id++) _howmany *= topo->nloc(id);
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
