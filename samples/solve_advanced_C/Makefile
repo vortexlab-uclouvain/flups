@@ -84,10 +84,10 @@ default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 all: default
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIB_A2A) $(LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_A2A) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 	mkdir -p $(PREFIX)/bin

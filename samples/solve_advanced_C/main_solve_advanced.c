@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     // memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
     
     double f = 1; //frequency of the wave
-    const double c_2pi = 2.0*M_PI;
+    const double c_2pi = 2.0*3.141592653589793;
 
     for (int i2 = 0; i2 < flups_topo_get_nloc(topoIn,2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topoIn,1); i1++) {
