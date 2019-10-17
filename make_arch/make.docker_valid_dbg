@@ -2,7 +2,7 @@ CXX = mpic++
 CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -fopenmp  -DPROF
 CC = mpicc
 CCFLAGS := -O0 -g --debug -DVERBOSE -std=c99 -fopenmp -Wno-format-security
-LDFLAGS += -fopenmp
+LDFLAGS += -fopenmp -lstdc++
 FFTW_LIB := /usr/lib/x86_64-linux-gnu
 HDF5_INC := /usr/include/hdf5/openmpi
 HDF5_LIB := /usr/lib/x86_64-linux-gnu

@@ -32,16 +32,16 @@
 
 #ifdef __cplusplus
 extern "C" {
+// #else
+// #include "stdlib.h"
 #endif
 
 
 /**
  * @brief type to descive the number of data per proc.
  * 
- * If your application is C++, you can replace this by size_t.
- * 
  */
-#define FLUPS_SIZE unsigned long long
+#define FLUPS_SIZE size_t
 
 //=============================================================================
 /**

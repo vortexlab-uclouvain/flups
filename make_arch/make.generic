@@ -5,6 +5,7 @@
 
 #Assuming GCC
 CXX = mpic++
+CC = mpicc
 
 # set the flag (optimisation or not)
 
@@ -15,6 +16,9 @@ CXX = mpic++
 ## For production:
 CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros
 
+CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros
+
+LDFLAGS = -fopenmp -lstc++
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

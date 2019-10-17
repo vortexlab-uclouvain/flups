@@ -76,7 +76,7 @@ OBJ := $(SRC:%.c=$(OBJ_DIR)/%.o)
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CC) $(CCFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
 default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
@@ -84,10 +84,10 @@ default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 all: default
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_A2A) $(LIB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIB_A2A) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 	mkdir -p $(PREFIX)/bin
