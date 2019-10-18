@@ -147,6 +147,39 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     flups_free(onBlockEachProc);
 
     //-------------------------------------------------------------------------
+    /** - initialize the profiler    */
+    //-------------------------------------------------------------------------
+#ifdef PROF
+    if (_prof != NULL) {
+        _prof->create("reorder","solve");
+
+        _prof->create("switch0", "reorder");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("waiting0", "switch0");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("waiting1", "switch1");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("waiting2", "switch2");
+    }
+#endif
+    END_FUNC;
+}
+
+void SwitchTopo_nb::setup(){
+    BEGIN_FUNC;
+
+    int rank, comm_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    //-------------------------------------------------------------------------
     /** - Setup subcomm */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
@@ -177,35 +210,10 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     _oselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
 
     //-------------------------------------------------------------------------
-    /** - initialize the profiler    */
-    //-------------------------------------------------------------------------
-#ifdef PROF
-    if (_prof != NULL) {
-        _prof->create("reorder","solve");
-
-        _prof->create("switch0", "reorder");
-        _prof->create("mem2buf0", "switch0");
-        _prof->create("buf2mem0", "switch0");
-        _prof->create("waiting0", "switch0");
-
-        _prof->create("switch1", "reorder");
-        _prof->create("mem2buf1", "switch1");
-        _prof->create("buf2mem1", "switch1");
-        _prof->create("waiting1", "switch1");
-
-        _prof->create("switch2", "reorder");
-        _prof->create("mem2buf2", "switch2");
-        _prof->create("buf2mem2", "switch2");
-        _prof->create("waiting2", "switch2");
-    }
-#endif
-    //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
 #ifdef PERF_VERBOSE
     // we display important information for the performance
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){

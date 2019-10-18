@@ -136,6 +136,46 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     flups_free(onBlockEachProc);
 
     //-------------------------------------------------------------------------
+    /** - initialize the profiler    */
+    //-------------------------------------------------------------------------
+#ifdef PROF    
+    if (_prof != NULL) {
+        _prof->create("reorder", "solve");
+
+        _prof->create("switch0", "reorder");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("all_2_all0", "switch0");
+        _prof->create("all_2_all_v0", "switch0");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("all_2_all1", "switch1");
+        _prof->create("all_2_all_v1", "switch1");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("all_2_all2", "switch2");
+        _prof->create("all_2_all_v2", "switch2");
+    }
+#endif
+    END_FUNC;
+}
+
+/**
+ * @brief setup the switchtopo
+ * 
+ */
+void SwitchTopo_a2a::setup() {
+    BEGIN_FUNC;
+
+    int rank, comm_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    //-------------------------------------------------------------------------
     /** - Setup subcomm */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
@@ -170,32 +210,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
         }
     }
 
-    //-------------------------------------------------------------------------
-    /** - initialize the profiler    */
-    //-------------------------------------------------------------------------
-#ifdef PROF    
-    if (_prof != NULL) {
-        _prof->create("reorder", "solve");
-
-        _prof->create("switch0", "reorder");
-        _prof->create("mem2buf0", "switch0");
-        _prof->create("buf2mem0", "switch0");
-        _prof->create("all_2_all0", "switch0");
-        _prof->create("all_2_all_v0", "switch0");
-
-        _prof->create("switch1", "reorder");
-        _prof->create("mem2buf1", "switch1");
-        _prof->create("buf2mem1", "switch1");
-        _prof->create("all_2_all1", "switch1");
-        _prof->create("all_2_all_v1", "switch1");
-
-        _prof->create("switch2", "reorder");
-        _prof->create("mem2buf2", "switch2");
-        _prof->create("buf2mem2", "switch2");
-        _prof->create("all_2_all2", "switch2");
-        _prof->create("all_2_all_v2", "switch2");
-    }
-#endif
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------

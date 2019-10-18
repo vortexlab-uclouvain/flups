@@ -44,6 +44,8 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+    _comm = MPI_COMM_WORLD;
+
     FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
 
     //-------------------------------------------------------------------------
@@ -161,15 +163,23 @@ void Topology::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void Topology::disp_rank() const{
+void Topology::disp_rank() {
     // we only focus on the real size = local size
-    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize());
-    int rank;
+    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize()*2);
+    int rank, rank_new;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_rank(_comm,&rank_new);
     for(int i=0; i<this->locsize(); i++){
-        rankdata[i] = rank;
+        rankdata[2*i] = rank;
+        rankdata[2*i+1] = rank_new;
     }
 
     std::string name = "rank_topo_axis" + std::to_string(this->axis());
-    hdf5_dump(this, name, rankdata);
+    if(this->isComplex()){
+        hdf5_dump(this, name, rankdata);
+    } else {
+        this->switch2complex();
+        hdf5_dump(this, name, rankdata);
+        this->switch2real();
+    }
 }

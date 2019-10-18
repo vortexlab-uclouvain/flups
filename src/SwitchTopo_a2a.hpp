@@ -68,6 +68,7 @@ class SwitchTopo_a2a : public SwitchTopo {
 
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
     void execute(double* v, const int sign) const;
+    void setup();
     void disp() const;
 };
 

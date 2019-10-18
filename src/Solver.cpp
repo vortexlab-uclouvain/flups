@@ -198,7 +198,93 @@ double* Solver::setup() {
     if (_prof != NULL) _prof->stop("setup");
 
     //-------------------------------------------------------------------------
-    /** - Allocate the buffers for the SwitchTopos */
+    /** - Precompute the communication graph and reorder the ranks */
+    //-------------------------------------------------------------------------
+    int worldsize;
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+
+    int* sources  = (int*)flups_malloc(worldsize * sizeof(int));
+    int* sourcesW = (int*)flups_malloc(worldsize * sizeof(int));
+    int* dests    = (int*)flups_malloc(worldsize * sizeof(int));
+    int* destsW   = (int*)flups_malloc(worldsize * sizeof(int));
+
+    //Preparing the graph: we setup the thing as if every node was to communicate with
+    // every other node, and we will then  
+    memset(sourcesW,0,sizeof(int)*worldsize);
+    memset(destsW,0,sizeof(int)*worldsize);
+
+    for(int i =0;i<worldsize;i++){
+        sources[i] = i;
+        dests[i] = i;
+    }
+    
+    //Count the total number of edges for the 2nd and 3rd switchtopo.
+    // These are the switches that we hope to optimize with the rank
+    // reordering. We do not account the 1st switchtopo because that
+    // one will be used to reach the optimized layout associated with
+    // the graph_comm, and it is thus very likely that the communication
+    // involved in the first switchtopo is a real all 2 all (with some
+    // ranks not having a self block) !
+    for(int i=1;i<3;i++){
+        _switchtopo[i]->add_toGraph(sourcesW,destsW);
+    }
+
+    MPI_Comm graph_comm;
+    MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW, \
+                                                    worldsize, dests, destsW, \
+                                                    MPI_INFO_NULL, 1, &graph_comm);
+    
+    flups_free(sources);
+    flups_free(sourcesW);
+    flups_free(dests);
+    flups_free(destsW);
+
+#ifdef VERBOSE    
+    int inD, outD, wei;
+    MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
+    printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
+
+    int* Sour = (int*) malloc(sizeof(int)*inD);
+    int* SourW = (int*) malloc(sizeof(int)*inD);
+    int* Dest = (int*) malloc(sizeof(int)*outD);
+    int* DestW = (int*) malloc(sizeof(int)*outD);
+
+    MPI_Dist_graph_neighbors(graph_comm, inD,  Sour,      SourW,
+                                        outD, Dest,      DestW);
+
+    printf("[FGRAPH] INedges: ");
+    for (int i=0; i<inD; i++)
+    {
+        printf("%d (%d), ",Sour[i],SourW[i]);
+    }
+    printf("\n[FGRAPH] OUTedges: ");
+    for (int i=0; i<outD; i++)
+    {
+        printf("%d (%d), ",Dest[i],DestW[i]);
+    }
+    printf("\n");
+
+    free(Sour);
+    free(SourW);
+    free(Dest);
+    free(DestW);
+#endif
+
+    //Advise the topologies that they will be associated with an other comm
+    // The _topo_hat[0] is still on MPI_COMM_WORLD, because this is how 
+    // we receive field. The first switch topo will serve to redistribute
+    // data following the optimized topology on the cluster, with reordered 
+    // ranks
+    for(int i=1;i<3;i++){
+        _topo_hat[i]->set_comm(graph_comm);
+    }
+
+// #if DUMP_H5
+    _topo_hat[1]->disp_rank();
+// #endif
+
+    //-------------------------------------------------------------------------
+    /** - Setup the subcommunications (if possible) and allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
 
@@ -574,7 +660,10 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
 
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
-        if (switchtopo[id] != NULL) switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
+        if (switchtopo[id] != NULL){
+            switchtopo[id]->setup();
+            switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
+        } 
     }
     END_FUNC;
 }

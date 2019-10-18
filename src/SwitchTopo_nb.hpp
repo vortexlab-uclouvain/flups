@@ -73,7 +73,7 @@ class SwitchTopo_nb : public SwitchTopo {
 
     void setup_buffers(opt_double_ptr _sendBuf,opt_double_ptr _recvBuf);
     void execute(double* v, const int sign) const;
-
+    void setup() ;
     void disp() const;
 };
 

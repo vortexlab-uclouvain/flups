@@ -410,3 +410,29 @@ void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, con
 
     END_FUNC;
 }
+
+/**
+ * @brief Determine and add the weights of the edges in the communication graph
+ * 
+ * @param sourcesW the weights associated to the edge between other processors communicating to me
+ * @param destsW the weights associated to the edge betwenn me communicating to other processors
+ */
+void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
+    BEGIN_FUNC;
+
+    // count the number of out edges
+    for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+        destsW[_i2o_destRank[ib]] += 1;
+    }
+
+    // count the number of in edges
+    for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+        sourcesW[_o2i_destRank[ib]] += 1;
+    }
+
+    // Note: by counting the edges like this on every process, we actually obtain
+    // twice the number of edges in the total final graph, as the in and out edges 
+    // between 2 processes have been accounted by both procs. However, the weight
+    // is relative so it doesnt matter.
+    END_FUNC;
+}

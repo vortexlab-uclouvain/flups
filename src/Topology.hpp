@@ -38,15 +38,16 @@
  */
 class Topology {
    protected:
-    int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    int      _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int      _axproc[3];  /**<@brief axis of the procs for ranksplit  */
+    int      _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
+    int      _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int      _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int      _axis;       /**<@brief fastest rotating index in the topology  */
+    int      _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int      _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int      _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    MPI_Comm _comm;       /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -57,6 +58,14 @@ class Topology {
     // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
     Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
     ~Topology();
+
+    /**
+     * @name setters
+     * 
+     * @{
+     */
+    void set_comm(MPI_Comm comm) { _comm = comm; }
+    /**@} */
 
     /**
      * @name getters
@@ -141,7 +150,7 @@ class Topology {
     }
 
     void disp() const;
-    void disp_rank() const;
+    void disp_rank() ;
 };
 
 /**

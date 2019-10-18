@@ -82,9 +82,10 @@ class SwitchTopo {
 
    public:
     virtual ~SwitchTopo() {};
-    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) = 0;
-    virtual void execute(opt_double_ptr v, const int sign) const                 = 0;
-    virtual void disp() const                                                    = 0;
+    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)            = 0;
+    virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
+    virtual void setup()                                                                    = 0;
+    virtual void disp() const                                                               = 0;
 
     /**
      * @brief return the memory size of a block (including the padding for odd numbers if needed)
@@ -137,6 +138,8 @@ class SwitchTopo {
         }
         return stride;
     };
+
+    void add_toGraph(int* sourcesW, int* destsW) const;
 
    protected:
     void _cmpt_nByBlock();
