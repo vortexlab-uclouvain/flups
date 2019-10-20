@@ -209,8 +209,8 @@ void SwitchTopo::_cmpt_commSplit(){
     BEGIN_FUNC;
     // get my rank and use-it as the initial color
     int comm_size, rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
+    MPI_Comm_rank(_mastercomm,&rank);
+    MPI_Comm_size(_mastercomm,&comm_size);
 
     int mycolor = rank;
     
@@ -243,7 +243,7 @@ void SwitchTopo::_cmpt_commSplit(){
     // continue while we haven't found a solution
     while (nleft > 0) {
         // gather the color info from everyone
-        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, MPI_COMM_WORLD);
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _mastercomm);
         // iterate on the proc
         int n_notInMyGroup = 0;
         for (int ir = 0; ir < comm_size; ir++) {
@@ -259,14 +259,30 @@ void SwitchTopo::_cmpt_commSplit(){
             }
         }
         // compute among everybody, if we need to continue
-        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _mastercomm);
         FLUPS_INFO("stil %d to find (@ my proc: %d)", nleft, n_notInMyGroup);
     }
-    // create the communicator and give a name
-    MPI_Comm_split(MPI_COMM_WORLD, mycolor, rank, &_subcomm);
 
-    std::string commname = "comm-" + std::to_string(mycolor);
-    MPI_Comm_set_name(_subcomm, commname.c_str());
+    //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+    nleft=0;
+    for(int ir = 0; ir < comm_size; ir++){
+        nleft+=colors[ir];
+    }
+    if(nleft==0){
+        // avoids the creation of a communicator
+        _subcomm = _mastercomm;
+        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
+        if(_subcomm == MPI_COMM_WORLD){
+            FLUPS_INFO("BTW, it is comm_world",LOCATION);
+        }
+        
+    } else {
+        // create the communicator and give a name
+        MPI_Comm_split(_mastercomm, mycolor, rank, &_subcomm);
+
+        std::string commname = "comm-" + std::to_string(mycolor);
+        MPI_Comm_set_name(_subcomm, commname.c_str());
+    }
 
     // free the vectors
     flups_free(colors);

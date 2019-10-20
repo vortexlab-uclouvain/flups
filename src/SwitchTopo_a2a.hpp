@@ -73,5 +73,6 @@ class SwitchTopo_a2a : public SwitchTopo {
 };
 
 void SwitchTopo_a2a_test();
+void SwitchTopo_a2a_test2();
 
 #endif

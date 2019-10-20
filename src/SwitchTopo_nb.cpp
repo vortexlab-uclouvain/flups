@@ -231,12 +231,14 @@ void SwitchTopo_nb::setup(){
         fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],(_nByBlock[0] == 1)?1:_nByBlock[0]+_exSize[0]%2,(_nByBlock[1] == 1)?1:_nByBlock[1]+_exSize[1]%2,(_nByBlock[2] == 1)?1:_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
 
         fprintf(file,"--------------------------\n");
+        fprintf(file,"%d inblock: %d %d %d\n",newrank,_inBlock[0], _inBlock[1], _inBlock[2]);
         fprintf(file,"%d SEND:",newrank);
         for(int ib=0; ib<_inBlock[0] * _inBlock[1] * _inBlock[2]; ib++){
             fprintf(file," %d ",_i2o_destRank[ib]);
         }
         fprintf(file,"\n");
         fprintf(file,"--------------------------\n");
+        fprintf(file,"%d onblock: %d %d %d\n",newrank,_onBlock[0], _onBlock[1], _onBlock[2]);
         fprintf(file,"%d RECV:",newrank);
         for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
             fprintf(file," %d ",_o2i_destRank[ib]);
