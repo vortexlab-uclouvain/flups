@@ -189,8 +189,12 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    _setup_subComm(_mastercomm,_topo_out->get_comm(), _inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
-    _setup_subComm(_topo_out->get_comm(),_mastercomm, _onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
+    if(_subcomm!=_mastercomm){
+        _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
+        _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
+    } else {
+        _setup_commToFrom(_mastercomm,_topo_out->get_comm(), _inBlock, _onBlock, _i2o_destRank, _o2i_destRank, &_i2o_count, &_i2o_start, &_o2i_count, &_o2i_start);
+    }
 
     //-------------------------------------------------------------------------
     /** - determine if we are all to all */
@@ -994,7 +998,7 @@ void SwitchTopo_a2a_test2() {
     const int nproc[3] = {1, 3, 2};
 
     const int nglob_big[3] = {24, 24, 24};
-    // const int nglob_big[3] = {2, 2, 2};
+    // const int nproc_big[3] = {1, 2, 3};
     const int nproc_big[3] = {1, 3, 2};
     const int axproc[3] = {0,1,2};
 
@@ -1027,8 +1031,10 @@ void SwitchTopo_a2a_test2() {
         MPI_Cart_create(MPI_COMM_WORLD, 3, dims,  per,  1,  &graph_comm);
 #else
         //simulate a new comm with reordered ranks:
-        int       outRanks[6] = {0, 3, 4, 1, 2, 5};
-        // int       outRanks[6] = {0, 1, 3, 4, 2, 5};
+        // int       outRanks[6] = {0, 3, 4, 1, 2, 5};
+        int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+            //CAUTION: rank i goes in posisition outRanks[i] in the new comm
+            //the associated rank will be {0 1 3 4 2 5}
         MPI_Group group_in, group_out;
         MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
         MPI_Group_incl(group_in, 6, outRanks, &group_out);        //manually reorder the ranks

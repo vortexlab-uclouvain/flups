@@ -314,74 +314,123 @@ void SwitchTopo::_cmpt_commSplit(){
  * @param count the number of information to send to each proc
  * @param start the id in the buffer where the information starts for each proc
  */
-void SwitchTopo::_setup_subComm(MPI_Comm inComm, MPI_Comm outComm, const int nBlock[3], int* destRank, int** count, int** start) {
+void SwitchTopo::_setup_subComm(const int nBlock[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
-    /** - get the new destination ranks    */
+    /** - get the new source & destination ranks    */
     //-------------------------------------------------------------------------
-    int subrank, inrank, outrank, worldsize;
+    int masterrank, subrank, worldsize;
+    MPI_Comm_size(_mastercomm, &worldsize);
+    MPI_Comm_rank(_mastercomm, &masterrank);
     MPI_Comm_rank(_subcomm, &subrank);
-    MPI_Comm_rank( inComm , &inrank);
-    MPI_Comm_rank( outComm, &outrank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-
     
     // get the ranks of everybody in all communicators
     int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
     MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, MPI_COMM_WORLD);
-
-    int* inRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, MPI_COMM_WORLD);
-
-    int* outRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, MPI_COMM_WORLD);
-
-    if(inrank == 0){
-        printf("[GRAPH] Ranks are as follows:\n");
-        for(int i=0; i<worldsize; i++){
-            printf("in: %d\t out: %d\t sub: %d\n",inRanks[i],outRanks[i],subRanks[i]);
-        }
-    }
 
     // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
     // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
 
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        // destRank[ib] = subRanks[destRank[ib]];
-        destRank[ib] = subRanks[outRanks[inRanks[destRank[ib]]]];
-        // destRank[ib] = subRanks[outRanks[inRanks[destRank_cpy[ib]]]];
+        destRank[ib] = subRanks[destRank[ib]];
     }
     // flups_free(destRank_cpy);
-    flups_free(outRanks);
     flups_free(subRanks);
     
     //-------------------------------------------------------------------------
     /** - build the size vector of block to each procs    */
     //-------------------------------------------------------------------------
     if (count != NULL) {
-        int subsize;
-        MPI_Comm_size(_subcomm, &subsize);
-        // count the number of blocks to each process
-        (*count) = (int*)flups_malloc(subsize * sizeof(int));
-        (*start) = (int*)flups_malloc(subsize * sizeof(int));
-        std::memset((*count), 0, subsize * sizeof(int));
-        std::memset((*start), 0, subsize * sizeof(int));
-        // get the size per block
-        const int blockMem = get_blockMemSize();
-        // count the number of blocks per rank
-        for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-            (*count)[destRank[ib]] += blockMem;
-        }
-        // compute the start indexes
-        if (start != NULL) {
-            (*start)[0] = 0;
-            for (int ir = 1; ir < subsize; ir++) {
-                (*start)[ir] = (*start)[ir - 1] + (*count)[ir - 1];
-            }
+        _cmpt_start_and_count(_subcomm, nBlock, destRank, count, start);
+    }
+
+    END_FUNC;
+}
+
+void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int inBlock[3], const int onBlock[3], int* destRank, int* sourceRank, int** send_count, int** send_start, int** recv_count, int** recv_start) {
+    BEGIN_FUNC;
+    //-------------------------------------------------------------------------
+    /** - get the new source & destination ranks    */
+    //-------------------------------------------------------------------------
+    int masterrank, inrank, outrank, worldsize;
+    MPI_Comm_size(_mastercomm, &worldsize);
+    MPI_Comm_rank(_mastercomm, &masterrank);
+    MPI_Comm_rank( outComm, &outrank);  //the rank that I will be in the outComm. I thus need to receive data from this guy
+    
+    //the rank that will have my number in the outComm. I thus need to send data to this guy
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(inComm, &group_in);  //get the group of the current comm
+    MPI_Comm_group(outComm, &group_out);   //get the group of the new comm
+    int err = MPI_Group_translate_ranks(group_out, 1, &masterrank, group_in, &inrank);
+    FLUPS_CHECK(err == MPI_SUCCESS && inrank != MPI_UNDEFINED, "Could not find a correspondance between former and new comm.", LOCATION);
+
+    // get the ranks of everybody in all communicators
+    int* inRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, MPI_COMM_WORLD); //could actually get this with the Groupe_translate instruction
+
+    int* outRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, MPI_COMM_WORLD);
+
+    // if(inrank == 0){
+    //     printf("[GRAPH] Ranks are as follows:\n");
+    //     for(int i=0; i<worldsize; i++){
+    //         printf("me: %d\t in(send): %d\t out(recv): %d\n",i,inRanks[i],outRanks[i]);
+    //     }
+    // }
+
+    // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
+    // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
+
+    // replace the old ranks by the newest ones
+    for (int ib = 0; ib < inBlock[0] * inBlock[1] * inBlock[2]; ib++) {
+        destRank[ib] = inRanks[destRank[ib]];
+    }
+    for (int ib = 0; ib < onBlock[0] * onBlock[1] * onBlock[2]; ib++) {
+        sourceRank[ib] = outRanks[sourceRank[ib]];
+    }
+    // flups_free(destRank_cpy);
+    flups_free(inRanks);
+    flups_free(outRanks);
+    
+    //-------------------------------------------------------------------------
+    /** - build the size vector of block to each procs    */
+    //-------------------------------------------------------------------------
+    if (send_count != NULL) {
+        _cmpt_start_and_count(_mastercomm, inBlock, destRank, send_count, send_start);
+    }
+    if (recv_count != NULL) {
+        _cmpt_start_and_count(_mastercomm, onBlock, sourceRank, recv_count, recv_start);
+    }
+    
+    // for(int i=0; i<worldsize; i++){
+    //     printf("[COUNTS] proc %i: TO start= %d, count=%d - FROM start=%d, count=%d\n",i,(*send_start)[i],(*send_count)[i],(*recv_start)[i],(*recv_count)[i]);
+    // }
+
+    END_FUNC;
+}
+
+void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock[3], int* destRank, int** count, int** start) {
+    int size;
+    MPI_Comm_size(comm, &size);
+    // count the number of blocks to each process
+    (*count) = (int*)flups_malloc(size * sizeof(int));
+    (*start) = (int*)flups_malloc(size * sizeof(int));
+    std::memset((*count), 0, size * sizeof(int));
+    std::memset((*start), 0, size * sizeof(int));
+    // get the size per block
+    const int blockMem = get_blockMemSize();
+    // count the number of blocks per rank
+    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        (*count)[destRank[ib]] += blockMem;
+    }
+    // compute the start indexes
+    if (start != NULL) {
+        (*start)[0] = 0;
+        for (int ir = 1; ir < size; ir++) {
+            (*start)[ir] = (*start)[ir - 1] + (*count)[ir - 1];
         }
     }
-    END_FUNC;
 }
 
 /**

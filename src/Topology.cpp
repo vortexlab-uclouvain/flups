@@ -112,7 +112,7 @@ void Topology::set_comm(MPI_Comm comm) {
 
     int curr_rank, to_rank, from_rank;
     MPI_Comm_rank(_comm, &curr_rank);
-    MPI_Comm_rank(comm, &from_rank); //who I will become
+    MPI_Comm_rank(comm, &from_rank); //who I will be in comm. I thus need to receive info from this guy.
 
     //who will become me?
     MPI_Group group_in, group_out;
@@ -121,6 +121,7 @@ void Topology::set_comm(MPI_Comm comm) {
     int err = MPI_Group_translate_ranks(group_out, 1, &curr_rank, group_in, &to_rank);
     FLUPS_CHECK(err == MPI_SUCCESS && to_rank != MPI_UNDEFINED, "Could not find a correspondance between former and new comm.", LOCATION);
 
+    
     int tmp[3] = {_rankd[0],_rankd[1],_rankd[2]};
     
     //exchanging rankd with who is concerned
