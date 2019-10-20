@@ -175,13 +175,22 @@ void SwitchTopo_a2a::setup() {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
+#ifdef REORDER_RANKS
     //-------------------------------------------------------------------------
-    /** - Setup subcomm */
+    /** - Setup the master comm (global comm including all nodes, 
+     *    potentially with a smart ordering of ranks) */
+    //-------------------------------------------------------------------------
+    //We will always perform the communication in the _subcomm, which is a 
+    // subdivision of the _mastercomm.
+    _mastercomm = _topo_in->get_comm();
+#endif
+    //-------------------------------------------------------------------------
+    /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    _setup_subComm(_subcomm, _inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
-    _setup_subComm(_subcomm, _onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
+    _setup_subComm(_mastercomm,_topo_out->get_comm(), _inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
+    _setup_subComm(_topo_out->get_comm(),_mastercomm, _onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
 
     //-------------------------------------------------------------------------
     /** - determine if we are all to all */
@@ -235,12 +244,14 @@ void SwitchTopo_a2a::setup() {
         fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],(_nByBlock[0] == 1)?1:_nByBlock[0]+_exSize[0]%2,(_nByBlock[1] == 1)?1:_nByBlock[1]+_exSize[1]%2,(_nByBlock[2] == 1)?1:_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
 
         fprintf(file,"--------------------------\n");
+        fprintf(file,"%d inblock: %d %d %d\n",newrank,_inBlock[0], _inBlock[1], _inBlock[2]);
         fprintf(file,"%d SEND:",newrank);
         for(int ib=0; ib<_inBlock[0] * _inBlock[1] * _inBlock[2]; ib++){
             fprintf(file," %d ",_i2o_destRank[ib]);
         }
         fprintf(file,"\n");
         fprintf(file,"--------------------------\n");
+        fprintf(file,"%d inblock: %d %d %d\n",newrank,_onBlock[0], _onBlock[1], _onBlock[2]);
         fprintf(file,"%d RECV:",newrank);
         for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
             fprintf(file," %d ",_o2i_destRank[ib]);
@@ -840,6 +851,11 @@ void SwitchTopo_a2a::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
+/**
+ * @brief 
+ * 
+ * Test of the switchtopo with fieldstart non zero, and thus exclusion of data after switch
+ */
 void SwitchTopo_a2a_test() {
     BEGIN_FUNC;
 
@@ -886,6 +902,7 @@ void SwitchTopo_a2a_test() {
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
+        switchtopo->setup();
         switchtopo->setup_buffers(send_buff, recv_buff);
         switchtopo->disp();
 
@@ -897,6 +914,7 @@ void SwitchTopo_a2a_test() {
         switchtopo->execute(data, FLUPS_BACKWARD);
 
         hdf5_dump(topo, "test_real_returned", data);
+        MPI_Barrier(MPI_COMM_WORLD);
 
         flups_free(data);
         flups_free(send_buff);
@@ -954,6 +972,116 @@ void SwitchTopo_a2a_test() {
         hdf5_dump(topo, "test_complex_returned", data);
 
         flups_free(data);
+        delete (switchtopo);
+        delete (topo);
+        delete (topobig);
+    }
+    END_FUNC;
+}
+
+/**
+ * @brief 
+ * Test of different ranksplit, and switch to a topo with a graph_comm
+ */
+void SwitchTopo_a2a_test2() {
+    BEGIN_FUNC;
+
+    int comm_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    const int nglob[3] = {24, 24, 24};
+    // const int nglob[3] = {2, 2, 2};
+    const int nproc[3] = {1, 3, 2};
+
+    const int nglob_big[3] = {24, 24, 24};
+    // const int nglob_big[3] = {2, 2, 2};
+    const int nproc_big[3] = {1, 3, 2};
+    const int axproc[3] = {0,1,2};
+
+    {
+        //===========================================================================
+        // real numbers
+        Topology* topo    = new Topology(0, nglob, nproc, false, NULL, 1);
+        Topology* topobig = new Topology(0, nglob_big, nproc_big, false, axproc, 1);
+
+        topo->disp();
+        topobig->disp();
+
+        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+
+        const int fieldstart[3] = {0, 0, 0};
+        // printf("\n=============================");
+        SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+        size_t         max_mem    = switchtopo->get_bufMemSize();
+        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        std::memset(send_buff, 0, max_mem * sizeof(double));
+        std::memset(recv_buff, 0, max_mem * sizeof(double));
+        
+
+        MPI_Comm graph_comm = NULL;
+
+#ifndef DEV_SIMULATE_GRAPHCOMM
+        const int per[3] = {0,0,0};
+        const int dims[3] = {topo->nproc(0),topo->nproc(1),topo->nproc(2)};
+        MPI_Cart_create(MPI_COMM_WORLD, 3, dims,  per,  1,  &graph_comm);
+#else
+        //simulate a new comm with reordered ranks:
+        int       outRanks[6] = {0, 3, 4, 1, 2, 5};
+        // int       outRanks[6] = {0, 1, 3, 4, 2, 5};
+        MPI_Group group_in, group_out;
+        MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
+        MPI_Group_incl(group_in, 6, outRanks, &group_out);        //manually reorder the ranks
+        MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
+        
+        MPI_Comm graph_comm2 = NULL;
+        MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm2);  // create the new comm
+#endif
+        std::string commname = "graph_comm";
+        MPI_Comm_set_name(graph_comm, commname.c_str());
+
+        topobig->set_comm(graph_comm);
+        // topo->set_comm(graph_comm2);
+        topo->disp_rank();
+        topobig->disp_rank();
+
+        //Filling data (AFTER having assigned topo to a new topo)
+        const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+        int istart[3];
+        topo->get_istart_glob(istart);
+        for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                    const size_t id = localIndex(0, i0, i1, i2, 0, nmem, 1);
+
+                    data[id] = (double)(i0+istart[0] + i1+istart[1] + i2+istart[2]);
+                }
+            }
+        }
+        // try the dump
+        hdf5_dump(topo, "test_real", data);
+
+        // associate the buffer
+        switchtopo->setup();
+        switchtopo->setup_buffers(send_buff, recv_buff);
+        switchtopo->disp();
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        // printf("\n\n============ FORWARD =================");
+        switchtopo->execute(data, FLUPS_FORWARD);
+        hdf5_dump(topobig, "test_FWD", data);
+
+        // printf("\n\n============ BACKWARD =================");
+        switchtopo->execute(data, FLUPS_BACKWARD);
+
+        hdf5_dump(topo, "test_BCKWD", data);
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        flups_free(data);
+        flups_free(send_buff);
+        flups_free(recv_buff);
         delete (switchtopo);
         delete (topo);
         delete (topobig);

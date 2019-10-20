@@ -57,7 +57,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
         // number of proc in each direction
         _nproc[id] = nproc[id];
         // store the proc axis, used to split the rank
-        _axproc[id] = (axproc == NULL) ? id : axproc[id];
+        _axproc[id] = (axproc == NULL) ? id : axproc[id]; //is that really the default behavior we want? if we init a topo with axis=2, dont we want to have axproc=2,0,1?
     }
     // split the rank
     ranksplit(rank, _axproc, _nproc, _rankd);
@@ -99,6 +99,51 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
         }
     }
     FLUPS_INFO("nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",_nf,_axis,_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
+    END_FUNC;
+}
+
+/**
+ * @brief Set a new communicator for the topology
+ * 
+ * @param comm 
+ */
+void Topology::set_comm(MPI_Comm comm) { 
+    BEGIN_FUNC;
+
+    int curr_rank, to_rank, from_rank;
+    MPI_Comm_rank(_comm, &curr_rank);
+    MPI_Comm_rank(comm, &from_rank); //who I will become
+
+    //who will become me?
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(_comm, &group_in);  //get the group of the current comm
+    MPI_Comm_group(comm, &group_out);   //get the group of the new comm
+    int err = MPI_Group_translate_ranks(group_out, 1, &curr_rank, group_in, &to_rank);
+    FLUPS_CHECK(err == MPI_SUCCESS && to_rank != MPI_UNDEFINED, "Could not find a correspondance between former and new comm.", LOCATION);
+
+    int tmp[3] = {_rankd[0],_rankd[1],_rankd[2]};
+    
+    //exchanging rankd with who is concerned
+    int sendbuff[3] = {_rankd[0],_rankd[1],_rankd[2]};
+    int recvbuff[3] = {0,0,0};
+    MPI_Request rqst[2];
+    MPI_Status status[2];
+    MPI_Isend(sendbuff, 3, MPI_INT, to_rank, 0, _comm, &rqst[0]);
+    MPI_Irecv(recvbuff, 3, MPI_INT, from_rank, 0, _comm, &rqst[1]);
+    MPI_Waitall(2,rqst,status);
+
+    for(int i = 0;i<3;i++){
+        _rankd[i] = recvbuff[i];
+    }
+
+    printf("[SETCOMM] me:%d to:%d from:%d \t rankd_old: %d %d %d \t rankd_new: %d %d %d\n",curr_rank,to_rank, from_rank,tmp[0],tmp[1],tmp[2],_rankd[0],_rankd[1],_rankd[2]);
+
+    ranksplit(from_rank,_axproc,_nproc,tmp);
+    printf("[SETCOMM]        new:%d \t rankd(split): %d %d %d \t rank(index):%d\n",from_rank,tmp[0],tmp[1],tmp[2],rankindex(_rankd,this));
+
+    //assign the new communicator
+    _comm = comm; 
+
     END_FUNC;
 }
 
@@ -169,12 +214,18 @@ void Topology::disp_rank() {
     int rank, rank_new;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     MPI_Comm_rank(_comm,&rank_new);
+
     for(int i=0; i<this->locsize(); i++){
-        rankdata[2*i] = rank;
-        rankdata[2*i+1] = rank_new;
+        rankdata[2*i] = rank + rank_new/100.;
+        rankdata[2*i+1] = _rankd[0]+_rankd[1]/10.+_rankd[2]/100.;
     }
 
-    std::string name = "rank_topo_axis" + std::to_string(this->axis());
+    int rlen;
+    char commname[MPI_MAX_OBJECT_NAME];
+    MPI_Comm_get_name(_comm, commname, &rlen);
+    std::string cn(commname,rlen);
+
+    std::string name = "rank_topo_axis" + std::to_string(this->axis()) + "_procs" + std::to_string(this->nproc(0)) + std::to_string(this->nproc(1)) + std::to_string(this->nproc(2)) + "_" + cn;
     if(this->isComplex()){
         hdf5_dump(this, name, rankdata);
     } else {

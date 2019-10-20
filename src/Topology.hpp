@@ -64,7 +64,7 @@ class Topology {
      * 
      * @{
      */
-    void set_comm(MPI_Comm comm) { _comm = comm; }
+    void set_comm(MPI_Comm comm);
     /**@} */
 
     /**
@@ -83,6 +83,7 @@ class Topology {
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
     inline int axproc(const int dim) const { return _axproc[dim]; }
+    inline MPI_Comm get_comm() const {return _comm; }
     /**
      * @name Functions to compute intersection data with other Topologies
      * 
@@ -114,12 +115,9 @@ class Topology {
      * 
      */
     inline void get_istart_glob(int istart[3]) const {
-        const int ax0 = _axis;
-        const int ax1 = (ax0 + 1) % 3;
-        const int ax2 = (ax0 + 2) % 3;
-        istart[ax0]   = _rankd[ax0] * _nbyproc[ax0];
-        istart[ax1]   = _rankd[ax1] * _nbyproc[ax1];
-        istart[ax2]   = _rankd[ax2] * _nbyproc[ax2];
+        istart[0]   = _rankd[0] * _nbyproc[0];
+        istart[1]   = _rankd[1] * _nbyproc[1];
+        istart[2]   = _rankd[2] * _nbyproc[2];
     }
 
     /**
@@ -156,7 +154,7 @@ class Topology {
 /**
  * @brief split the rank into rank per dimensions
  * 
- * @param rank the rank of the proc (from MPI)
+ * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
  * @param nproc the number of procs along each direction
  * @param rankd the rank per dimension in XYZ format
  */

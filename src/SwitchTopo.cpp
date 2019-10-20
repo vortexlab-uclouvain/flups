@@ -212,116 +212,150 @@ void SwitchTopo::_cmpt_commSplit(){
     MPI_Comm_rank(_mastercomm,&rank);
     MPI_Comm_size(_mastercomm,&comm_size);
 
-    int mycolor = rank;
-    
-    // allocate colors and inMyGroup array
-    int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
-    bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
+    //We only try the division in subcomms if the comm of inTopo and outTopo are the same.
+    // Otherwise, we assign subcomm to mastercomm
+    if(_topo_in->get_comm() == _topo_out->get_comm()){
 
-    for (int ir = 0; ir < comm_size; ir++) {
-        inMyGroup[ir] = false;
-    }
+        int mycolor = rank;
+        
+        // allocate colors and inMyGroup array
+        int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
+        bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
 
-    // do a first pass and give a color + who is in my group
-    for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
-        mycolor                     = std::min(mycolor, _i2o_destRank[ib]);
-        inMyGroup[_i2o_destRank[ib]] = true;
-    }
-    for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
-        mycolor                      = std::min(mycolor, _o2i_destRank[ib]);
-        inMyGroup[_o2i_destRank[ib]] = true;
-    }
-
-    // count how much is should be in my group
-    // by default we assume that nobody is in the same group
-    int nleft = 0;
-    for (int ir = 0; ir < comm_size; ir++) {
-        if (inMyGroup[ir]) {
-            nleft += 1;
-        }
-    }
-    // continue while we haven't found a solution
-    while (nleft > 0) {
-        // gather the color info from everyone
-        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _mastercomm);
-        // iterate on the proc
-        int n_notInMyGroup = 0;
         for (int ir = 0; ir < comm_size; ir++) {
-            // if it is reachable and the color is not already the same
-            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
-                // we first increment the counter flagging that one is missing
-                n_notInMyGroup += 1;
-                // then we solve the problem if we are able to do so....
-                // remove 1 if we are able to solve the issue <=> my color > colors[ir]
-                n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
-                // changing if possible
-                mycolor = std::min(mycolor, colors[ir]);
+            inMyGroup[ir] = false;
+        }
+
+        // do a first pass and give a color + who is in my group
+        for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+            mycolor                     = std::min(mycolor, _i2o_destRank[ib]);
+            inMyGroup[_i2o_destRank[ib]] = true;
+        }
+        for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+            mycolor                      = std::min(mycolor, _o2i_destRank[ib]);
+            inMyGroup[_o2i_destRank[ib]] = true;
+        }
+
+        // count how much is should be in my group
+        // by default we assume that nobody is in the same group
+        int nleft = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            if (inMyGroup[ir]) {
+                nleft += 1;
             }
         }
-        // compute among everybody, if we need to continue
-        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _mastercomm);
-        FLUPS_INFO("stil %d to find (@ my proc: %d)", nleft, n_notInMyGroup);
-    }
-
-    //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
-    nleft=0;
-    for(int ir = 0; ir < comm_size; ir++){
-        nleft+=colors[ir];
-    }
-    if(nleft==0){
-        // avoids the creation of a communicator
-        _subcomm = _mastercomm;
-        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
-        if(_subcomm == MPI_COMM_WORLD){
-            FLUPS_INFO("BTW, it is comm_world",LOCATION);
+        // continue while we haven't found a solution
+        while (nleft > 0) {
+            // gather the color info from everyone
+            MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _mastercomm);
+            // iterate on the proc
+            int n_notInMyGroup = 0;
+            for (int ir = 0; ir < comm_size; ir++) {
+                // if it is reachable and the color is not already the same
+                if (inMyGroup[ir] && (colors[ir] != mycolor)) {
+                    // we first increment the counter flagging that one is missing
+                    n_notInMyGroup += 1;
+                    // then we solve the problem if we are able to do so....
+                    // remove 1 if we are able to solve the issue <=> my color > colors[ir]
+                    n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
+                    // changing if possible
+                    mycolor = std::min(mycolor, colors[ir]);
+                }
+            }
+            // compute among everybody, if we need to continue
+            MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _mastercomm);
+            FLUPS_INFO("stil %d to find (@ my proc: %d)", nleft, n_notInMyGroup);
         }
-        
-    } else {
-        // create the communicator and give a name
-        MPI_Comm_split(_mastercomm, mycolor, rank, &_subcomm);
 
-        std::string commname = "comm-" + std::to_string(mycolor);
-        MPI_Comm_set_name(_subcomm, commname.c_str());
+        //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+        nleft=0;
+        for(int ir = 0; ir < comm_size; ir++){
+            nleft+=colors[ir];
+        }
+        if(nleft==0){
+            // avoids the creation of a communicator
+            _subcomm = _mastercomm;
+            FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
+            if(_subcomm == MPI_COMM_WORLD){
+                FLUPS_INFO("BTW, it is comm_world",LOCATION);
+            }
+            
+        } else {
+            // create the communicator and give a name
+            MPI_Comm_split(_mastercomm, mycolor, rank, &_subcomm);
+
+            std::string commname = "comm-" + std::to_string(mycolor);
+            MPI_Comm_set_name(_subcomm, commname.c_str());
+        }
+        // free the vectors
+        flups_free(colors);
+        flups_free(inMyGroup);
+
+    } else {
+        _subcomm = _mastercomm;
+        FLUPS_INFO("No sub comm created: topo in and out have different comms",LOCATION);
     }
 
-    // free the vectors
-    flups_free(colors);
-    flups_free(inMyGroup);
     END_FUNC;
 }
 
 /**
- * @brief setup the comm lists
+ * @brief setup the lists according to the master and sub communicators
  * 
  * We setup the following lists:
  * - destRank: transformed from the values in the world comm to the values in the new comm.
  * - count: the number of elements send to each proc form this proc
  * - start: the starting position of the data to send to each proc in the buffer
  * 
- * @param newcomm the new comm
+ * @param inComm the comm of the input topology (likely the mastercomm of this switch)
+ * @param outComm the comm of the output topology
  * @param nBlock the number of blocks
  * @param destRank the destination rank on the world comm. returns the new destination rank in the newcomm
  * @param count the number of information to send to each proc
  * @param start the id in the buffer where the information starts for each proc
  */
-void SwitchTopo::_setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start) {
+void SwitchTopo::_setup_subComm(MPI_Comm inComm, MPI_Comm outComm, const int nBlock[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the new destination ranks    */
     //-------------------------------------------------------------------------
-    int newrank, worldsize;
-    MPI_Comm_rank(newcomm, &newrank);
+    int subrank, inrank, outrank, worldsize;
+    MPI_Comm_rank(_subcomm, &subrank);
+    MPI_Comm_rank( inComm , &inrank);
+    MPI_Comm_rank( outComm, &outrank);
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 
-    // get the new ranks from my old friends in the old communicator
-    int* newRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&newrank, 1, MPI_INT, newRanks, 1, MPI_INT, MPI_COMM_WORLD);
+    
+    // get the ranks of everybody in all communicators
+    int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, MPI_COMM_WORLD);
+
+    int* inRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, MPI_COMM_WORLD);
+
+    int* outRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, MPI_COMM_WORLD);
+
+    if(inrank == 0){
+        printf("[GRAPH] Ranks are as follows:\n");
+        for(int i=0; i<worldsize; i++){
+            printf("in: %d\t out: %d\t sub: %d\n",inRanks[i],outRanks[i],subRanks[i]);
+        }
+    }
+
+    // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
+    // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
+
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        destRank[ib] = newRanks[destRank[ib]];
+        // destRank[ib] = subRanks[destRank[ib]];
+        destRank[ib] = subRanks[outRanks[inRanks[destRank[ib]]]];
+        // destRank[ib] = subRanks[outRanks[inRanks[destRank_cpy[ib]]]];
     }
-    flups_free(newRanks);
-
+    // flups_free(destRank_cpy);
+    flups_free(outRanks);
+    flups_free(subRanks);
+    
     //-------------------------------------------------------------------------
     /** - build the size vector of block to each procs    */
     //-------------------------------------------------------------------------

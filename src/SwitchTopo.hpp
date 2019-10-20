@@ -149,7 +149,7 @@ class SwitchTopo {
     void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* nBlockEachProc);
 
     void _cmpt_commSplit();
-    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start);
+    void _setup_subComm(MPI_Comm inComm, MPI_Comm outComm, const int nBlock[3], int* destRank, int** count, int** start);
     void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
 };
 

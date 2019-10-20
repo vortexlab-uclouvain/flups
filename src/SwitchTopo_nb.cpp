@@ -184,8 +184,8 @@ void SwitchTopo_nb::setup(){
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    _setup_subComm(_subcomm, _inBlock, _i2o_destRank,NULL,NULL);
-    _setup_subComm(_subcomm, _onBlock, _o2i_destRank,NULL,NULL);
+    _setup_subComm(_mastercomm,_mastercomm, _inBlock, _i2o_destRank,NULL,NULL);
+    _setup_subComm(_mastercomm,_mastercomm, _onBlock, _o2i_destRank,NULL,NULL);
 
     //-------------------------------------------------------------------------
     /** - Compute the self blocks in the new comms   */
