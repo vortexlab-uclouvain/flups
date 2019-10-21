@@ -168,35 +168,8 @@ double* Solver::setup() {
     _allocate_plans(_topo_hat, _plan_backward, _data);
     if (_prof != NULL) _prof->stop("alloc_plans");
 
-    //-------------------------------------------------------------------------
-    /** - allocate the plan and comnpute the Green's function */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("green");
-    if (_prof != NULL) _prof->start("green_plan");
-    _allocate_plans(_topo_green, _plan_green, _green);
-    if (_prof != NULL) _prof->stop("green_plan");
-    // setup the buffers for Green
-    _allocate_switchTopo(3, _switchtopo_green, &_sendBuf, &_recvBuf);
-    if (_prof != NULL) _prof->start("green_func");
-    _cmptGreenFunction(_topo_green, _green, _plan_green);
-    if (_prof != NULL) _prof->stop("green_func");
-    // delete the switchTopos
-    _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
-    _delete_switchtopos(_switchtopo_green);
 
-    //-------------------------------------------------------------------------
-    /** - Finalize the Green's function by doing a last switch to the field
-     * topo and clean allocated topo and plans */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("green_final");
-    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _plan_green);
-    if (_prof != NULL) _prof->stop("green_final");
-    // delete the topologies and plans no more needed
-    _delete_topologies(_topo_green);
-    _delete_plans(_plan_green);
-    if (_prof != NULL) _prof->stop("green");
-    if (_prof != NULL) _prof->stop("setup");
-
+#ifdef REORDER_RANKS
     //-------------------------------------------------------------------------
     /** - Precompute the communication graph and reorder the ranks */
     //-------------------------------------------------------------------------
@@ -270,23 +243,69 @@ double* Solver::setup() {
     free(DestW);
 #endif
 
+#ifdef DEV_SIMULATE_GRAPHCOMM
+    //erase the graph comm and replace by a home made comm
+    int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
+    MPI_Group_incl(group_in, 6, outRanks, &group_out);        //manually reorder the ranks
+    MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
+#endif
+
+    std::string commname = "graph_comm";
+    MPI_Comm_set_name(graph_comm, commname.c_str());
+
     //Advise the topologies that they will be associated with an other comm
-    // The _topo_hat[0] is still on MPI_COMM_WORLD, because this is how 
+    // The _topo_phys remains without graph_comm, because this is how 
     // we receive field. The first switch topo will serve to redistribute
     // data following the optimized topology on the cluster, with reordered 
     // ranks
-    for(int i=1;i<3;i++){
+    for(int i=0;i<3;i++){
         _topo_hat[i]->set_comm(graph_comm);
+        _topo_green[i]->set_comm(graph_comm);
     }
 
-// #if DUMP_H5
-    _topo_hat[1]->disp_rank();
-// #endif
+#if DUMP_H5
+    _topo_hat[0]->disp_rank();
+#endif
+
+#endif //REORDER_RANKS
+
+    //-------------------------------------------------------------------------
+    /** - allocate the plan and comnpute the Green's function */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("green");
+    if (_prof != NULL) _prof->start("green_plan");
+    _allocate_plans(_topo_green, _plan_green, _green);
+    if (_prof != NULL) _prof->stop("green_plan");
+    // setup the buffers for Green
+    _allocate_switchTopo(3, _switchtopo_green, &_sendBuf, &_recvBuf);
+    if (_prof != NULL) _prof->start("green_func");
+    _cmptGreenFunction(_topo_green, _green, _plan_green);
+    if (_prof != NULL) _prof->stop("green_func");
+    // delete the switchTopos
+    _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
+    _delete_switchtopos(_switchtopo_green);
+
+    //-------------------------------------------------------------------------
+    /** - Finalize the Green's function by doing a last switch to the field
+     * topo and clean allocated topo and plans */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("green_final");
+    _finalizeGreenFunction(_topo_hat, _green, _topo_green, _plan_green);
+    if (_prof != NULL) _prof->stop("green_final");
+    // delete the topologies and plans no more needed
+    _delete_topologies(_topo_green);
+    _delete_plans(_plan_green);
+    if (_prof != NULL) _prof->stop("green");
+    if (_prof != NULL) _prof->stop("setup");
 
     //-------------------------------------------------------------------------
     /** - Setup the subcommunications (if possible) and allocate the buffers for the SwitchTopos */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+
+    // FLUPS_ERROR("done",LOCATION);
 
     END_FUNC;
     return _data;

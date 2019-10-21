@@ -83,9 +83,9 @@ class SwitchTopo {
 
    public:
     virtual ~SwitchTopo() {};
+    virtual void setup()                                                                    = 0;
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)            = 0;
     virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
-    virtual void setup()                                                                    = 0;
     virtual void disp() const                                                               = 0;
 
     /**
@@ -94,7 +94,6 @@ class SwitchTopo {
      * @return size_t 
      */
     inline size_t get_blockMemSize() const {
-        BEGIN_FUNC;
         // get the max block size
         size_t total = 1;
         for (int id = 0; id < 3; id++) {
@@ -117,7 +116,6 @@ class SwitchTopo {
      * @return size_t 
      */
     inline size_t get_bufMemSize() const {
-        BEGIN_FUNC;
         // nultiply by the number of blocks
         size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
         total *= get_blockMemSize();
