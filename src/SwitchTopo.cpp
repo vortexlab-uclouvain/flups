@@ -379,17 +379,49 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
     //     }
     // }
 
+    //-------------------------------------------------------------------------
+    /** - exchange sourcerank between processors: the rank who will be me in
+     *    out topo needs to know from who he will reveive data      */
+    //-------------------------------------------------------------------------
+    //I NEED TO EXCHANGE SOURCERANK WITH THE GUY WHO WILL HAVE MY NUMBER IN THE NEW TOPO
+    int osize = onBlock[0] * onBlock[1] * onBlock[2];
+    int* sendbuff = (int*) flups_malloc(osize*sizeof(int));
+    int* recvbuff = (int*) flups_malloc(osize*sizeof(int));
+    
+    MPI_Request rqst[2];
+    MPI_Status status[2];
+    
+    for(int ib = 0;ib<osize;ib++){
+        sendbuff[ib] = sourceRank[ib];
+        recvbuff[ib] = 0;
+    }
+
+    MPI_Isend(sendbuff, osize, MPI_INT, inrank, 0, _mastercomm, &rqst[0]);
+    MPI_Irecv(recvbuff, osize, MPI_INT, outrank, 0, _mastercomm, &rqst[1]);
+    MPI_Waitall(2,rqst,status);
+
+    for(int ib = 0;ib<osize;ib++){
+        sourceRank[ib] = recvbuff[ib];
+    }
+    flups_free(sendbuff);
+    flups_free(recvbuff);
+
+    //-------------------------------------------------------------------------
+    /** - update destrank : the guy who I send to has changed rank    */
+    //-------------------------------------------------------------------------
+
     // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
     // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
 
-    // replace the old ranks by the newest ones
+    // replace the old ranks by the newest ones on send
     for (int ib = 0; ib < inBlock[0] * inBlock[1] * inBlock[2]; ib++) {
         destRank[ib] = inRanks[destRank[ib]];
     }
-    for (int ib = 0; ib < onBlock[0] * onBlock[1] * onBlock[2]; ib++) {
-        sourceRank[ib] = outRanks[sourceRank[ib]];
-    }
-    // flups_free(destRank_cpy);
+    // no need to replace ranks on receive: the switchtopo is done is mastercomm=comm of the intopo. I have already changed the address of the source.
+    // for (int ib = 0; ib < onBlock[0] * onBlock[1] * onBlock[2]; ib++) {
+        // sourceRank[ib] = outRanks[sourceRank[ib]];
+    // }
+    // flups_free(destRank_cpy);  
     flups_free(inRanks);
     flups_free(outRanks);
     

@@ -183,13 +183,13 @@ void SwitchTopo_a2a::setup() {
     //We will always perform the communication in the _subcomm, which is a 
     // subdivision of the _mastercomm.
     _mastercomm = _topo_in->get_comm();
-#endif
+#endif 
     //-------------------------------------------------------------------------
     /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    if(_subcomm!=_mastercomm){
+    if(_topo_out->get_comm()==_mastercomm){
         _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
         _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
     } else {
@@ -328,7 +328,11 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
  */
 void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) {
     BEGIN_FUNC;
-    int subsize;
+    
+    _sendBufG = sendData;
+    _recvBufG = recvData;
+
+    int subsize; //I can use subsize because, if there is no subcomm, this is mastercomm
     MPI_Comm_size(_subcomm, &subsize);
     // allocate the second layer of buffers
     _sendBuf = (double**)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(double*));
@@ -663,6 +667,17 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             }
         }
     }
+
+    //PRINT SEND BUFFER
+    // for (int ib=0;ib<nblocks_send;ib++){
+    //     printf("sendbuff BLOCK%d (%p): ",ib,sendBuf[ib]);
+    //     for(int i = 0; i<nByBlock[1]*nByBlock[2];i++){
+    //         printf("%lf ",*(sendBuf[ib]+i*nByBlock[0]));
+    //     }
+    //     // p+=nByBlock[0]*nByBlock[1]*nByBlock[2];
+    //     printf("\n");
+    // }
+    
     PROF_STOPi("mem2buf",_iswitch);
 
     //-------------------------------------------------------------------------
@@ -670,7 +685,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     //-------------------------------------------------------------------------
     if (_is_all2all) {
         PROF_STARTi("all_2_all",_iswitch);
-        MPI_Alltoall(sendBuf[0], send_count[0], MPI_DOUBLE, recvBuf[0], recv_count[0], MPI_DOUBLE, _subcomm);
+        MPI_Alltoall(_sendBufG, send_count[0], MPI_DOUBLE, _recvBufG, recv_count[0], MPI_DOUBLE, _subcomm);
 #ifdef PROF        
         if (_prof != NULL) {
             string profName = "all_2_all"+to_string(_iswitch);
@@ -682,7 +697,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
     } else {
         PROF_STARTi("all_2_all_v",_iswitch)
-        MPI_Alltoallv(sendBuf[0], send_count, send_start, MPI_DOUBLE, recvBuf[0], recv_count, recv_start, MPI_DOUBLE, _subcomm);
+        MPI_Alltoallv(_sendBufG, send_count, send_start, MPI_DOUBLE, _recvBufG, recv_count, recv_start, MPI_DOUBLE, _subcomm);
 #ifdef PROF        
         if (_prof != NULL) {
             string profName = "all_2_all_v"+to_string(_iswitch);
@@ -726,6 +741,16 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // for each block
     PROF_STARTi("buf2mem",_iswitch);
 
+    //PRINT RECV BUFFER
+    // for (int ib=0;ib<nblocks_recv;ib++){
+    //     printf("recvbuff BLOCK%d (%p): ",ib,recvBuf[ib]);
+    //     for(int i = 0; i<nByBlock[1]*nByBlock[2];i++){
+    //         printf("%lf ",*(recvBuf[ib]+i*nByBlock[0]));
+    //     }
+    //     // p+=nByBlock[0]*nByBlock[1]*nByBlock[2];
+    //     printf("\n");
+    // }
+    
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2)
     for (int bid = 0; bid < nblocks_recv; bid++) {
         // shuffle the block to get the correct index order
@@ -998,8 +1023,8 @@ void SwitchTopo_a2a_test2() {
     const int nproc[3] = {1, 3, 2};
 
     const int nglob_big[3] = {24, 24, 24};
-    // const int nproc_big[3] = {1, 2, 3};
-    const int nproc_big[3] = {1, 3, 2};
+    const int nproc_big[3] = {1, 2, 3};
+    // const int nproc_big[3] = {1, 3, 2};
     const int axproc[3] = {0,1,2};
 
     {
@@ -1033,6 +1058,7 @@ void SwitchTopo_a2a_test2() {
         //simulate a new comm with reordered ranks:
         // int       outRanks[6] = {0, 3, 4, 1, 2, 5};
         int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+        // int       outRanks[6] = {0, 1, 2, 3, 4, 5};
             //CAUTION: rank i goes in posisition outRanks[i] in the new comm
             //the associated rank will be {0 1 3 4 2 5}
         MPI_Group group_in, group_out;
@@ -1060,7 +1086,9 @@ void SwitchTopo_a2a_test2() {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                     const size_t id = localIndex(0, i0, i1, i2, 0, nmem, 1);
 
-                    data[id] = (double)(i0+istart[0] + i1+istart[1] + i2+istart[2]);
+                    // data[id] = (double)(i0+istart[0] + i1+istart[1] + i2+istart[2]);
+                    // data[id] = (double)((i0+istart[0])/4 + (i1+istart[1])/4 + (i2+istart[2])/4);
+                    data[id] = (double)( (i1+istart[1])/4 + 6*((i2+istart[2])/4));
                 }
             }
         }

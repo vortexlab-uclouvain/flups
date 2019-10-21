@@ -62,6 +62,9 @@ class SwitchTopo_a2a : public SwitchTopo {
     int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
     int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
+    double *_sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
+    double *_recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
+
    public:
     SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
     ~SwitchTopo_a2a();
