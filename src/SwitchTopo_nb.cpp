@@ -279,7 +279,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             selfcount++;
         } else {
             // get the send size
-            const size_t sendSize = _iBlockSize[0][bid]*_iBlockSize[1][bid]*_iBlockSize[2][bid];
+            const size_t sendSize = blockMemSize;// _iBlockSize[0][bid]*_iBlockSize[1][bid]*_iBlockSize[2][bid];
             MPI_Send_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], _subcomm, &(_i2o_sendRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
             MPI_Recv_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], bid, _subcomm, &(_o2i_recvRequest[bid]));
@@ -311,7 +311,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             selfcount++;
         } else {
             // get the receive size
-            const size_t recvSize = _oBlockSize[0][bid]*_oBlockSize[1][bid]*_oBlockSize[2][bid];
+            const size_t recvSize = blockMemSize;//_oBlockSize[0][bid]*_oBlockSize[1][bid]*_oBlockSize[2][bid];
             // for the reception when doing input 2 output: receive from the rank o2i with tag bid
             MPI_Recv_init(_recvBuf[bid], recvSize, MPI_DOUBLE, _o2i_destRank[bid], bid, _subcomm, &(_i2o_recvRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
