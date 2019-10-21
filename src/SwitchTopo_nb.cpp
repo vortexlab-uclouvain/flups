@@ -261,10 +261,10 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     //-------------------------------------------------------------------------
     /** - for each block we associate the the data buffer and the MPI requests or associate it to NULL */
     //-------------------------------------------------------------------------
-    // reset the counter to 0
-    int selfcount = 0;
     // get the stide in memory of one block
     const size_t blockMemSize = get_blockMemSize();
+    // reset the counter to 0
+    int selfcount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
         //associate the pointer to the correct block
         _sendBuf[bid] = sendData + bid*blockMemSize;
@@ -297,8 +297,6 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // reset the self count
     selfcount = 0;
-    // get the stride in memory of one block
-    const size_t blockMemSize = get_blockMemSize();
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
         //associate the pointer with the correct block
         _recvBuf[bid] = recvData + bid*blockMemSize;
