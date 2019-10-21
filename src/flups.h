@@ -187,11 +187,11 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
  * @param nglob The global number of points in each direction of the domain
  * @param nproc The number of processors per direction.
  * @param isComplex The state of the topo: real (false) or complex (true)
- * @param axproc The correspondance between the physical dimensions and the dimensions in memory, otherwise NULL.
+ * @param axproc The correspondance between the physical dimensions and the rank decomposition. NULL for the default behavior (0 1 2).
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
 
 /**
  * @brief Clean and free the topo.

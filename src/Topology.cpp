@@ -35,16 +35,20 @@
  * @param isComplex indicate if the Topology uses complex indexing or not
  * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
  * @param alignment the number of bytes on which we want the topology to be aligned along the #axis only
+ * @param comm the communicator associated to the topology.
+ * 
+ * CAUTION: if the MPI comm is associated with a MPI_CART topology, we are currently not able to exploit the associated features (e.g. MPI_Cart_rank and MPI_Cart_coords). 
+ *          The informations on the cartesian grid are however described by the other arguments of this constructur.
  * 
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment) {
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm) {
     BEGIN_FUNC;
 
-    int comm_size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    _comm = comm;
 
-    _comm = MPI_COMM_WORLD;
+    int comm_size, rank;
+    MPI_Comm_size(_comm,&comm_size);
+    MPI_Comm_rank(_comm,&rank);
 
     FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
 
@@ -190,8 +194,8 @@ void Topology::disp() const {
     BEGIN_FUNC;
 
     int comm_size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(_comm,&comm_size);
+    MPI_Comm_rank(_comm,&rank);
 
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topology created on proc %d/%d", rank, comm_size);

@@ -75,12 +75,21 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
 
-    int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-
     _topo_in  = topo_input;
     _topo_out = topo_output;
+
+    //-------------------------------------------------------------------------
+    /** - Setup the master comm (global comm including all nodes, 
+     *    potentially with a smart ordering of ranks) */
+    //-------------------------------------------------------------------------
+    //We will always perform the communication in the _subcomm, which is a 
+    // subdivision of the _mastercomm.
+    _mastercomm = _topo_in->get_comm();
+
+    int rank, comm_size;
+    MPI_Comm_rank(_mastercomm, &rank);
+    MPI_Comm_size(_mastercomm, &comm_size);
+
 #ifdef PROF    
     _prof     = prof;
     // for (int ip=0;ip<3;ip++){
@@ -172,18 +181,9 @@ void SwitchTopo_a2a::setup() {
     BEGIN_FUNC;
 
     int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(_mastercomm, &rank);
+    MPI_Comm_size(_mastercomm, &comm_size);
 
-#ifdef REORDER_RANKS
-    //-------------------------------------------------------------------------
-    /** - Setup the master comm (global comm including all nodes, 
-     *    potentially with a smart ordering of ranks) */
-    //-------------------------------------------------------------------------
-    //We will always perform the communication in the _subcomm, which is a 
-    // subdivision of the _mastercomm.
-    _mastercomm = _topo_in->get_comm();
-#endif 
     //-------------------------------------------------------------------------
     /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
@@ -901,8 +901,8 @@ void SwitchTopo_a2a_test() {
     {
         //===========================================================================
         // real numbers
-        Topology* topo    = new Topology(0, nglob, nproc, false, NULL, 1);
-        Topology* topobig = new Topology(1, nglob_big, nproc_big, false, NULL, 1);
+        Topology* topo    = new Topology(0, nglob, nproc, false, NULL, 1, MPI_COMM_WORLD);
+        Topology* topobig = new Topology(1, nglob_big, nproc_big, false, NULL, 1, MPI_COMM_WORLD);
 
         topo->disp();
         topobig->disp();
@@ -956,8 +956,8 @@ void SwitchTopo_a2a_test() {
     // //===========================================================================
     // complex numbers
     {
-        Topology* topo    = new Topology(0, nglob, nproc, true, NULL, 1);
-        Topology* topobig = new Topology(1, nglob_big, nproc_big, true, NULL, 1);
+        Topology* topo    = new Topology(0, nglob, nproc, true, NULL, 1, MPI_COMM_WORLD);
+        Topology* topobig = new Topology(1, nglob_big, nproc_big, true, NULL, 1, MPI_COMM_WORLD);
 
         double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
@@ -1025,13 +1025,13 @@ void SwitchTopo_a2a_test2() {
     const int nglob_big[3] = {24, 24, 24};
     const int nproc_big[3] = {1, 2, 3};
     // const int nproc_big[3] = {1, 3, 2};
-    const int axproc[3] = {0,1,2};
+    const int axproc[3] = {1,0,2};
 
     {
         //===========================================================================
         // real numbers
-        Topology* topo    = new Topology(0, nglob, nproc, false, NULL, 1);
-        Topology* topobig = new Topology(0, nglob_big, nproc_big, false, axproc, 1);
+        Topology* topo    = new Topology(0, nglob, nproc, false, NULL, 1, MPI_COMM_WORLD);
+        Topology* topobig = new Topology(1, nglob_big, nproc_big, false, axproc, 1, MPI_COMM_WORLD);
 
         topo->disp();
         topobig->disp();
@@ -1053,12 +1053,11 @@ void SwitchTopo_a2a_test2() {
 #ifndef DEV_SIMULATE_GRAPHCOMM
         const int per[3] = {0,0,0};
         const int dims[3] = {topo->nproc(0),topo->nproc(1),topo->nproc(2)};
-        MPI_Cart_create(MPI_COMM_WORLD, 3, dims,  per,  1,  &graph_comm);
+        MPI_Cart_create(MPI_COMM_WORLD, 3, dims,  per,  0,  &graph_comm);
 #else
         //simulate a new comm with reordered ranks:
         // int       outRanks[6] = {0, 3, 4, 1, 2, 5};
         int       outRanks[6] = {0, 1, 4, 2, 3, 5};
-        // int       outRanks[6] = {0, 1, 2, 3, 4, 5};
             //CAUTION: rank i goes in posisition outRanks[i] in the new comm
             //the associated rank will be {0 1 3 4 2 5}
         MPI_Group group_in, group_out;

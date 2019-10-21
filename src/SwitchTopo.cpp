@@ -36,7 +36,7 @@ void SwitchTopo::_cmpt_nByBlock(){
     BEGIN_FUNC;
 
     int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
+    MPI_Comm_size(_mastercomm,&comm_size);
 
     int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
@@ -45,7 +45,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         int isend = (_iend[id] - _istart[id]);
         int osend = (_oend[id] - _ostart[id]);
         // compute the exchanged size same if from the input or output
-        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, _mastercomm);
         // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
         _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
 
@@ -58,7 +58,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         }
         int npoints = gcd(isend,osend);
         // gather on each proc the gcd
-        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, MPI_COMM_WORLD);
+        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _mastercomm);
         // get the Greatest Common Divider among every process
         int my_gcd = onProc[0];
         for (int ip = 1; ip < comm_size; ip++) {
@@ -83,7 +83,7 @@ void SwitchTopo::_cmpt_nByBlock(){
 void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_size(_mastercomm, &comm_size);
     // go through each block
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         // get the split index
@@ -182,12 +182,12 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
                                      int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_size(_mastercomm, &comm_size);
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
         // get the list of number of procs
-        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, MPI_COMM_WORLD);
+        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, _mastercomm);
         // set the starting indexes to 0
         blockIDStart[id] = 0;
         // compute the starting index
@@ -276,9 +276,6 @@ void SwitchTopo::_cmpt_commSplit(){
             // avoids the creation of a communicator
             _subcomm = _mastercomm;
             FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
-            if(_subcomm == MPI_COMM_WORLD){
-                FLUPS_INFO("BTW, it is comm_world",LOCATION);
-            }
             
         } else {
             // create the communicator and give a name
@@ -326,7 +323,7 @@ void SwitchTopo::_setup_subComm(const int nBlock[3], int* destRank, int** count,
     
     // get the ranks of everybody in all communicators
     int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _mastercomm);
 
     // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
     // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
@@ -367,10 +364,10 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
 
     // get the ranks of everybody in all communicators
     int* inRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, MPI_COMM_WORLD); //could actually get this with the Groupe_translate instruction
+    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, _mastercomm); //could actually get this with the Groupe_translate instruction
 
     int* outRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, _mastercomm);
 
     // if(inrank == 0){
     //     printf("[GRAPH] Ranks are as follows:\n");

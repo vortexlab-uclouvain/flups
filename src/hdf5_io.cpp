@@ -74,8 +74,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     BEGIN_FUNC;
 
     int mpi_size, mpi_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm comm = topo->get_comm();
+    MPI_Comm_size(comm, &mpi_size);
+    MPI_Comm_rank(comm, &mpi_rank);
 
     hid_t  file_id;                         // file id
     hid_t  filespace_real, filespace_imag;  //dataspaces
@@ -108,8 +109,8 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     MPI_Info_set(FILE_INFO_TEMPLATE, "cb_block_size", "1048576");
     MPI_Info_set(FILE_INFO_TEMPLATE, "cb_buffer_size", "4194304");
     // do some magic
-    // H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, FILE_INFO_TEMPLATE);
+    // H5Pset_fapl_mpio(plist_id, comm, MPI_INFO_NULL);
+    H5Pset_fapl_mpio(plist_id, comm, FILE_INFO_TEMPLATE);
     MPI_Info_free(&FILE_INFO_TEMPLATE);
     // create the file ID
     file_id = H5Fcreate(extFilename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
@@ -248,7 +249,8 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
     BEGIN_FUNC;
 
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm comm = topo->get_comm();
+    MPI_Comm_rank(comm, &rank);
 
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
@@ -340,7 +342,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // real numbers
-    Topology *topo    = new Topology(0, nglob, nproc, false, NULL,1);
+    Topology *topo    = new Topology(0, nglob, nproc, false, NULL, 1, MPI_COMM_WORLD);
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
     // we only allocate the real size = local size
@@ -362,7 +364,7 @@ void hdf5_dumptest() {
 
     //===========================================================================
     // create a real topology
-    topo = new Topology(0, nglob, nproc, true,NULL,1);
+    topo = new Topology(0, nglob, nproc, true,NULL,1,MPI_COMM_WORLD);
 
     data = (double *)flups_malloc(sizeof(double *) * topo->locsize());
 

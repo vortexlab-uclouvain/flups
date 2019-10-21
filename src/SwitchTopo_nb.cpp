@@ -75,11 +75,20 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
 
-    int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-
     _topo_in  = topo_input;
     _topo_out = topo_output;
+
+    //-------------------------------------------------------------------------
+    /** - Setup the master comm (global comm including all nodes, 
+     *    potentially with a smart ordering of ranks) */
+    //-------------------------------------------------------------------------
+    //We will always perform the communication in the _subcomm, which is a 
+    // subdivision of the _mastercomm.
+    _mastercomm = _topo_in->get_comm();
+
+    int comm_size;
+    MPI_Comm_size(_mastercomm, &comm_size);
+
 #ifdef PROF    
     _prof     = prof;
     for (int ip=0;ip<3;ip++){
@@ -176,8 +185,8 @@ void SwitchTopo_nb::setup(){
     BEGIN_FUNC;
 
     int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(_mastercomm, &rank);
+    MPI_Comm_size(_mastercomm, &comm_size);
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm */
@@ -871,8 +880,8 @@ void SwitchTopo_nb_test() {
 
     //===========================================================================
     // real numbers
-    Topology* topo    = new Topology(0, nglob, nproc, false,NULL,1);
-    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL,1);
+    Topology* topo    = new Topology(0, nglob, nproc, false,NULL,1, MPI_COMM_WORLD);
+    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL,1, MPI_COMM_WORLD);
 
     double* data = (double*)flups_malloc(sizeof(double*) * std::max(topo->memsize(), topobig->memsize()));
 
@@ -909,8 +918,8 @@ void SwitchTopo_nb_test() {
 
     //===========================================================================
     // complex numbers
-    topo    = new Topology(0, nglob, nproc, true,NULL,1);
-    topobig = new Topology(2, nglob_big, nproc_big, true,NULL,1);
+    topo    = new Topology(0, nglob, nproc, true,NULL,1, MPI_COMM_WORLD);
+    topobig = new Topology(2, nglob_big, nproc_big, true,NULL,1, MPI_COMM_WORLD);
 
     data = (double*)flups_malloc(sizeof(double*) * topobig->memsize());
 

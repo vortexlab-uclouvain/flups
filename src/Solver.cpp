@@ -327,7 +327,7 @@ Topology* Solver::get_innerTopo_physical() {
     const int  axproc[3]  = {_topo_hat[0]->axproc(0), _topo_hat[0]->axproc(1), _topo_hat[0]->axproc(2)};
     const bool isComplex  = _topo_hat[0]->isComplex();
     const int  align      = FLUPS_ALIGNMENT;
-    Topology*  topoPhys   = new Topology(axis, nglob, nproc, isComplex, axproc, align);
+    Topology*  topoPhys   = new Topology(axis, nglob, nproc, isComplex, axproc, align, _topo_hat[0]->get_comm());
 
     return topoPhys;
 }
@@ -343,7 +343,7 @@ Topology* Solver::get_innerTopo_spectral() {
     const int  axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
     const bool isComplex = _topo_hat[2]->isComplex();
     const int  align     = FLUPS_ALIGNMENT;
-    Topology*  topoSpe   = new Topology(axis, nglob, nproc, isComplex, axproc, align);
+    Topology*  topoSpe   = new Topology(axis, nglob, nproc, isComplex, axproc, align, _topo_hat[0]->get_comm());
 
     return topoSpe;
 }
@@ -508,7 +508,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -580,7 +580,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment);
+            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < 2) {
                 // get the fieldstart = the point where the old topo has to begin in the new

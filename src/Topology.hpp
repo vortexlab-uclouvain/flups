@@ -56,7 +56,7 @@ class Topology {
 
    public:
     // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
     ~Topology();
 
     /**
