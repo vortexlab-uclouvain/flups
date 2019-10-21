@@ -263,8 +263,10 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     //-------------------------------------------------------------------------
     int selfcount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
+        // get the block size
+        const size_t blockMemSize = _iBlockSize[0][bid]*_iBlockSize[1][bid]*_iBlockSize[2][bid];
+        
         //create the request
-        const size_t blockMemSize = get_blockMemSize();
         _sendBuf[bid] = sendData + bid*blockMemSize;
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
         if (_i2o_destRank[bid] == newrank) {
@@ -293,10 +295,10 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // reset the self count
     selfcount = 0;
-    const size_t blockMemSize = get_blockMemSize();
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
+        // get the block size
+        const size_t blockMemSize = _oBlockSize[0][bid]*_oBlockSize[1][bid]*_oBlockSize[2][bid];
         //associate the pointer
-        
         _recvBuf[bid] = recvData + bid*blockMemSize;
         // create the request if needed
         if (_o2i_destRank[bid] == newrank) {
@@ -718,7 +720,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         {
 #ifdef PROF            
             if (_prof != NULL) {
-                _prof->addMem("waiting"+to_string(iswitch), get_bufMemSize()*sizeof(double));
+                _prof->addMem("waiting"+to_string(iswitch), get_blockMemSize()*sizeof(double));
             }
 #endif
         }
