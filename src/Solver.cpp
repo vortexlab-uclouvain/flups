@@ -245,8 +245,8 @@ double* Solver::setup() {
     // data following the optimized topology on the cluster, with reordered 
     // ranks
     for(int i=0;i<3;i++){
-        _topo_hat[i]->set_comm(graph_comm);
-        _topo_green[i]->set_comm(graph_comm);
+        _topo_hat[i]->change_comm(graph_comm);
+        _topo_green[i]->change_comm(graph_comm);
     }
 
 #if DUMP_H5

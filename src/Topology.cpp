@@ -111,7 +111,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
  * 
  * @param comm 
  */
-void Topology::set_comm(MPI_Comm comm) { 
+void Topology::change_comm(MPI_Comm comm) { 
     BEGIN_FUNC;
 
     int curr_rank, to_rank, from_rank;
@@ -158,7 +158,6 @@ void Topology::set_comm(MPI_Comm comm) {
             }
         }
     }
-
 
     //assign the new communicator
     _comm = comm; 

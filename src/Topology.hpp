@@ -65,7 +65,7 @@ class Topology {
      * 
      * @{
      */
-    void set_comm(MPI_Comm comm);
+    void change_comm(MPI_Comm comm);
     /**@} */
 
     /**

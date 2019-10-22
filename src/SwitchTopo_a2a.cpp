@@ -1134,8 +1134,8 @@ void SwitchTopo_a2a_test2() {
         std::string commname = "graph_comm";
         MPI_Comm_set_name(graph_comm, commname.c_str());
 
-        topobig->set_comm(graph_comm);
-        // topo->set_comm(graph_comm2);
+        topobig->change_comm(graph_comm);
+        // topo->change_comm(graph_comm2);
         topo->disp_rank();
         topobig->disp_rank();
 
