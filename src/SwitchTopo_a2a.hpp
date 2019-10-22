@@ -62,8 +62,8 @@ class SwitchTopo_a2a : public SwitchTopo {
     int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
     int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
-    double *_sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
-    double *_recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
+    opt_double_ptr _sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
+    opt_double_ptr _recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
 
     void _init_blockInfo();
     void _free_blockInfo();

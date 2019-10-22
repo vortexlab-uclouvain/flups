@@ -537,12 +537,16 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
     opt_double_ptr* sendBuf;
     opt_double_ptr* recvBuf;
+    opt_double_ptr sendBufG;
+    opt_double_ptr recvBufG;
 
     if (sign == FLUPS_FORWARD) {
         topo_in  = _topo_in;
         topo_out = _topo_out;
         sendBuf  = _sendBuf;
         recvBuf  = _recvBuf;
+        sendBufG  = _sendBufG;
+        recvBufG  = _recvBufG;
 
         send_count = _i2o_count;
         recv_count = _o2i_count;
@@ -568,6 +572,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         topo_out = _topo_in;
         sendBuf  = _recvBuf;
         recvBuf  = _sendBuf;
+        sendBufG  = _recvBufG;
+        recvBufG  = _sendBufG;
 
         send_count = _o2i_count;
         recv_count = _i2o_count;
@@ -750,7 +756,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     //-------------------------------------------------------------------------
     if (_is_all2all) {
         PROF_STARTi("all_2_all",_iswitch);
-        MPI_Alltoall(_sendBufG, send_count[0], MPI_DOUBLE, _recvBufG, recv_count[0], MPI_DOUBLE, _subcomm);
+        MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, _subcomm);
 #ifdef PROF        
         if (_prof != NULL) {
             string profName = "all_2_all"+to_string(_iswitch);
@@ -762,7 +768,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
     } else {
         PROF_STARTi("all_2_all_v",_iswitch)
-        MPI_Alltoallv(_sendBufG, send_count, send_start, MPI_DOUBLE, _recvBufG, recv_count, recv_start, MPI_DOUBLE, _subcomm);
+        MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, _subcomm);
 #ifdef PROF        
         if (_prof != NULL) {
             string profName = "all_2_all_v"+to_string(_iswitch);
