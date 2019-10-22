@@ -29,6 +29,7 @@
 #include "defines.hpp"
 #include "hdf5_io.hpp"
 #include "mpi.h"
+#include <cstring>
 
 /**
  * @brief Class Topology
@@ -217,6 +218,9 @@ void static translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outC
     MPI_Comm_compare(inComm, outComm, &comp);
     FLUPS_CHECK(size!=0,"size cant be 0.",LOCATION);
 
+    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
+    std::memcpy(tmprnks,ranks,size*sizeof(int));
+
     int err;
     if (comp != MPI_IDENT) {
         MPI_Group group_in, group_out;
@@ -225,7 +229,7 @@ void static translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outC
         err = MPI_Comm_group(outComm, &group_out);
         FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
 
-        err = MPI_Group_translate_ranks(group_in, size, ranks, group_out, ranks);
+        err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
         FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
     }
     END_FUNC;

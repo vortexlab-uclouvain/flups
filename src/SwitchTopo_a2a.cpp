@@ -343,12 +343,14 @@ void SwitchTopo_a2a::setup() {
 SwitchTopo_a2a::~SwitchTopo_a2a() {
     BEGIN_FUNC;
 
-    int  rlen;
-    char myname[MPI_MAX_OBJECT_NAME];
-    MPI_Comm_get_name(_subcomm, myname, &rlen);
-    FLUPS_INFO("freeing the comm %s",myname);
-
-    MPI_Comm_free(&_subcomm);
+    int  rlen, comp;
+    MPI_Comm_compare(_subcomm,_inComm,&comp);
+    if(comp!=MPI_IDENT){
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_INFO("freeing the comm %s",myname);
+        MPI_Comm_free(&_subcomm);
+    }
 
     FLUPS_INFO("freeing the arrays");
 

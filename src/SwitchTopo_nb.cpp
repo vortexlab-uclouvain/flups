@@ -347,6 +347,15 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 SwitchTopo_nb::~SwitchTopo_nb() {
     BEGIN_FUNC;
 
+    int  rlen, comp;
+    MPI_Comm_compare(_subcomm,_inComm,&comp);
+    if(comp!=MPI_IDENT){
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_INFO("freeing the comm %s",myname);
+        MPI_Comm_free(&_subcomm);
+    }
+
     if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
     if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
     if (_i2o_destTag != NULL) flups_free(_i2o_destTag);
