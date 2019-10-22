@@ -37,8 +37,7 @@
  * @param alignment the number of bytes on which we want the topology to be aligned along the #axis only
  * @param comm the communicator associated to the topology.
  * 
- * CAUTION: if the MPI comm is associated with a MPI_CART topology, we are currently not able to exploit the associated features (e.g. MPI_Cart_rank and MPI_Cart_coords). 
- *          The informations on the cartesian grid are however described by the other arguments of this constructur.
+ * If the MPI comm is associated with a MPI_CART topology, axproc is ignored and we use the MPI routines to determine the 3D rank from the global rank (and vice versa).
  * 
  */
 Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
@@ -64,7 +63,7 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
         _axproc[id] = (axproc == NULL) ? id : axproc[id]; //is that really the default behavior we want? if we init a topo with axis=2, dont we want to have axproc=2,0,1?
     }
     // split the rank
-    ranksplit(rank, _axproc, _nproc, _rankd);
+    ranksplit(rank, _axproc, _nproc, _comm, _rankd);
 
     //-------------------------------------------------------------------------
     /** - get memory axis and complex information  */

@@ -155,17 +155,27 @@ class Topology {
 /**
  * @brief split the rank into rank per dimensions
  * 
+ * axproc is not used if comm is of type MPI_CART.
+ * 
  * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
  * @param nproc the number of procs along each direction
+ * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], int rankd[3]) {
+inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
     const int ax0 = axproc[0];
     const int ax1 = axproc[1];
     const int ax2 = axproc[2];
-    rankd[ax0]    = rank % nproc[ax0];
-    rankd[ax1]    = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
-    rankd[ax2]    = rank / (nproc[ax0] * nproc[ax1]);
+
+    int mpi_topo_type;
+    MPI_Topo_test(comm, &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_coords(comm, rank, 3, rankd);
+    } else {
+        rankd[ax0] = rank % nproc[ax0];
+        rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+        rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
+    }
 }
 
 /**
@@ -179,7 +189,15 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
     const int ax1 = topo->axproc(1);
     const int ax2 = topo->axproc(2);
-    return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+
+    int mpi_topo_type, rank;
+    MPI_Topo_test(topo->get_comm(), &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_rank(topo->get_comm(), rankd, &rank);
+    } else {
+        rank = rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+    }
+    return rank;
 }
 
 /**

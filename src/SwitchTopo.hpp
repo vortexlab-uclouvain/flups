@@ -52,6 +52,7 @@ class SwitchTopo {
     MPI_Comm _outComm = NULL; /**<@brief the reference output communicator */
     MPI_Comm _subcomm; /**<@brief the subcomm for this switchTopo */
     int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
+    int _shift[3]; /**<@brief the shift in memory */
 
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
     int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
