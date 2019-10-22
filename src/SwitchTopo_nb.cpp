@@ -78,8 +78,11 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     _topo_in  = topo_input;
     _topo_out = topo_output;
 
+    _inComm = _topo_in->get_comm();
+    _outComm = _topo_out->get_comm();
+
     int comm_size;
-    MPI_Comm_size(_topo_in->get_comm(), &comm_size);
+    MPI_Comm_size(_inComm, &comm_size);
 
 #ifdef PROF    
     _prof     = prof;

@@ -113,7 +113,7 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
 
         // get the global destination rank
         const int destrank = rankindex(destrankd, topo);
-        // get the global destination rank
+        // get the global destination tag
         destRank[ib] = destrank;
         FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destrank, destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
         if (destTag != NULL) {
@@ -125,6 +125,11 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
             destTag[ib] = localIndex(0, local_bid[0], local_bid[1], local_bid[2], 0, dest_nBlock, 1);
         }
     }
+
+    //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
+    //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.
+    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo->get_comm(), _inComm);
+
     END_FUNC;
 }
 /**

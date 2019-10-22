@@ -181,6 +181,31 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
     return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
 }
 
+/**
+ * @brief translate a list of ranks of size size from inComm to outComm
+ * 
+ * ranks are replaced with their new values.
+ * 
+ * @param size 
+ * @param ranks a list of ranks expressed in the inComm
+ * @param inComm input communicator
+ * @param outComm output communicator
+ */
+void static translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
+    BEGIN_FUNC;
+
+    int comp;
+    MPI_Comm_compare(inComm, outComm, &comp);
+    if (comp != MPI_IDENT) {
+        MPI_Group group_in, group_out;
+        MPI_Comm_group(inComm, &group_in);
+        MPI_Comm_group(outComm, &group_out);
+        int err = MPI_Group_translate_ranks(group_in, size, ranks, group_out, ranks);
+        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
+    }
+    END_FUNC;
+}
+
 // /**
 //  * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
 //  * 
