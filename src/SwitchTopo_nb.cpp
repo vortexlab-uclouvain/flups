@@ -96,9 +96,54 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     /** - get the starting and ending index of the shared zone */
     //-------------------------------------------------------------------------
     // get the blockshift
+    _shift[0] = shift[0];
+    _shift[1] = shift[1];
+    _shift[2] = shift[2];
+
     _topo_in->cmpt_intersect_id(shift, _topo_out, _istart, _iend);
     int tmp[3] = {-shift[0], -shift[1], -shift[2]};
     _topo_out->cmpt_intersect_id(tmp, _topo_in, _ostart, _oend);
+
+    //-------------------------------------------------------------------------
+    /** - compute block info */
+    //-------------------------------------------------------------------------
+    _init_blockInfo();
+
+    //-------------------------------------------------------------------------
+    /** - initialize the profiler    */
+    //-------------------------------------------------------------------------
+#ifdef PROF
+    if (_prof != NULL) {
+        _prof->create("reorder","solve");
+
+        _prof->create("switch0", "reorder");
+        _prof->create("mem2buf0", "switch0");
+        _prof->create("buf2mem0", "switch0");
+        _prof->create("waiting0", "switch0");
+
+        _prof->create("switch1", "reorder");
+        _prof->create("mem2buf1", "switch1");
+        _prof->create("buf2mem1", "switch1");
+        _prof->create("waiting1", "switch1");
+
+        _prof->create("switch2", "reorder");
+        _prof->create("mem2buf2", "switch2");
+        _prof->create("buf2mem2", "switch2");
+        _prof->create("waiting2", "switch2");
+    }
+#endif
+    END_FUNC;
+}
+
+/**
+ * @brief initialize the blocks: compute their index, their number, their size and their source/destination
+ * 
+ */
+void SwitchTopo_nb::_init_blockInfo(){
+    BEGIN_FUNC;
+    
+    int comm_size;
+    MPI_Comm_size(_inComm, &comm_size);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
@@ -150,39 +195,76 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     flups_free(inBlockEachProc);
     flups_free(onBlockEachProc);
 
-    //-------------------------------------------------------------------------
-    /** - initialize the profiler    */
-    //-------------------------------------------------------------------------
-#ifdef PROF
-    if (_prof != NULL) {
-        _prof->create("reorder","solve");
-
-        _prof->create("switch0", "reorder");
-        _prof->create("mem2buf0", "switch0");
-        _prof->create("buf2mem0", "switch0");
-        _prof->create("waiting0", "switch0");
-
-        _prof->create("switch1", "reorder");
-        _prof->create("mem2buf1", "switch1");
-        _prof->create("buf2mem1", "switch1");
-        _prof->create("waiting1", "switch1");
-
-        _prof->create("switch2", "reorder");
-        _prof->create("mem2buf2", "switch2");
-        _prof->create("buf2mem2", "switch2");
-        _prof->create("waiting2", "switch2");
-    }
-#endif
     END_FUNC;
 }
 
+void SwitchTopo_nb::_free_blockInfo(){
+
+    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
+    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
+    if (_i2o_destTag != NULL) flups_free(_i2o_destTag);
+    if (_o2i_destTag != NULL) flups_free(_o2i_destTag);
+
+    for(int id=0; id<3; id++){
+        if(_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
+        if(_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
+    }
+
+    if (_i2o_sendRequest != NULL) flups_free(_i2o_sendRequest);
+    if (_i2o_recvRequest != NULL) flups_free(_i2o_recvRequest);
+    if (_o2i_sendRequest != NULL) flups_free(_o2i_sendRequest);
+    if (_o2i_recvRequest != NULL) flups_free(_o2i_recvRequest);
+}
+
+/**
+ * @brief 
+ * 
+ */
 void SwitchTopo_nb::setup(){
     BEGIN_FUNC;
 
     int rank, comm_size;
-    _inComm = _topo_in->get_comm();
-    MPI_Comm_rank(_inComm, &rank);
-    MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm inComm = _topo_in->get_comm();
+    MPI_Comm outComm = _topo_out->get_comm();
+
+    MPI_Comm_rank(inComm, &rank);
+    MPI_Comm_size(inComm, &comm_size);
+
+    //Ensure that comms have not changed since init. Otherwise recompute the source/destination of blocks.
+    int compIn, compOut;
+    MPI_Comm_compare(inComm, _inComm, &compIn);
+    MPI_Comm_compare(outComm, _outComm, &compOut);
+    if( compIn != MPI_IDENT || compOut != MPI_IDENT){
+        FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+
+        _inComm = inComm;
+        _outComm = outComm;
+
+        //reinit the block information
+        _free_blockInfo();
+
+        //The input topo may have been reset to real, even if this switchtopo is a complex2complex. 
+        //We create a tmp input topo which is complex if needed, for the computation of start and end.
+        bool isC2C = _topo_out->isComplex();
+        
+        int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
+        for(int i = 0; i<3;i++){
+            tmp_nglob[i] = _topo_in->nglob(i);
+            tmp_nproc[i] = _topo_in->nproc(i);
+            tmp_axproc[i] = _topo_in->axproc(i);
+        }
+        const Topology* topo_in_tmp = new Topology(_topo_in->axis(),tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,_topo_in->get_comm());
+        
+        //recompute _start and _end
+        topo_in_tmp->cmpt_intersect_id(_shift, _topo_out, _istart, _iend);
+        int tmp[3] = {-_shift[0], -_shift[1], -_shift[2]};
+        _topo_out->cmpt_intersect_id(tmp, topo_in_tmp, _ostart, _oend);
+
+        //recompute block info
+        _init_blockInfo();
+
+        delete(topo_in_tmp);
+    }
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm */
@@ -218,8 +300,10 @@ void SwitchTopo_nb::setup(){
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
 #ifdef PERF_VERBOSE
+    int rankworld;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rankworld);
     // we display important information for the performance
-    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
+    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rankworld) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){
         fprintf(file,"============================================================\n");
@@ -232,6 +316,8 @@ void SwitchTopo_nb::setup(){
         // fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
         fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
         fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
+        fprintf(file,"- start = %d %d %d to %d %d %d\n",_istart[0],_istart[1],_istart[2],_ostart[0],_ostart[1],_ostart[2]);
+        fprintf(file,"- end = %d %d %d to %d %d %d\n",_iend[0],_iend[1],_iend[2],_oend[0],_oend[1],_oend[2]);
         int totalsize = (_nByBlock[0]+_exSize[0]%2)*(_nByBlock[1]+_exSize[1]%2)*(_nByBlock[2]+_exSize[2]%2)*_topo_out->nf();
         fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],(_nByBlock[0] == 1)?1:_nByBlock[0]+_exSize[0]%2,(_nByBlock[1] == 1)?1:_nByBlock[1]+_exSize[1]%2,(_nByBlock[2] == 1)?1:_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
 
@@ -257,6 +343,7 @@ void SwitchTopo_nb::setup(){
 
 void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvData){
     BEGIN_FUNC;
+
     int newrank;
     MPI_Comm_rank(_subcomm, &newrank);
     // allocate the second layer of buffers
@@ -356,14 +443,6 @@ SwitchTopo_nb::~SwitchTopo_nb() {
         MPI_Comm_free(&_subcomm);
     }
 
-    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
-    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
-    if (_i2o_destTag != NULL) flups_free(_i2o_destTag);
-    if (_o2i_destTag != NULL) flups_free(_o2i_destTag);
-
-    if (_iselfBlockID != NULL) flups_free(_iselfBlockID);
-    if (_oselfBlockID != NULL) flups_free(_oselfBlockID);
-
     for(int ib=0; ib< _inBlock[0]*_inBlock[1]*_inBlock[2]; ib++){
         // if (_sendBuf[ib] != NULL) flups_free(_sendBuf[ib]);
         if (_i2o_sendRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_i2o_sendRequest[ib]));
@@ -374,15 +453,11 @@ SwitchTopo_nb::~SwitchTopo_nb() {
         if (_i2o_recvRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_i2o_recvRequest[ib]));
         if (_o2i_sendRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_o2i_sendRequest[ib]));
     }
-    for(int id=0; id<3; id++){
-        if(_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
-        if(_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
-    }
 
-    if (_i2o_sendRequest != NULL) flups_free(_i2o_sendRequest);
-    if (_i2o_recvRequest != NULL) flups_free(_i2o_recvRequest);
-    if (_o2i_sendRequest != NULL) flups_free(_o2i_sendRequest);
-    if (_o2i_recvRequest != NULL) flups_free(_o2i_recvRequest);
+    _free_blockInfo();
+
+    if (_iselfBlockID != NULL) flups_free(_iselfBlockID);
+    if (_oselfBlockID != NULL) flups_free(_oselfBlockID);
 
     if (_i2o_shuffle != NULL) {
         for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
@@ -905,6 +980,17 @@ void SwitchTopo_nb_test() {
     const int fieldstart[3] = {0, 0, 0};
     // printf("\n=============================");
     SwitchTopo* switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart, NULL);
+    switchtopo->setup();
+    switchtopo->disp();
+
+    size_t         max_mem    = switchtopo->get_bufMemSize();
+    opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+    opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+    std::memset(send_buff, 0, max_mem * sizeof(double));
+    std::memset(recv_buff, 0, max_mem * sizeof(double));
+    // associate the buffer
+    
+    switchtopo->setup_buffers(send_buff, recv_buff);
 
     // printf("\n\n============ FORWARD =================");
     switchtopo->execute(data, FLUPS_FORWARD);

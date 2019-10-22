@@ -107,12 +107,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _topo_out->cmpt_intersect_id(tmp, _topo_in, _ostart, _oend);
 
     //-------------------------------------------------------------------------
-    /** - get the block size as the GCD of the memory among every process between send and receive */
-    //-------------------------------------------------------------------------
-    _cmpt_nByBlock();
-
-    //-------------------------------------------------------------------------
-    /** - get the number of blocks and for each block get the size and the destination rank */
+    /** - compute block information */
     //-------------------------------------------------------------------------
     _init_blockInfo();
 
@@ -155,6 +150,14 @@ void SwitchTopo_a2a::_init_blockInfo(){
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
 
+    //-------------------------------------------------------------------------
+    /** - get the block size as the GCD of the memory among every process between send and receive */
+    //-------------------------------------------------------------------------
+    _cmpt_nByBlock();
+
+    //-------------------------------------------------------------------------
+    /** - get the number of blocks and for each block get the size and the destination rank */
+    //-------------------------------------------------------------------------
     int  iblockIDStart[3];
     int  oblockIDStart[3];
     int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
@@ -244,9 +247,7 @@ void SwitchTopo_a2a::setup() {
         int tmp[3] = {-_shift[0], -_shift[1], -_shift[2]};
         _topo_out->cmpt_intersect_id(tmp, topo_in_tmp, _ostart, _oend);
 
-        //redo the last init operations
-        _cmpt_nByBlock();
-        
+        //recompute block info
         _init_blockInfo();
 
         delete(topo_in_tmp);
@@ -324,7 +325,7 @@ void SwitchTopo_a2a::setup() {
         }
         fprintf(file,"\n");
         fprintf(file,"--------------------------\n");
-        fprintf(file,"%d inblock: %d %d %d\n",newrank,_onBlock[0], _onBlock[1], _onBlock[2]);
+        fprintf(file,"%d onblock: %d %d %d\n",newrank,_onBlock[0], _onBlock[1], _onBlock[2]);
         fprintf(file,"%d RECV:",newrank);
         for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
             fprintf(file," %d ",_o2i_destRank[ib]);
@@ -996,13 +997,13 @@ void SwitchTopo_a2a_test() {
         const int fieldstart[3] = {-1, 0, 0};
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+        switchtopo->setup();
         size_t         max_mem    = switchtopo->get_bufMemSize();
         opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
-        switchtopo->setup();
         switchtopo->setup_buffers(send_buff, recv_buff);
         switchtopo->disp();
 
@@ -1054,6 +1055,7 @@ void SwitchTopo_a2a_test() {
         const int fieldstart2[3] = {-1, 0, 0};
         // printf("\n=============================");
         SwitchTopo* switchtopo               = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
+        switchtopo->setup();
         switchtopo->disp();
         size_t         max_mem   = switchtopo->get_bufMemSize();
         opt_double_ptr send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
@@ -1109,15 +1111,11 @@ void SwitchTopo_a2a_test2() {
 
         double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
 
-        //CREATE THE SWITCHTOPO BEFORE CHANGING THE TOPOS
         const int fieldstart[3] = {0, 0, 0};
+
+        //CREATE THE SWITCHTOPO BEFORE CHANGING THE TOPOS
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
-        size_t         max_mem    = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        std::memset(send_buff, 0, max_mem * sizeof(double));
-        std::memset(recv_buff, 0, max_mem * sizeof(double));
         
         MPI_Comm graph_comm = NULL;
 
@@ -1167,18 +1165,17 @@ void SwitchTopo_a2a_test2() {
 
 
         // //CREATE THE SWITCHTOPO AFTER CHANGE IN TOPOS
-        // const int fieldstart[3] = {0, 0, 0};
         // // printf("\n=============================");
         // SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
-        // size_t         max_mem    = switchtopo->get_bufMemSize();
-        // opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        // opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        // std::memset(send_buff, 0, max_mem * sizeof(double));
-        // std::memset(recv_buff, 0, max_mem * sizeof(double));
-
+        
 
         // associate the buffer
         switchtopo->setup();
+        size_t         max_mem    = switchtopo->get_bufMemSize();
+        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        std::memset(send_buff, 0, max_mem * sizeof(double));
+        std::memset(recv_buff, 0, max_mem * sizeof(double));
         switchtopo->setup_buffers(send_buff, recv_buff);
         switchtopo->disp();
 

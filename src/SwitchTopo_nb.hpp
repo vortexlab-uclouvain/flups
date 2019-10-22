@@ -67,6 +67,9 @@ class SwitchTopo_nb : public SwitchTopo {
     MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
 
+    void _init_blockInfo();
+    void _free_blockInfo();
+
    public:
     SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
     ~SwitchTopo_nb();
