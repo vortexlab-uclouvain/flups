@@ -36,7 +36,7 @@ void SwitchTopo::_cmpt_nByBlock(){
     BEGIN_FUNC;
 
     int comm_size;
-    MPI_Comm_size(_mastercomm,&comm_size);
+    MPI_Comm_size(_inComm,&comm_size);
 
     int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
@@ -45,7 +45,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         int isend = (_iend[id] - _istart[id]);
         int osend = (_oend[id] - _ostart[id]);
         // compute the exchanged size same if from the input or output
-        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, _mastercomm);
+        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, _inComm);
         // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
         _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
 
@@ -58,7 +58,7 @@ void SwitchTopo::_cmpt_nByBlock(){
         }
         int npoints = gcd(isend,osend);
         // gather on each proc the gcd
-        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _mastercomm);
+        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _inComm);
         // get the Greatest Common Divider among every process
         int my_gcd = onProc[0];
         for (int ip = 1; ip < comm_size; ip++) {
@@ -83,7 +83,7 @@ void SwitchTopo::_cmpt_nByBlock(){
 void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(_mastercomm, &comm_size);
+    MPI_Comm_size(_inComm, &comm_size);
     // go through each block
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         // get the split index
@@ -182,12 +182,12 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
                                      int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(_mastercomm, &comm_size);
+    MPI_Comm_size(_inComm, &comm_size);
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
         // get the list of number of procs
-        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, _mastercomm);
+        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, _inComm);
         // set the starting indexes to 0
         blockIDStart[id] = 0;
         // compute the starting index
@@ -209,12 +209,14 @@ void SwitchTopo::_cmpt_commSplit(){
     BEGIN_FUNC;
     // get my rank and use-it as the initial color
     int comm_size, rank;
-    MPI_Comm_rank(_mastercomm,&rank);
-    MPI_Comm_size(_mastercomm,&comm_size);
+    MPI_Comm_rank(_inComm,&rank);
+    MPI_Comm_size(_inComm,&comm_size);
 
     //We only try the division in subcomms if the comm of inTopo and outTopo are the same.
     // Otherwise, we assign subcomm to mastercomm
-    if(_topo_in->get_comm() == _topo_out->get_comm()){
+    int comp;
+    MPI_Comm_compare( _inComm, _topo_out->get_comm(), &comp );
+    if(comp == MPI_IDENT){
 
         int mycolor = rank;
         
@@ -247,7 +249,7 @@ void SwitchTopo::_cmpt_commSplit(){
         // continue while we haven't found a solution
         while (nleft > 0) {
             // gather the color info from everyone
-            MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _mastercomm);
+            MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _inComm);
             // iterate on the proc
             int n_notInMyGroup = 0;
             for (int ir = 0; ir < comm_size; ir++) {
@@ -263,7 +265,7 @@ void SwitchTopo::_cmpt_commSplit(){
                 }
             }
             // compute among everybody, if we need to continue
-            MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _mastercomm);
+            MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _inComm);
             FLUPS_INFO("stil %d to find (@ my proc: %d)", nleft, n_notInMyGroup);
         }
 
@@ -274,12 +276,12 @@ void SwitchTopo::_cmpt_commSplit(){
         }
         if(nleft==0){
             // avoids the creation of a communicator
-            _subcomm = _mastercomm;
+            _subcomm = _inComm;
             FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
             
         } else {
             // create the communicator and give a name
-            MPI_Comm_split(_mastercomm, mycolor, rank, &_subcomm);
+            MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
 
             std::string commname = "comm-" + std::to_string(mycolor);
             MPI_Comm_set_name(_subcomm, commname.c_str());
@@ -289,7 +291,7 @@ void SwitchTopo::_cmpt_commSplit(){
         flups_free(inMyGroup);
 
     } else {
-        _subcomm = _mastercomm;
+        _subcomm = _inComm;
         FLUPS_INFO("No sub comm created: topo in and out have different comms",LOCATION);
     }
 
@@ -304,8 +306,6 @@ void SwitchTopo::_cmpt_commSplit(){
  * - count: the number of elements send to each proc form this proc
  * - start: the starting position of the data to send to each proc in the buffer
  * 
- * @param inComm the comm of the input topology (likely the mastercomm of this switch)
- * @param outComm the comm of the output topology
  * @param nBlock the number of blocks
  * @param destRank the destination rank on the world comm. returns the new destination rank in the newcomm
  * @param count the number of information to send to each proc
@@ -316,14 +316,15 @@ void SwitchTopo::_setup_subComm(const int nBlock[3], int* destRank, int** count,
     //-------------------------------------------------------------------------
     /** - get the new source & destination ranks    */
     //-------------------------------------------------------------------------
-    int masterrank, subrank, worldsize;
-    MPI_Comm_size(_mastercomm, &worldsize);
-    MPI_Comm_rank(_mastercomm, &masterrank);
+    int inrank, subrank, worldsize;
+    MPI_Comm_size(_inComm, &worldsize);
     MPI_Comm_rank(_subcomm, &subrank);
+    MPI_Comm_rank(_inComm, &inrank);
     
     // get the ranks of everybody in all communicators
     int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _mastercomm);
+    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _inComm);
+
 
     // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
     // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
@@ -350,10 +351,13 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
     //-------------------------------------------------------------------------
     /** - get the new source & destination ranks    */
     //-------------------------------------------------------------------------
-    int masterrank, inrank, outrank, worldsize;
-    MPI_Comm_size(_mastercomm, &worldsize);
-    MPI_Comm_rank(_mastercomm, &masterrank);
+    int masterrank, inrank, outrank, worldsize, worldsize_out;
+    MPI_Comm_size(inComm, &worldsize);
+    MPI_Comm_size(outComm, &worldsize_out);
+    MPI_Comm_rank(inComm, &masterrank);
     MPI_Comm_rank( outComm, &outrank);  //the rank that I will be in the outComm. I thus need to receive data from this guy
+
+    FLUPS_CHECK(worldsize==worldsize_out,"The size of input communicator (%d) is not the same as the size of the output (%d). Cannot setup switchtopo.",worldsize,worldsize_out,LOCATION);
     
     //the rank that will have my number in the outComm. I thus need to send data to this guy
     MPI_Group group_in, group_out;
@@ -364,10 +368,10 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
 
     // get the ranks of everybody in all communicators
     int* inRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, _mastercomm); //could actually get this with the Groupe_translate instruction
+    MPI_Allgather(&inrank, 1, MPI_INT, inRanks, 1, MPI_INT, inComm); //could actually get this with the Groupe_translate instruction
 
     int* outRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, _mastercomm);
+    MPI_Allgather(&outrank, 1, MPI_INT, outRanks, 1, MPI_INT, inComm);
 
     // if(inrank == 0){
     //     printf("[GRAPH] Ranks are as follows:\n");
@@ -393,8 +397,8 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
         recvbuff[ib] = 0;
     }
 
-    MPI_Isend(sendbuff, osize, MPI_INT, inrank, 0, _mastercomm, &rqst[0]);
-    MPI_Irecv(recvbuff, osize, MPI_INT, outrank, 0, _mastercomm, &rqst[1]);
+    MPI_Isend(sendbuff, osize, MPI_INT, inrank, 0, inComm, &rqst[0]);
+    MPI_Irecv(sourceRank, osize, MPI_INT, outrank, 0, inComm, &rqst[1]);
     MPI_Waitall(2,rqst,status);
 
     for(int ib = 0;ib<osize;ib++){
@@ -426,10 +430,10 @@ void SwitchTopo::_setup_commToFrom(MPI_Comm inComm, MPI_Comm outComm, const int 
     /** - build the size vector of block to each procs    */
     //-------------------------------------------------------------------------
     if (send_count != NULL) {
-        _cmpt_start_and_count(_mastercomm, inBlock, destRank, send_count, send_start);
+        _cmpt_start_and_count(inComm, inBlock, destRank, send_count, send_start);
     }
     if (recv_count != NULL) {
-        _cmpt_start_and_count(_mastercomm, onBlock, sourceRank, recv_count, recv_start);
+        _cmpt_start_and_count(inComm, onBlock, sourceRank, recv_count, recv_start);
     }
     
     // for(int i=0; i<worldsize; i++){

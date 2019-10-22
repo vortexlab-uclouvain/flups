@@ -90,6 +90,10 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
     return (unsigned long long)t->memsize();
 }
 
+MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
+    return t->get_comm();
+}
+
 //***********************************************************************
 //*  SOLVER
 //********************************************************************* */

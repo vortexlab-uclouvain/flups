@@ -48,7 +48,7 @@
  */
 class SwitchTopo {
    protected:
-    MPI_Comm _mastercomm = MPI_COMM_WORLD; /**<@brief the global comm for the switchTopo */
+    MPI_Comm _inComm = NULL; /**<@brief the reference input communicator */
     MPI_Comm _subcomm; /**<@brief the subcomm for this switchTopo */
     int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
 

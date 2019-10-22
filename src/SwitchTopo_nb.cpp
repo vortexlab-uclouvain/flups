@@ -78,16 +78,8 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     _topo_in  = topo_input;
     _topo_out = topo_output;
 
-    //-------------------------------------------------------------------------
-    /** - Setup the master comm (global comm including all nodes, 
-     *    potentially with a smart ordering of ranks) */
-    //-------------------------------------------------------------------------
-    //We will always perform the communication in the _subcomm, which is a 
-    // subdivision of the _mastercomm.
-    _mastercomm = _topo_in->get_comm();
-
     int comm_size;
-    MPI_Comm_size(_mastercomm, &comm_size);
+    MPI_Comm_size(_topo_in->get_comm(), &comm_size);
 
 #ifdef PROF    
     _prof     = prof;
@@ -185,8 +177,9 @@ void SwitchTopo_nb::setup(){
     BEGIN_FUNC;
 
     int rank, comm_size;
-    MPI_Comm_rank(_mastercomm, &rank);
-    MPI_Comm_size(_mastercomm, &comm_size);
+    _inComm = _topo_in->get_comm();
+    MPI_Comm_rank(_inComm, &rank);
+    MPI_Comm_size(_inComm, &comm_size);
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm */

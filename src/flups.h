@@ -229,12 +229,21 @@ void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
  */
 
 unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
+
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
 unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
+
+/**
+ * @brief returns the communicator of the topology
+ * 
+ * @param t 
+ * @param comm 
+ */
+void flups_topo_get_comm(FLUPS_Topology* t, MPI_Comm comm);
 
 /**@} */
 

@@ -78,17 +78,10 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _topo_in  = topo_input;
     _topo_out = topo_output;
 
-    //-------------------------------------------------------------------------
-    /** - Setup the master comm (global comm including all nodes, 
-     *    potentially with a smart ordering of ranks) */
-    //-------------------------------------------------------------------------
-    //We will always perform the communication in the _subcomm, which is a 
-    // subdivision of the _mastercomm.
-    _mastercomm = _topo_in->get_comm();
-
     int rank, comm_size;
-    MPI_Comm_rank(_mastercomm, &rank);
-    MPI_Comm_size(_mastercomm, &comm_size);
+    _inComm = _topo_in->get_comm();
+    MPI_Comm_rank(_inComm, &rank);
+    MPI_Comm_size(_inComm, &comm_size);
 
 #ifdef PROF    
     _prof     = prof;
@@ -181,19 +174,93 @@ void SwitchTopo_a2a::setup() {
     BEGIN_FUNC;
 
     int rank, comm_size;
-    MPI_Comm_rank(_mastercomm, &rank);
-    MPI_Comm_size(_mastercomm, &comm_size);
+    MPI_Comm inComm = _topo_in->get_comm();
+    MPI_Comm_rank(inComm, &rank);
+    MPI_Comm_size(inComm, &comm_size);
+
+    int comp;
+    MPI_Comm_compare(inComm, _inComm, &comp);
+    if( comp != MPI_IDENT){
+        FLUPS_WARNING("The inComm has changed since this switchtopo was created. I will take care of the switchtopo.",LOCATION);
+
+        int oldrank, torank;
+        MPI_Comm_rank(_inComm, &oldrank);
+
+        MPI_Group group_in, group_out;
+        MPI_Comm_group(_inComm, &group_in);  //get the group of the current comm
+        MPI_Comm_group(inComm, &group_out);   //get the group of the new comm
+        int err = MPI_Group_translate_ranks(group_out, 1, &oldrank, group_in, &torank);
+
+        printf("%d -> %d -> %d\n",torank,oldrank,rank);
+        //oldrank : who I am now
+        //rank: who I will become => recv
+        //torank: who will become me => send
+        
+        MPI_Request rqst[4];
+        MPI_Status status[4];
+
+        int isize = _inBlock[0] * _inBlock[1] * _inBlock[2];
+        int osize = _onBlock[0] * _onBlock[1] * _onBlock[2];
+
+        //exchange the number of blocks:
+        int sbi[3] = {_inBlock[0], _inBlock[1], _inBlock[2]};
+        int sbo[3] = {_onBlock[0], _onBlock[1], _onBlock[2]};
+
+        MPI_Isend(sbi, 3, MPI_INT, torank, 0, _inComm, &rqst[0]);
+        MPI_Isend(sbo, 3, MPI_INT, torank, 1, _inComm, &rqst[1]);
+        MPI_Irecv(_inBlock, 3, MPI_INT, rank, 0, _inComm, &rqst[2]);
+        MPI_Irecv(_onBlock, 3, MPI_INT, rank, 1, _inComm, &rqst[3]);
+        MPI_Waitall(4,rqst,status);
+
+        int isize_new = _inBlock[0] * _inBlock[1] * _inBlock[2];
+        int osize_new = _onBlock[0] * _onBlock[1] * _onBlock[2];
+
+        printf("[XCHG] isize: %d is_new: %d - osize: %d os_new: %d \n",isize,isize_new,osize,osize_new);
+
+        //exchange the source and dest of blocks:
+        int* sendbuff = (int*)flups_malloc((isize + osize) * sizeof(int));
+        int* recvbuff = (int*)flups_malloc((isize_new + osize_new) * sizeof(int));
+        for(int ib = 0;ib<isize;ib++){
+            sendbuff[ib] = _i2o_destRank[ib];
+        }
+        for(int ib = 0;ib<osize;ib++){
+            sendbuff[isize+ib] = _o2i_destRank[ib];
+        }
+
+        MPI_Isend(sendbuff, isize+osize, MPI_INT, torank, 0, _inComm, &rqst[0]);
+        MPI_Irecv(recvbuff, isize_new+osize_new, MPI_INT, rank, 0, _inComm, &rqst[1]);
+        MPI_Waitall(2,rqst,status);
+
+        flups_free(_i2o_destRank);
+        flups_free(_o2i_destRank);
+        _i2o_destRank = (opt_int_ptr)flups_malloc(isize_new * sizeof(int));
+        _o2i_destRank = (opt_int_ptr)flups_malloc(osize_new * sizeof(int));
+
+        for(int ib = 0;ib<isize_new;ib++){
+            _i2o_destRank[ib] = recvbuff[ib];
+        }
+        for(int ib = 0;ib<osize_new;ib++){
+            _o2i_destRank[ib] = recvbuff[isize_new+ib];
+        }
+        flups_free(sendbuff);
+        flups_free(recvbuff);
+
+        _inComm = inComm;
+    }
+
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    if(_topo_out->get_comm()==_mastercomm){
+    
+    MPI_Comm_compare(inComm, _topo_out->get_comm(), &comp);
+    if( comp == MPI_IDENT){
         _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
         _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
-    } else {
-        _setup_commToFrom(_mastercomm,_topo_out->get_comm(), _inBlock, _onBlock, _i2o_destRank, _o2i_destRank, &_i2o_count, &_i2o_start, &_o2i_count, &_o2i_start);
+    } else {        
+        _setup_commToFrom(inComm, _topo_out->get_comm(), _inBlock, _onBlock, _i2o_destRank, _o2i_destRank, &_i2o_count, &_i2o_start, &_o2i_count, &_o2i_start);
     }
 
     //-------------------------------------------------------------------------
