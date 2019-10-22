@@ -108,34 +108,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     /** - get the number of blocks and for each block get the size and the destination rank */
     //-------------------------------------------------------------------------
-    int  iblockIDStart[3];
-    int  oblockIDStart[3];
-    int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* onBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-
-    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
-    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
-
-    // allocte the block size
-    for (int id = 0; id < 3; id++) {
-        _iBlockSize[id] = (int*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-        _oBlockSize[id] = (int*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
-    }
-
-    // allocate the destination ranks
-    _i2o_destRank = (opt_int_ptr)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-    _o2i_destRank = (opt_int_ptr)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
-
-    // get the send destination ranks in the ouput topo
-    _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
-    _cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
-
-    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
-    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
-
-    // free the temp arrays
-    flups_free(inBlockEachProc);
-    flups_free(onBlockEachProc);
+    _init_blockInfo();
 
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
@@ -164,6 +137,61 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     }
 #endif
     END_FUNC;
+}
+
+/**
+ * @brief initialize the blocks: compute their index, their number, their size and their source/destination
+ * 
+ */
+void SwitchTopo_a2a::_init_blockInfo(){
+    BEGIN_FUNC;
+    
+    int comm_size;
+    MPI_Comm_size(_inComm, &comm_size);
+
+    int  iblockIDStart[3];
+    int  oblockIDStart[3];
+    int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* onBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+
+    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
+    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
+
+    // allocte the block size
+    for (int id = 0; id < 3; id++) {
+        _iBlockSize[id] = (int*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
+        _oBlockSize[id] = (int*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
+    }
+
+    // allocate the destination ranks
+    _i2o_destRank = (opt_int_ptr)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
+    _o2i_destRank = (opt_int_ptr)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
+
+    // get the send destination ranks in the ouput topo
+    _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
+    _cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
+
+    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
+    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
+
+    // free the temp arrays
+    flups_free(inBlockEachProc);
+    flups_free(onBlockEachProc);
+    END_FUNC;
+}
+
+/**
+ * @brief free the blocks information: their number, their size and their source/destination
+ * 
+ */
+void SwitchTopo_a2a::_free_blockInfo(){
+    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
+    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
+
+    for (int id = 0; id < 3; id++) {
+        if (_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
+        if (_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
+    }
 }
 
 /**
@@ -290,9 +318,6 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 
     FLUPS_INFO("freeing the arrays");
 
-    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
-    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
-
     if (_i2o_count != NULL) flups_free(_i2o_count);
     if (_o2i_count != NULL) flups_free(_o2i_count);
     if (_i2o_start != NULL) flups_free(_i2o_start);
@@ -301,10 +326,7 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
     if (_sendBuf != NULL) flups_free((double*)_sendBuf);
     if (_recvBuf != NULL) flups_free((double*)_recvBuf);
 
-    for (int id = 0; id < 3; id++) {
-        if (_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
-        if (_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
-    }
+    _free_blockInfo();
 
     if (_i2o_shuffle != NULL) {
         for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {

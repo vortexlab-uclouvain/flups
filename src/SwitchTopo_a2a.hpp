@@ -65,6 +65,9 @@ class SwitchTopo_a2a : public SwitchTopo {
     double *_sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
     double *_recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
 
+    void _init_blockInfo();
+    void _free_blockInfo();
+
    public:
     SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
     ~SwitchTopo_a2a();
