@@ -152,22 +152,6 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
 double* Solver::setup() {
     BEGIN_FUNC;
     if (_prof != NULL) _prof->start("setup");
-    if (_prof != NULL) _prof->start("alloc_data");
-    //-------------------------------------------------------------------------
-    /** - allocate the data for the field and Green */
-    //-------------------------------------------------------------------------
-    _allocate_data(_topo_hat, &_data);
-    _allocate_data(_topo_green, &_green);
-    if (_prof != NULL) _prof->stop("alloc_data");
-
-    //-------------------------------------------------------------------------
-    /** - allocate the plans forward and backward for the field */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_plans");
-    _allocate_plans(_topo_hat, _plan_forward, _data);
-    _allocate_plans(_topo_hat, _plan_backward, _data);
-    if (_prof != NULL) _prof->stop("alloc_plans");
-
 
 #ifdef REORDER_RANKS
     //-------------------------------------------------------------------------
@@ -270,6 +254,22 @@ double* Solver::setup() {
 #endif
 
 #endif //REORDER_RANKS
+
+    if (_prof != NULL) _prof->start("alloc_data");
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the field and Green */
+    //-------------------------------------------------------------------------
+    _allocate_data(_topo_hat, &_data);
+    _allocate_data(_topo_green, &_green);
+    if (_prof != NULL) _prof->stop("alloc_data");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the plans forward and backward for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_plans");
+    _allocate_plans(_topo_hat, _plan_forward, _data);
+    _allocate_plans(_topo_hat, _plan_backward, _data);
+    if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
@@ -662,9 +662,26 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     END_FUNC;
 }
 
+/**
+ * @brief 
+ * 
+ * @param ntopo 
+ * @param switchtopo 
+ * @param send_buff 
+ * @param recv_buff 
+ */
 void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     BEGIN_FUNC;
     size_t max_mem = 0;
+
+    // setup the communication. During this step, the size of the buffers required by each switchtopo might change.
+    for (int id = 0; id < ntopo; id++) {
+        if (switchtopo[id] != NULL){
+            switchtopo[id]->setup();
+        } 
+    }
+
+    //get the maximum size required for the buffers
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
@@ -680,7 +697,6 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL){
-            switchtopo[id]->setup();
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
         } 
     }

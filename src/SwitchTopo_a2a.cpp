@@ -256,8 +256,8 @@ void SwitchTopo_a2a::setup() {
     /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
-    // setup the dest rank, counts and starts
     
+    // setup the dest rank, counts and starts
     _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
     _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
     
@@ -290,9 +290,7 @@ void SwitchTopo_a2a::setup() {
 
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
-    //-------------------------------------------------------------------------
-    
-    
+    //-------------------------------------------------------------------------    
 #ifdef PERF_VERBOSE
     int rankworld;
     MPI_Comm_rank(MPI_COMM_WORLD, &rankworld);
@@ -313,6 +311,8 @@ void SwitchTopo_a2a::setup() {
         fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
         fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
         fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
+        fprintf(file,"- start = %d %d %d to %d %d %d\n",_istart[0],_istart[1],_istart[2],_ostart[0],_ostart[1],_ostart[2]);
+        fprintf(file,"- end = %d %d %d to %d %d %d\n",_iend[0],_iend[1],_iend[2],_oend[0],_oend[1],_oend[2]);
         int totalsize = (_nByBlock[0]+_exSize[0]%2)*(_nByBlock[1]+_exSize[1]%2)*(_nByBlock[2]+_exSize[2]%2);
         fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],(_nByBlock[0] == 1)?1:_nByBlock[0]+_exSize[0]%2,(_nByBlock[1] == 1)?1:_nByBlock[1]+_exSize[1]%2,(_nByBlock[2] == 1)?1:_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
 
