@@ -98,6 +98,10 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     /** - get the starting and ending index of the shared zone */
     //-------------------------------------------------------------------------
     // get the blockshift
+    _shift[0] = shift[0];
+    _shift[1] = shift[1];
+    _shift[2] = shift[2];
+
     _topo_in->cmpt_intersect_id(shift, _topo_out, _istart, _iend);
     int tmp[3] = {-shift[0], -shift[1], -shift[2]};
     _topo_out->cmpt_intersect_id(tmp, _topo_in, _ostart, _oend);
@@ -222,7 +226,30 @@ void SwitchTopo_a2a::setup() {
 
         //reinit the block information
         _free_blockInfo();
+
+        //The input topo may have been reset to real, even if this switchtopo is a complex2complex. 
+        //We create a tmp input topo which is complex if needed, for the computation of start and end.
+        bool isC2C = _topo_out->isComplex();
+        
+        int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
+        for(int i = 0; i<3;i++){
+            tmp_nglob[i] = _topo_in->nglob(i);
+            tmp_nproc[i] = _topo_in->nproc(i);
+            tmp_axproc[i] = _topo_in->axproc(i);
+        }
+        const Topology* topo_in_tmp = new Topology(_topo_in->axis(),tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,_topo_in->get_comm());
+        
+        //recompute _start and _end
+        topo_in_tmp->cmpt_intersect_id(_shift, _topo_out, _istart, _iend);
+        int tmp[3] = {-_shift[0], -_shift[1], -_shift[2]};
+        _topo_out->cmpt_intersect_id(tmp, topo_in_tmp, _ostart, _oend);
+
+        //redo the last init operations
+        _cmpt_nByBlock();
+        
         _init_blockInfo();
+
+        delete(topo_in_tmp);
     }
 
     //-------------------------------------------------------------------------
@@ -264,9 +291,13 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
+    
+    
 #ifdef PERF_VERBOSE
+    int rankworld;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rankworld);
     // we display important information for the performance
-    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rank) + ".txt";
+    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rankworld) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){
         fprintf(file,"============================================================\n");

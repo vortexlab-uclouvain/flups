@@ -41,7 +41,7 @@
  *          The informations on the cartesian grid are however described by the other arguments of this constructur.
  * 
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm) {
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
     BEGIN_FUNC;
 
     _comm = comm;
@@ -125,26 +125,40 @@ void Topology::set_comm(MPI_Comm comm) {
     int err = MPI_Group_translate_ranks(group_out, 1, &curr_rank, group_in, &to_rank);
     FLUPS_CHECK(err == MPI_SUCCESS && to_rank != MPI_UNDEFINED, "Could not find a correspondance between former and new comm.", LOCATION);
 
-    
-    int tmp[3] = {_rankd[0],_rankd[1],_rankd[2]};
-    
     //exchanging rankd with who is concerned
     int sendbuff[3] = {_rankd[0],_rankd[1],_rankd[2]};
-    int recvbuff[3] = {0,0,0};
     MPI_Request rqst[2];
     MPI_Status status[2];
     MPI_Isend(sendbuff, 3, MPI_INT, to_rank, 0, _comm, &rqst[0]);
-    MPI_Irecv(recvbuff, 3, MPI_INT, from_rank, 0, _comm, &rqst[1]);
+    MPI_Irecv(_rankd, 3, MPI_INT, from_rank, 0, _comm, &rqst[1]);
     MPI_Waitall(2,rqst,status);
 
-    for(int i = 0;i<3;i++){
-        _rankd[i] = recvbuff[i];
+
+    //-------------------------------------------------------------------------
+    /** - Get the sizes  */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
+        
+        // if we are the last rank in the direction, we take everything what is left
+        if ((_rankd[id] < (_nproc[id] - 1))) {
+            _nloc[id] = _nbyproc[id];
+            // the memory size is the same as the local size
+            _nmem[id] = _nloc[id];
+        } else {
+            // we get the max between the nglob and
+            _nloc[id] = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * _rankd[id]);
+            _nmem[id] = _nloc[id];
+            // if we are in the axis, we padd to ensure that every pencil is ok with alignment
+            if (id == _axis) {
+                // compute by how many we are not aligned: the global size in double = nglob * nf
+                const int modulo = (_nglob[id] * _nf * sizeof(double)) % _alignment;
+                // compute the number of points to add (in double indexing)
+                const int delta = (_alignment - modulo) / sizeof(double);
+                _nmem[id] += (modulo == 0) ? 0 : delta/_nf  ;
+            }
+        }
     }
 
-    printf("[SETCOMM] me:%d to:%d from:%d \t rankd_old: %d %d %d \t rankd_new: %d %d %d\n",curr_rank,to_rank, from_rank,tmp[0],tmp[1],tmp[2],_rankd[0],_rankd[1],_rankd[2]);
-
-    ranksplit(from_rank,_axproc,_nproc,tmp);
-    printf("[SETCOMM]        new:%d \t rankd(split): %d %d %d \t rank(index):%d\n",from_rank,tmp[0],tmp[1],tmp[2],rankindex(_rankd,this));
 
     //assign the new communicator
     _comm = comm; 

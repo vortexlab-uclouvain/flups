@@ -47,6 +47,7 @@ class Topology {
     int      _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
     int      _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
     int      _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    const int _alignment;
     MPI_Comm _comm;       /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
     // double _h[3]; //**< @brief grid spacing */
