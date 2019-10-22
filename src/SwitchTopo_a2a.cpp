@@ -78,8 +78,10 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _topo_in  = topo_input;
     _topo_out = topo_output;
 
+    _inComm  = _topo_in->get_comm();
+    _outComm = _topo_out->get_comm();
+
     int rank, comm_size;
-    _inComm = _topo_in->get_comm();
     MPI_Comm_rank(_inComm, &rank);
     MPI_Comm_size(_inComm, &comm_size);
 
@@ -203,19 +205,25 @@ void SwitchTopo_a2a::setup() {
 
     int rank, comm_size;
     MPI_Comm inComm = _topo_in->get_comm();
+    MPI_Comm outComm = _topo_out->get_comm();
+
     MPI_Comm_rank(inComm, &rank);
     MPI_Comm_size(inComm, &comm_size);
 
-    int comp;
-    MPI_Comm_compare(inComm, _inComm, &comp);
-    if( comp != MPI_IDENT){
-        FLUPS_WARNING("The inComm has changed since this switchtopo was created. I will take care of the switchtopo.",LOCATION);
-
-        _exchg_destranks(_inComm, inComm);
+    //Ensure that comms have not changed since init. Otherwise recompute the source/destination of blocks.
+    int compIn, compOut;
+    MPI_Comm_compare(inComm, _inComm, &compIn);
+    MPI_Comm_compare(outComm, _outComm, &compOut);
+    if( compIn != MPI_IDENT || compOut != MPI_IDENT){
+        FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
 
         _inComm = inComm;
-    }
+        _outComm = outComm;
 
+        //reinit the block information
+        _free_blockInfo();
+        _init_blockInfo();
+    }
 
     //-------------------------------------------------------------------------
     /** - Setup subcomm (if possible) */
@@ -223,14 +231,9 @@ void SwitchTopo_a2a::setup() {
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
     
-    MPI_Comm_compare(inComm, _topo_out->get_comm(), &comp);
-    if( comp == MPI_IDENT){
-        _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
-        _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
-    } else {        
-        _setup_commToFrom(inComm, _topo_out->get_comm(), _inBlock, _onBlock, _i2o_destRank, _o2i_destRank, &_i2o_count, &_i2o_start, &_o2i_count, &_o2i_start);
-    }
-
+    _setup_subComm(_inBlock, _i2o_destRank, &_i2o_count, &_i2o_start);
+    _setup_subComm(_onBlock, _o2i_destRank, &_o2i_count, &_o2i_start);
+    
     //-------------------------------------------------------------------------
     /** - determine if we are all to all */
     //-------------------------------------------------------------------------
@@ -1065,8 +1068,9 @@ void SwitchTopo_a2a_test2() {
         topo->disp();
         topobig->disp();
 
-        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
 
+        //CREATE THE SWITCHTOPO BEFORE CHANGING THE TOPOS
         const int fieldstart[3] = {0, 0, 0};
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
@@ -1076,7 +1080,6 @@ void SwitchTopo_a2a_test2() {
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         
-
         MPI_Comm graph_comm = NULL;
 
 #ifndef DEV_SIMULATE_GRAPHCOMM
@@ -1122,6 +1125,18 @@ void SwitchTopo_a2a_test2() {
         }
         // try the dump
         hdf5_dump(topo, "test_real", data);
+
+
+        // //CREATE THE SWITCHTOPO AFTER CHANGE IN TOPOS
+        // const int fieldstart[3] = {0, 0, 0};
+        // // printf("\n=============================");
+        // SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
+        // size_t         max_mem    = switchtopo->get_bufMemSize();
+        // opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        // opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        // std::memset(send_buff, 0, max_mem * sizeof(double));
+        // std::memset(recv_buff, 0, max_mem * sizeof(double));
+
 
         // associate the buffer
         switchtopo->setup();
