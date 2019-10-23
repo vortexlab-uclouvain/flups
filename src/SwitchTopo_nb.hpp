@@ -59,8 +59,8 @@ class SwitchTopo_nb : public SwitchTopo {
     int* _iselfBlockID = NULL;
     int* _oselfBlockID = NULL;
 
-    opt_int_ptr _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
-    opt_int_ptr _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
 
     MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */

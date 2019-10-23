@@ -66,8 +66,8 @@ class SwitchTopo {
     int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
     int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
-    opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
-    opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
 
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */

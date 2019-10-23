@@ -126,10 +126,12 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
                                   nBlockEachProc[1 * comm_size + destrank],
                                   nBlockEachProc[2 * comm_size + destrank]};
             // store the destination tag = local block index in the destination rank
-            for (int id = 0; id<3;id++){
-                global_bid[id] -= startBlockEachProc[id * comm_size + destrank];
-            }
-            destTag[ib] = localIndex(0, global_bid[0], global_bid[1], global_bid[2], 0, dest_nBlock, 1);
+            // get the number of block in the destination rank
+            int dest_iBlock[3] = {global_bid[0]-startBlockEachProc[0 * comm_size + destrank],
+                                  global_bid[1]-startBlockEachProc[1 * comm_size + destrank],
+                                  global_bid[2]-startBlockEachProc[2 * comm_size + destrank]};
+            // create the tag 
+            destTag[ib] = localIndex(0, dest_iBlock[0], dest_iBlock[1], dest_iBlock[2], 0, dest_nBlock, 1);
         }
     }
 

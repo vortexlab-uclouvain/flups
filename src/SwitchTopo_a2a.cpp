@@ -149,7 +149,7 @@ void SwitchTopo_a2a::_init_blockInfo(){
     
     int comm_size,ocomm_size;
     MPI_Comm_size(_inComm, &comm_size);
-    MPI_Comm_size(_inComm, &ocomm_size);
+    MPI_Comm_size(_onComm, &ocomm_size);
 
     FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
 
@@ -178,8 +178,8 @@ void SwitchTopo_a2a::_init_blockInfo(){
     }
 
     // allocate the destination ranks
-    _i2o_destRank = (opt_int_ptr)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-    _o2i_destRank = (opt_int_ptr)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
+    _i2o_destRank = (int*)flups_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
+    _o2i_destRank = (int*)flups_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
 
     // get the send destination ranks in the ouput topo
     _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
