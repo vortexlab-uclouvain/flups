@@ -228,13 +228,38 @@ double* Solver::setup() {
 #endif
 
 #ifdef DEV_SIMULATE_GRAPHCOMM
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     //erase the graph comm and replace by a home made comm
-    int       outRanks[6] = {0, 1, 4, 2, 3, 5}; int s = 6;
-    // int       outRanks[4] = {0, 1, 3, 2}; int s = 4;
+
+    //hardcoded comms:
+    // int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+    // int       outRanks[4] = {0, 1, 3, 2}; 
+
+    //switch indices by a random number:
+#ifdef DEV_REORDER_SHIFT
+    int shift = DEV_REORDER_SHIFT;
+#else
+    int shift = worldsize/2;
+#endif
+
+    int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
+    if(rank == 0){
+        FLUPS_INFO("SIMULATED GRAPH_COMM : REORDERING RANKS AS FOLLOWS",LOCATION);
+    }
+    for (int i=0;i<worldsize;i++){
+        outRanks[i] = (i + shift)%worldsize;
+        if(rank == 0){
+            FLUPS_INFO("old rank: %d \t new rank: %d",i,outRanks[i],LOCATION);
+        }
+    }
+    
     MPI_Group group_in, group_out;
     MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
-    MPI_Group_incl(group_in, s, outRanks, &group_out);        //manually reorder the ranks
+    MPI_Group_incl(group_in, worldsize, outRanks, &group_out);        //manually reorder the ranks
     MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
+
+    flups_free(outRanks);
 #endif
 
     std::string commname = "graph_comm";
