@@ -365,8 +365,9 @@ static inline double _hej_2_1unb2spe_k0(const void* params) {
     const double sig = ((double*)params) [2];
 
     const double rho = r/sig;
-    return 0.0; //THIS IS WRONG !
-    //and clearly not 0.0 as stated in [Hejlesen:2013] and [Spietz:2018]
+    const double rosqrt2 = r*c_1osqrt2;
+    // return -.5* (r * erf(rosqrt2/sig) + (exp(-r*r/(2*sig*sig)) - 1.)*sig*M_SQRT2*c_1osqrtpi) ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
+    return -.5* r * erf(rosqrt2/sig) + (1.-exp(-rho*rho*.5)) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
 static inline double _hej_4_1unb2spe(const void* params) {
@@ -385,7 +386,8 @@ static inline double _hej_4_1unb2spe_k0(const void* params) {
     const double sig = ((double*)params) [2];
 
     const double rho = r/sig;
-    return 0.0; //THIS IS WRONG !
+    const double rosqrt2 = r*c_1osqrt2;
+    return -.5* r * erf(rosqrt2/sig) + (1.-exp(-rho*rho*.5)) *.5*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
 static inline double _hej_6_1unb2spe(const void* params) {
@@ -404,7 +406,8 @@ static inline double _hej_6_1unb2spe_k0(const void* params) {
     const double sig = ((double*)params) [2];
 
     const double rho = r/sig;
-    return 0.0; //THIS IS WRONG !
+    const double rosqrt2 = r*c_1osqrt2;
+    return -.5* r * erf(rosqrt2/sig) + (3.-exp(-rho*rho*.5) * (rho*rho+3.) ) *.125*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
 static inline double _chat_2_1unb2spe(const void* params) {
@@ -455,7 +458,6 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
         case HEJ_2:
             G  = &_hej_2_1unb2spe;
             G0 = &_hej_2_1unb2spe_k0;
-            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case HEJ_4:
             G  = &_hej_4_1unb2spe;
