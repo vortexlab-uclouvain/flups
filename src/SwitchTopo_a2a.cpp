@@ -162,9 +162,11 @@ void SwitchTopo_a2a::_init_blockInfo(){
     int  oblockIDStart[3];
     int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
     int* onBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
 
-    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
-    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
+    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, istartBlockEachProc, inBlockEachProc);
+    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
 
     // allocte the block size
     for (int id = 0; id < 3; id++) {
@@ -180,12 +182,14 @@ void SwitchTopo_a2a::_init_blockInfo(){
     _cmpt_blockSize(_inBlock, iblockIDStart, _nByBlock, _istart, _iend, _iBlockSize);
     _cmpt_blockSize(_onBlock, oblockIDStart, _nByBlock, _ostart, _oend, _oBlockSize);
 
-    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank,NULL);
-    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank,NULL);
+    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, NULL);
+    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,NULL);
 
     // free the temp arrays
     flups_free(inBlockEachProc);
     flups_free(onBlockEachProc);
+    flups_free(istartBlockEachProc);
+    flups_free(ostartBlockEachProc);
     END_FUNC;
 }
 
@@ -222,7 +226,9 @@ void SwitchTopo_a2a::setup() {
     MPI_Comm_compare(inComm, _inComm, &compIn);
     MPI_Comm_compare(outComm, _outComm, &compOut);
     if( compIn != MPI_IDENT || compOut != MPI_IDENT){
-        FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+        if (rank == 0){
+            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+        }
 
         _inComm = inComm;
         _outComm = outComm;
@@ -1092,13 +1098,19 @@ void SwitchTopo_a2a_test2() {
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
     const int nglob[3] = {24, 24, 24};
-    // const int nglob[3] = {2, 2, 2};
     const int nproc[3] = {1, 3, 2};
 
     const int nglob_big[3] = {24, 24, 24};
     const int nproc_big[3] = {1, 2, 3};
-    // const int nproc_big[3] = {1, 3, 2};
     const int axproc[3] = {1,0,2};
+
+    // const int nglob[3] = {20, 20, 20};
+    // const int nproc[3] = {1, 3, 1};
+
+    // const int nglob_big[3] = {20, 20, 20};
+    // const int nproc_big[3] = {1, 1, 3};
+    // // const int nproc_big[3] = {1, 3, 2};
+    // const int axproc[3] = {0,1,2};
 
     {
         //===========================================================================
@@ -1124,14 +1136,17 @@ void SwitchTopo_a2a_test2() {
         const int dims[3] = {topo->nproc(0),topo->nproc(1),topo->nproc(2)};
         MPI_Cart_create(MPI_COMM_WORLD, 3, dims,  per,  0,  &graph_comm);
 #else
+        int s;
         //simulate a new comm with reordered ranks:
-        // int       outRanks[6] = {0, 3, 4, 1, 2, 5};
-        int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+        // int       outRanks[6] = {0, 3, 4, 1, 2, 5}; s=6;
+        int       outRanks[6] = {0, 1, 4, 2, 3, 5}; s=6;
             //CAUTION: rank i goes in posisition outRanks[i] in the new comm
             //the associated rank will be {0 1 3 4 2 5}
+
+        // int       outRanks[6] = {0, 2, 1}; s=3;
         MPI_Group group_in, group_out;
         MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
-        MPI_Group_incl(group_in, 6, outRanks, &group_out);        //manually reorder the ranks
+        MPI_Group_incl(group_in, s, outRanks, &group_out);        //manually reorder the ranks
         MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
         
         MPI_Comm graph_comm2 = NULL;

@@ -144,9 +144,9 @@ class SwitchTopo {
 
    protected:
     void _cmpt_nByBlock();
-    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* nBlockEachProc, int* destRank, int* destTag);
+    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* startBlockEachProc, const int* nBlockEachProc, int* destRank, int* destTag);
     void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]);
-    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* nBlockEachProc);
+    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* startBlockEachProc, int* nBlockEachProc);
 
     void _cmpt_commSplit();
     void _setup_subComm(const int nBlock[3], int* destRank, int** count, int** start);

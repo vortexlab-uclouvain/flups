@@ -157,9 +157,11 @@ void SwitchTopo_nb::_init_blockInfo(){
     int  oblockIDStart[3];
     int* inBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
     int* onBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
 
-    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, inBlockEachProc);
-    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, onBlockEachProc);
+    _cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, iblockIDStart, istartBlockEachProc, inBlockEachProc);
+    _cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
 
     //-------------------------------------------------------------------------
     /** - allocate the size, destination and tag arrays */
@@ -188,12 +190,14 @@ void SwitchTopo_nb::_init_blockInfo(){
     _cmpt_blockSize(_inBlock,iblockIDStart,_nByBlock,_istart,_iend,_iBlockSize);
     _cmpt_blockSize(_onBlock,oblockIDStart,_nByBlock,_ostart,_oend,_oBlockSize);
 
-    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank, _i2o_destTag);
-    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank, _o2i_destTag);
+    _cmpt_blockDestRankAndTag(_inBlock, iblockIDStart, _topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, _i2o_destTag);
+    _cmpt_blockDestRankAndTag(_onBlock, oblockIDStart, _topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank, _o2i_destTag);
 
     // free the temp arrays
     flups_free(inBlockEachProc);
     flups_free(onBlockEachProc);
+    flups_free(istartBlockEachProc);
+    flups_free(ostartBlockEachProc);
 
     END_FUNC;
 }
@@ -274,28 +278,8 @@ void SwitchTopo_nb::setup(){
     _setup_subComm(_inBlock, _i2o_destRank,NULL,NULL);
     _setup_subComm(_onBlock, _o2i_destRank,NULL,NULL);
 
-    //-------------------------------------------------------------------------
-    /** - Compute the self blocks in the new comms   */
-    //-------------------------------------------------------------------------
     int newrank;
     MPI_Comm_rank(_subcomm,&newrank);
-    _selfBlockN = 0;
-    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
-        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
-        if (_i2o_destRank[bid] == newrank) {
-            _selfBlockN++;
-        }
-    }
-    int temp = 0;
-    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        if (_o2i_destRank[bid] == newrank) {
-            temp++;
-        }
-    }
-    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
-    _iselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
-    _oselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
-
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -338,6 +322,27 @@ void SwitchTopo_nb::setup(){
         fclose(file);
     }
 #endif
+
+    //-------------------------------------------------------------------------
+    /** - Compute the self blocks in the new comms   */
+    //-------------------------------------------------------------------------
+    _selfBlockN = 0;
+    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
+        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
+        if (_i2o_destRank[bid] == newrank) {
+            _selfBlockN++;
+        }
+    }
+    int temp = 0;
+    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
+        if (_o2i_destRank[bid] == newrank) {
+            temp++;
+        }
+    }
+    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
+    _iselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
+    _oselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
+
     END_FUNC;
 }
 
@@ -782,7 +787,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
             bid = oselfBlockID[count];
 #pragma omp master
             {
-                FLUPS_INFO("doing the block in self: %d",bid);
+                // FLUPS_INFO("doing the block in se:qlf: %d",bid);
                 PROF_STARTi("buf2mem",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {

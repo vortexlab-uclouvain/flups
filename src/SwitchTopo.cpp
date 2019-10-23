@@ -80,7 +80,7 @@ void SwitchTopo::_cmpt_nByBlock(){
  * @param nBlockOnProc the number of block on each proc in the destination topology
  * @param destRank the computed destination rank for each block
  */
-void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *nBlockEachProc, int *destRank, int *destTag) {
+void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *startBlockEachProc, const int *nBlockEachProc, int *destRank, int *destTag) {
     BEGIN_FUNC;
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
@@ -90,22 +90,24 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
         int bidv[3];
         localSplit(ib, nBlock, 0, bidv, 1);
         // initialize the destrank
+        int global_bid[3] = {0,0,0}; 
         int destrankd[3] = {0, 0, 0};
-        int local_bid[3] = {0, 0, 0};
-
+        
         // determine the dest rank for each dimension
         for (int id = 0; id < 3; id++) {
             // we go trough every rank on the given dim
-            int block_count = 0;
+            global_bid[id] = bidv[id] + blockIDStart[id];
+            
             for (int ir = 0; ir < topo->nproc(id); ir++) {
                 // update the destination rank
                 destrankd[id] = ir;
-                // compute the local block id in this rank
-                local_bid[id] = bidv[id] + blockIDStart[id] - block_count;
-                // update the number of block already visited
-                block_count += nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
+
+                // update the number of block already visited                
+                int minBlockLocal = startBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
+                int maxBlockLocal = minBlockLocal + nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
+
                 // if we have already visited more block than my block id then we have found the destination rank
-                if ((bidv[id] + blockIDStart[id]) < block_count) {
+                if (global_bid[id] >= minBlockLocal && global_bid[id] < maxBlockLocal) {
                     break;
                 }
             }
@@ -115,6 +117,8 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
         const int destrank = rankindex(destrankd, topo);
         // get the global destination tag
         destRank[ib] = destrank;
+        // translate_ranks(1, destRank+ib, topo->get_comm(), _inComm);
+
         FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destrank, destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
         if (destTag != NULL) {
             // get the number of block in the destination rank
@@ -122,7 +126,10 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
                                   nBlockEachProc[1 * comm_size + destrank],
                                   nBlockEachProc[2 * comm_size + destrank]};
             // store the destination tag = local block index in the destination rank
-            destTag[ib] = localIndex(0, local_bid[0], local_bid[1], local_bid[2], 0, dest_nBlock, 1);
+            for (int id = 0; id<3;id++){
+                global_bid[id] -= startBlockEachProc[id * comm_size + destrank];
+            }
+            destTag[ib] = localIndex(0, global_bid[0], global_bid[1], global_bid[2], 0, dest_nBlock, 1);
         }
     }
 
@@ -184,7 +191,7 @@ void SwitchTopo::_cmpt_blockSize(const int nBlock[3], const int blockIDStart[3],
  * @param nBlockEachProc the number of procs on each proc
  */
 void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
-                                     int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
+                                     int nBlock[3], int blockIDStart[3], int *startBlockEachProc, int *nBlockEachProc) {
     BEGIN_FUNC;
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
@@ -206,7 +213,11 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
         }
         // do some checks
         FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
+
+        //everybody needs to know the startID of the first block in each proc
+        MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, _inComm);
     }
+    
     END_FUNC;
 }
 
@@ -256,7 +267,7 @@ void SwitchTopo::_cmpt_commSplit(){
         int n_notInMyGroup = 0;
         for (int ir = 0; ir < comm_size; ir++) {
             // if(rank==3){
-                printf("[ITER%d] color[%d] %d,  inMyGroup:%d\n",iter,ir,colors[ir],inMyGroup[ir]);
+                // printf("[ITER%d] color[%d] %d,  inMyGroup:%d\n",iter,ir,colors[ir],inMyGroup[ir]);
             // }
             // if it is reachable and the color is not already the same
             if (inMyGroup[ir] && (colors[ir] != mycolor)) {
