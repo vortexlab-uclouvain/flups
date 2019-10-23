@@ -268,7 +268,7 @@ double* Solver::setup(const bool changeTopoComm) {
 
     int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
     if(rank == 0){
-        FLUPS_INFO("SIMULATED GRAPH_COMM : REORDERING RANKS AS FOLLOWS");
+        FLUPS_INFO("SIMULATED GRAPH_COMM with shift = %d : REORDERING RANKS AS FOLLOWS",shift);
     }
     for (int i=0;i<worldsize;i++){
         outRanks[i] = (i + shift)%worldsize;
