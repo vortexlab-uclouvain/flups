@@ -82,6 +82,7 @@ int main(int argc, char *argv[]) {
     // Initialize MPI
     //-------------------------------------------------------------------------
     int rank, comm_size;
+    MPI_Comm comm = MPI_COMM_WORLD;
 
     int provided;
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
@@ -91,8 +92,8 @@ int main(int argc, char *argv[]) {
         FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
     }
    
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &comm_size);
 
     //-------------------------------------------------------------------------
     //Definition of the problem
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    const Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, MPI_COMM_WORLD);
+    const Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
     
@@ -128,7 +129,10 @@ int main(int argc, char *argv[]) {
     // solver creation and init
     Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
     mysolver->set_GreenType(CHAT_2);
-    double* solFLU = mysolver->setup(); //already allocated
+    double *solFLU = mysolver->setup(true);
+    // update the comm and the rank
+    comm = flups_topo_get_comm(topoIn);
+    MPI_Comm_rank(comm, &rank);
 
     // retrieveing internal info from the solver
     const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
@@ -180,7 +184,7 @@ int main(int argc, char *argv[]) {
     int  gdimsIN[3]      = {topoIn->nglob(0), topoIn->nglob(1), topoIn->nglob(2)};
     int  mem_orderIN[3]  = {0, 1, 2};
     int  nprocIN[3]      = {nproc[0], nproc[1], nproc[2]};
-    p3dfft::grid gridIN(gdimsIN,-1,nprocIN,proc_order,mem_orderIN,MPI_COMM_WORLD); 
+    p3dfft::grid gridIN(gdimsIN,-1,nprocIN,proc_order,mem_orderIN,comm); 
 
     if(rank==0)
         printf("...input grid.\n");    fflush(stdout);
@@ -192,7 +196,7 @@ int main(int argc, char *argv[]) {
     gdimsOUT[0] = gdimsOUT[0]/2+1;
     int mem_orderOUT[3]  = {2, 1, 0}; //blindly mimicking samples, anything else produces a segfault anyway...
     int nprocOUT[3]      = {dims[0],dims[1],1};
-    p3dfft::grid gridOUT(gdimsOUT,0,nprocOUT,proc_order,mem_orderOUT,MPI_COMM_WORLD); 
+    p3dfft::grid gridOUT(gdimsOUT,0,nprocOUT,proc_order,mem_orderOUT,comm); 
 
     if(rank==0)
         printf("...output grid.\n");    fflush(stdout);
@@ -293,7 +297,7 @@ int main(int argc, char *argv[]) {
 
     for (int iter=0;iter<n_iter;iter++){
         
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
         if(rank==0){
             printf("Iter %i\n",iter);
         }
@@ -315,7 +319,7 @@ int main(int argc, char *argv[]) {
 #endif
 
         // ------------------FLUPS---------------:
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         //reinit sol to prepare for inplace 3D FFT
         std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
@@ -345,7 +349,7 @@ int main(int argc, char *argv[]) {
     // --- P3DFFT -------
 #ifdef P3DMODIF
     double times[8][3];
-    p3dfft::timers.get(times,MPI_COMM_WORLD);
+    p3dfft::timers.get(times,comm);
     string P3DNames[8] = {"Reorder_trans","Reorder_out","Reorder_in","Trans_exec","Packsend","Packsend_trans","Unpackrecv","Alltoall"};
 #endif
 
@@ -374,7 +378,7 @@ int main(int argc, char *argv[]) {
         fclose(file);
     }   
 #else
-    p3dfft::timers.print(MPI_COMM_WORLD);
+    p3dfft::timers.print(comm);
 #endif
     delete(P3Dprof);
 

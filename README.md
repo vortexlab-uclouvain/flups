@@ -117,7 +117,7 @@ FLUPS::Solver *      mysolver   = new FLUPS::Solver(topo, mybc, h, L);
 
 // setup the solver
 mysolver->set_GreenType(FLUPS::HEJ2);
-mysolver->setup();
+mysolver->setup(false);
 ```
 
 To solve a field `rhs` that has been defined on the topology, use

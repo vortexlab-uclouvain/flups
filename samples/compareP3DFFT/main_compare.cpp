@@ -13,6 +13,7 @@ int main(int argc, char *argv[]) {
     // Initialize MPI
     //-------------------------------------------------------------------------
     int rank, comm_size;
+    MPI_Comm comm = MPI_COMM_WORLD;
 
     int provided;
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
@@ -22,8 +23,8 @@ int main(int argc, char *argv[]) {
         FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
     }
    
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &comm_size);
 
     //-------------------------------------------------------------------------
     //Definition of the problem
@@ -50,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    const Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, MPI_COMM_WORLD);
+    const Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
     
@@ -60,7 +61,10 @@ int main(int argc, char *argv[]) {
     Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
 
     mysolver->set_GreenType(CHAT_2);
-    double *solFLU = mysolver->setup();
+    double *solFLU = mysolver->setup(true);
+    // update the comm and the rank
+    comm = flups_topo_get_comm(topoIn);
+    MPI_Comm_rank(comm, &rank);
 
     const Topology *topoSpec    = mysolver->get_innerTopo_spectral();
 
@@ -98,7 +102,7 @@ int main(int argc, char *argv[]) {
 
     /* Initialize P3DFFT */
     P3Dprof->start("init");
-    Cp3dfft_setup(dims, nglob[0], nglob[1], nglob[2], MPI_Comm_c2f(MPI_COMM_WORLD), nglob[0], nglob[1], nglob[2], 1, P3Dmemsize);
+    Cp3dfft_setup(dims, nglob[0], nglob[1], nglob[2], MPI_Comm_c2f(comm), nglob[0], nglob[1], nglob[2], 1, P3Dmemsize);
     P3Dprof->stop("init");
     
     /* Get dimensions for input array - real numbers, X-pencil shape.
@@ -186,7 +190,7 @@ int main(int argc, char *argv[]) {
 
     for (int iter=0;iter<n_iter;iter++){
         
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
         if(rank==0){
             printf("Iter %i\n",iter);
         }
@@ -208,7 +212,7 @@ int main(int argc, char *argv[]) {
 #endif
 
         // ------------------FLUPS---------------:
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(comm);
 
         std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
         mysolver->do_FFT(solFLU,FLUPS_FORWARD);
@@ -238,9 +242,9 @@ int main(int argc, char *argv[]) {
     double timers[12], gtmean[12], gtmax[12], gtmin[12];
 
     get_timers(timers);
-    MPI_Reduce(&timers,&gtmean,12,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-    MPI_Reduce(&timers,&gtmax ,12,MPI_DOUBLE,MPI_MAX,0,MPI_COMM_WORLD);
-    MPI_Reduce(&timers,&gtmin ,12,MPI_DOUBLE,MPI_MIN,0,MPI_COMM_WORLD);
+    MPI_Reduce(&timers,&gtmean,12,MPI_DOUBLE,MPI_SUM,0,comm);
+    MPI_Reduce(&timers,&gtmax ,12,MPI_DOUBLE,MPI_MAX,0,comm);
+    MPI_Reduce(&timers,&gtmin ,12,MPI_DOUBLE,MPI_MIN,0,comm);
 
     for (int i=0;i < 12;i++) {
         gtmean[i] = gtmean[i]/ ((double) comm_size);

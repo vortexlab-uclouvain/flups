@@ -33,7 +33,7 @@
  * @param h the grid spacing
  * @param L the domain size
  */
-Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3], Profiler *prof) {
+Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3], Profiler *prof) {
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
@@ -145,12 +145,19 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
 /**
  * @brief Sets up the Solver
  * 
+ * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init
+ * 
+ * @warning
+ * To be able to change the communicator, the user MUST ensure that NOTHING has been done with the topology yet, except creating it.
+ * Otherwise he will get unpredictable datas
+ * 
+ * @warning
  * After this function the parameter of the solver (size etc) cannot be changed anymore
  * 
  * -------------------------------------------
  * We do the following operations
  */
-double* Solver::setup() {
+double* Solver::setup(const bool changeTopoComm) {
     BEGIN_FUNC;
     if (_prof != NULL) _prof->start("setup");
 
@@ -181,16 +188,25 @@ double* Solver::setup() {
         sources[i] = i;
         dests[i] = i;
     }
-    
-    //Count the total number of edges for the 2nd and 3rd switchtopo.
+
+    //Count the total number of edges for the switchtopos
+    // if we are not allowed to change the physical topology,
+    // do it only for the 2nd and 3rd switchtopo.
     // These are the switches that we hope to optimize with the rank
     // reordering. We do not account the 1st switchtopo because that
     // one will be used to reach the optimized layout associated with
     // the graph_comm, and it is thus very likely that the communication
     // involved in the first switchtopo is a real all 2 all (with some
     // ranks not having a self block) !
-    for(int i=1;i<3;i++){
-        _switchtopo[i]->add_toGraph(sourcesW,destsW);
+    // if we can change the topology, do it for every swithTopo
+    if (changeTopoComm) {
+        for (int i = 0; i < 3; i++) {
+            _switchtopo[i]->add_toGraph(sourcesW, destsW);
+        }
+    } else {
+        for (int i = 1; i < 3; i++) {
+            _switchtopo[i]->add_toGraph(sourcesW, destsW);
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -272,14 +288,17 @@ double* Solver::setup() {
     std::string commname = "graph_comm";
     MPI_Comm_set_name(graph_comm, commname.c_str());
 
-    //Advise the topologies that they will be associated with an other comm
-    // The _topo_phys remains without graph_comm, because this is how 
-    // we receive field. The first switch topo will serve to redistribute
+    // Advise the topologies that they will be associated with an other comm
+    // if we cannot change topo phys, the _topo_phys remains without graph_comm.
+    // The first switch topo will serve to redistribute
     // data following the optimized topology on the cluster, with reordered 
     // ranks
     for(int i=0;i<3;i++){
         _topo_hat[i]->change_comm(graph_comm);
         _topo_green[i]->change_comm(graph_comm);
+    }
+    if(changeTopoComm){
+        _topo_phys->change_comm(graph_comm);
     }
 
 #if PERF_VERBOSE

@@ -243,7 +243,7 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
  * @param t the Topology of interest
  * @param comm the communicator
  */
-void flups_topo_get_comm(FLUPS_Topology* t, MPI_Comm comm);
+MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
 
 /**@} */
 
@@ -265,7 +265,19 @@ void flups_cleanup(FLUPS_Solver* s);
 
 // setup the solver
 void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
-double* flups_setup(FLUPS_Solver* s);
+
+/**
+ * @brief setup the solver
+ * 
+ * @warning after this call the solver cannot change anymore!
+ * 
+ * @warning if changeComm is true, the rank has to be computed and the communicator has to be reset to the one provided by flups_topo_get_comm
+ * 
+ * @param s 
+ * @param changeComm indicate if we are allowed to change the communicator
+ * @return double* 
+ */
+double* flups_setup(FLUPS_Solver* s,const bool changeComm);
 
 // solve
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
