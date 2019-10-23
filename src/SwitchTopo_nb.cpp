@@ -142,8 +142,11 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 void SwitchTopo_nb::_init_blockInfo(){
     BEGIN_FUNC;
     
-    int comm_size;
+    int comm_size,ocomm_size;
     MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm_size(_outComm, &ocomm_size);
+
+    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */

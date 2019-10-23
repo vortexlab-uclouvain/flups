@@ -149,7 +149,7 @@ void SwitchTopo_a2a::_init_blockInfo(){
     
     int comm_size,ocomm_size;
     MPI_Comm_size(_inComm, &comm_size);
-    MPI_Comm_size(_onComm, &ocomm_size);
+    MPI_Comm_size(_outComm, &ocomm_size);
 
     FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
 
