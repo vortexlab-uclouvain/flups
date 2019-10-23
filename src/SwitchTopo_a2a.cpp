@@ -147,8 +147,11 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 void SwitchTopo_a2a::_init_blockInfo(){
     BEGIN_FUNC;
     
-    int comm_size;
+    int comm_size,ocomm_size;
     MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm_size(_inComm, &ocomm_size);
+
+    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
@@ -1121,8 +1124,6 @@ void SwitchTopo_a2a_test2() {
         topo->disp();
         topobig->disp();
 
-        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
-
         const int fieldstart[3] = {0, 0, 0};
 
         //CREATE THE SWITCHTOPO BEFORE CHANGING THE TOPOS
@@ -1159,6 +1160,8 @@ void SwitchTopo_a2a_test2() {
         // topo->change_comm(graph_comm2);
         topo->disp_rank();
         topobig->disp_rank();
+
+        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
 
         //Filling data (AFTER having assigned topo to a new topo)
         const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};

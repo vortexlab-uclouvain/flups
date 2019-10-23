@@ -229,10 +229,11 @@ double* Solver::setup() {
 
 #ifdef DEV_SIMULATE_GRAPHCOMM
     //erase the graph comm and replace by a home made comm
-    int       outRanks[6] = {0, 1, 4, 2, 3, 5};
+    int       outRanks[6] = {0, 1, 4, 2, 3, 5}; int s = 6;
+    // int       outRanks[4] = {0, 1, 3, 2}; int s = 4;
     MPI_Group group_in, group_out;
     MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
-    MPI_Group_incl(group_in, 6, outRanks, &group_out);        //manually reorder the ranks
+    MPI_Group_incl(group_in, s, outRanks, &group_out);        //manually reorder the ranks
     MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
 #endif
 
@@ -305,7 +306,7 @@ double* Solver::setup() {
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
 
-    // FLUPS_ERROR("done",LOCATION);
+    FLUPS_INFO("============================================================ DONE WITH SOLVER INITIALIZATION ===================================================",LOCATION);
 
     END_FUNC;
     return _data;
@@ -678,6 +679,7 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL){
             switchtopo[id]->setup();
+            FLUPS_INFO("--------------- switchtopo %d set up ----------",id,LOCATION);
         } 
     }
 
