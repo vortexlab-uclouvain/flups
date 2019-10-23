@@ -115,7 +115,7 @@ class Solver {
      * 
      * @{
      */
-    void _allocate_data(const Topology* const topo[3], double** data);
+    void _allocate_data(const Topology *const topo[3], const Topology *topo_phys, double **data);
     void _delete_switchtopos(SwitchTopo* switchtopo[3]);
     void _delete_topologies(Topology* topo[3]);
     /**@}  */

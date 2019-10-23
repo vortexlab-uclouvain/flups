@@ -232,6 +232,8 @@ void static translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outC
         err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
         FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
     }
+
+    flups_free(tmprnks);
     END_FUNC;
 }
 

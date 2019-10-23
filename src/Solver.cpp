@@ -260,8 +260,8 @@ double* Solver::setup() {
     //-------------------------------------------------------------------------
     /** - allocate the data for the field and Green */
     //-------------------------------------------------------------------------
-    _allocate_data(_topo_hat, &_data);
-    _allocate_data(_topo_green, &_green);
+    _allocate_data(_topo_hat, _topo_phys, &_data);
+    _allocate_data(_topo_green, NULL, &_green);
     if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
@@ -730,9 +730,10 @@ void Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planm
  * @brief allocates memory depending on the requirements for the combination of topos in topo_hat
  * 
  * @param topo the map of successive topos that will be applied to data
+ * @param topo_phys optionally, another topo which might drive the maximum allocated size
  * @param data poiter to the pointer to data
  */
-void Solver::_allocate_data(const Topology *const topo[3], double **data) {
+void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_phys, double **data) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - Sanity checks */
@@ -746,6 +747,9 @@ void Solver::_allocate_data(const Topology *const topo[3], double **data) {
     size_t size_tot = 1;
     for (int id = 0; id < 3; id++) {
         size_tot = std::max(topo[id]->memsize(), size_tot);
+    }
+    if (topo_phys != NULL) {
+        size_tot = std::max(topo_phys->memsize(), size_tot);
     }
 
     FLUPS_INFO("Complex memory allocation, size = %ld", size_tot);
