@@ -368,10 +368,12 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     //-------------------------------------------------------------------------
     /** - for each block we associate the the data buffer and the MPI requests or associate it to NULL */
     //-------------------------------------------------------------------------
+    // get the stide in memory of one block
+    const size_t blockMemSize = get_blockMemSize();
+    // reset the counter to 0
     int selfcount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
-        //create the request
-        const size_t blockMemSize = get_blockMemSize();
+        //associate the pointer to the correct block
         _sendBuf[bid] = sendData + bid*blockMemSize;
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
         if (_i2o_destRank[bid] == newrank) {
@@ -383,9 +385,11 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             // increment the counter
             selfcount++;
         } else {
-            MPI_Send_init(_sendBuf[bid], blockMemSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], _subcomm, &(_i2o_sendRequest[bid]));
+            // get the send size
+            const size_t sendSize = (size_t)_iBlockSize[0][bid] * (size_t)_iBlockSize[1][bid] * (size_t)_iBlockSize[2][bid] * (size_t)_topo_out->nf();
+            MPI_Send_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], _subcomm, &(_i2o_sendRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Recv_init(_sendBuf[bid], blockMemSize, MPI_DOUBLE, _i2o_destRank[bid], bid, _subcomm, &(_o2i_recvRequest[bid]));
+            MPI_Recv_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], bid, _subcomm, &(_o2i_recvRequest[bid]));
         }
 
         // setup the suffle plan for the out 2 in transformation if needed
@@ -394,16 +398,13 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             _setup_shuffle(tmp_size, _topo_out, _topo_in, _sendBuf[bid], &_o2i_shuffle[bid]);
             FLUPS_INFO("doing a shuffle allocation");
         }
-
     }
     FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
 
     // reset the self count
     selfcount = 0;
-    const size_t blockMemSize = get_blockMemSize();
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        //associate the pointer
-        
+        //associate the pointer with the correct block
         _recvBuf[bid] = recvData + bid*blockMemSize;
         // create the request if needed
         if (_o2i_destRank[bid] == newrank) {
@@ -415,10 +416,12 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             // increment the counter
             selfcount++;
         } else {
+            // get the receive size
+            const size_t recvSize = (size_t)_oBlockSize[0][bid] * (size_t)_oBlockSize[1][bid] * (size_t)_oBlockSize[2][bid] * (size_t)_topo_out->nf();
             // for the reception when doing input 2 output: receive from the rank o2i with tag bid
-            MPI_Recv_init(_recvBuf[bid], blockMemSize, MPI_DOUBLE, _o2i_destRank[bid], bid, _subcomm, &(_i2o_recvRequest[bid]));
+            MPI_Recv_init(_recvBuf[bid], recvSize, MPI_DOUBLE, _o2i_destRank[bid], bid, _subcomm, &(_i2o_recvRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Send_init(_recvBuf[bid], blockMemSize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], _subcomm, &(_o2i_sendRequest[bid]));
+            MPI_Send_init(_recvBuf[bid], recvSize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], _subcomm, &(_o2i_sendRequest[bid]));
         }
 
         // setup the suffle plan for the in 2 out transformation
@@ -822,7 +825,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         {
 #ifdef PROF            
             if (_prof != NULL) {
-                _prof->addMem("waiting"+to_string(iswitch), get_bufMemSize()*sizeof(double));
+                _prof->addMem("waiting"+to_string(iswitch), get_blockMemSize()*sizeof(double));
             }
 #endif
         }

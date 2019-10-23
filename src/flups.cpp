@@ -51,7 +51,8 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
 }
 
 void flups_topo_free(FLUPS_Topology* t) {
-    t->~Topology();
+    // t->~Topology();
+    delete t;
 }
 
 bool flups_topo_get_isComplex(FLUPS_Topology* t) {
@@ -113,7 +114,8 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], c
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s){
-    s->~Solver();
+    // s->~Solver();
+    delete s;
 }
 
 // setup the solver
@@ -180,7 +182,8 @@ FLUPS_Profiler* flups_profiler_new_n(const char name[]){
 }
 
 void flups_profiler_free(FLUPS_Profiler* p) {
-    p->~Profiler();
+    // p->~Profiler();
+    delete p;
 }
 
 void flups_profiler_disp(FLUPS_Profiler* p) {
