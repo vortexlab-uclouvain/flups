@@ -88,22 +88,16 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
 }
 
 /**
- * @brief compute the nloc and nmem sizes
+ * @brief compute the nloc and nmem sizes using _rankd, _nglob, _nproc, _nloc, _
  * 
- * @param [in] rankd the rank in 3d
- * @param [in] nbyproc the mean number of unknowns by proc
- * @param [in] nglob the global size of the domain
- * @param [in] alignment the alignement of the topo
- * @param [out] nloc the local number of unkowns
- * @param [out] nmem the local memory size
  */
 void Topology::cmpt_sizes() {
     BEGIN_FUNC;
     for (int id = 0; id < 3; id++) {
         // compute the _nbyproc
         // number of unknows everywhere except the last one
-        _nbyproc[id] = nglob[id] / nproc[id];  // integer division = floor
-        
+        _nbyproc[id] = _nglob[id] / _nproc[id];  // integer division = floor
+
         // if we are the last rank in the direction, we take everything what is left
         if ((_rankd[id] < (_nproc[id] - 1))) {
             _nloc[id] = _nbyproc[id];
@@ -215,6 +209,7 @@ void Topology::disp() const {
 }
 
 void Topology::disp_rank() {
+    BEGIN_FUNC;
     // we only focus on the real size = local size
     double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize()*2);
     int rank, rank_new;
@@ -239,4 +234,7 @@ void Topology::disp_rank() {
         hdf5_dump(this, name, rankdata);
         this->switch2real();
     }
+
+    flups_free(rankdata);
+    END_FUNC;
 }
