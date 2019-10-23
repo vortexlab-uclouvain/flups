@@ -199,7 +199,7 @@ run comm a2a 1:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
 
 ################################################################################
@@ -356,7 +356,7 @@ run comm nb 1:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
 
 ################################################################################
