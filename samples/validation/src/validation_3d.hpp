@@ -34,8 +34,8 @@
 #include <iostream>
 #include <cstring>
 
-#include "flups.h"
 #include "mpi.h"
+#include "flups.h"
 
 #define MANUFACTURED_SOLUTION
 

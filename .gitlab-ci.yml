@@ -186,6 +186,36 @@ run MPI-OMP a2a 1:1:
   dependencies: 
     - compil dbg
 
+run comm a2a 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_comm
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j4
+    - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+
+run comm a2a 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_comm
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j4
+    - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+
 
 ################################################################################
 # NON BLOCKING
@@ -328,6 +358,35 @@ run MPI-OMP nb 1:1:
   dependencies: 
     - compil dbg
 
+run comm nb 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_comm
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j4
+    - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+
+run comm nb 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_comm
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j4
+    - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
 
 ################################################################################

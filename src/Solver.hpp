@@ -81,14 +81,13 @@ class Solver {
      * transforms related objects
      */
     /**@{ */
-    FFTW_plan_dim*  _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
-    FFTW_plan_dim*  _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
-    const Topology* _topo_phys     = NULL;
-    Topology*       _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
-    SwitchTopo*     _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
-    
-    opt_double_ptr _sendBuf = NULL; /**<@brief The send buffer for _switchtopo */
-    opt_double_ptr _recvBuf = NULL; /**<@brief The recv buffer for _switchtopo */
+    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    Topology*      _topo_phys     = NULL;
+    Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
+    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+    opt_double_ptr _sendBuf       = NULL;               /**<@brief The send buffer for _switchtopo */
+    opt_double_ptr _recvBuf       = NULL;               /**<@brief The recv buffer for _switchtopo */
     /**@} */
 
     /**
@@ -115,7 +114,7 @@ class Solver {
      * 
      * @{
      */
-    void _allocate_data(const Topology* const topo[3], double** data);
+    void _allocate_data(const Topology *const topo[3], const Topology *topo_phys, double **data);
     void _delete_switchtopos(SwitchTopo* switchtopo[3]);
     void _delete_topologies(Topology* topo[3]);
     /**@}  */
@@ -164,14 +163,13 @@ class Solver {
     /**@} */
 
    public:
-    Solver(const Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
-    // Solver(const Topology* topo_glob,const BoundaryType mybc[3][2]);
+    Solver(Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
     ~Solver();
 
-    double* setup();
+    double* setup(const bool changeTopoComm);
     void set_OrderDiff(const int order) { _orderdiff = order; }
-    Topology* get_innerTopo_physical() ;
-    Topology* get_innerTopo_spectral() ;
+    const Topology* get_innerTopo_physical() ;
+    const Topology* get_innerTopo_spectral() ;
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

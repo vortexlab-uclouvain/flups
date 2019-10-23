@@ -59,13 +59,16 @@ class SwitchTopo_nb : public SwitchTopo {
     int* _iselfBlockID = NULL;
     int* _oselfBlockID = NULL;
 
-    opt_int_ptr _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
-    opt_int_ptr _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
 
     MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
     MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+
+    void _init_blockInfo();
+    void _free_blockInfo();
 
    public:
     SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
@@ -73,7 +76,7 @@ class SwitchTopo_nb : public SwitchTopo {
 
     void setup_buffers(opt_double_ptr _sendBuf,opt_double_ptr _recvBuf);
     void execute(double* v, const int sign) const;
-
+    void setup() ;
     void disp() const;
 };
 

@@ -45,13 +45,12 @@ void flups_free(void* data){
 //***********************************************************************
 // * TOPOLOGIES
 // **********************************************************************/
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment){
-    Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment);
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm){
+    Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment, comm);
     return t;
 }
 
 void flups_topo_free(FLUPS_Topology* t) {
-    // t->~Topology();
     delete t;
 }
 
@@ -91,13 +90,17 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
     return (unsigned long long)t->memsize();
 }
 
+MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
+    return t->get_comm();
+}
+
 //***********************************************************************
 //*  SOLVER
 //********************************************************************* */
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
@@ -110,7 +113,6 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], c
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s){
-    // s->~Solver();
     delete s;
 }
 
@@ -119,8 +121,8 @@ void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type){
     s->set_GreenType(type);
 }
 
-double* flups_setup(FLUPS_Solver* s){
-    return s->setup();
+double* flups_setup(FLUPS_Solver* s,const bool changeComm){
+    return s->setup(changeComm);
 }
 
 // solve
@@ -143,11 +145,11 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();
 }
 
-FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
     return s->get_innerTopo_spectral();
 }
 
@@ -178,7 +180,6 @@ FLUPS_Profiler* flups_profiler_new_n(const char name[]){
 }
 
 void flups_profiler_free(FLUPS_Profiler* p) {
-    // p->~Profiler();
     delete p;
 }
 

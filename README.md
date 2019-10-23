@@ -102,7 +102,7 @@ int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
 bool isComplex = false;          // real data
 
 // no specific alignement => we put a value of 1
-Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1);
+Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1, MPI_COMM_WORLD);
 
 // define additional quantities
 double L = {1.0, 2.0, 1.0};
@@ -117,7 +117,7 @@ FLUPS::Solver *      mysolver   = new FLUPS::Solver(topo, mybc, h, L);
 
 // setup the solver
 mysolver->set_GreenType(FLUPS::HEJ2);
-mysolver->setup();
+mysolver->setup(false);
 ```
 
 To solve a field `rhs` that has been defined on the topology, use

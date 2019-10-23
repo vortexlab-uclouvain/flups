@@ -187,11 +187,11 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
  * @param nglob The global number of points in each direction of the domain
  * @param nproc The number of processors per direction.
  * @param isComplex The state of the topo: real (false) or complex (true)
- * @param axproc The correspondance between the physical dimensions and the dimensions in memory, otherwise NULL.
+ * @param axproc The correspondance between the physical dimensions and the rank decomposition. NULL for the default behavior (0 1 2).
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
 
 /**
  * @brief Clean and free the topo.
@@ -229,12 +229,21 @@ void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
  */
 
 unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
+
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
 unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
+
+/**
+ * @brief returns the communicator of the topology
+ * 
+ * @param t the Topology of interest
+ * @param comm the communicator
+ */
+MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
 
 /**@} */
 
@@ -256,7 +265,19 @@ void flups_cleanup(FLUPS_Solver* s);
 
 // setup the solver
 void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
-double* flups_setup(FLUPS_Solver* s);
+
+/**
+ * @brief setup the solver
+ * 
+ * @warning after this call the solver cannot change anymore!
+ * 
+ * @warning if changeComm is true, the rank has to be computed and the communicator has to be reset to the one provided by flups_topo_get_comm
+ * 
+ * @param s 
+ * @param changeComm indicate if we are allowed to change the communicator
+ * @return double* 
+ */
+double* flups_setup(FLUPS_Solver* s,const bool changeComm);
 
 // solve
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
