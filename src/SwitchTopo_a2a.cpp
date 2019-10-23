@@ -1097,20 +1097,20 @@ void SwitchTopo_a2a_test2() {
     int comm_size;
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    const int nglob[3] = {24, 24, 24};
-    const int nproc[3] = {1, 3, 2};
+    // const int nglob[3] = {24, 24, 24};
+    // const int nproc[3] = {1, 3, 2};
 
-    const int nglob_big[3] = {24, 24, 24};
-    const int nproc_big[3] = {1, 2, 3};
-    const int axproc[3] = {1,0,2};
+    // const int nglob_big[3] = {24, 24, 24};
+    // const int nproc_big[3] = {1, 2, 3};
+    // const int axproc[3] = {1,0,2};
 
-    // const int nglob[3] = {20, 20, 20};
-    // const int nproc[3] = {1, 3, 1};
+    const int nglob[3] = {20, 20, 20};
+    const int nproc[3] = {1, 3, 1};
 
-    // const int nglob_big[3] = {20, 20, 20};
-    // const int nproc_big[3] = {1, 1, 3};
-    // // const int nproc_big[3] = {1, 3, 2};
-    // const int axproc[3] = {0,1,2};
+    const int nglob_big[3] = {20, 20, 20};
+    const int nproc_big[3] = {1, 1, 3};
+    // const int nproc_big[3] = {1, 3, 2};
+    const int axproc[3] = {0,1,2};
 
     {
         //===========================================================================
@@ -1139,11 +1139,11 @@ void SwitchTopo_a2a_test2() {
         int s;
         //simulate a new comm with reordered ranks:
         // int       outRanks[6] = {0, 3, 4, 1, 2, 5}; s=6;
-        int       outRanks[6] = {0, 1, 4, 2, 3, 5}; s=6;
+        // int       outRanks[6] = {0, 1, 4, 2, 3, 5}; s=6;
             //CAUTION: rank i goes in posisition outRanks[i] in the new comm
             //the associated rank will be {0 1 3 4 2 5}
 
-        // int       outRanks[6] = {0, 2, 1}; s=3;
+        int       outRanks[6] = {0, 2, 1}; s=3;
         MPI_Group group_in, group_out;
         MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
         MPI_Group_incl(group_in, s, outRanks, &group_out);        //manually reorder the ranks
