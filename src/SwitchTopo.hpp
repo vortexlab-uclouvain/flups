@@ -158,4 +158,40 @@ static inline int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
 }
 
+/**
+ * @brief translate a list of ranks of size size from inComm to outComm
+ * 
+ * ranks are replaced with their new values.
+ * 
+ * @param size 
+ * @param ranks a list of ranks expressed in the inComm
+ * @param inComm input communicator
+ * @param outComm output communicator
+ */
+inline static void  translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
+    BEGIN_FUNC;
+
+    int comp;
+    MPI_Comm_compare(inComm, outComm, &comp);
+    FLUPS_CHECK(size!=0,"size cant be 0.",LOCATION);
+
+    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
+    std::memcpy(tmprnks,ranks,size*sizeof(int));
+
+    int err;
+    if (comp != MPI_IDENT) {
+        MPI_Group group_in, group_out;
+        err = MPI_Comm_group(inComm, &group_in);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in",LOCATION);
+        err = MPI_Comm_group(outComm, &group_out);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
+
+        err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
+        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
+    }
+
+    flups_free(tmprnks);
+    END_FUNC;
+}
+
 #endif

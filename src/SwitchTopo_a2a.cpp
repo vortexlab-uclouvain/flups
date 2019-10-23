@@ -78,6 +78,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _topo_in  = topo_input;
     _topo_out = topo_output;
 
+    // we store the communicators at init
     _inComm  = _topo_in->get_comm();
     _outComm = _topo_out->get_comm();
 
@@ -87,11 +88,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 
 #ifdef PROF    
     _prof     = prof;
-    // for (int ip=0;ip<3;ip++){
-    //     if(_topo_in->axis() == _topo_out->axproc(ip)){
-    //         _iswitch  = ip;
-    //     }
-    // }
     _iswitch = _topo_out->axproc(_topo_out->axis());
 #endif
     //-------------------------------------------------------------------------
@@ -107,7 +103,7 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _topo_out->cmpt_intersect_id(tmp, _topo_in, _ostart, _oend);
 
     //-------------------------------------------------------------------------
-    /** - compute block information */
+    /** - compute block information: sizes, start ids, ... */
     //-------------------------------------------------------------------------
     _init_blockInfo();
 
@@ -224,6 +220,11 @@ void SwitchTopo_a2a::setup() {
     MPI_Comm_rank(inComm, &rank);
     MPI_Comm_size(inComm, &comm_size);
 
+    //-------------------------------------------------------------------------
+    /** - compare the current communicators from topo_in and topo_out.
+     * If they have change, we need to recompute all the communication init
+     */
+    //-------------------------------------------------------------------------
     //Ensure that comms have not changed since init. Otherwise recompute the source/destination of blocks.
     int compIn, compOut;
     MPI_Comm_compare(inComm, _inComm, &compIn);
@@ -242,7 +243,6 @@ void SwitchTopo_a2a::setup() {
         //The input topo may have been reset to real, even if this switchtopo is a complex2complex. 
         //We create a tmp input topo which is complex if needed, for the computation of start and end.
         bool isC2C = _topo_out->isComplex();
-        
         int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
         for(int i = 0; i<3;i++){
             tmp_nglob[i] = _topo_in->nglob(i);
@@ -259,6 +259,7 @@ void SwitchTopo_a2a::setup() {
         //recompute block info
         _init_blockInfo();
 
+        // free the temp topo
         delete(topo_in_tmp);
     }
 
@@ -354,6 +355,7 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
     BEGIN_FUNC;
 
     int  rlen, comp;
+    // if the subcom is not equal to the income we need to free it
     MPI_Comm_compare(_subcomm,_inComm,&comp);
     if(comp!=MPI_IDENT){
         char myname[MPI_MAX_OBJECT_NAME];
@@ -612,32 +614,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
     FLUPS_INFO("using %d blocks on send and %d on recv", send_nBlock[0] * send_nBlock[1] * send_nBlock[2], recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2]);
 
-    //Testing if the topo in and out are exactly the same. In that case, we just return.
-    if(_is_all2all){
-
-        // printf("ALL INFOs: nblocks %d %d %d / %d %d %d\n",send_nBlock[0],send_nBlock[1],send_nBlock[2],recv_nBlock[0],recv_nBlock[1],recv_nBlock[2]);
-        // printf("ALL INFOs: istart  %d %d %d / %d %d %d\n",istart[0],istart[1],istart[2],ostart[0],ostart[1],ostart[2]);
-        // printf("ALL INFOs: iend    %d %d %d / %d %d %d\n",iend[0],iend[1],iend[2],oend[0],oend[1],oend[2]);
-        // printf("ALL INFOs: inmem   %d %d %d / %d %d %d\n",inmem[0],inmem[1],inmem[2],onmem[0],onmem[1],onmem[2]);
-        // printf("ALL INFOs: iBSize  %d %d %d / %d %d %d\n",iBlockSize[0],iBlockSize[1],iBlockSize[2],oBlockSize[0],oBlockSize[1],oBlockSize[2]);
-        bool condition;
-        for (int id=0;id<3;id++){
-            condition &= (send_nBlock[id] == recv_nBlock[id]) && \
-                         (istart[id] == ostart[id]) && \
-                         (iend[id] == oend[id]) && \
-                         (inmem[id] == onmem[id]) && \
-                         (iBlockSize[id] == oBlockSize[id]);
-        }
-
-        if(condition){
-            FLUPS_INFO("Skipping switchtopo: in and out topos are the same");
-            PROF_STOP("reorder")
-            END_FUNC;
-            return;
-        }
-    }
-
-
     // define important constants
     const int iax0 = topo_in->axis();
     const int iax1 = (iax0 + 1) % 3;
@@ -748,16 +724,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             }
         }
     }
-
-    //PRINT SEND BUFFER
-    // for (int ib=0;ib<nblocks_send;ib++){
-    //     printf("sendbuff BLOCK%d (%p): ",ib,sendBuf[ib]);
-    //     for(int i = 0; i<nByBlock[1]*nByBlock[2];i++){
-    //         printf("%lf ",*(sendBuf[ib]+i*nByBlock[0]));
-    //     }
-    //     // p+=nByBlock[0]*nByBlock[1]*nByBlock[2];
-    //     printf("\n");
-    // }
     
     PROF_STOPi("mem2buf",_iswitch);
 
@@ -818,19 +784,9 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     //-------------------------------------------------------------------------
     // get some counters
     const int nblocks_recv = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
-    const int out_axis     = topo_out->axis();
     // for each block
     PROF_STARTi("buf2mem",_iswitch);
 
-    //PRINT RECV BUFFER
-    // for (int ib=0;ib<nblocks_recv;ib++){
-    //     printf("recvbuff BLOCK%d (%p): ",ib,recvBuf[ib]);
-    //     for(int i = 0; i<nByBlock[1]*nByBlock[2];i++){
-    //         printf("%lf ",*(recvBuf[ib]+i*nByBlock[0]));
-    //     }
-    //     // p+=nByBlock[0]*nByBlock[1]*nByBlock[2];
-    //     printf("\n");
-    // }
     
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, nblocks_recv, recv_nBlock, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onmem, oax0, oax1, oax2)
     for (int bid = 0; bid < nblocks_recv; bid++) {
@@ -1042,7 +998,6 @@ void SwitchTopo_a2a_test() {
 
         double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
-        const int ax0      = topo->axis();
         const int nmem2[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {

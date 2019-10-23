@@ -117,7 +117,6 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
         const int destrank = rankindex(destrankd, topo);
         // get the global destination tag
         destRank[ib] = destrank;
-        // translate_ranks(1, destRank+ib, topo->get_comm(), _inComm);
 
         FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destrank, destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
         if (destTag != NULL) {
@@ -296,15 +295,15 @@ void SwitchTopo::_cmpt_commSplit(){
     for(int ir = 0; ir < comm_size; ir++){
         nleft+=colors[ir];
     }
+    // if nleft = 0 -> everybody is inside the same color = the rank = 0
+    // we do not create a new comm if it is not necessary
     if(nleft==0){
         // avoids the creation of a communicator
         _subcomm = _inComm;
-        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master",LOCATION);
-        
+        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master");
     } else {
         // create the communicator and give a name
         MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
-
         std::string commname = "comm-" + std::to_string(mycolor);
         MPI_Comm_set_name(_subcomm, commname.c_str());
     }
@@ -314,7 +313,6 @@ void SwitchTopo::_cmpt_commSplit(){
 
     END_FUNC;
 }
-
 
 /**
  * @brief setup the lists according to the master and sub communicators

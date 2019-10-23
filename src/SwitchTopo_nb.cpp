@@ -281,8 +281,27 @@ void SwitchTopo_nb::setup(){
     _setup_subComm(_inBlock, _i2o_destRank,NULL,NULL);
     _setup_subComm(_onBlock, _o2i_destRank,NULL,NULL);
 
+    //-------------------------------------------------------------------------
+    /** - Compute the self blocks in the new comms   */
+    //-------------------------------------------------------------------------
     int newrank;
     MPI_Comm_rank(_subcomm,&newrank);
+    _selfBlockN = 0;
+    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
+        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
+        if (_i2o_destRank[bid] == newrank) {
+            _selfBlockN++;
+        }
+    }
+    int temp = 0;
+    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
+        if (_o2i_destRank[bid] == newrank) {
+            temp++;
+        }
+    }
+    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
+    _iselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
+    _oselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -325,26 +344,6 @@ void SwitchTopo_nb::setup(){
         fclose(file);
     }
 #endif
-
-    //-------------------------------------------------------------------------
-    /** - Compute the self blocks in the new comms   */
-    //-------------------------------------------------------------------------
-    _selfBlockN = 0;
-    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
-        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
-        if (_i2o_destRank[bid] == newrank) {
-            _selfBlockN++;
-        }
-    }
-    int temp = 0;
-    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        if (_o2i_destRank[bid] == newrank) {
-            temp++;
-        }
-    }
-    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
-    _iselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
-    _oselfBlockID = (int*)flups_malloc(_selfBlockN * sizeof(int));
 
     END_FUNC;
 }
@@ -779,7 +778,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     //-------------------------------------------------------------------------
     // get some counters
     const int nblocks_recv  = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
-    const int out_axis = topo_out->axis();
 
     // create the status as a shared variable
     MPI_Status status;
@@ -793,7 +791,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
             bid = oselfBlockID[count];
 #pragma omp master
             {
-                // FLUPS_INFO("doing the block in se:qlf: %d",bid);
                 PROF_STARTi("buf2mem",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {

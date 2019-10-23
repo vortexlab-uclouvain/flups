@@ -39,17 +39,17 @@
  */
 class Topology {
    protected:
-    int      _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int      _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int      _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int      _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int      _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int      _axis;       /**<@brief fastest rotating index in the topology  */
-    int      _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int      _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int      _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
+    int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
+    int       _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _axis;       /**<@brief fastest rotating index in the topology  */
+    int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
     const int _alignment;
-    MPI_Comm _comm;       /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
+    MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -99,6 +99,7 @@ class Topology {
      * 
      * @{
      */
+    void cmpt_sizes();
     /**
      * @brief returns the local size of on this proc
      * 
@@ -199,42 +200,6 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
         rank = rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
     }
     return rank;
-}
-
-/**
- * @brief translate a list of ranks of size size from inComm to outComm
- * 
- * ranks are replaced with their new values.
- * 
- * @param size 
- * @param ranks a list of ranks expressed in the inComm
- * @param inComm input communicator
- * @param outComm output communicator
- */
-void static translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
-    BEGIN_FUNC;
-
-    int comp;
-    MPI_Comm_compare(inComm, outComm, &comp);
-    FLUPS_CHECK(size!=0,"size cant be 0.",LOCATION);
-
-    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
-    std::memcpy(tmprnks,ranks,size*sizeof(int));
-
-    int err;
-    if (comp != MPI_IDENT) {
-        MPI_Group group_in, group_out;
-        err = MPI_Comm_group(inComm, &group_in);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in",LOCATION);
-        err = MPI_Comm_group(outComm, &group_out);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
-
-        err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
-        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
-    }
-
-    flups_free(tmprnks);
-    END_FUNC;
 }
 
 // /**

@@ -37,12 +37,12 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
-    // /** - Initialize the OpenMP threads */
+    // /** - Initialize the OpenMP threads for FFTW */
     // //-------------------------------------------------------------------------
     fftw_init_threads();
 
     //-------------------------------------------------------------------------
-    /** - Check if we can use the omp_malloc with the predefined alignement */
+    /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
     //-------------------------------------------------------------------------
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
@@ -91,10 +91,11 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     if (_prof != NULL) _prof->create("copy", "solve");
     if (_prof != NULL) _prof->create("fftw", "solve");
     if (_prof != NULL) _prof->create("domagic", "solve");
-
     if (_prof != NULL) _prof->start("init");
+
+
     //-------------------------------------------------------------------------
-    /** - For each dim, create the plans and sort them type */
+    /** - For each dim, create the plans given the BC and sort them by type */
     //-------------------------------------------------------------------------
     for (int id = 0; id < 3; id++)
         _hgrid[id] = h[id];
@@ -111,7 +112,7 @@ Solver::Solver(const Topology *topo, const BoundaryType mybc[3][2], const double
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
 
     //-------------------------------------------------------------------------
-    /** - Initialise the plans and get the sizes */
+    /** - Initialise the topos, the plans and the SwitchTopos */
     //-------------------------------------------------------------------------
     _topo_phys = topo; //store pointer to the topo of the user
     _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
@@ -153,23 +154,29 @@ double* Solver::setup() {
     BEGIN_FUNC;
     if (_prof != NULL) _prof->start("setup");
 
+    //-------------------------------------------------------------------------
+    /** [IF REORDER_RANKS IS DEFINED] */
+    //-------------------------------------------------------------------------
+    
 #ifdef REORDER_RANKS
     //-------------------------------------------------------------------------
-    /** - Precompute the communication graph and reorder the ranks */
+    /** - Precompute the communication graph */
     //-------------------------------------------------------------------------
+    // get the communication size
     int worldsize;
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-
+    MPI_Comm_size(_topo_phys->get_comm(), &worldsize);
+    
+    // initialize the sources, sources weights, destination and destination weights
     int* sources  = (int*)flups_malloc(worldsize * sizeof(int));
     int* sourcesW = (int*)flups_malloc(worldsize * sizeof(int));
     int* dests    = (int*)flups_malloc(worldsize * sizeof(int));
     int* destsW   = (int*)flups_malloc(worldsize * sizeof(int));
 
-    //Preparing the graph: we setup the thing as if every node was to communicate with
-    // every other node, and we will then  
+    //Preparing the graph:
+    // we setup the thing as if every node was to communicate with every other node
+    // the default communication weight is null
     memset(sourcesW,0,sizeof(int)*worldsize);
     memset(destsW,0,sizeof(int)*worldsize);
-
     for(int i =0;i<worldsize;i++){
         sources[i] = i;
         dests[i] = i;
@@ -186,6 +193,9 @@ double* Solver::setup() {
         _switchtopo[i]->add_toGraph(sourcesW,destsW);
     }
 
+    //-------------------------------------------------------------------------
+    /** - Build the new comm based on that graph */
+    //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
     MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW, \
                                                     worldsize, dests, destsW, \
@@ -226,15 +236,12 @@ double* Solver::setup() {
     free(Dest);
     free(DestW);
 #endif
-
+    //-------------------------------------------------------------------------
+    /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
+    //-------------------------------------------------------------------------
 #ifdef DEV_SIMULATE_GRAPHCOMM
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    //erase the graph comm and replace by a home made comm
-
-    //hardcoded comms:
-    // int       outRanks[6] = {0, 1, 4, 2, 3, 5};
-    // int       outRanks[4] = {0, 1, 3, 2}; 
 
     //switch indices by a random number:
 #ifdef DEV_REORDER_SHIFT
@@ -245,12 +252,12 @@ double* Solver::setup() {
 
     int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
     if(rank == 0){
-        FLUPS_INFO("SIMULATED GRAPH_COMM : REORDERING RANKS AS FOLLOWS",LOCATION);
+        FLUPS_INFO("SIMULATED GRAPH_COMM : REORDERING RANKS AS FOLLOWS");
     }
     for (int i=0;i<worldsize;i++){
         outRanks[i] = (i + shift)%worldsize;
         if(rank == 0){
-            FLUPS_INFO("old rank: %d \t new rank: %d",i,outRanks[i],LOCATION);
+            FLUPS_INFO("old rank: %d \t new rank: %d",i,outRanks[i]);
         }
     }
     
@@ -275,11 +282,15 @@ double* Solver::setup() {
         _topo_green[i]->change_comm(graph_comm);
     }
 
-#if DUMP_H5
+#if PERF_VERBOSE
     _topo_hat[0]->disp_rank();
 #endif
 
 #endif //REORDER_RANKS
+
+    //-------------------------------------------------------------------------
+    /** In every cases, we do */
+    //-------------------------------------------------------------------------
 
     if (_prof != NULL) _prof->start("alloc_data");
     //-------------------------------------------------------------------------
@@ -327,11 +338,11 @@ double* Solver::setup() {
     if (_prof != NULL) _prof->stop("setup");
 
     //-------------------------------------------------------------------------
-    /** - Setup the subcommunications (if possible) and allocate the buffers for the SwitchTopos */
+    /** - Setup the SwitchTopo, this will take the latest comm into account */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
 
-    FLUPS_INFO("============================================================ DONE WITH SOLVER INITIALIZATION ===================================================",LOCATION);
+    FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
     END_FUNC;
     return _data;
@@ -704,7 +715,7 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL){
             switchtopo[id]->setup();
-            FLUPS_INFO("--------------- switchtopo %d set up ----------",id,LOCATION);
+            FLUPS_INFO("--------------- switchtopo %d set up ----------",id);
         } 
     }
 
@@ -1024,7 +1035,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
     double *             myfield = field;
     opt_double_ptr       mydata  = _data;
-    const opt_double_ptr myrhs   = rhs;
+    // const opt_double_ptr myrhs   = rhs;
 
     if (_prof != NULL) _prof->start("solve");
 

@@ -51,7 +51,6 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
 }
 
 void flups_topo_free(FLUPS_Topology* t) {
-    // t->~Topology();
     delete t;
 }
 
@@ -100,21 +99,20 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-// #ifndef PROF
+#ifndef PROF
 FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
-// #else
+#else
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
-// #endif
+#endif
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s){
-    // s->~Solver();
     delete s;
 }
 
@@ -182,7 +180,6 @@ FLUPS_Profiler* flups_profiler_new_n(const char name[]){
 }
 
 void flups_profiler_free(FLUPS_Profiler* p) {
-    // p->~Profiler();
     delete p;
 }
 

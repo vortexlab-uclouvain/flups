@@ -240,8 +240,8 @@ unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
 /**
  * @brief returns the communicator of the topology
  * 
- * @param t 
- * @param comm 
+ * @param t the Topology of interest
+ * @param comm the communicator
  */
 void flups_topo_get_comm(FLUPS_Topology* t, MPI_Comm comm);
 
