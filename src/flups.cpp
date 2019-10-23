@@ -145,11 +145,11 @@ void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
     s->set_OrderDiff(order);
 }
 
-FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();
 }
 
-FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
+const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
     return s->get_innerTopo_spectral();
 }
 

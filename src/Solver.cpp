@@ -376,32 +376,16 @@ Solver::~Solver() {
  * @brief returns a copy of the topology corresponding to the physical space
  * 
  */
-Topology* Solver::get_innerTopo_physical() {
-    const int  axis       = _topo_hat[0]->axis();
-    const int  nglob[3]   = {_topo_hat[0]->nglob(0), _topo_hat[0]->nglob(1), _topo_hat[0]->nglob(2)};
-    const int  nproc[3]   = {_topo_hat[0]->nproc(0), _topo_hat[0]->nproc(1), _topo_hat[0]->nproc(2)};
-    const int  axproc[3]  = {_topo_hat[0]->axproc(0), _topo_hat[0]->axproc(1), _topo_hat[0]->axproc(2)};
-    const bool isComplex  = _topo_hat[0]->isComplex();
-    const int  align      = FLUPS_ALIGNMENT;
-    Topology*  topoPhys   = new Topology(axis, nglob, nproc, isComplex, axproc, align, _topo_hat[0]->get_comm());
-
-    return topoPhys;
+const Topology* Solver::get_innerTopo_physical() {
+    return _topo_hat[0];
 }
 
 /**
  * @brief returns a copy of the topology corresponding to the fully transformed space
  * 
  */
-Topology* Solver::get_innerTopo_spectral() {
-    const int  axis      = _topo_hat[2]->axis();
-    const int  nglob[3]  = {_topo_hat[2]->nglob(0), _topo_hat[2]->nglob(1), _topo_hat[2]->nglob(2)};
-    const int  nproc[3]  = {_topo_hat[2]->nproc(0), _topo_hat[2]->nproc(1), _topo_hat[2]->nproc(2)};
-    const int  axproc[3] = {_topo_hat[2]->axproc(0), _topo_hat[2]->axproc(1), _topo_hat[2]->axproc(2)};
-    const bool isComplex = _topo_hat[2]->isComplex();
-    const int  align     = FLUPS_ALIGNMENT;
-    Topology*  topoSpe   = new Topology(axis, nglob, nproc, isComplex, axproc, align, _topo_hat[0]->get_comm());
-
-    return topoSpe;
+const Topology* Solver::get_innerTopo_spectral() {
+    return _topo_hat[2];
 }
 
 /**

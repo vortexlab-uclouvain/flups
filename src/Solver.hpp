@@ -170,8 +170,8 @@ class Solver {
 
     double* setup();
     void set_OrderDiff(const int order) { _orderdiff = order; }
-    Topology* get_innerTopo_physical() ;
-    Topology* get_innerTopo_spectral() ;
+    const Topology* get_innerTopo_physical() ;
+    const Topology* get_innerTopo_spectral() ;
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)
