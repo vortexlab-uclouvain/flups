@@ -100,6 +100,10 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
 void Topology::cmpt_sizes() {
     BEGIN_FUNC;
     for (int id = 0; id < 3; id++) {
+        // compute the _nbyproc
+        // number of unknows everywhere except the last one
+        _nbyproc[id] = nglob[id] / nproc[id];  // integer division = floor
+        
         // if we are the last rank in the direction, we take everything what is left
         if ((_rankd[id] < (_nproc[id] - 1))) {
             _nloc[id] = _nbyproc[id];
