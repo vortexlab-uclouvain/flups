@@ -90,7 +90,7 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
         int bidv[3];
         localSplit(ib, nBlock, 0, bidv, 1);
         // initialize the destrank
-        int global_bid[3] = {0,0,0}; 
+        int global_bid[3] = {0, 0, 0};
         int destrankd[3] = {0, 0, 0};
         
         // determine the dest rank for each dimension
@@ -199,7 +199,7 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
         // get the list of number of procs
-        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, _inComm);
+        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
         // set the starting indexes to 0
         blockIDStart[id] = 0;
         // compute the starting index
@@ -215,7 +215,7 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
         FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
 
         //everybody needs to know the startID of the first block in each proc
-        MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, _inComm);
+        MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
     }
     
     END_FUNC;
