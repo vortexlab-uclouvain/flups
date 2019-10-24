@@ -25,7 +25,7 @@ for bcx in BC1 :
             code = bcx[0] + bcx[1] + bcy[0] + bcy[1] + bcz[0] + bcz[1]
 
             #Launching test
-            r = subprocess.run(["./flups_validation"] + ["-res"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+            r = subprocess.run(["./flups_validation_nb"] + ["-res"] + ["8"] + ["8"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
             
             if r.returncode != 0 :
                 print("test %i (BCs : "%i + code + ") failed with error code ",r.returncode)

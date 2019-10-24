@@ -23,16 +23,18 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-include make_arch/make.vagrant_intel
+ARCH_FILE ?= make_arch/make.vagrant_intel
+
+include $(ARCH_FILE)
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
-NAME := flups
-TARGET_EXE := $(NAME)_validation
-TARGET_LIB := build/lib$(NAME).so
-
 PREFIX ?= ./
+NAME := flups
+# library naming
+TARGET_LIB_A2A := build/lib$(NAME)_a2a
+TARGET_LIB_NB  := build/lib$(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -44,67 +46,139 @@ INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
 #---- FFTW
-INC += -I$(FFTWDIR)/include
-LIB += -L$(FFTWDIR)/lib -lfftw3_omp -lfftw3  -Wl,-rpath,$(FFTWDIR)/lib
+FFTW_INC ?= /usr/include
+FFTW_LIB ?= /usr/lib
+FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
+INC += -I$(FFTW_INC)
+LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
 #---- HDF5
-HDF5LIB ?= -L$(HDF5DIR)/lib -lhdf5 -Wl,-rpath,$(HDF5DIR)/lib
-HDF5INC ?= -I$(HDF5DIR)/include
-INC += $(HDF5INC)
-LIB += $(HDF5LIB)
+HDF5_INC ?= /usr/include
+HDF5_LIB ?= /usr/lib
+HDF5_LIBNAME ?= -lhdf5
+INC += -I$(HDF5_INC)
+LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
 HEAD := $(wildcard $(SRC_DIR)/*.hpp)
+API := $(wildcard $(SRC_DIR)/*.h)
 
 ## generate object list
-OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
+OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
+IN_A2A := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
+OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 
 ################################################################################
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+
+$(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
+$(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
+
 ################################################################################
-default: $(TARGET_EXE)
+default: lib_static info
 
-all: $(TARGET_EXE) $(TARGET_LIB)
+# for the validation, do a static lib
+validation: install_static
 
-lib: $(TARGET_LIB)
+# compile static and dynamic lib
+all: lib_static lib_dynamic
 
-$(TARGET_EXE): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB)
+all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
-$(TARGET_LIB): $(OBJ)
+nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
+
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
+
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
+
+lib: lib_static
+
+$(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-install: $(TARGET_LIB)
-	mkdir -p $(PREFIX)/lib
-	mkdir -p $(PREFIX)/include
-	cp $(TARGET_LIB) $(PREFIX)/lib
-	cp $(HEAD) $(PREFIX)/include
+$(TARGET_LIB_NB).so: $(OBJ_NB)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_A2A).a: $(OBJ_A2A)
+	ar rvs $@  $^  
+
+$(TARGET_LIB_NB).a: $(OBJ_NB)
+	ar rvs $@  $^  
+
+install_dynamic: lib_dynamic
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+
+install_static: lib_static 
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+
+# for a standard installation, do the dynamic link	
+install: install_static logo
 
 test:
 	@echo $(SRC)
 
 clean:
-	rm -f $(OBJ_DIR)/*.o
-	rm -f $(TARGET_EXE)
-	rm -f $(TARGET_LIB)
+	@rm -f $(OBJ_DIR)/*.o
+	@rm -f $(TARGET_LIB_A2A)*
+	@rm -f $(TARGET_LIB_NB)*
 
 destroy:
-	rm -f $(OBJ_DIR)/*.o
-	rm -f $(OBJ_DIR)/*.d
-	rm -f $(TARGET_EXE)
-	rm -f $(TARGET_LIB)
-	rm -f $(OBJ_DIR)/*
-	rm -f include/*
-	rm -f lib/*
+	@rm -rf $(OBJ_DIR)/*.o
+	@rm -rf $(OBJ_DIR)/*.d
+	@rm -rf $(TARGET_LIB_A2A)
+	@rm -rf $(TARGET_LIB_NB)
+	@rm -rf $(OBJ_DIR)/*
+	@rm -rf include
+	@rm -rf lib
 
-info:
-	$(info SRC = $(SRC))
-	$(info OBJ = $(OBJ))
-	$(info DEP = $(DEP))
+info: logo
+	$(info prefix = $(PREFIX)/lib )
+	$(info compiler = $(shell $(CXX) --version))
+	$(info compil. flags = $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD)
+	$(info linker flags = -shared $(LDFLAGS))
+	$(info using arch file = $(ARCH_FILE) )
+	$(info ------------)
+	$(info FFTW:)
+	$(info - include: -I$(FFTW_INC) )
+	$(info - lib: -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB))
+	$(info ------------)
+	$(info HDF5:)
+	$(info - include: -I$(HDF5_INC) )
+	$(info - lib: -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB))
+	$(info ------------)
+	$(info LIST OF OBJECTS:)
+	$(info - SRC = $(SRC))
+	$(info - OBJ A2A = $(OBJ_A2A))
+	$(info - OBJ NB = $(OBJ_NB))
+	$(info - DEP = $(DEP))
+	$(info ------------)
+
+logo:
+	@echo "----------------------------------------------------"
+	@echo "    ______   _        _    _   _____     _____       "
+	@echo "   |  ____| | |      | |  | | |  __ \   / ____|     "
+	@echo "   | |__    | |      | |  | | | |__) | | (___       "
+	@echo "   |  __|   | |      | |  | | |  ___/   \___ \      "
+	@echo "   | |      | |____  | |__| | | |       ____) |     "
+	@echo "   |_|      |______|  \____/  |_|      |_____/      "
+	@echo "                                                    "
+	@echo "                                                    "
+	@echo "    	(C) UCLouvain - GPLv3                          "
+	@echo "----------------------------------------------------"
 
 -include $(DEP)

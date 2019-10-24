@@ -34,7 +34,7 @@
  * @brief A FFTW plan in one dimension
  * 
  */
-class FLUPS::FFTW_plan_dim {
+class FFTW_plan_dim {
     /**
      * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
      * 
@@ -59,6 +59,8 @@ class FLUPS::FFTW_plan_dim {
     bool   _isr2c      = false; /**< @brief is this plan the one that changes to complex?*/
     bool   _imult      = false; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     bool   _isSpectral = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    int    _fftw_stride = 0;
+    int    _howmany         = 0;
     int    _fieldstart = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
     int    _n_in       = 0;     /**< @brief the number of element in the transform*/
     int    _n_out      = 0;     /**< @brief the number of element coming out of the transform*/
@@ -82,7 +84,7 @@ class FLUPS::FFTW_plan_dim {
     void init(const int size[3], const bool isComplex);
 
     void allocate_plan(const Topology* topo, double* data);
-    void execute_plan();
+    void execute_plan(const Topology *topo, double* data) const;
 
     /**
      * @name Getters - return the value

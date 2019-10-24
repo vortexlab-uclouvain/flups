@@ -1,11 +1,15 @@
 /**
  * @file SwitchTopo.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
+ * @brief 
+ * @version
+ * @date 2019-09-30
+ * 
  * @copyright Copyright © UCLouvain 2019
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
@@ -25,95 +29,36 @@
 
 
 #include "SwitchTopo.hpp"
+#include "Topology.hpp"
 
-/**
- * @brief Construct a Switch Topo object
- * 
- * Let us consider the switch from the TOPO_IN to the TOPO_OUT.
- *
- * ```
- * +------------------------------------+
- * |  TOPO_OUT  |                       |
- * |            |                       |
- * |            |  n=5                  |
- * |            |                       |
- * |            v                       |
- * |  --------> +-------------+         |
- * |    n=3     | TOPO_IN     |         |
- * |            |             |         |
- * |            |             |         |
- * |            |             |         |
- * |            +-------------+         |
- * |                                    |
- * |                                    |
- * |                                    |
- * +------------------------------------+
- * ```
- * 
- * The shift argument will then be (3,5) since we need to add (3,5) points in the topo_output
- * to reach the (0,0,0) point in the topo_input.
- * 
- * The switch between topologies works using blocks. 
- * A block is defined as a memory block on one proc that goes on another proc.
- * The size of the block will always have the same size on every process.
- * The number of block changes from one process to another.
- * Therefore we have to initialize the block structure and then use it during the execute.
- * 
- * 
- * @param topo_input the input topology
- * @param topo_output the output topology 
- * @param shift the shift is the position of the (0,0,0) of topo_input in the topo_output indexing (in XYZ-indexing)
- * @param prof the profiler to use to profile the execution of the SwitchTopo
- */
-using namespace FLUPS;
 
-SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
+void SwitchTopo::_cmpt_nByBlock(){
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
+    int comm_size;
+    MPI_Comm_size(_inComm,&comm_size);
 
-    int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
-    _topo_in  = topo_input;
-    _topo_out = topo_output;
-    _prof     = prof;
-
-    //-------------------------------------------------------------------------
-    /** - get the starting and ending index of the shared zone */
-    //-------------------------------------------------------------------------
-    // get the blockshift
-    for (int id = 0; id < 3; id++) {
-        _ib2o_shift[id] = shift[id];
-        _ob2i_shift[id] = -shift[id];
-    }
-    // get how much pints we send/recv in each direction
-    _topo_in->cmpt_intersect_id(_ib2o_shift, _topo_out, _istart, _iend);
-    _topo_out->cmpt_intersect_id(_ob2i_shift, _topo_in, _ostart, _oend);
-
-    //-------------------------------------------------------------------------
-    /** - get the block size as the GCD of the memory among every process between send and receive */
-    //-------------------------------------------------------------------------
-    // We use the greatest common divisor, because it is possible that the last proc
-    // in a given direction has a bit more data than the others (which all have
-    // _nbyproc points).
-    int* onProc = (int*)fftw_malloc(comm_size * sizeof(int));
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
         int isend = (_iend[id] - _istart[id]);
         int osend = (_oend[id] - _ostart[id]);
-        // To avoid that the 2*n+1 is destroying the block size,
-        // if we are the last proc, we forget about the last row
-        if(_topo_in->rankd(id) == (_topo_in->nproc(id)-1)){
-            isend = isend - isend%2;
+        // compute the exchanged size same if from the input or output
+        MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, _inComm);
+        // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
+        _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
+
+        // if I am the last one, I decrease the blocksize by one if needed
+        if (_topo_in->rankd(id) == (_topo_in->nproc(id) - 1)) {
+            isend = isend - _exSize[id] % 2;
         }
-        if(_topo_out->rankd(id) == (_topo_out->nproc(id)-1)){
-            osend = osend - osend%2;
+        if (_topo_out->rankd(id) == (_topo_out->nproc(id) - 1)) {
+            osend = osend - _exSize[id] % 2;
         }
         int npoints = gcd(isend,osend);
         // gather on each proc the gcd
-        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, MPI_COMM_WORLD);
+        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _inComm);
         // get the Greatest Common Divider among every process
         int my_gcd = onProc[0];
         for (int ip = 1; ip < comm_size; ip++) {
@@ -122,630 +67,423 @@ SwitchTopo::SwitchTopo(const Topology* topo_input, const Topology* topo_output, 
         // store it as the block dimension
         _nByBlock[id] = my_gcd;
     }
-    fftw_free(onProc);
-
-#ifdef PERF_VERBOSE
-    if (rank == 0) {
-        FILE* file = fopen("./prof/blocksize.txt","a+");
-        if(file != NULL){
-            fprintf(file,"SwitchTopo %d to %d: blocksize = %d %d %d\n",topo_input->axis(),topo_output->axis(),_nByBlock[0],_nByBlock[1],_nByBlock[2]);
-            fclose(file);
-        }
-    }
-#endif
-
-    //-------------------------------------------------------------------------
-    /** - get the starting index of the block 0,0,0 for input and output */
-    //-------------------------------------------------------------------------
-    int* inBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
-    int* onBlockEachProc = (int*)fftw_malloc(comm_size * 3 * sizeof(int));
-
-    cmpt_blockIndexes(_istart, _iend, _nByBlock, _topo_in, _inBlock, _iblockIDStart, inBlockEachProc);
-    cmpt_blockIndexes(_ostart, _oend, _nByBlock, _topo_out, _onBlock, _oblockIDStart, onBlockEachProc);
-
-    //-------------------------------------------------------------------------
-    /** - allocate the size, destination and tag arrays */
-    //-------------------------------------------------------------------------
-    // allocte the block size
-    for (int id = 0; id < 3; id++) {
-        _iBlockSize[id] = (int*)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-        _oBlockSize[id] = (int*)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
-    }
-    // allocate the destination ranks
-    _i2o_destRank = (opt_int_ptr)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-    _o2i_destRank = (opt_int_ptr)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
-    // allocate the destination tags
-    _i2o_destTag = (opt_int_ptr)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(int));
-    _o2i_destTag = (opt_int_ptr)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(int));
-    // allocate the requests
-    _i2o_sendRequest = (MPI_Request*)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(MPI_Request));
-    _i2o_recvRequest = (MPI_Request*)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(MPI_Request));
-    _o2i_sendRequest = (MPI_Request*)fftw_malloc(_onBlock[0] * _onBlock[1] * _onBlock[2] * sizeof(MPI_Request));
-    _o2i_recvRequest = (MPI_Request*)fftw_malloc(_inBlock[0] * _inBlock[1] * _inBlock[2] * sizeof(MPI_Request));
-
-    //-------------------------------------------------------------------------
-    /** - for each block, get the destination rank */
-    //-------------------------------------------------------------------------
-    // send destination ranks in the ouput topo
-    cmpt_blockSize(_inBlock,_iblockIDStart,_nByBlock,_istart,_iend,_iBlockSize);
-    cmpt_blockSize(_onBlock,_oblockIDStart,_nByBlock,_ostart,_oend,_oBlockSize);
-
-    cmpt_blockDestRankAndTag(_inBlock, _iblockIDStart, _topo_out, onBlockEachProc, _i2o_destRank, _i2o_destTag);
-    cmpt_blockDestRankAndTag(_onBlock, _oblockIDStart, _topo_in, inBlockEachProc, _o2i_destRank, _o2i_destTag);
-
-    // free the temp arrays
-    fftw_free(inBlockEachProc);
-    fftw_free(onBlockEachProc);
-
-    //-------------------------------------------------------------------------
-    /** - Compute the self blocks   */
-    //-------------------------------------------------------------------------
-    _selfBlockN = 0;
-    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
-        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
-        if (_i2o_destRank[bid] == rank) {
-            _selfBlockN++;
-        }
-    }
-    int temp = 0;
-    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        if (_o2i_destRank[bid] == rank) {
-            temp++;
-        }
-    }
-    FLUPS_CHECK(temp == _selfBlockN, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
-    _iselfBlockID = (int*)fftw_malloc(_selfBlockN * sizeof(int));
-    _oselfBlockID = (int*)fftw_malloc(_selfBlockN * sizeof(int));
-
-    //-------------------------------------------------------------------------
-    /** - initialize the profiler    */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) {
-        _prof->create("reorder","solve");
-        _prof->create("mem2buf","reorder");
-        _prof->create("buf2mem","reorder");
-        _prof->create("waiting","buf2mem");
-    }
-}
-
-void SwitchTopo::setup_buffers(opt_double_ptr* my_sendBuf,opt_double_ptr* my_recvBuf){
-    BEGIN_FUNC;
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-    //-------------------------------------------------------------------------
-    /** - Store the buffers */
-    //-------------------------------------------------------------------------
-    _sendBuf = my_sendBuf;
-    _recvBuf = my_recvBuf;
-    
-    //-------------------------------------------------------------------------
-    /** - for each block we associate the the data buffer and the MPI requests or associate it to NULL */
-    //-------------------------------------------------------------------------
-    int icount = 0;
-    for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
-        //create the request
-        const int datasize = _iBlockSize[0][bid] * _iBlockSize[1][bid] * _iBlockSize[2][bid] * _topo_out->nf();
-        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
-        if (_i2o_destRank[bid] == rank) {
-            // save the bid
-            _iselfBlockID[icount] = bid;
-            // associate the request to NULL
-            _i2o_sendRequest[bid] = MPI_REQUEST_NULL;
-            _o2i_recvRequest[bid] = MPI_REQUEST_NULL;
-            // increment the counter
-            icount++;
-        } else {
-            MPI_Send_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], MPI_COMM_WORLD, &(_i2o_sendRequest[bid]));
-            // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Recv_init(_sendBuf[bid], datasize, MPI_DOUBLE, _i2o_destRank[bid], bid, MPI_COMM_WORLD, &(_o2i_recvRequest[bid]));
-        }
-    }
-    int ocount = 0;
-    for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
-        //create the request
-        const int datasize = _oBlockSize[0][bid] * _oBlockSize[1][bid] * _oBlockSize[2][bid] * _topo_out->nf();
-        if (_o2i_destRank[bid] == rank) {
-            // save the bid
-            _oselfBlockID[ocount] = bid;
-            // associate the request to NULL
-            _i2o_recvRequest[bid] = MPI_REQUEST_NULL;
-            _o2i_sendRequest[bid] = MPI_REQUEST_NULL;
-            // increment the counter
-            ocount++;
-        } else {
-            // for the reception when doing input 2 output: receive from the rank o2i with tag bid
-            MPI_Recv_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], bid, MPI_COMM_WORLD, &(_i2o_recvRequest[bid]));
-            // for the send when doing output 2 input: send to rank o2i with tag o2i
-            MPI_Send_init(_recvBuf[bid], datasize, MPI_DOUBLE, _o2i_destRank[bid], _o2i_destTag[bid], MPI_COMM_WORLD, &(_o2i_sendRequest[bid]));
-        }
-    }
+    flups_free(onProc);
+    END_FUNC;
 }
 
 /**
- * @brief Destroy the Switch Topo
+ * @brief compute the destination rank for every block on the current processor
  * 
+ * @param nBlock the number of block on the current proc (012-indexing)
+ * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
+ * @param topo the destination topology
+ * @param nBlockOnProc the number of block on each proc in the destination topology
+ * @param destRank the computed destination rank for each block
  */
-SwitchTopo::~SwitchTopo() {
-    BEGIN_FUNC
-
-    if (_i2o_destRank != NULL) fftw_free(_i2o_destRank);
-    if (_o2i_destRank != NULL) fftw_free(_o2i_destRank);
-    if (_i2o_destTag != NULL) fftw_free(_i2o_destTag);
-    if (_o2i_destTag != NULL) fftw_free(_o2i_destTag);
-
-    if (_iselfBlockID != NULL) fftw_free(_iselfBlockID);
-    if (_oselfBlockID != NULL) fftw_free(_oselfBlockID);
-
-    for(int ib=0; ib< _inBlock[0]*_inBlock[1]*_inBlock[2]; ib++){
-        // if (_sendBuf[ib] != NULL) fftw_free(_sendBuf[ib]);
-        if (_i2o_sendRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_i2o_sendRequest[ib]));
-        if (_o2i_recvRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_o2i_recvRequest[ib]));
-    }
-    for(int ib=0; ib< _onBlock[0]*_onBlock[1]*_onBlock[2]; ib++){
-        // if (_recvBuf[ib] != NULL) fftw_free(_recvBuf[ib]);
-        if (_i2o_recvRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_i2o_recvRequest[ib]));
-        if (_o2i_sendRequest[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(_o2i_sendRequest[ib]));
-    }
-    for(int id=0; id<3; id++){
-        if(_iBlockSize[id] != NULL) fftw_free(_iBlockSize[id]);
-        if(_oBlockSize[id] != NULL) fftw_free(_oBlockSize[id]);
-    }
-
-    if (_i2o_sendRequest != NULL) fftw_free(_i2o_sendRequest);
-    if (_i2o_recvRequest != NULL) fftw_free(_i2o_recvRequest);
-    if (_o2i_sendRequest != NULL) fftw_free(_o2i_sendRequest);
-    if (_o2i_recvRequest != NULL) fftw_free(_o2i_recvRequest);
-
-    // fftw_free((double**)_sendBuf);
-    // fftw_free((double**)_recvBuf);
-}
-
-/**
- * @brief execute the switch from one topo to another
- * 
- * #### Buffer writting
- * The buffer memory writting is done according to the axis of the input topologies.
- * This allows to have a continuous memory access while filling the buffer.
- * 
- * We go through each block and we fill it using the local memory.
- * After a block has been filled it is send using the non-blocking send.
- * Since the writting of buffers is aligned with the topo_in axis, the loops are continuous in memory and fully vectorizable.
- * 
- * @warning
- * Let us note that the block is send with a tag which is its local index in the destination proc.
- * 
- * #### Buffer reading
- * We wait to receive one block of memory. Once one has been received, we do the copy.
- * The buffer reading has to follow the same order as in the buffer writting, so the axis of the topo_in in the inner loop.
- * 
- * The reading of the buffer is hence continuous but the writting inside the memory has an apriori unkown stride.
- * The stride may be computed using the difference of axis between the two topologies.
- * Hence the reading will be a bit slower since the writting due to memory discontinuities
- * 
- * @param v the memory to switch from one topo to another. It has to be large enough to contain both local data's
- * @param sign if the switch is forward (FLUPS_FORWARD) or backward (FLUPS_BACKWARD) w.r.t. the order defined at init.
- * 
- * -----------------------------------------------
- * We do the following:
- */
-void SwitchTopo::execute(opt_double_ptr v, const int sign) {
+void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *startBlockEachProc, const int *nBlockEachProc, int *destRank, int *destTag) {
     BEGIN_FUNC;
-
-    FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
-    FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
-
-    int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-
-    if (_prof != NULL) _prof->start("reorder");
-
-    //-------------------------------------------------------------------------
-    /** - setup required memory arrays */
-    //-------------------------------------------------------------------------
-
-    const Topology* topo_in;
-    const Topology* topo_out;
-
-    MPI_Request* sendRequest;
-    MPI_Request* recvRequest;
-
-    int send_nBlock[3];
-    int recv_nBlock[3];
-
-    int istart[3];
-    int ostart[3];
-    int iend[3];
-    int oend[3];
-    int inloc[3];
-    int onloc[3];
-
-    int* iBlockSize[3];
-    int* oBlockSize[3];
-    
-    int* oselfBlockID;
-    int* destTag;
-
-    const int nByBlock[3] = {_nByBlock[0],_nByBlock[1],_nByBlock[2]};
-
-    opt_double_ptr* sendBuf;
-    opt_double_ptr* recvBuf;
-
-    if (sign == FLUPS_FORWARD) {
-        topo_in     = _topo_in;
-        topo_out    = _topo_out;
-        sendRequest = _i2o_sendRequest;
-        recvRequest = _i2o_recvRequest;
-        sendBuf     = _sendBuf;
-        recvBuf     = _recvBuf;
-
-        oselfBlockID = _oselfBlockID;
-        destTag      = _i2o_destTag;
-
-        for (int id = 0; id < 3; id++) {
-            send_nBlock[id] = _inBlock[id];
-            recv_nBlock[id] = _onBlock[id];
-            istart[id]      = _istart[id];
-            iend[id]        = _iend[id];
-            ostart[id]      = _ostart[id];
-            oend[id]        = _oend[id];
-            inloc[id]       = _topo_in->nloc(id);
-            onloc[id]       = _topo_out->nloc(id);
-            iBlockSize[id]  = _iBlockSize[id];
-            oBlockSize[id]  = _oBlockSize[id];
-        }
-    } else if (sign == FLUPS_BACKWARD) {
-        topo_in     = _topo_out;
-        topo_out    = _topo_in;
-        sendRequest = _o2i_sendRequest;
-        recvRequest = _o2i_recvRequest;
-        sendBuf     = _recvBuf;
-        recvBuf     = _sendBuf;
-
-        oselfBlockID = _iselfBlockID;
-        destTag      = _o2i_destTag;
-
-        for (int id = 0; id < 3; id++) {
-            send_nBlock[id] = _onBlock[id];
-            recv_nBlock[id] = _inBlock[id];
-            istart[id]      = _ostart[id];
-            iend[id]        = _oend[id];
-            ostart[id]      = _istart[id];
-            oend[id]        = _iend[id];
-            inloc[id]       = _topo_out->nloc(id);
-            onloc[id]       = _topo_in->nloc(id);
-            iBlockSize[id]  = _oBlockSize[id];
-            oBlockSize[id]  = _iBlockSize[id];
-        }
-    } else {
-        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
-    }
-
-    FLUPS_INFO("previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
-    FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
-    FLUPS_INFO("using %d blocks on send and %d on recv",send_nBlock[0]*send_nBlock[1]*send_nBlock[2],recv_nBlock[0]*recv_nBlock[1]*recv_nBlock[2]);
-
-    const int ax0 = topo_in->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-    const int nf  = topo_in->nf();
-
-    //-------------------------------------------------------------------------
-    /** - start the reception requests so we are ready to receive */
-    //-------------------------------------------------------------------------
-    for (int bid = 0; bid < recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2]; bid++) {
-        if (recvRequest[bid] != MPI_REQUEST_NULL){
-            MPI_Start(&(recvRequest[bid]));
-        }
-    }
-
-    if (_prof != NULL) {
-        _prof->start("mem2buf");
-    }
-    //-------------------------------------------------------------------------
-    /** - fill the buffers */
-    //-------------------------------------------------------------------------
-    const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
-
-#if defined(__INTEL_COMPILER)
-#pragma omp parallel proc_bind(close) default(none) firstprivate(nblocks_send, send_nBlock, v, sendBuf, recvBuf, destTag, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest)
-#elif defined(__GNUC__)
-#pragma omp parallel proc_bind(close) default(none) shared(ompi_request_null) firstprivate(nblocks_send, send_nBlock, v, sendBuf, recvBuf, destTag, istart, nByBlock,iBlockSize, nf, inloc, ax0, ax1,ax2,sendRequest)
-#endif
-    for (int bid = 0; bid < nblocks_send; bid++) {
-        // get the split index
-        int ib[3];
-        localSplit(bid, send_nBlock, 0, ib, 1);
-        // get the buffer data for this block
-        opt_double_ptr data;
-        if(sendRequest[bid] == MPI_REQUEST_NULL){
-            // if we are doing a self block the data is the recv buff
-            // the new block ID is given by destTag[bid]
-            data = recvBuf[destTag[bid]];
-        } else {
-            // else we copy inside the sendbuffer
-            data = sendBuf[bid];
-        }
-        // get the starting index in the global memory
-        const int loci0         = istart[ax0] + ib[ax0] * nByBlock[ax0];
-        const int loci1         = istart[ax1] + ib[ax1] * nByBlock[ax1];
-        const int loci2         = istart[ax2] + ib[ax2] * nByBlock[ax2];
-        double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, ax0, inloc, nf);
-
-        // go inside the block
-        const int id_max = iBlockSize[ax1][bid] * iBlockSize[ax2][bid];
-#pragma omp for schedule(static)
-        for (int id = 0; id < id_max; id++) {
-            // get the id from a small modulo
-            const int i2 = id / iBlockSize[ax1][bid];
-            const int i1 = id % iBlockSize[ax1][bid];
-            // get the starting global id for the buffer and the field
-            const size_t buf_idx = id * iBlockSize[ax0][bid] * nf;
-            const size_t my_idx  = localIndex(ax0, 0, i1, i2, ax0, inloc, nf);
-            // get the max counter
-            const size_t nmax = iBlockSize[ax0][bid] * nf;
-            // do the copy -> vectorized
-            for (size_t i0 = 0; i0 < nmax; i0++) {
-                data[buf_idx + i0] = my_v[my_idx + i0];
-            }
-        }
-        // the barrier after an OpenMP "for" block is implicit
-        // start the send the block and continue
-
-#pragma omp master
-        {
-            if (sendRequest[bid] != MPI_REQUEST_NULL) {
-                MPI_Start(&(sendRequest[bid]));
-            }
-        }
-    }
-
-    if (_prof != NULL) {
-        _prof->stop("mem2buf");
-    }
-
-    //-------------------------------------------------------------------------
-    /** - reset the memory to 0 */
-    //-------------------------------------------------------------------------
-    // reset the memory to 0
-    std::memset(v, 0, sizeof(double) * topo_out->locmemsize());
-
-    //-------------------------------------------------------------------------
-    /** - wait for a block and copy when it arrives */
-    //-------------------------------------------------------------------------
-    // get some counters
-    const int nblocks_recv  = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
-    const int out_axis = topo_out->axis();
-    // for each block
-    if (_prof != NULL) {
-        _prof->start("buf2mem");
-    }
-
-    // create the status as a shared variable
-    MPI_Status status;
-
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(nblocks_recv, recv_nBlock, oselfBlockID, v, recvBuf, ostart, nByBlock, oBlockSize, nf, onloc, ax0, ax1, ax2, recvRequest, out_axis)
-    for (int count = 0; count < nblocks_recv; count++) {
-        // only the master receive the call
-        int bid;
-        if (count < _selfBlockN) {
-            bid = oselfBlockID[count];
-        } else {
-#pragma omp master
-            {
-                if (_prof != NULL) {
-                    _prof->start("waiting");
-                }
-                int request_index;
-                MPI_Waitany(nblocks_recv, recvRequest, &request_index, &status);
-                if (_prof != NULL) {
-                    _prof->stop("waiting");
-                }
-            }
-            // make sure that the master has received the status before going further
-            // there is no implicit barrier after
-#pragma omp barrier
-            // get the block id = the tag
-            bid = status.MPI_TAG;
-        }
-        // get the indexing of the block in 012-indexing
-        int ibv[3];
-        localSplit(bid, recv_nBlock, 0, ibv, 1);
-        // get the associated data
-        opt_double_ptr data = recvBuf[bid];
-
-        // go inside the block
-        const int loci0         = ostart[ax0] + ibv[ax0] * nByBlock[ax0];
-        const int loci1         = ostart[ax1] + ibv[ax1] * nByBlock[ax1];
-        const int loci2         = ostart[ax2] + ibv[ax2] * nByBlock[ax2];
-        double* __restrict my_v = v + localIndex(ax0, loci0, loci1, loci2, out_axis, onloc, nf);
-        // get the stride
-        const size_t stride = localIndex(ax0, 1, 0, 0, out_axis, onloc, nf);
-        // get the max number of ids not aligned in ax0
-        const size_t id_max = oBlockSize[ax1][bid] * oBlockSize[ax2][bid];
-
-        // add the bandwith info
-        #pragma omp master
-        {
-            if (_prof != NULL) {
-                size_t loc_mem = oBlockSize[0][bid] * oBlockSize[1][bid] *oBlockSize[2][bid]*nf*sizeof(double);
-                _prof->addMem("waiting", loc_mem);
-            }
-        }
-
-        if (nf == 1) {
-#pragma omp for schedule(static)
-            for (size_t id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[ax1][bid];
-                const int i1 = id % oBlockSize[ax1][bid];
-                // get the starting global id for the buffer and the field
-                const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
-                const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
-                // do the copy
-                for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
-                    my_v[my_idx + i0 * stride] = data[buf_idx + i0];
-                }
-            }
-        } else if (nf == 2) {
-#pragma omp for schedule(static)
-            for (size_t id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[ax1][bid];
-                const int i1 = id % oBlockSize[ax1][bid];
-                // get the starting global id for the buffer and the field
-                const size_t buf_idx = id * oBlockSize[ax0][bid] * nf;
-                const size_t my_idx  = localIndex(ax0, 0, i1, i2, out_axis, onloc, nf);
-                // do the copy
-                for (int i0 = 0; i0 < oBlockSize[ax0][bid]; i0++) {
-                    my_v[my_idx + i0 * stride + 0] = data[buf_idx + i0 * 2 + 0];
-                    my_v[my_idx + i0 * stride + 1] = data[buf_idx + i0 * 2 + 1];
-                }
-            }
-        }
-    }
-    // now that we have received everything, close the send requests
-    MPI_Waitall(nblocks_send, sendRequest,MPI_STATUSES_IGNORE);
-
-    if (_prof != NULL) {
-        _prof->stop("buf2mem");
-        _prof->stop("reorder");
-    }
-}
-
-void SwitchTopo::disp() {
-    BEGIN_FUNC;
-    FLUPS_INFO("------------------------------------------");
-    FLUPS_INFO("## Topo Swticher MPI");
-    FLUPS_INFO("--- INPUT");
-    FLUPS_INFO("  - input axis = %d", _topo_in->axis());
-    FLUPS_INFO("  - input local = %d %d %d", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
-    FLUPS_INFO("  - input global = %d %d %d", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
-    FLUPS_INFO("  - istart = %d %d %d", _istart[0], _istart[1], _istart[2]);
-    FLUPS_INFO("  - iend = %d %d %d", _iend[0], _iend[1], _iend[2]);
-    FLUPS_INFO("--- OUTPUT");
-    FLUPS_INFO("  - output axis = %d", _topo_out->axis());
-    FLUPS_INFO("  - output local = %d %d %d", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
-    FLUPS_INFO("  - output global = %d %d %d", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
-    FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
-    FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
-    FLUPS_INFO("--- BLOCKS");
-    FLUPS_INFO("  - selfBlockN = %d", _selfBlockN);
-    FLUPS_INFO("  - nByBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
-    FLUPS_INFO("  - inBlock = %d %d %d", _inBlock[0],_inBlock[1],_inBlock[2]);
-    FLUPS_INFO("  - onBlock = %d %d %d", _onBlock[0],_onBlock[1],_onBlock[2]);
-    FLUPS_INFO("------------------------------------------");
-}
-
-void SwitchTopo::disp_rankgraph(const int id_in,const int id_out) const{
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    string name = "./prof/SwitchTopo" + std::to_string(id_in) + "with" + std::to_string(id_out) + "_rank" + std::to_string(rank) + ".txt";
-    FILE* file = fopen(name.c_str(),"w+");
-    if(file != NULL){
-        fprintf(file,"%d SEND:",rank);
-        for(int ib=0; ib<_inBlock[0] * _inBlock[1] * _inBlock[2]; ib++){
-            fprintf(file," %d ",_i2o_destRank[ib]);
-        }
-        fprintf(file,"\n");
-        fprintf(file,"%d RECV:",rank);
-        for(int ib=0; ib<_onBlock[0] * _onBlock[1] * _onBlock[2]; ib++){
-            fprintf(file," %d ",_o2i_destRank[ib]);
-        }
-        fprintf(file,"\n");
-        fclose(file);
-    }
-}
-
-void SwitchTopo_test() {
-    BEGIN_FUNC;
-
     int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_size(_inComm, &comm_size);
+    // go through each block
+    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        // get the split index
+        int bidv[3];
+        localSplit(ib, nBlock, 0, bidv, 1);
+        // initialize the destrank
+        int global_bid[3] = {0, 0, 0};
+        int destrankd[3] = {0, 0, 0};
+        
+        // determine the dest rank for each dimension
+        for (int id = 0; id < 3; id++) {
+            // we go trough every rank on the given dim
+            global_bid[id] = bidv[id] + blockIDStart[id];
+            
+            for (int ir = 0; ir < topo->nproc(id); ir++) {
+                // update the destination rank
+                destrankd[id] = ir;
 
-    const int nglob[3] = {8, 8, 8};
-    const int nproc[3] = {2, 2, 1};
+                // update the number of block already visited                
+                int minBlockLocal = startBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
+                int maxBlockLocal = minBlockLocal + nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
 
-    const int nglob_big[3] = {17, 8, 8};
-    const int nproc_big[3] = {2, 2, 1};
+                // if we have already visited more block than my block id then we have found the destination rank
+                if (global_bid[id] >= minBlockLocal && global_bid[id] < maxBlockLocal) {
+                    break;
+                }
+            }
+        }
 
-    //===========================================================================
-    // real numbers
-    Topology* topo    = new Topology(0, nglob, nproc, false,NULL);
-    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL);
+        // get the global destination rank
+        const int destrank = rankindex(destrankd, topo);
+        // get the global destination tag
+        destRank[ib] = destrank;
 
-    double* data = (double*)fftw_malloc(sizeof(double*) * std::max(topo->locmemsize(), topobig->locmemsize()));
+        FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destrank, destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
+        if (destTag != NULL) {
+            // get the number of block in the destination rank
+            int dest_nBlock[3] = {nBlockEachProc[0 * comm_size + destrank],
+                                  nBlockEachProc[1 * comm_size + destrank],
+                                  nBlockEachProc[2 * comm_size + destrank]};
+            // store the destination tag = local block index in the destination rank
+            // get the number of block in the destination rank
+            int dest_iBlock[3] = {global_bid[0]-startBlockEachProc[0 * comm_size + destrank],
+                                  global_bid[1]-startBlockEachProc[1 * comm_size + destrank],
+                                  global_bid[2]-startBlockEachProc[2 * comm_size + destrank]};
+            // create the tag 
+            destTag[ib] = localIndex(0, dest_iBlock[0], dest_iBlock[1], dest_iBlock[2], 0, dest_nBlock, 1);
+        }
+    }
 
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localindex_xyz(i0, i1, i2, topo);
-                data[id + 0] = id;
+    //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
+    //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.
+    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo->get_comm(), _inComm);
+
+    END_FUNC;
+}
+/**
+ * @brief compute the size of the blocks inside the given topology
+ * 
+ * @param nBlock 
+ * @param blockIDStart 
+ * @param nByBlock 
+ * @param topo 
+ * @param nBlockSize 
+ */
+void SwitchTopo::_cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int *nBlockSize[3]) {
+    BEGIN_FUNC;
+    // go through each block
+    for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
+        for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
+            for (int ib0 = 0; ib0 < nBlock[0]; ib0++) {
+                // get the global block index
+                const int bidv[3] = {ib0, ib1, ib2};
+                const int bid     = localIndex(0, ib0, ib1, ib2, 0, nBlock, 1);
+                // determine the size in each direction
+                for (int id = 0; id < 3; id++) {
+                    //if I am the last block, I forgive a small difference between the blocksizes
+                    if (bidv[id] == (nBlock[id] - 1)) {
+                        nBlockSize[id][bid] = (iend[id] - istart[id]) - bidv[id] * nByBlock[id];
+                    } else {
+                        nBlockSize[id][bid] = nByBlock[id];
+                    }
+                }
             }
         }
     }
-    // try the dump
-    hdf5_dump(topo, "test_real", data);
+    END_FUNC;
+}
 
-    const int fieldstart[3] = {0, 0, 0};
-    // printf("\n=============================");
-    SwitchTopo* switchtopo = new SwitchTopo(topo, topobig, fieldstart, NULL);
+/**
+ * @brief compute the number of blocks, the starting indexes of the block (0,0,0) and the number of block in each proc
+ * 
+ * This function computes several usefull indexes for the block:
+ * - the number of blocks on the current procs
+ * - the starting index in the topo of the block (0,0,0)
+ * - the number of block on each proc.
+ * 
+ * For a given proc, nBlockEachProc[comm_size * id + ip] is the number of proc in the dimension id on the proc ip
+ * 
+ * @param istart the starting indexes on this proc
+ * @param iend the end indexes on this proc
+ * @param nByBlock the number of unkowns in one block (012-indexing)
+ * @param topo the current topology
+ * @param nBlock the number of block in this proc
+ * @param blockIDStart the starting point of the block (0,0,0)
+ * @param nBlockEachProc the number of procs on each proc
+ */
+void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
+                                     int nBlock[3], int blockIDStart[3], int *startBlockEachProc, int *nBlockEachProc) {
+    BEGIN_FUNC;
+    int comm_size;
+    MPI_Comm_size(_inComm, &comm_size);
+    for (int id = 0; id < 3; id++) {
+        // send/recv number of block on my proc
+        nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
+        // get the list of number of procs
+        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
+        // set the starting indexes to 0
+        blockIDStart[id] = 0;
+        // compute the starting index
+        const int myrankd  = topo->rankd(id);
+        int       rankd[3] = {topo->rankd(0), topo->rankd(1), topo->rankd(2)};
+        for (int ir = 0; ir < myrankd; ir++) {
+            // update the rankd
+            rankd[id] = ir;
+            // increment the block counter
+            blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
+        }
+        // do some checks
+        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
 
-    // printf("\n\n============ FORWARD =================");
-    switchtopo->execute(data, FLUPS_FORWARD);
+        //everybody needs to know the startID of the first block in each proc
+        MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
+    }
+    
+    END_FUNC;
+}
 
-    hdf5_dump(topobig, "test_real_padd", data);
+void SwitchTopo::_cmpt_commSplit(){
+    BEGIN_FUNC;
+    // get my rank and use-it as the initial color
+    int comm_size, rank;
+    MPI_Comm_rank(_inComm,&rank);
+    MPI_Comm_size(_inComm,&comm_size);
 
-    // printf("\n\n============ BACKWARD =================");
-    switchtopo->execute(data, FLUPS_BACKWARD);
+    int mycolor = rank;
+    
+    // allocate colors and inMyGroup array
+    int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
 
-    hdf5_dump(topo, "test_real_returned", data);
+    for (int ir = 0; ir < comm_size; ir++) {
+        inMyGroup[ir] = false;
+    }
+    inMyGroup[rank] = true;
 
-    fftw_free(data);
-    delete (switchtopo);
-    delete (topo);
-    delete (topobig);
+    // do a first pass and give a color + who is in my group
+    for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+        mycolor                     = std::min(mycolor, _i2o_destRank[ib]);
+        inMyGroup[_i2o_destRank[ib]] = true;
+    }
+    for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+        mycolor                      = std::min(mycolor, _o2i_destRank[ib]);
+        inMyGroup[_o2i_destRank[ib]] = true;
+    }
 
-    //===========================================================================
-    // complex numbers
-    topo    = new Topology(0, nglob, nproc, true,NULL);
-    topobig = new Topology(2, nglob_big, nproc_big, true,NULL);
-
-    data = (double*)fftw_malloc(sizeof(double*) * topobig->locmemsize());
-
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localindex_xyz(i0, i1, i2, topo);
-                data[id + 0] = 0;
-                data[id + 1] = id;
-            }
+    // count how much is should be in my group
+    // by default we assume that nobody is in the same group
+    int nleft = 0;
+    for (int ir = 0; ir < comm_size; ir++) {
+        if (inMyGroup[ir]) {
+            nleft += 1;
         }
     }
-    // try the dump
-    hdf5_dump(topo, "test_complex", data);
 
-    // topobig->switch2complex();
-    // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
-    // topobig->switch2real();
-    // printf("as real: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
+    // continue while we haven't found a solution
+    int iter = 0;
+    while (nleft > 0 && iter < comm_size) {
+        // gather the color info from everyone
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _inComm);
+        // iterate on the proc
+        int n_notInMyGroup = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            // if(rank==3){
+                // printf("[ITER%d] color[%d] %d,  inMyGroup:%d\n",iter,ir,colors[ir],inMyGroup[ir]);
+            // }
+            // if it is reachable and the color is not already the same
+            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
+                // we first increment the counter flagging that one is missing
+                n_notInMyGroup += 1;
+                // then we solve the problem if we are able to do so....
+                // remove 1 if we are able to solve the issue <=> my color > colors[ir]
+                n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
+                // changing if possible
+                mycolor = std::min(mycolor, colors[ir]);
+            }
+        }
+        // compute among everybody, if we need to continue
+        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _inComm);
+        iter++;
+    }
+    // FLUPS_CHECK(iter<comm_size,"Could not divide the current comm in subcom.",LOCATION);
+    if(iter>=comm_size){
+        _subcomm = _inComm;
+    }
 
-    const int fieldstart2[3] = {4, 0, 0};
-    // printf("\n=============================");
-    switchtopo = new SwitchTopo(topo, topobig, fieldstart2, NULL);
+    //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+    nleft=0;
+    for(int ir = 0; ir < comm_size; ir++){
+        nleft+=colors[ir];
+    }
+    // if nleft = 0 -> everybody is inside the same color = the rank = 0
+    // we do not create a new comm if it is not necessary
+    if(nleft==0){
+        // avoids the creation of a communicator
+        _subcomm = _inComm;
+        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master");
+    } else {
+        // create the communicator and give a name
+        MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
+        std::string commname = "comm-" + std::to_string(mycolor);
+        MPI_Comm_set_name(_subcomm, commname.c_str());
+    }
+    // free the vectors
+    flups_free(colors);
+    flups_free(inMyGroup);
 
-    switchtopo->execute(data, FLUPS_FORWARD);
+    END_FUNC;
+}
 
-    hdf5_dump(topobig, "test_complex_padd", data);
+/**
+ * @brief setup the lists according to the master and sub communicators
+ * 
+ * We setup the following lists:
+ * - destRank: transformed from the values in the world comm to the values in the new comm.
+ * - count: the number of elements send to each proc form this proc
+ * - start: the starting position of the data to send to each proc in the buffer
+ * 
+ * @param nBlock the number of blocks
+ * @param destRank the destination rank on the world comm. returns the new destination rank in the newcomm
+ * @param count the number of information to send to each proc
+ * @param start the id in the buffer where the information starts for each proc
+ */
+void SwitchTopo::_setup_subComm(const int nBlock[3], int* destRank, int** count, int** start) {
+    BEGIN_FUNC;
+    //-------------------------------------------------------------------------
+    /** - get the new source & destination ranks    */
+    //-------------------------------------------------------------------------
+    int inrank, subrank, worldsize;
+    MPI_Comm_size(_inComm, &worldsize);
+    MPI_Comm_rank(_subcomm, &subrank);
+    MPI_Comm_rank(_inComm, &inrank);
+    
+    // get the ranks of everybody in all communicators
+    int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _inComm);
 
-    switchtopo->execute(data, FLUPS_BACKWARD);
 
-    hdf5_dump(topo, "test_complex_returned", data);
+    // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
+    // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
 
-    fftw_free(data);
-    delete (switchtopo);
-    delete (topo);
-    delete (topobig);
+    // replace the old ranks by the newest ones
+    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        destRank[ib] = subRanks[destRank[ib]];
+    }
+    // flups_free(destRank_cpy);
+    flups_free(subRanks);
+    
+    //-------------------------------------------------------------------------
+    /** - build the size vector of block to each procs    */
+    //-------------------------------------------------------------------------
+    if (count != NULL) {
+        _cmpt_start_and_count(_subcomm, nBlock, destRank, count, start);
+    }
+
+    END_FUNC;
+}
+
+void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock[3], int* destRank, int** count, int** start) {
+    int size;
+    MPI_Comm_size(comm, &size);
+    // count the number of blocks to each process
+    (*count) = (int*)flups_malloc(size * sizeof(int));
+    (*start) = (int*)flups_malloc(size * sizeof(int));
+    std::memset((*count), 0, size * sizeof(int));
+    std::memset((*start), 0, size * sizeof(int));
+    // get the size per block
+    const int blockMem = get_blockMemSize();
+    // count the number of blocks per rank
+    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        (*count)[destRank[ib]] += blockMem;
+    }
+    // compute the start indexes
+    if (start != NULL) {
+        (*start)[0] = 0;
+        for (int ir = 1; ir < size; ir++) {
+            (*start)[ir] = (*start)[ir - 1] + (*count)[ir - 1];
+        }
+    }
+}
+
+/**
+ * @brief setup the suffle plan to do the reordering of the indexes inside a block array form the axis of topo_in to topo_out
+ * 
+ * The 3D array is split into a rectangular 2D array:
+ * - the dimension of the current FRI
+ * - the dimension of the targeted FRI
+ * 
+ * The last dimension is aggregated with eather the current FRI or the targeted, whichever comes on its left
+ * e.g.:
+ * - if the shuffle is between 2 and 1, the default order is then 2 0 1, hence the dimensions will be (2 * 0) x (1)
+ * - if the suffle is between 1 and 2, the  default order is then 1 2 0, hence the dimensions will be (1) x (2 * 0)
+ * - if the suffle is between 0 and 1, the  default order is then 1 2 0, hence the dimensions will be (0) x (1 * 2)
+ * 
+ * @param bSize the block size
+ * @param topo_in the topo_in with the current axis
+ * @param topo_out the topo_out with the desired axis
+ * @param data the data on which to apply the transformation
+ * @param shuffle the suffle plan
+ */
+void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
+    BEGIN_FUNC;
+
+    // the nf will always be the max of both topologies !!
+    const int nf = std::max(topo_in->nf(),topo_out->nf());
+
+    // enable the multithreading for this plan
+    fftw_plan_with_nthreads(omp_get_max_threads());
+
+    fftw_iodim dims[2];
+    // dim[0] = dimension of the targeted FRI (FFTW-convention)
+    dims[0].n  = 1;
+    dims[0].is = 1;
+    dims[0].os = 1;
+    // dim[1] = dimension of the current FRI (FFTW-convention)
+    dims[1].n  = 1;
+    dims[1].is = 1;
+    dims[1].os = 1;
+
+    int iaxis[3] = {topo_in->axis(), (topo_in->axis() + 1) % 3, (topo_in->axis() + 2) % 3};
+    int oaxis[3] = {topo_out->axis(), (topo_out->axis() + 1) % 3, (topo_out->axis() + 2) % 3};
+
+    // compute the size and the stride of the array
+    for (int id = 0; id < 3; id++) {
+        if (iaxis[id] != topo_out->axis()) {
+            dims[1].n  = dims[1].n * bSize[iaxis[id]];
+            dims[0].is = dims[0].is * bSize[iaxis[id]];
+        } else {
+            break;
+        }
+    }
+    for (int id = 0; id < 3; id++) {
+        if (oaxis[id] != topo_in->axis()) {
+            dims[0].n  = dims[0].n * bSize[oaxis[id]];
+            dims[1].os = dims[1].os * bSize[oaxis[id]];
+        } else {
+            break;
+        }
+    }
+    // display some info
+    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d",topo_in->axis(),topo_out->axis());
+    FLUPS_INFO("shuffle: nf = %d, blocksize = %d %d %d",nf,bSize[0],bSize[1],bSize[2]);
+    FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d",dims[0].n,dims[0].is,dims[0].os);
+    FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d",dims[1].n,dims[1].is,dims[1].os);
+
+    // plan the real or complex plan
+    // the nf is driven by the OUT topology ALWAYS
+    if (nf == 1) {
+        *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+    } else if (nf == 2) {
+        *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+    }
+
+    END_FUNC;
+}
+
+/**
+ * @brief Determine and add the weights of the edges in the communication graph
+ * 
+ * @param sourcesW the weights associated to the edge between other processors communicating to me
+ * @param destsW the weights associated to the edge betwenn me communicating to other processors
+ */
+void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
+    BEGIN_FUNC;
+
+    // count the number of out edges
+    for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
+        destsW[_i2o_destRank[ib]] += _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib];
+    }
+
+    // count the number of in edges
+    for (int ib = 0; ib < _onBlock[0] * _onBlock[1] * _onBlock[2]; ib++) {
+        sourcesW[_o2i_destRank[ib]] += _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib];
+    }
+
+    // Note: by counting the edges like this on every process, we actually obtain
+    // twice the number of edges in the total final graph, as the in and out edges 
+    // between 2 processes have been accounted by both procs. However, the weight
+    // is relative so it doesnt matter.
+    END_FUNC;
 }

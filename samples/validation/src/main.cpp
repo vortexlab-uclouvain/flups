@@ -26,13 +26,13 @@
 #include <cmath>
 #include <iostream>
 
-#include "expint.hpp"
-
-#include "Solver.hpp"
-#include "SwitchTopo_a2a.hpp"
+#include "mpi.h"
+#include "flups.h"
+#include <iostream>
+#include <cstring>
 #include "validation_3d.hpp"
 
-#include "mpi.h"
+using namespace std;
 
 //default values
 const static int                 d_nsolve    = 1;
@@ -40,14 +40,14 @@ const static int                 d_nsample   = 1;
 const static int                 d_startSize = 16;
 const static int                 d_nprocs[3] = {1, 1, 1};
 const static double              d_L[3]      = {1., 1., 1.};
-const static FLUPS::GreenType    d_kernel    = FLUPS::CHAT_2;
-const static FLUPS::BoundaryType d_bcdef     = FLUPS::UNB;
+const static FLUPS_GreenType     d_kernel    = CHAT_2;
+const static FLUPS_BoundaryType  d_bcdef     = UNB;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");
     printf(" --help  , -h :                 print this message\n");
     printf(" --nprocs, -np Ni Nj Nk :       Ni,Nj,Nk is the number of MPI processes in each direction\n");
-    printf(" --resolution, -res R :         R is the number of cells per unit length \n");
+    printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of cells in each direction \n");
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
@@ -57,10 +57,9 @@ static void print_help(){
     printf(" --predefined-test, -pt :       runs a predefined validation test with several combination of UNB BCs and all the Green Kernels (excludes -L, -k and -bc) \n ");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS::BoundaryType bcdef[3][2], int *predef, FLUPS::GreenType *kernel, int *nsample, int **size, int *nsolve){
-    BEGIN_FUNC;
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], int *predef, FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve){
 
-    int startSize = d_startSize;
+    int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
     //assigning default values
     for (int i = 0; i < 3; i++) {
@@ -125,17 +124,19 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
             }  
             i++;
         } else if ((arg == "-res")|| (arg== "--resolution") ) {
-            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                startSize = atoi(argv[i+1]); 
-                if(startSize<1){
-                    fprintf(stderr, "resolution must be >0\n");
+            for (int j = 0; j<3;j++){
+                if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+                    startSize[j] = atoi(argv[i+j+1]); 
+                    if(startSize[j]<=0.0){
+                        fprintf(stderr, "res must be >0\n");
+                        return 1;
+                    }
+                } else { //Missing argument
+                    fprintf(stderr, "missing argument in -res\n");
                     return 1;
-                }
-            } else { //Missing argument
-                fprintf(stderr, "missing --resolution\n");
-                return 1;
-            }  
-            i++;
+                }  
+            }
+            i+=3;
         }  else if ((arg == "-ns")|| (arg== "--nsolve") ) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
                 *nsolve = atoi(argv[i+1]); 
@@ -150,7 +151,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
             i++;
         } else if ((arg == "-k") || (arg == "--kernel")) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                *kernel = (FLUPS::GreenType) atoi(argv[i+1]); 
+                *kernel = (FLUPS_GreenType) atoi(argv[i+1]); 
             } else { //Missing argument
                 fprintf(stderr, "missing --kernel\n");
                 return 1;
@@ -159,7 +160,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
         } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
             for (int j = 0; j<6;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
-                    bcdef[j/2][j%2] = (FLUPS::BoundaryType) atoi(argv[i+j+1]); 
+                    bcdef[j/2][j%2] = (FLUPS_BoundaryType) atoi(argv[i+j+1]); 
                 } else { //Missing argument
                     fprintf(stderr, "missing argument in --boundary-conditions\n");
                     return 1;
@@ -172,10 +173,12 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS:
     }
     
     // finilizing allocations
-    *size =(int*) malloc((*nsample) * sizeof(int));
+    *size =(int*) malloc((*nsample) * 3 * sizeof(int));
     
-    for (int i = 0; i<*nsample ; i++){
-        (*size)[i] = startSize * pow(2,i);
+    for (int i = 0; i<*nsample*3 ; i+=3){
+        (*size)[i]   = startSize[0] * pow(2,i/3);
+        (*size)[i+1] = startSize[1] * pow(2,i/3);
+        (*size)[i+2] = startSize[2] * pow(2,i/3);
     }
     return 0;
 }
@@ -186,14 +189,14 @@ int main(int argc, char *argv[]) {
     int nsolve, nsample, predef;
     int nprocs[3];
     double L[3];
-    int *size;
-    FLUPS::GreenType kernel;
-    FLUPS::BoundaryType bcdef[3][2];
+    int *size = NULL;
+    FLUPS_GreenType kernel;
+    FLUPS_BoundaryType bcdef[3][2];
     
     int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
 
     if (status) exit(status);
-    if (!size){
+    if (size==NULL){
         exit(0); //we just printed help
     }     
 
@@ -205,7 +208,7 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
+        // FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -214,15 +217,15 @@ int main(int argc, char *argv[]) {
     if (predef == 0){
         // Display
         if (rank == 0) {
-            FLUPS_INFO("I will run with:");
-            FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
-            FLUPS_INFO("  -L: %lf,%lf,%lf", L[0], L[1], L[2]);
-            FLUPS_INFO("  -bc: %d,%d ; %d,%d ; %d,%d", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
-            FLUPS_INFO("  --kernel: %d", kernel);
-            FLUPS_INFO("  --nsolve: %d", nsolve);
-            for (int i = 0; i < nsample; i++) {
-                FLUPS_INFO("   -> sample %d: %d", i + 1, size[i]);
-            }
+            // FLUPS_INFO("I will run with:");
+            // FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
+            // FLUPS_INFO("  -L: %lf,%lf,%lf", L[0], L[1], L[2]);
+            // FLUPS_INFO("  -bc: %d,%d ; %d,%d ; %d,%d", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
+            // FLUPS_INFO("  --kernel: %d", kernel);
+            // FLUPS_INFO("  --nsolve: %d", nsolve);
+            // for (int i = 0; i < nsample; i++) {
+            //     FLUPS_INFO("   -> sample %d: %d %d %d", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
+            // }
         }
 
         for (int is = 0; is < nsample; is++) {
@@ -231,11 +234,11 @@ int main(int argc, char *argv[]) {
             for (int ip = 0; ip < 3; ip++) {
                 valCase.L[ip]       = L[ip];
                 valCase.nproc[ip]   = nprocs[ip];
-                valCase.nglob[ip]   = size[is] * L[ip];
+                valCase.nglob[ip]   = size[is*3+ip];
                 valCase.mybc[ip][0] = bcdef[ip][0];
                 valCase.mybc[ip][1] = bcdef[ip][1];
             }
-            validation_3d(valCase, FLUPS::SRHS, kernel, nsolve);
+            validation_3d(valCase, SRHS, kernel, nsolve);
         }
 
     } else {
@@ -259,51 +262,51 @@ int main(int argc, char *argv[]) {
             }
 
             if (rank == 0) printf("\n==============================  FULLY UNBOUNDED TEST ============================================\n");
-            valCase.mybc[0][0] = FLUPS::UNB;
-            valCase.mybc[0][1] = FLUPS::UNB;
-            valCase.mybc[1][0] = FLUPS::UNB;
-            valCase.mybc[1][1] = FLUPS::UNB;
-            valCase.mybc[2][0] = FLUPS::UNB;
-            valCase.mybc[2][1] = FLUPS::UNB;
+            valCase.mybc[0][0] = UNB;
+            valCase.mybc[0][1] = UNB;
+            valCase.mybc[1][0] = UNB;
+            valCase.mybc[1][1] = UNB;
+            valCase.mybc[2][0] = UNB;
+            valCase.mybc[2][1] = UNB;
 
             if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2, nsolve);
+            validation_3d(valCase, SRHS, HEJ_2, nsolve);
             if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4, nsolve);
+            validation_3d(valCase, SRHS, HEJ_4, nsolve);
             if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6, nsolve);
+            validation_3d(valCase, SRHS, HEJ_6, nsolve);
             if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-            validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2, nsolve);
+            validation_3d(valCase, SRHS, CHAT_2, nsolve);
 
             if (rank == 0) printf("\n==============================  MIX UNBOUNDED TEST ============================================\n");
             for (int id = 0; id < 3; id++) {
                 for (int lr = 0; lr < 2; lr++) {
-                    valCase.mybc[0][0] = FLUPS::UNB;
-                    valCase.mybc[0][1] = FLUPS::UNB;
-                    valCase.mybc[1][0] = FLUPS::UNB;
-                    valCase.mybc[1][1] = FLUPS::UNB;
-                    valCase.mybc[2][0] = FLUPS::UNB;
-                    valCase.mybc[2][1] = FLUPS::UNB;
+                    valCase.mybc[0][0] = UNB;
+                    valCase.mybc[0][1] = UNB;
+                    valCase.mybc[1][0] = UNB;
+                    valCase.mybc[1][1] = UNB;
+                    valCase.mybc[2][0] = UNB;
+                    valCase.mybc[2][1] = UNB;
                     // set to even
-                    valCase.mybc[id][lr] = FLUPS::EVEN;
+                    valCase.mybc[id][lr] = EVEN;
                     if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
+                    validation_3d(valCase, SRHS, HEJ_2);
                     if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
+                    validation_3d(valCase, SRHS, HEJ_4);
                     if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
+                    validation_3d(valCase, SRHS, HEJ_6);
                     if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
+                    validation_3d(valCase, SRHS, CHAT_2);
                     // set to odd
-                    valCase.mybc[id][lr] = FLUPS::ODD;
+                    valCase.mybc[id][lr] = ODD;
                     if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_2);
+                    validation_3d(valCase, SRHS, HEJ_2);
                     if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_4);
+                    validation_3d(valCase, SRHS, HEJ_4);
                     if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::HEJ_6);
+                    validation_3d(valCase, SRHS, HEJ_6);
                     if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, FLUPS::SRHS, FLUPS::CHAT_2);
+                    validation_3d(valCase, SRHS, CHAT_2);
                 }
             }
         }

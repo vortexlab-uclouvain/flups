@@ -25,8 +25,6 @@
 
 #include "Topology.hpp"
 
-using namespace FLUPS;
-
 /**
  * @brief Construct a new Topology
  * 
@@ -36,29 +34,22 @@ using namespace FLUPS;
  * @param nproc the number of proc per dim
  * @param isComplex indicate if the Topology uses complex indexing or not
  * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
+ * @param alignment the number of bytes on which we want the topology to be aligned along the #axis only
+ * @param comm the communicator associated to the topology.
+ * 
+ * If the MPI comm is associated with a MPI_CART topology, axproc is ignored and we use the MPI routines to determine the 3D rank from the global rank (and vice versa).
+ * 
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]) {
+Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
     BEGIN_FUNC;
 
+    _comm = comm;
+
     int comm_size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(_comm,&comm_size);
+    MPI_Comm_rank(_comm,&rank);
 
     FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
-
-    //-------------------------------------------------------------------------
-    /** - get proc information  */
-    //-------------------------------------------------------------------------
-    for (int id = 0; id < 3; id++) {
-        // total dimension
-        _nglob[id] = nglob[id];
-        // number of proc in each direction
-        _nproc[id] = nproc[id];
-        // store the proc axis, used to split the rank
-        _axproc[id] = (axproc == NULL) ? id : axproc[id];
-    }
-    // split the rank
-    ranksplit(rank, _axproc, _nproc, _rankd);
 
     //-------------------------------------------------------------------------
     /** - get memory axis and complex information  */
@@ -71,14 +62,89 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
     }
 
     //-------------------------------------------------------------------------
-    /** - Get the sizes  */
+    /** - get proc information  */
     //-------------------------------------------------------------------------
     for (int id = 0; id < 3; id++) {
-        // number of unknows everywhere except the last one
-        _nbyproc[id] = nglob[id] / nproc[id];  // integer division = floor
-        // if we are the last rank in the direction, we take everything what is left
-        _nloc[id] = get_nloc(id, _rankd[id], this);
+        // total dimension
+        _nglob[id] = nglob[id];
+        // number of proc in each direction
+        _nproc[id] = nproc[id];
+        // store the proc axis, used to split the rank
+        _axproc[id] = (axproc == NULL) ? id : axproc[id];
     }
+
+    //-------------------------------------------------------------------------
+    /** - split the rank and get rankd  */
+    //-------------------------------------------------------------------------
+    ranksplit(rank, _axproc, _nproc, _comm, _rankd);
+
+    //-------------------------------------------------------------------------
+    /** - Get the new sizes  */
+    //-------------------------------------------------------------------------
+    cmpt_sizes();
+
+    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",_nf,_axis,_nloc[0],_nloc[1],_nloc[2],_nmem[0],_nmem[1],_nmem[2]);
+    END_FUNC;
+}
+
+/**
+ * @brief compute the nloc and nmem sizes using _rankd, _nglob, _nproc, _nloc, _
+ * 
+ */
+void Topology::cmpt_sizes() {
+    BEGIN_FUNC;
+    for (int id = 0; id < 3; id++) {
+        // compute the _nbyproc
+        // number of unknows everywhere except the last one
+        _nbyproc[id] = _nglob[id] / _nproc[id];  // integer division = floor
+
+        // if we are the last rank in the direction, we take everything what is left
+        if ((_rankd[id] < (_nproc[id] - 1))) {
+            _nloc[id] = _nbyproc[id];
+            // the memory size is the same as the local size
+            _nmem[id] = _nloc[id];
+        } else {
+            // we get the max between the nglob and
+            _nloc[id] = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * _rankd[id]);
+            _nmem[id] = _nloc[id];
+            // if we are in the axis, we padd to ensure that every pencil is ok with alignment
+            if (id == _axis) {
+                // compute by how many we are not aligned: the global size in double = nglob * nf
+                const int modulo = (_nglob[id] * _nf * sizeof(double)) % _alignment;
+                // compute the number of points to add (in double indexing)
+                const int delta = (_alignment - modulo) / sizeof(double);
+                _nmem[id] += (modulo == 0) ? 0 : delta / _nf;
+            }
+        }
+    }
+    END_FUNC;
+}
+
+/**
+ * @brief Set a new communicator for the topology
+ * 
+ * @param comm 
+ */
+void Topology::change_comm(MPI_Comm comm) {
+    BEGIN_FUNC;
+
+    //-------------------------------------------------------------------------
+    /** - Store the new communicator  */
+    //-------------------------------------------------------------------------
+    _comm = comm;
+    //-------------------------------------------------------------------------
+    /** - Recompute the new rank and rankd info  */
+    //-------------------------------------------------------------------------
+    int newrank;
+    MPI_Comm_rank(comm, &newrank);
+    // split the rank to get the new rankd
+    ranksplit(newrank, _axproc, _nproc, _comm, _rankd);
+    //-------------------------------------------------------------------------
+    /** - Get the sizes  */
+    //-------------------------------------------------------------------------
+    cmpt_sizes();
+
+    END_FUNC;
 }
 
 /**
@@ -111,78 +177,9 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
             if (oid_global <= 0) start[id] = i;
             if (oid_global < onglob) end[id] = i + 1;
         }
-        // FLUPS_CHECK(end[id]-start[id]>0,"iend has to be at least 1 bigger than istart: istart = %d - iend = %d > my nloc = %d vs other %d > shift = %d",start[id],end[id],_nloc[id],other->nloc(id),shift[id], LOCATION);
     }
+    END_FUNC;
 }
-
-// /**
-//  * @brief Compute the length (along _axis dimension) of an intersection between two topologies
-//  * 
-//  * For each proc of the current topology, we compute the lenght of the intersection with every other proc of the other topology.
-//  * The length is taken as the maximum continuous amount of data aligned in the current topo's axis
-//  * 
-//  * For example, if we want to compute the naxis between proc P0 on the current topo with the horizontal axis,
-//  * with proc P1 from other topology ( with a vertical axis), the length is 10
-//  * ```
-//  *                  P1
-//  *       ----+-----------------+----
-//  *           |   |             |
-//  *  |        |   |             |        |
-//  *  |        |   l=36          |        |
-//  *  +-----------------------------------+
-//  *  |   ---------- l=20 ---------->     |   P0
-//  *  |                                   |
-//  *  +--------+--------+--------+--------+
-//  *  |        |   |             |        |
-//  *  |        |   v             |        |
-//  *       ----+-----------------+----
-//  *              <--- n=10 --->
-//  * ```
-//  * 
-//  * @param other the other topology
-//  * @param istart the starting index for the current proc data (using #cmpt_intersect_id)
-//  * @param iend the end index of the current proc data (using #cmpt_intersect_id)
-//  * @param naxis array of the length from this proc to any other proc in the other topology
-//  */
-// void Topology::cmpt_intersect_naxis(const Topology* other, const int istart[3], const int iend[3], const int ishift[3], int* naxis) const {
-//     int in_idStart[3];
-//     get_istart_glob(in_idStart, this);
-//     in_idStart[0] = in_idStart[0] + istart[0];
-//     in_idStart[1] = in_idStart[1] + istart[1];
-//     in_idStart[2] = in_idStart[2] + istart[2];
-
-//     // go through each other proc
-//     for (int p2 = 0; p2 < other->nproc(2); p2++) {
-//         for (int p1 = 0; p1 < other->nproc(1); p1++) {
-//             for (int p0 = 0; p0 < other->nproc(0); p0++) {
-//                 int p[3] = {p0, p1, p2};
-
-//                 // compute the intersection volume
-//                 int intersectVol[3];
-//                 for (int id = 0; id < 3; id++) {
-//                     // left limit of the intersection
-//                     int in_idleft  = _rankd[id] * _nbyproc[id] + istart[id] + ishift[id];
-//                     int out_idleft = p[id] * other->nbyproc(id);
-//                     int limleft    = std::max(in_idleft, out_idleft);
-//                     // right limit of the intersection
-//                     int in_idright  = in_idleft + iend[id];
-//                     int out_idright = out_idleft + get_nloc(id, p[id], other);
-//                     int limright    = std::min(in_idright, out_idright);
-//                     // store inside the volume
-//                     intersectVol[id] = ((limright - limleft) > 0) ? limright - limleft : 0;
-//                 }
-
-//                 if (intersectVol[0] * intersectVol[1] * intersectVol[2] > 0) {
-//                     // if we have an intersection, store the length of it
-//                     naxis[rankindex(p, other)] = intersectVol[_axis];
-//                 } else {
-//                     // if not, store 0
-//                     naxis[rankindex(p, other)] = 0;
-//                 }
-//             }
-//         }
-//     }
-// }
 
 /**
  * @brief display topology most important info
@@ -192,14 +189,15 @@ void Topology::disp() const {
     BEGIN_FUNC;
 
     int comm_size, rank;
-    MPI_Comm_size(MPI_COMM_WORLD,&comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Comm_size(_comm,&comm_size);
+    MPI_Comm_rank(_comm,&rank);
 
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topology created on proc %d/%d", rank, comm_size);
     FLUPS_INFO(" - axis = %d", _axis);
     FLUPS_INFO(" - nglob = %d %d %d", _nglob[0], _nglob[1], _nglob[2]);
     FLUPS_INFO(" - nloc = %d %d %d", _nloc[0], _nloc[1], _nloc[2]);
+    FLUPS_INFO(" - nmem = %d %d %d", _nmem[0], _nmem[1], _nmem[2]);
     FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
     FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
     FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
@@ -210,14 +208,33 @@ void Topology::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void Topology::disp_rank() const{
-    double* rankdata = (double*) fftw_malloc(sizeof(double)*this->locmemsize());
-    int rank;
+void Topology::disp_rank() {
+    BEGIN_FUNC;
+    // we only focus on the real size = local size
+    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize()*2);
+    int rank, rank_new;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    for(int i=0; i<this->locmemsize(); i++){
-        rankdata[i] = rank;
+    MPI_Comm_rank(_comm,&rank_new);
+
+    for(int i=0; i<this->locsize(); i++){
+        rankdata[2*i] = rank + rank_new/100.;
+        rankdata[2*i+1] = _rankd[0]+_rankd[1]/10.+_rankd[2]/100.;
     }
 
-    std::string name = "rank_topo_axis" + std::to_string(this->axis());
-    hdf5_dump(this, name, rankdata);
+    int rlen;
+    char commname[MPI_MAX_OBJECT_NAME];
+    MPI_Comm_get_name(_comm, commname, &rlen);
+    std::string cn(commname,rlen);
+
+    std::string name = "rank_topo_axis" + std::to_string(this->axis()) + "_procs" + std::to_string(this->nproc(0)) + std::to_string(this->nproc(1)) + std::to_string(this->nproc(2)) + "_" + cn;
+    if(this->isComplex()){
+        hdf5_dump(this, name, rankdata);
+    } else {
+        this->switch2complex();
+        hdf5_dump(this, name, rankdata);
+        this->switch2real();
+    }
+
+    flups_free(rankdata);
+    END_FUNC;
 }

@@ -1,5 +1,3 @@
-print("Hello...")
-
 import subprocess
 from check_res import check_res
 
@@ -25,13 +23,13 @@ for bcs in BCs :
     for kern in Kernels :
         i+=1
 
-        print("----- %i -----"%i)
+        print("----- %i -----"%i, flush=True)
 
         code = ''.join(bcs)
 
         # Launching test
         #+ ["-oversubscribe"]
-        r = subprocess.run(["mpirun"] + ["-np"] + ["4"] + ["./flups_validation"] + ["-np"] + ["1"] + ["2"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["-nres"] + ["3"] + ["-bc"] + bcs, capture_output=True)
+        r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
         
         if r.returncode != 0 :
             print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)

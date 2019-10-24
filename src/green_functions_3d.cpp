@@ -38,8 +38,6 @@
 // As an example, the final formula is then ( in the X direction):
 // `max( abs(2 symstart[0] - ix) , 1)`
 
-using namespace FLUPS;
-
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
@@ -97,10 +95,6 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
     FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
-    int ax0 = topo->axis();
-    int ax1 = (ax0 + 1) % 3;
-    int ax2 = (ax0 + 2) % 3;
-    
     double      G0;  //value of G in 0
     GreenKernel G;
 
@@ -132,24 +126,31 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     int istart[3];
     topo->get_istart_glob(istart);
 
+    const int nf = topo->nf();
+    const int ax0 = topo->axis();
+    const int ax1 = (ax0 + 1) % 3;
+    const int ax2 = (ax0 + 2) % 3;
+    const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+            //local indexes start
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
+
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
-                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
+                cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
 
                 // symmetrized position
-                const double x0 = (is[ax0])*hfact[ax0];
-                const double x1 = (is[ax1])*hfact[ax1];
-                const double x2 = (is[ax2])*hfact[ax2];
+                const double x0 = (is[ax0]) * hfact[ax0];
+                const double x1 = (is[ax1]) * hfact[ax1];
+                const double x2 = (is[ax2]) * hfact[ax2];
 
                 // green function value
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
-                const size_t id = i0 + topo->nloc(ax0) * (i1 + i2 * topo->nloc(ax1));
 
                 const double tmp[2] = {r, eps};
-                green[id]           = -G(tmp);
+                green[id + i0 * nf] = -G(tmp);
             }
         }
     }
@@ -157,6 +158,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         green[0] = -G0;
     }
+    END_FUNC;
 }
 /**@} */
 
@@ -252,16 +254,12 @@ static inline double _chat_2_2unb1spe_k0(const void* params) {
  * @param eps the smoothing length (only used for HEJ kernels)
  */
 void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
-    const int ax0 = topo->axis();  
-    const int ax1 = (ax0 + 1) % 3; 
-    const int ax2 = (ax0 + 2) % 3; 
-
-    // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
-
+    BEGIN_FUNC;
+    
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
@@ -315,13 +313,17 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     int istart[3];
     topo->get_istart_glob(istart);
 
-    const double r_eq2D = c_1osqrtpi * sqrt( hfact[ax0]*hfact[ax1]+hfact[ax1]*hfact[ax2]+hfact[ax2]*hfact[ax0] );
+    const int    nf      = topo->nf();
+    const int    ax0     = topo->axis();
+    const int    ax1     = (ax0 + 1) % 3;
+    const int    ax2     = (ax0 + 2) % 3;
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const double r_eq2D  = c_1osqrtpi * sqrt(hfact[ax0] * hfact[ax1] + hfact[ax1] * hfact[ax2] + hfact[ax2] * hfact[ax0]);
 
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
-            
             //local indexes start
-            size_t id = localindex_ao(0, i1, i2, topo);
+            const size_t id = localIndex(ax0,0, i1, i2, ax0, nmem,nf);
         
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 
@@ -356,11 +358,13 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             }
         }
     }
+    
     // reset the value in x=y=0.0 and k=0
     if (typeGreen == CHAT_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
         green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
+    END_FUNC;
 }
 /**@} */
 
@@ -460,20 +464,16 @@ static inline double _chat_2_1unb2spe_k0(const void* params) {
  * @param eps the smoothing length (only used for HEJ kernels)
  */
 void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
-    const int ax0 = topo->axis();  
-    const int ax1 = (ax0 + 1) % 3; 
-    const int ax2 = (ax0 + 2) % 3; 
-
-    // printf("kfact - hfact : %lf,%lf,%lf - %lf,%lf,%lf\n",kfact[ax0],kfact[ax1],kfact[ax2],hfact[ax0],hfact[ax1],hfact[ax2]);
+    BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-    FLUPS_CHECK(kfact[ax0] != hfact[ax0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
-    FLUPS_CHECK(kfact[ax1] != hfact[ax1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
-    FLUPS_CHECK(kfact[ax2] != hfact[ax2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
+    FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
+    FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
-    // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
+    // double* mygreen = green; //casting of the Green function to be able to access real and complex part
 
     GreenKernel G;   // the Green kernel (general expression in the whole domain)
     GreenKernel G0;  // the Green kernel (particular expression in k=0)
@@ -505,15 +505,18 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     int istart[3];
     topo->get_istart_glob(istart);
 
-    FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
-    FLUPS_INFO("Koff= %lf %lf %lf", koffset[0],koffset[1],koffset[2]);
-    FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
-
-    //Note: i0 (ax0) is the only spatial (i.e. non spectral) axis
+    const int nf      = topo->nf();
+    const int ax0     = topo->axis();
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
+    // FLUPS_INFO("Koff= %lf %lf %lf", koffset[0],koffset[1],koffset[2]);
+    // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            size_t id = localindex_ao(0, i1, i2, topo);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
@@ -533,15 +536,16 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
-                if (k <= (kfact[ax0]+kfact[ax1]+kfact[ax2])*0.2 ){
-                    green[id + i0 * topo->nf()] = -G0(tmp);
+                if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
+                    green[id + i0 * nf] = -G0(tmp);
                 }
                 else{
-                    green[id + i0 * topo->nf()] = -G(tmp);
+                    green[id + i0 * nf] = -G(tmp);
                 }
             }
         }
     }
+    END_FUNC;
 }
 
 /**@} */
@@ -631,13 +635,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0", LOCATION);
     FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
 
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    printf("kfact : %lf,%lf,%lf \n",kfact[ax0],kfact[ax1],kfact[ax2]);
-    // printf("koff  : %lf,%lf,%lf \n",koffset[ax0],koffset[ax1],koffset[ax2]);   
-
     printf("eps : %lf \n",eps);
  
     GreenKernel G;   // the Green kernel (general expression in the whole domain)
@@ -677,9 +674,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     if (iend_custom != NULL) {
         //switch to local index
         for (int ip = 0; ip < 3; ip++) {
-            // if (istart[ip] + topo->nloc(ip) == topo->nglob(ip)) {
-            //     ie_[ip] = iend_custom[ip] - istart[ip]; 
-            // }
             ie_[ip] = fmin( fmax(iend_custom[ip]- istart[ip], 0), topo->nloc(ip));
         }
     }
@@ -690,29 +684,35 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     // printf("IS_E : %d,%d,%d \n",ie[0],ie[1],ie[2]);
     // printf("ISTART : %d,%d,%d \n",istart[0],istart[1],istart[2]);
     // printf("K_OFFSET : %lf,%lf,%lf \n",koffset[0],koffset[1],koffset[2]);
+    // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
+    // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
     // printf("IEND : %d,%d,%d \n",topo->nloc(0),topo->nloc(1),topo->nloc(2));
 
+    const int nf      = topo->nf();
+    const int ax0     = topo->axis();
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
-            size_t id = localindex_ao(0, i1, i2, topo);
-
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,nf);
             for (int i0 = is[ax0]; i0 < ie[ax0]; i0++) {
                 int il[3];
-                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,il);
+                cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, il);
                 //the previous call works with koffset below because there is never a shiftgreen AND a symstart together
 
                 // (symmetrized) wave number
-                const double k0 = (il[ax0]+koffset[ax0])*kfact[ax0];
-                const double k1 = (il[ax1]+koffset[ax1])*kfact[ax1];
-                const double k2 = (il[ax2]+koffset[ax2])*kfact[ax2];
+                const double k0 = (il[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (il[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (il[ax2] + koffset[ax2]) * kfact[ax2];
 
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
                 const double tmp[2] = {ksqr, eps};
-                
-                green[id + i0*topo->nf()] = -G(tmp);
+
+                green[id + i0 * nf] = -G(tmp);
             }
         }
     }
@@ -721,5 +721,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
         green[0] = -0.0;
     }
+    END_FUNC;
 }
 /**@} */
