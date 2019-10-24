@@ -264,7 +264,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     int selfcount = 0;
     for (int bid = 0; bid < _inBlock[0] * _inBlock[1] * _inBlock[2]; bid++) {
         //create the request
-        const FLUPS_SIZE blockMemSize = get_blockMemSize();
+        const size_t blockMemSize = get_blockMemSize();
         _sendBuf[bid] = sendData + bid*blockMemSize;
         // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
         if (_i2o_destRank[bid] == newrank) {
@@ -293,7 +293,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // reset the self count
     selfcount = 0;
-    const FLUPS_SIZE blockMemSize = get_blockMemSize();
+    const size_t blockMemSize = get_blockMemSize();
     for (int bid = 0; bid < _onBlock[0] * _onBlock[1] * _onBlock[2]; bid++) {
         //associate the pointer
         
@@ -557,7 +557,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 
         // go inside the block
         const int id_max = iBlockSize[iax1][bid] * iBlockSize[iax2][bid];
-        const FLUPS_SIZE nmax = iBlockSize[iax0][bid] * nf;
+        const size_t nmax = iBlockSize[iax0][bid] * nf;
 
         // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
         const bool isBuffAligned = FLUPS_ISALIGNED(data) &&  nmax%FLUPS_ALIGNMENT == 0;
@@ -578,7 +578,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 opt_double_ptr dataloc    = data + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -594,7 +594,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 opt_double_ptr dataloc        = data + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -610,7 +610,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 double* __restrict dataloc = data + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -626,7 +626,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 double* __restrict dataloc = data + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -647,17 +647,17 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     /** - reset the memory to 0 */
     //-------------------------------------------------------------------------
     // reset the memory to 0
-    const FLUPS_SIZE nmax = topo_out->memsize();
+    const size_t nmax = topo_out->memsize();
     if (FLUPS_ISALIGNED(v)) {
         opt_double_ptr my_v = v;
 #pragma omp parallel for default(none) proc_bind(close) firstprivate(my_v, nmax)
-        for (FLUPS_SIZE id = 0; id < nmax; id++) {
+        for (size_t id = 0; id < nmax; id++) {
             my_v[id] = 0.0;
         }
     } else {
         double* __restrict my_v = v;
 #pragma omp parallel for default(none) proc_bind(close) firstprivate(my_v, nmax)
-        for (FLUPS_SIZE id = 0; id < nmax; id++) {
+        for (size_t id = 0; id < nmax; id++) {
             my_v[id] = 0.0;
         }
     }
@@ -733,7 +733,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 
         // go inside the block
         const int id_max = oBlockSize[oax1][bid] * oBlockSize[oax2][bid];
-        const FLUPS_SIZE nmax = oBlockSize[oax0][bid] * nf;
+        const size_t nmax = oBlockSize[oax0][bid] * nf;
 
         // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
         const bool isBuffAligned = FLUPS_ISALIGNED(recvBuf[bid]) &&  nmax%FLUPS_ALIGNMENT == 0;
@@ -753,7 +753,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -768,7 +768,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -783,7 +783,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const double* __restrict dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -798,7 +798,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const double* __restrict dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -864,7 +864,7 @@ void SwitchTopo_nb_test() {
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                FLUPS_SIZE id    = localIndex(0,i0, i1, i2,0,nmem,1);
+                size_t id    = localIndex(0,i0, i1, i2,0,nmem,1);
                 data[id] = id;
             }
         }
@@ -901,7 +901,7 @@ void SwitchTopo_nb_test() {
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                FLUPS_SIZE id    = localIndex(0,i0, i1, i2,0,nmem,2);
+                size_t id    = localIndex(0,i0, i1, i2,0,nmem,2);
                 data[id + 0] = 0;
                 data[id + 1] = id;
             }

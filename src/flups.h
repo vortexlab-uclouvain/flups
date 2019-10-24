@@ -32,16 +32,9 @@
 
 #ifdef __cplusplus
 extern "C" {
-// #else
-// #include "stdlib.h"
+#else
+#include "stdlib.h"
 #endif
-
-
-/**
- * @brief type to descive the number of data per proc.
- * 
- */
-#define FLUPS_SIZE size_t
 
 //=============================================================================
 /**
@@ -49,7 +42,6 @@ extern "C" {
  * @{
  */
 //=============================================================================
-
 
 /**
  * @brief List of supported boundary conditions
@@ -133,7 +125,7 @@ typedef enum FLUPS_SolverType   FLUPS_SolverType;
  * 
  * @param size the data to be allocated
  */
-void * flups_malloc(FLUPS_SIZE size);
+void * flups_malloc(size_t size);
 
 /**
  * 
@@ -154,7 +146,7 @@ void flups_free(void* data);
     for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
             for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
-                const FLUPS_SIZE id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
+                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
  *                  
  *              data[id] = ...;
  *          }
@@ -169,9 +161,9 @@ void flups_free(void* data);
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @return FLUPS_SIZE 
+ * @return size_t 
  */
-static inline FLUPS_SIZE flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
+static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
@@ -207,7 +199,7 @@ static inline FLUPS_SIZE flups_locID(const int axsrc, const int i0, const int i1
     for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
             //local indexes start
-            const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
+            const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
             for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
                 int is[3];
                 flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
@@ -305,13 +297,13 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
  * @return long 
  */
 
-FLUPS_SIZE flups_topo_get_locsize(const FLUPS_Topology* t);
+size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-FLUPS_SIZE flups_topo_get_memsize(const FLUPS_Topology* t);
+size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
 /**@} */
 
@@ -342,7 +334,7 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  * @name SOLVER (Advanced)
  * @{
  */
-FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s);
+size_t flups_get_allocSize(FLUPS_Solver* s);
 
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 

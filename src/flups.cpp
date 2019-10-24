@@ -35,7 +35,7 @@
 
 extern "C" {
 
-void * flups_malloc(FLUPS_SIZE size){
+void * flups_malloc(size_t size){
     return flups_mem_malloc(size);
 }
 
@@ -84,12 +84,12 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]) {
     t->get_istart_glob(istart);
 }
 
-FLUPS_SIZE flups_topo_get_locsize(const FLUPS_Topology* t) {
-    return (FLUPS_SIZE)t->locsize();
+size_t flups_topo_get_locsize(const FLUPS_Topology* t) {
+    return (size_t)t->locsize();
 }
 
-FLUPS_SIZE flups_topo_get_memsize(const FLUPS_Topology* t) {
-    return (FLUPS_SIZE)t->memsize();
+size_t flups_topo_get_memsize(const FLUPS_Topology* t) {
+    return (size_t)t->memsize();
 }
 
 //***********************************************************************
@@ -129,8 +129,8 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
 
 // -- ADVANCED FEATURES --
 
-FLUPS_SIZE flups_get_allocSize(FLUPS_Solver* s){
-    return(FLUPS_SIZE) s->get_allocSize();
+size_t flups_get_allocSize(FLUPS_Solver* s){
+    return(size_t) s->get_allocSize();
 }
 
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]){

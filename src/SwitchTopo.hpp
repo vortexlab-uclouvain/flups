@@ -89,20 +89,20 @@ class SwitchTopo {
     /**
      * @brief return the memory size of a block (including the padding for odd numbers if needed)
      * 
-     * @return FLUPS_SIZE 
+     * @return size_t 
      */
-    inline FLUPS_SIZE get_blockMemSize() const {
+    inline size_t get_blockMemSize() const {
         BEGIN_FUNC;
         // get the max block size
-        FLUPS_SIZE total = 1;
+        size_t total = 1;
         for (int id = 0; id < 3; id++) {
             // if the block size is 1, no need to pad :)
-            total *= (_nByBlock[id] == 1) ? 1 : (FLUPS_SIZE)(_nByBlock[id] + _exSize[id] % 2);
+            total *= (_nByBlock[id] == 1) ? 1 : (size_t)(_nByBlock[id] + _exSize[id] % 2);
         }
         // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        total *= (FLUPS_SIZE)_topo_out->nf();
+        total *= (size_t)_topo_out->nf();
         // add the difference with the alignement to be always aligned
-        FLUPS_SIZE alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
+        size_t alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
         FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
         total = total + alignDelta;
         FLUPS_CHECK((total*sizeof(double))%FLUPS_ALIGNMENT == 0 , "The total size of one block HAS to match the alignement size",LOCATION);
@@ -112,12 +112,12 @@ class SwitchTopo {
     /**
      * @brief return the buffer size for one proc = number of blocks * blocks memory size
      * 
-     * @return FLUPS_SIZE 
+     * @return size_t 
      */
-    inline FLUPS_SIZE get_bufMemSize() const {
+    inline size_t get_bufMemSize() const {
         BEGIN_FUNC;
         // nultiply by the number of blocks
-        FLUPS_SIZE total = (FLUPS_SIZE) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
+        size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
         total *= get_blockMemSize();
         // return the total size
         return total;
@@ -127,11 +127,11 @@ class SwitchTopo {
      * @brief return the stride for a given dimension
      * 
      */
-    inline FLUPS_SIZE get_blockStride(const int ax, const int idim, const int bSize[3]) const {
+    inline size_t get_blockStride(const int ax, const int idim, const int bSize[3]) const {
         int    id     = ax;
-        FLUPS_SIZE stride = 1;
+        size_t stride = 1;
         while (id != idim) {
-            stride = stride * ((FLUPS_SIZE)bSize[id]);
+            stride = stride * ((size_t)bSize[id]);
             // update the id
             id = (id + 1) % 3;
         }

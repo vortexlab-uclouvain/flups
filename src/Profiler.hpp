@@ -57,7 +57,7 @@ class TimerAgent {
     double _timeAcc = 0.0;
     double _t0      = 0.0;
     double _t1      = 0.0;
-    FLUPS_SIZE _memsize = 0;
+    size_t _memsize = 0;
 
     double _timeMax = 0.0;
     double _timeMin = 0.0;
@@ -73,7 +73,7 @@ class TimerAgent {
     void start();
     void stop();
     void reset();
-    void addMem(FLUPS_SIZE mem);
+    void addMem(size_t mem);
     void disp(FILE* file, const int level, const double totalTime);
 
     int    count() const { return _count; };
@@ -105,7 +105,7 @@ class Profiler {
 
     void start(string name);
     void stop(string name);
-    void addMem(string name,FLUPS_SIZE mem);
+    void addMem(string name,size_t mem);
 
     double get_timeAcc(const std::string ref);
 

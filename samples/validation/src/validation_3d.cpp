@@ -131,7 +131,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                             double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
                             double       rho2 = (x * x + y * y + z * z) * oosigma2;
                             double       rho  = sqrt(rho2);
-                            const FLUPS_SIZE id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
+                            const size_t id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
 
                             // Gaussian
                             rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
@@ -150,7 +150,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const FLUPS_SIZE id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
+                const size_t id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
                 lIs += sol[id];
                 // lIs = min(sol[id],lIs);
             }
@@ -163,7 +163,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const FLUPS_SIZE id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
+    //             const size_t id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
     //             sol[id] -= gIs;
     //         }
     //     }
@@ -185,7 +185,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const FLUPS_SIZE id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
                     sol[id]         = 1.0;
                 }
             }
@@ -256,7 +256,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const FLUPS_SIZE id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
                     const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
                                          (istart[ax1] + i1 + 0.5) * h[ax1],
                                          (istart[ax2] + i2 + 0.5) * h[ax2]};
@@ -299,7 +299,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const FLUPS_SIZE id   = localindex_xyz(i0, i1, i2, topo);
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
     //             // lIs += rhs[id];
     //             lIs = min(rhs[id],lIs);
     //         }
@@ -310,7 +310,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
     //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const FLUPS_SIZE id   = localindex_xyz(i0, i1, i2, topo);
+    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
     //             rhs[id] -= gIs;
     //         }
     //     }
@@ -336,7 +336,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const FLUPS_SIZE id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
                     const double err = sol[id] - field[id];
 
                     lerri = max(lerri, fabs(err));

@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
                 double       y    = (istartIn[1] + i1 + 0.5) * h[1];
                 double       z    = (istartIn[2] + i2 + 0.5) * h[2];
 
-                FLUPS_SIZE id;
+                size_t id;
                 id    = flups_locID(0, i0, i1, i2, 0, nmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
             }
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
             //local indexes start
-            const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
+            const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
             for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
                 int is[3];
                 flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
@@ -231,7 +231,7 @@ void print_res(double *A, const FLUPS_Topology* topo) {
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 //local indexes start
-                const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmem,2);
+                const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmem,2);
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
                     printf("(%d %d %d) %lg +i1* %lg\n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0 * 2], A[id + i0 * 2 + 1]);
                 }
@@ -241,7 +241,7 @@ void print_res(double *A, const FLUPS_Topology* topo) {
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 //local indexes start
-                const FLUPS_SIZE id = flups_locID(ax0, 0, i1, i2, ax0, nmem,1);
+                const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmem,1);
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
                     printf("(%d %d %d) %lg \n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0]);
                 }

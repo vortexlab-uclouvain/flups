@@ -324,9 +324,9 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         // get the destination rank
         int destrank = _i2o_destRank[ib];
         // we count the number of blocks on the ranks bellow me
-        FLUPS_SIZE memblocks = 0;
+        size_t memblocks = 0;
         for (int ir = 0; ir < destrank; ir++) {
-            memblocks += (FLUPS_SIZE)_i2o_count[ir];
+            memblocks += (size_t)_i2o_count[ir];
         }
 
         // place the block given the number of ranks bellow + the number of block already set to my rank
@@ -347,9 +347,9 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         // get the destination rank
         int destrank = _o2i_destRank[ib];
         // we count the number of blocks on the ranks bellow me
-        FLUPS_SIZE memblocks = 0;
+        size_t memblocks = 0;
         for (int ir = 0; ir < destrank; ir++) {
-            memblocks += (FLUPS_SIZE)_o2i_count[ir];
+            memblocks += (size_t)_o2i_count[ir];
         }
         // place the block given the number of ranks bellow + the number of block already set to my rank
         _recvBuf[ib] = recvData + memblocks + countPerRank[destrank];
@@ -555,7 +555,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
         // go inside the block
         const int id_max = iBlockSize[iax1][bid] * iBlockSize[iax2][bid];
-        const FLUPS_SIZE nmax = iBlockSize[iax0][bid] * nf;
+        const size_t nmax = iBlockSize[iax0][bid] * nf;
 
         // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
         const bool isBuffAligned = FLUPS_ISALIGNED(sendBuf[bid]) &&  nmax%FLUPS_ALIGNMENT == 0;
@@ -576,7 +576,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 opt_double_ptr dataloc    = sendBuf[bid] + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -592,7 +592,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 opt_double_ptr dataloc        = sendBuf[bid] + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -608,7 +608,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 double* __restrict dataloc = sendBuf[bid] + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -624,7 +624,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 double* __restrict dataloc = sendBuf[bid] + id * nmax;
 
                 // do the copy -> vectorized
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     dataloc[i0] = vloc[i0];
                 }
             }
@@ -667,17 +667,17 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     /** - reset the memory to 0 */
     //-------------------------------------------------------------------------
     // reset the memory to 0
-    const FLUPS_SIZE nmax = topo_out->memsize();
+    const size_t nmax = topo_out->memsize();
     if (FLUPS_ISALIGNED(v)) {
         opt_double_ptr my_v = v;
 #pragma omp parallel for default(none) proc_bind(close) firstprivate(my_v, nmax)
-        for (FLUPS_SIZE id = 0; id < nmax; id++) {
+        for (size_t id = 0; id < nmax; id++) {
             my_v[id] = 0.0;
         }
     } else {
         double* __restrict my_v = v;
 #pragma omp parallel for default(none) proc_bind(close) firstprivate(my_v, nmax)
-        for (FLUPS_SIZE id = 0; id < nmax; id++) {
+        for (size_t id = 0; id < nmax; id++) {
             my_v[id] = 0.0;
         }
     }
@@ -715,7 +715,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
         // go inside the block
         const int id_max = oBlockSize[oax1][bid] * oBlockSize[oax2][bid];
-        const FLUPS_SIZE nmax = oBlockSize[oax0][bid] * nf;
+        const size_t nmax = oBlockSize[oax0][bid] * nf;
 
         // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
         const bool isBuffAligned = FLUPS_ISALIGNED(recvBuf[bid]) &&  nmax%FLUPS_ALIGNMENT == 0;
@@ -735,7 +735,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -750,7 +750,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -765,7 +765,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const double* __restrict dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -780,7 +780,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                 double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
                 const double* __restrict dataloc = recvBuf[bid] + id * nmax;
                 // do the copy
-                for (FLUPS_SIZE i0 = 0; i0 < nmax; i0++) {
+                for (size_t i0 = 0; i0 < nmax; i0++) {
                     vloc[i0] = dataloc[i0];
                 }
             }
@@ -845,7 +845,7 @@ void SwitchTopo_a2a_test() {
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                    const FLUPS_SIZE id = localIndex(0, i0, i1, i2, 0, nmem, 1);
+                    const size_t id = localIndex(0, i0, i1, i2, 0, nmem, 1);
 
                     data[id] = (double)id;
                 }
@@ -857,7 +857,7 @@ void SwitchTopo_a2a_test() {
         const int fieldstart[3] = {-1, 0, 0};
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
-        FLUPS_SIZE         max_mem    = switchtopo->get_bufMemSize();
+        size_t         max_mem    = switchtopo->get_bufMemSize();
         opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
@@ -896,7 +896,7 @@ void SwitchTopo_a2a_test() {
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                    FLUPS_SIZE id    = localIndex(0, i0, i1, i2, 0, nmem2, 2);
+                    size_t id    = localIndex(0, i0, i1, i2, 0, nmem2, 2);
                     data[id + 0] = 0;
                     data[id + 1] = id;
                 }
@@ -914,7 +914,7 @@ void SwitchTopo_a2a_test() {
         // printf("\n=============================");
         SwitchTopo* switchtopo               = new SwitchTopo_a2a(topo, topobig, fieldstart2, NULL);
         switchtopo->disp();
-        FLUPS_SIZE         max_mem   = switchtopo->get_bufMemSize();
+        size_t         max_mem   = switchtopo->get_bufMemSize();
         opt_double_ptr send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         opt_double_ptr recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));

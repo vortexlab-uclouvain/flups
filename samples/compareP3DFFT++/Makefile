@@ -27,7 +27,7 @@ ARCH_FILE ?= make_arch/make.osx_gcc
 #DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
 include ../../$(ARCH_FILE)
-include $(ARCH_FILE)
+#include $(ARCH_FILE)
 
 FLUPSDIR := ../../
 #/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver

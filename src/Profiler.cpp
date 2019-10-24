@@ -74,7 +74,7 @@ void TimerAgent::reset() {
  * @brief adds memory to the timer to compute bandwith
  * 
  */
-void TimerAgent::addMem(FLUPS_SIZE mem){
+void TimerAgent::addMem(size_t mem){
     _memsize += mem;
 }
 
@@ -371,7 +371,7 @@ void Profiler::stop(string name) {
 #endif
 }
 
-void Profiler::addMem(string name,FLUPS_SIZE mem) {
+void Profiler::addMem(string name,size_t mem) {
 #ifdef NDEBUG
     _timeMap[name]->addMem(mem);
 #else
