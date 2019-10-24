@@ -52,7 +52,7 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
     return t;
 }
 
-void flups_topo_free(FLUPS_Topology* t) {
+void flups_topo_free(const FLUPS_Topology* t) {
     delete t;
 }
 

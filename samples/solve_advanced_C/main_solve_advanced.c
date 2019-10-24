@@ -2,8 +2,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "flups.h"
+
 #include "mpi.h"
+#include "flups.h"
 
 void print_res(double *A, const FLUPS_Topology* topo);
 
@@ -13,6 +14,7 @@ int main(int argc, char *argv[]) {
     // Initialize MPI
     //-------------------------------------------------------------------------
     int rank, comm_size;
+    MPI_Comm comm = MPI_COMM_WORLD;
 
     int provided;
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
@@ -20,11 +22,11 @@ int main(int argc, char *argv[]) {
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         printf("Invalid number of procs\n");
-        MPI_Abort(MPI_COMM_WORLD,1);
+        MPI_Abort(comm,1);
     }
    
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &comm_size);
 
     //-----------mak--------------------------------------------------------------
     //Definition of the problem
@@ -41,7 +43,7 @@ int main(int argc, char *argv[]) {
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2]){
         printf("Invalid number of procs\n");
-        MPI_Abort(MPI_COMM_WORLD,1);
+        MPI_Abort(comm,1);
     }
 
 
@@ -51,17 +53,21 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
 
-    const FLUPS_Topology *topoIn      = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT);
+    FLUPS_Topology *topoIn      = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT,comm);
     const int             nprocOut[3] = {1, 2, 1};
 
     
     // solver creation and init
     FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L);
     flups_set_greenType(mysolver,CHAT_2);
-    double* solFLU = flups_setup(mysolver);
+    double* solFLU = flups_setup(mysolver, true);
+
+    // recompute the communicator and the rank
+    comm = flups_topo_get_comm(topoIn);
+    MPI_Comm_rank(comm,&rank);
 
     // retrieveing internal info from the solver
-    const FLUPS_Topology *topoSpec = flups_get_topo_spectral(mysolver);
+    const FLUPS_Topology *topoSpec = flups_get_innerTopo_spectral(mysolver);
 
     int nmemIn[3];
     int istartIn[3], istartSpec[3];

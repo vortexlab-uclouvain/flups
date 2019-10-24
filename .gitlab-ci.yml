@@ -44,7 +44,7 @@ compil opt :
     - cd ./samples/validation
     - make all -j4
 
-compil sample 1:1 :
+compil solve_advanced:
   stage: build
   only:
     - /.*$/i@examples/flups

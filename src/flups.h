@@ -30,6 +30,8 @@
 #ifndef FLUPS_H
 #define FLUPS_H
 
+#include "mpi.h"
+
 #ifdef __cplusplus
 extern "C" {
 #define MAX(a,b) std::max(a,b)
@@ -263,7 +265,7 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
  * 
  * @param t topo to be freed
  */
-void flups_topo_free(FLUPS_Topology* t);
+void flups_topo_free(const FLUPS_Topology* t);
 
 /**
  * @brief Determines if the topo works on real or complex numbers
@@ -358,8 +360,8 @@ void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3],
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
-const FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s);
-const FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
 
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);

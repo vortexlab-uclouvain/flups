@@ -281,13 +281,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 
 
-#ifdef DDUMP_DBG
+#ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, sol);
+    flups_hdf5_dump(topo, msg, sol);
 #endif
 
     //-------------------------------------------------------------------------
@@ -321,10 +321,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //     }
     // }
 
-#ifdef DDUMP_DBG
+#ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
 #endif    
 
     //-------------------------------------------------------------------------

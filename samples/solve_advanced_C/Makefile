@@ -52,7 +52,7 @@ LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3f 
+FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
 INC += -I$(FFTW_INC)
 LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
