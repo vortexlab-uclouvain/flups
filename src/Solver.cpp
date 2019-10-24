@@ -24,6 +24,9 @@
  */
 
 #include "Solver.hpp"
+#ifdef HAVE_METIS
+#include "metis.h"
+#endif
 
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
@@ -142,6 +145,74 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     END_FUNC;
 }
 
+static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int n_nodes, int *order) {
+  int comm_size;
+  int comm_rank;
+  MPI_Comm_rank(comm, &comm_rank);
+  MPI_Comm_size(comm, &comm_size);
+#ifdef HAVE_METIS
+  int n_neighbours = 0;
+  for (int i = 0; i < comm_size; ++i) {
+    if (sourcesW[i] + destsW[i] > 0) n_neighbours++;
+  }
+  int *neighbours = (int*)flups_malloc(sizeof(int)*n_neighbours);
+  int *weights = (int*)flups_malloc(sizeof(int)*n_neighbours);
+  n_neighbours = 0;
+  for (int i = 0; i < comm_size; ++i) {
+    if (sourcesW[i] + destsW[i] > 0) {
+      neighbours[n_neighbours] = i;
+      weights[n_neighbours] = sourcesW[i] + destsW[i];
+      n_neighbours ++;
+    }
+  }
+  if (comm_rank == 0) {
+    int *xadj = (int*)flups_malloc((comm_size+1)*sizeof(int));
+    int *nadj = (int*)flups_malloc((comm_size)*sizeof(int));
+    MPI_Gather(&n_neighbours,1,MPI_INT,nadj,1,MPI_INT,0,comm);
+    xadj[0] = 0;
+    for (int i = 0; i < comm_size; ++i) {
+      xadj[i+1] = xadj[i] + nadj[i];
+    }
+    int *adj = (int*)flups_malloc(xadj[comm_size]*sizeof(int));
+    int *adjw = (int*)flups_malloc(xadj[comm_size]*sizeof(int));
+    MPI_Gatherv(neighbours,n_neighbours,MPI_INT,adj,nadj,xadj,MPI_INT,0,comm);
+    MPI_Gatherv(weights,n_neighbours,MPI_INT,adjw,nadj,xadj,MPI_INT,0,comm);
+    int ncon = 1;
+    int objval;
+    int *part = (int*)flups_malloc(comm_size*sizeof(int));
+    int *rids = (int*)flups_malloc(n_nodes*sizeof(int));
+    METIS_PartGraphKway(&comm_size,&ncon,xadj,adj,NULL,NULL,adjw,&n_nodes,NULL,NULL,NULL,&objval,part);
+    flups_free(xadj);
+    flups_free(adj);
+    flups_free(adjw);
+    for (int i = 0; i < n_nodes; ++i)
+      rids[i] = i*(comm_size/n_nodes);
+    for (int i = 0; i < comm_size; ++i) {
+      order[i] = rids[part[i]]++;
+    }
+    flups_free(part);
+    flups_free(rids);
+  }
+  else  {
+    MPI_Gather(&n_neighbours,1,MPI_INT,NULL,1,MPI_INT,0,comm);
+    MPI_Gatherv(neighbours,n_neighbours,MPI_INT,NULL,NULL,NULL,MPI_INT,0,comm);
+    MPI_Gatherv(weights,n_neighbours,MPI_INT,NULL,NULL,NULL,MPI_INT,0,comm);
+  }
+  flups_free(neighbours);
+  flups_free(weights);
+  MPI_Bcast(order,comm_size,MPI_INT,0,comm);
+  if(comm_rank == 3) {
+    for (int i = 0; i < comm_size; ++i) {
+      printf("%i : %i \n", i, order[i]);
+    }
+  }
+#else 
+  for (int i = 0; i < comm_size; ++i) {
+    order[i] = i;
+  }
+#endif
+}
+
 /**
  * @brief Sets up the Solver
  * 
@@ -217,6 +288,12 @@ double* Solver::setup(const bool changeTopoComm) {
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
     
+
+    int *order = (int*)flups_malloc(sizeof(int)*worldsize);
+    reorder_metis(MPI_COMM_WORLD, sources, sourcesW, dests, destsW, 4, order);
+    flups_free(order);
+    MPI_Finalize();
+    exit(0);
     flups_free(sources);
     flups_free(sourcesW);
     flups_free(dests);
