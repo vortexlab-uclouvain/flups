@@ -318,6 +318,16 @@ void            flups_profiler_disp_root(FLUPS_Profiler* p,const char name[]);
 
 /**@} */
 
+//=============================================================================
+/**
+ * @name HDF5 exports
+ * @{
+ */
+
+void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data);
+
+/**@} */
+
 #ifdef __cplusplus
 }
 #endif
