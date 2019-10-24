@@ -33,6 +33,8 @@
 #include "Profiler.hpp"
 
 
+extern "C" {
+
 void * flups_malloc(size_t size){
     return flups_mem_malloc(size);
 }
@@ -50,44 +52,44 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
     return t;
 }
 
-void flups_topo_free(FLUPS_Topology* t) {
+void flups_topo_free(const FLUPS_Topology* t) {
     delete t;
 }
 
-bool flups_topo_get_isComplex(FLUPS_Topology* t) {
+bool flups_topo_get_isComplex(const FLUPS_Topology* t) {
     return t->isComplex();
 }
 
-int flups_topo_get_axis(FLUPS_Topology* t) {
+int flups_topo_get_axis(const FLUPS_Topology* t) {
     return t->axis();
 }
 
-int flups_topo_get_nglob(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nglob(const FLUPS_Topology* t, const int dim) {
     return t->nglob(dim);
 }
 
-int flups_topo_get_nloc(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nloc(const FLUPS_Topology* t, const int dim) {
     return t->nloc(dim);
 }
 
-int flups_topo_get_nmem(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nmem(const FLUPS_Topology* t, const int dim) {
     return t->nmem(dim);
 }
 
-int flups_topo_get_nproc(FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nproc(const FLUPS_Topology* t, const int dim) {
     return t->nproc(dim);
 }
 
-void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]) {
+void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]) {
     t->get_istart_glob(istart);
 }
 
-unsigned long long flups_topo_get_locsize(FLUPS_Topology* t) {
-    return (unsigned long long)t->locsize();
+size_t flups_topo_get_locsize(const FLUPS_Topology* t) {
+    return (size_t)t->locsize();
 }
 
-unsigned long long flups_topo_get_memsize(FLUPS_Topology* t) {
-    return (unsigned long long)t->memsize();
+size_t flups_topo_get_memsize(const FLUPS_Topology* t) {
+    return (size_t)t->memsize();
 }
 
 MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
@@ -100,12 +102,20 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 
 // get a new solver
 #ifndef PROF
-FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+    Solver* s = new Solver(t, bc, h, L, NULL);
+    return s;
+}
+FLUPS_Solver* flups_init_timed( FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
 #else
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+    Solver* s = new Solver(t, bc, h, L, NULL);
+    return s;
+}
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
@@ -133,8 +143,12 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
 
 // -- ADVANCED FEATURES --
 
-unsigned long long flups_get_allocSize(FLUPS_Solver* s){
-    return(unsigned long long) s->get_allocSize();
+size_t flups_get_allocSize(FLUPS_Solver* s){
+    return(size_t) s->get_allocSize();
+}
+
+void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]){
+    s->get_spectralInfo(kfact,koffset,symstart);
 }
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha){
@@ -190,4 +204,16 @@ void flups_profiler_disp(FLUPS_Profiler* p) {
 void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
     const std::string myname(name);
     p->disp(myname);
+}
+
+//**********************************************************************
+//  HDF5
+//**********************************************************************
+
+void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data){
+    const std::string fn(filename);
+    hdf5_dump(topo,fn, data);
+}
+
+
 }

@@ -301,7 +301,7 @@ double* Solver::setup(const bool changeTopoComm) {
         _topo_phys->change_comm(graph_comm);
     }
 
-#if PERF_VERBOSE
+#ifdef PERF_VERBOSE
     _topo_hat[0]->disp_rank();
 #endif
 
@@ -883,9 +883,11 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     }
 
     // dump the green func
+#ifdef DUMP_DBG
     char msg[512];
     sprintf(msg, "green_%d%d%d_%dx%dx%d", planmap[0]->type(), planmap[1]->type(), planmap[2]->type(), topo[0]->nglob(0), topo[0]->nglob(1), topo[0]->nglob(2));
     hdf5_dump(topo[0], msg, green);
+#endif
 
     //-------------------------------------------------------------------------
     /** - compute a symmetry and do the forward transform*/
@@ -915,7 +917,9 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //   in full spectral.
     _scaleGreenFunction(topo[2], green, false);
 
+#ifdef DUMP_DBG
     hdf5_dump(topo[2], "green_h", green);
+#endif
     END_FUNC;
 }
 
@@ -1061,7 +1065,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
     do_copy(_topo_phys, rhs, FLUPS_FORWARD);
 
-#ifdef DUMP_H5
+#ifdef DUMP_DBG
     hdf5_dump(_topo_phys, "rhs", mydata);
 #endif
     //-------------------------------------------------------------------------
@@ -1069,7 +1073,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     do_FFT(mydata, FLUPS_FORWARD);
 
-#ifdef DUMP_H5
+#ifdef DUMP_DBG
     hdf5_dump(_topo_hat[2], "rhs_h", mydata);
 #endif
     //-------------------------------------------------------------------------
@@ -1078,9 +1082,10 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     do_mult(mydata, type);
 
     if (_prof != NULL) _prof->stop("domagic");
+#ifdef DUMP_DBG
     // io if needed
     hdf5_dump(_topo_hat[2], "sol_h", mydata);
-
+#endif
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
@@ -1091,8 +1096,10 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     do_copy(_topo_phys, field, FLUPS_BACKWARD);
 
+#ifdef DUMP_DBG
     // io if needed
     hdf5_dump(_topo_phys, "sol", myfield);
+#endif
     // stop the whole timer
     if (_prof != NULL) _prof->stop("solve");
     END_FUNC;

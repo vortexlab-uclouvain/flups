@@ -26,12 +26,10 @@
 #include "hdf5_io.hpp"
 
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
-#ifdef DUMP_H5
     BEGIN_FUNC;
     xmf_write(topo, filename, "data");
     hdf5_write(topo, filename, "data", data);
     END_FUNC;
-#endif
 }
 
 /**
@@ -257,9 +255,15 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
     const int ax2 = (ax0 + 2) % 3;
 
     FILE * xmf         = 0;
-    string extFilename = "data/" + filename + ".xmf";
+
+    string folder = "./data";
+    string extFilename = folder + "/" + filename + ".xmf";
 
     if (rank == 0) {
+        struct stat st = {0};
+        if (stat(folder.c_str(), &st) == -1) {
+                mkdir(folder.c_str(), 0770); //create the folder if it does not exists
+        }
         xmf = fopen(extFilename.c_str(), "w");
 
         fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
