@@ -287,23 +287,7 @@ double* Solver::setup(const bool changeTopoComm) {
     MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW, \
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
-    
-#ifdef HAVE_METIS
-    //Erase what was just done by MPI, and rather try to partition the comm graph ourself
-    int *order = (int*)flups_malloc(sizeof(int)*worldsize);
-    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, 2, order); //CAUTION: HARDCODED NUMBER OF NODES, AND ASSUME WE HAVE THE SAME NUMBER OF PROCS PER NODE
-   
-    MPI_Group group_in, group_out;
-    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
-    MPI_Group_incl(group_in, worldsize, order, &group_out);        //manually reorder the ranks
-    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
 
-    flups_free(order);
-#endif
-    flups_free(sources);
-    flups_free(sourcesW);
-    flups_free(dests);
-    flups_free(destsW);
 
 #ifdef VERBOSE    
     int inD, outD, wei;
@@ -335,6 +319,24 @@ double* Solver::setup(const bool changeTopoComm) {
     free(Dest);
     free(DestW);
 #endif
+    
+#ifdef HAVE_METIS
+    //Erase what was just done by MPI, and rather try to partition the comm graph ourself
+    int *order = (int*)flups_malloc(sizeof(int)*worldsize);
+    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, 2, order); //CAUTION: HARDCODED NUMBER OF NODES, AND ASSUME WE HAVE THE SAME NUMBER OF PROCS PER NODE
+   
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
+    MPI_Group_incl(group_in, worldsize, order, &group_out);        //manually reorder the ranks
+    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
+
+    flups_free(order);
+#endif
+    flups_free(sources);
+    flups_free(sourcesW);
+    flups_free(dests);
+    flups_free(destsW);
+
     //-------------------------------------------------------------------------
     /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
     //-------------------------------------------------------------------------
