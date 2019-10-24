@@ -222,6 +222,14 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
     END_FUNC;
 }
 
+/**
+ * @brief split the _inComm communicator into subcomms
+ * 
+ * We here find the colors of the call graph, i.e. ranks communicating together have the same color.
+ * Once the color are known, we divide the graph into subcomms.
+ * 
+ * 
+ */
 void SwitchTopo::_cmpt_commSplit(){
     BEGIN_FUNC;
     // get my rank and use-it as the initial color
@@ -229,11 +237,14 @@ void SwitchTopo::_cmpt_commSplit(){
     MPI_Comm_rank(_inComm,&rank);
     MPI_Comm_size(_inComm,&comm_size);
 
-    int mycolor = rank;
     
+    //-------------------------------------------------------------------------
+    /** - Set the starting color and determine who I wish to get in my group */
+    //-------------------------------------------------------------------------
     // allocate colors and inMyGroup array
     int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
     bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
+
 
     for (int ir = 0; ir < comm_size; ir++) {
         inMyGroup[ir] = false;
@@ -241,6 +252,7 @@ void SwitchTopo::_cmpt_commSplit(){
     inMyGroup[rank] = true;
 
     // do a first pass and give a color + who is in my group
+    int mycolor = rank;
     for (int ib = 0; ib < _inBlock[0] * _inBlock[1] * _inBlock[2]; ib++) {
         mycolor                     = std::min(mycolor, _i2o_destRank[ib]);
         inMyGroup[_i2o_destRank[ib]] = true;
@@ -250,62 +262,71 @@ void SwitchTopo::_cmpt_commSplit(){
         inMyGroup[_o2i_destRank[ib]] = true;
     }
 
-    // count how much is should be in my group
-    // by default we assume that nobody is in the same group
-    int nleft = 0;
+    //-------------------------------------------------------------------------
+    /** - count how much ranks are in my group and assumes they don't have the same color as I do */
+    //-------------------------------------------------------------------------
+    int n_left       = 0;  // the global counter of wrong colors
+    int n_wrongColor = 0;  // the local counter of wrong colors
+
     for (int ir = 0; ir < comm_size; ir++) {
         if (inMyGroup[ir]) {
-            nleft += 1;
+            n_wrongColor += 1;
         }
     }
+    // compute among everybody, if we need to continue
+    MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, _inComm);
 
-    // continue while we haven't found a solution
+    //-------------------------------------------------------------------------
+    /** - Among everybody in group, get the minimum color.
+     * The loop is used to force information to travel: 
+     * If 0 is in the group of 1 and 1 in the group of 2 and 2 in the group of 3, etc.
+     * we need to spread the color 0 among the group
+     */
+    //-------------------------------------------------------------------------
     int iter = 0;
-    while (nleft > 0 && iter < comm_size) {
+    while (n_left > 0 && iter < comm_size) {
         // gather the color info from everyone
         MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _inComm);
         // iterate on the proc
-        int n_notInMyGroup = 0;
+        n_wrongColor = 0;
         for (int ir = 0; ir < comm_size; ir++) {
-            // if(rank==3){
-                // printf("[ITER%d] color[%d] %d,  inMyGroup:%d\n",iter,ir,colors[ir],inMyGroup[ir]);
-            // }
-            // if it is reachable and the color is not already the same
+            // if the rank is in my group and it has not the same color
             if (inMyGroup[ir] && (colors[ir] != mycolor)) {
                 // we first increment the counter flagging that one is missing
-                n_notInMyGroup += 1;
-                // then we solve the problem if we are able to do so....
-                // remove 1 if we are able to solve the issue <=> my color > colors[ir]
-                n_notInMyGroup = n_notInMyGroup - (colors[ir] < mycolor);
-                // changing if possible
+                n_wrongColor += 1;
+                // then we change the color if we are able to do so....
+                // remove 1 if we are able to solve the color issue <=> my color > colors[ir]
+                n_wrongColor = n_wrongColor - (colors[ir] < mycolor);
+                // changing the color if possible
                 mycolor = std::min(mycolor, colors[ir]);
             }
         }
         // compute among everybody, if we need to continue
-        MPI_Allreduce(&n_notInMyGroup, &nleft, 1, MPI_INT, MPI_SUM, _inComm);
+        MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, _inComm);
         iter++;
     }
-    // FLUPS_CHECK(iter<comm_size,"Could not divide the current comm in subcom.",LOCATION);
-    if(iter>=comm_size){
+    // if we failed to create the subcom, uses the default one
+    if (n_left > 0) {
         _subcomm = _inComm;
-    }
-
-    //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
-    nleft=0;
-    for(int ir = 0; ir < comm_size; ir++){
-        nleft+=colors[ir];
-    }
-    // if nleft = 0 -> everybody is inside the same color = the rank = 0
-    // we do not create a new comm if it is not necessary
-    if(nleft==0){
-        // avoids the creation of a communicator
-        _subcomm = _inComm;
-        FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise master");
+        FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete", LOCATION);
     } else {
-        // create the communicator and give a name
-        MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
-        std::string commname = "comm-" + std::to_string(mycolor);
-        MPI_Comm_set_name(_subcomm, commname.c_str());
+        //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+        int sumColor = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            sumColor += colors[ir];
+        }
+        // if nleft = 0 -> everybody is inside the same color = the rank = 0
+        // we do not create a new comm if it is not necessary
+        if (sumColor == 0) {
+            // avoids the creation of a communicator
+            _subcomm = _inComm;
+            FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise the initial comm");
+        } else {
+            // create the communicator and give a name
+            MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
+            std::string commname = "comm-" + std::to_string(mycolor);
+            MPI_Comm_set_name(_subcomm, commname.c_str());
+        }
     }
     // free the vectors
     flups_free(colors);
