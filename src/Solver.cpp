@@ -690,12 +690,12 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     _scaleGreenFunction(topo[2], green, false);
 
     //-------------------------------------------------------------------------
-    // Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
-    //      except the plane where k=0 in the spectral direction, as this was correctly computed
+    /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
+     *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
     if (GREEN_DIM == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+        int istart_cstm[3] = {0, 0, 0};  //global
 
-        int istart_cstm[3] = {0, 0, 0}; //global
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = planmap[ip]->dimID();
 
@@ -703,28 +703,25 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             kfact[dimID]       = planmap[ip]->kfact();
             koffset[dimID]    += planmap[ip]->shiftgreen();  //accounts for shifted modes which affect the value of k
         }
-
         cmpt_Green_3D_0dirunbounded_3dirspectral(topo[2], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
     }
 
-    // //-------------------------------------------------------------------------
-    // // complete the Green function 1dirunbounded regularized case
-    // // No need to scale this as that part of the Green function has a volfact = 1
-    // if (GREEN_DIM == 3 && nbr_spectral == 2 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
-
+    //-------------------------------------------------------------------------
+    // This is what you would fo if you had to fill only the first plan:
+    // {
     //     int iend_cstm[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //global
     //     for (int ip = 0; ip < 3; ip++) {
     //         const int dimID = planmap[ip]->dimID();
-
     //         iend_cstm[ip]      = isSpectral[ip] ? 1 - planmap[ip]->shiftgreen() : topo->nloc(ip);  //selecting only mode 0 = cte (in per and even-even)
     //         kfact[dimID]       = planmap[ip]->kfact();
     //         koffset[dimID]    += planmap[ip]->shiftgreen();  //accounts for shifted modes which affect the value of k
     //     }
-
     //     cmpt_Green_3D_0dirunbounded_3dirspectral(topo, kfact, koffset, symstart, green, _typeGreen, epsilon, NULL, iend_cstm);
     // }
 
     hdf5_dump(topo[2], "green_h", green);
+
+    //END_FUNC;
 }
 
 /**
@@ -769,9 +766,10 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
  * @param topo the last topology used for green (in full spectral)
  * @param plan the last plan of the Green's function
  */
-void Solver::_finalizeGreenFunction(const Topology *topo_field, double *green, const Topology *topo, FFTW_plan_dim *plan) {
-
-    // if needed, we create a new switchTopo from the current Green topo to the field one
+void Solver::_finalizeGreenFunction(const Topology *topo_field, double *green, const Topology *topo, const FFTW_plan_dim *plan) {
+    BEGIN_FUNC;
+    //-------------------------------------------------------------------------
+    /** - If needed, we create a new switchTopo from the current Green topo to the field one */
     if (plan->ignoreMode()) {
         const int dimID = plan->dimID();
         // get the shift
@@ -799,6 +797,7 @@ void Solver::_finalizeGreenFunction(const Topology *topo_field, double *green, c
         FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
         FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }
+    // END_FUNC;
 }
 
 /**
