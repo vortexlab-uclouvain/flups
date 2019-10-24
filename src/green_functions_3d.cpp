@@ -46,6 +46,13 @@ using namespace FLUPS;
  */
 typedef double (*GreenKernel)(const void* );
 
+
+/**
+ * @name 3 directions unbounded - 0 direction spectral
+ * 
+ * @{
+ */
+// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 //notice that these function will likely not be inlined as we have a pointer to them...
 static inline double _hej_2_3unb0spe(const void* params) {
     double r   = ((double*)params) [0];
@@ -74,9 +81,9 @@ static inline double _chat_2_3unb0spe(const void* params) {
  * 
  * @param topo the topology associated to the Green's function
  * @param hfact the h multiplication factors
- * @param symstart the symmetry plan asked
+ * @param symstart index of the symmetry in each direction
  * @param green the Green function array
- * @param typeGreen the type of Green function to be 
+ * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
  * 
  */
@@ -151,8 +158,15 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
         green[0] = -G0;
     }
 }
+/**@} */
 
 
+/**
+ * @name 2 directions unbounded - 1 direction spectral
+ * 
+ * @{
+ */
+// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 static inline double _hej_2_2unb1spe_k0(const void* params) {
     const double r   = ((double*)params)[0];
     const double sig = ((double*)params)[2];
@@ -224,16 +238,18 @@ static inline double _chat_2_2unb1spe_k0(const void* params) {
 }
 
 /**
- * @brief 
+ * @brief Compute the Green function for 2dirunbounded and 1dirspectral
  * 
- * @param topo must be the topo in which ax0 is the spectral dir
- * @param hfact 
- * @param kfact 
- * @param koffset 
- * @param symstart 
- * @param green 
- * @param typeGreen 
- * @param eps 
+ * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index
+ * 
+ * @param topo the topology associated to the Green's function
+ * @param hfact the h multiplication factors (must be 0 in the spedtral dir)
+ * @param kfact the k multiplicative factor (must be 0 in the unbounded dir)
+ * @param koffset the k additive factor
+ * @param symstart index of the symmetry in each direction
+ * @param green the Green function array
+ * @param typeGreen the type of Green function 
+ * @param eps the smoothing length (only used for HEJ kernels)
  */
 void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
     const int ax0 = topo->axis();  
@@ -346,9 +362,15 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
         green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
 }
+/**@} */
 
 
-
+/**
+ * @name 1 direction unbounded - 2 directions spectral
+ * 
+ * @{
+ */
+// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 static inline double _hej_2_1unb2spe(const void* params) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
@@ -424,16 +446,18 @@ static inline double _chat_2_1unb2spe_k0(const void* params) {
 
 
 /**
- * @brief 
+ * @brief Compute the Green function for 1dirunbounded and 2dirspectral
  * 
- * @param topo 
- * @param hfact 
- * @param kfact 
- * @param koffset 
- * @param symstart 
- * @param green 
- * @param typeGreen 
- * @param eps 
+ * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index
+ * 
+ * @param topo the topology associated to the Green's function
+ * @param hfact the h multiplication factors (must be 0 in the spedtral dir)
+ * @param kfact the k multiplicative factor (must be 0 in the unbounded dir)
+ * @param koffset the k additive factor
+ * @param symstart index of the symmetry in each direction
+ * @param green the Green function array
+ * @param typeGreen the type of Green function 
+ * @param eps the smoothing length (only used for HEJ kernels)
  */
 void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
     const int ax0 = topo->axis();  
@@ -462,12 +486,10 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
         case HEJ_4:
             G  = &_hej_4_1unb2spe;
             G0 = &_hej_4_1unb2spe_k0;
-            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case HEJ_6:
             G  = &_hej_6_1unb2spe;
             G0 = &_hej_6_1unb2spe_k0;
-            FLUPS_WARNING("The value used for G in k=0 is wrong. Please solve for the regularized 1D problem en enter the solution.",LOCATION);
             break;
         case CHAT_2:
             G  = &_chat_2_1unb2spe;
@@ -483,6 +505,9 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     int istart[3];
     topo->get_istart_glob(istart);
 
+    FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
+    FLUPS_INFO("Koff= %lf %lf %lf", koffset[0],koffset[1],koffset[2]);
+    FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
 
     //Note: i0 (ax0) is the only spatial (i.e. non spectral) axis
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
@@ -519,6 +544,15 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
     }
 }
 
+/**@} */
+
+
+/**
+ * @name 3 directions spectral
+ * 
+ * @{
+ */
+// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 static inline double _hej_2_0unb3spe(const void* params) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
@@ -548,30 +582,48 @@ static inline double _chat_2_0unb3spe(const void* params) {
 }
 
 /**
- * @brief Compute the Green function for 3dirspectral
+ * @brief Compute the Green function for 3dirspectral (in the whole spectral domain)
  * 
  * __Note on performance__: obviously, the Green function in full spectral
  * is \f$\-frac{1}{k^2}\f$ (at least for CHAT_2). We could perform that operation directly in the
  * loop of `dothemagic`. We here choose to still precompute and store it.
  * We burn more memory, but we should fasten `dothemagic` as we replace a
  * (expensive) evaluation of \f$\frac{1}{k^2}\f$ by a memory access.
+ *
+ * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index.
  * 
- * @param topo 
- * @param kfact 
- * @param koffset
- * @param symstart 
- * @param green 
- * @param typeGreen 
- * @param alpha 
+ * @param topo the topology associated to the Green's function
+ * @param kfact the k multiplicative factor
+ * @param koffset the k additive factor
+ * @param symstart index of the symmetry in each direction
+ * @param green the Green function array
+ * @param typeGreen the type of Green function 
+ * @param eps the smoothing length (only used for HEJ kernels)
  */
 void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
-    const int istart0[3] = {0, 0, 0};
-    const int ishift[3]  = {0, 0, 0};
-    cmpt_Green_3D_0dirunbounded_3dirspectral(topo, kfact, koffset, symstart, green, typeGreen, eps, istart0, ishift);
+    cmpt_Green_3D_0dirunbounded_3dirspectral(topo, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
 }
 
 
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart0[3], const int ishift[3]){
+/**
+ * @brief Compute the Green function for 3dirspectral (in a portion of the spectral domain)
+ * 
+ * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index.
+ * 
+ * It is possible to fill only partially the spectral space, by specifying a global istart_custom and iend_custom which dictate the
+ * span of global index in each direction that will be filled.
+ * 
+ * @param topo the topology associated to the Green's function
+ * @param kfact the k multiplicative factor
+ * @param koffset the k additive factor
+ * @param symstart index of the symmetry in each direction
+ * @param green the Green function array
+ * @param typeGreen the type of Green function 
+ * @param eps the smoothing length (only used for HEJ kernels)
+ * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
+ * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
+ */
+void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]){
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
@@ -613,31 +665,47 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     int istart[3];
     topo->get_istart_glob(istart);
 
-    //forgetting a part of the domain
-    const int is0 = istart[ax0] == 0 ? istart0[ax0] : 0;
-    const int is1 = istart[ax1] == 0 ? istart0[ax1] : 0;
-    const int is2 = istart[ax2] == 0 ? istart0[ax2] : 0;
-    printf("IS0 : %d,%d,%d \n",is0,is1,is2);
+    int is_[3] = {0, 0, 0};
+    int ie_[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
 
-    for (int ip; ip<3;ip++){
-        istart[ip] += ishift[ip];
+    if (istart_custom != NULL) {
+        //switch to local index
+        for (int ip = 0; ip < 3; ip++) {
+            is_[ip] = fmin( fmax(istart_custom[ip]- istart[ip], 0), topo->nloc(ip));
+        }
+    } 
+    if (iend_custom != NULL) {
+        //switch to local index
+        for (int ip = 0; ip < 3; ip++) {
+            // if (istart[ip] + topo->nloc(ip) == topo->nglob(ip)) {
+            //     ie_[ip] = iend_custom[ip] - istart[ip]; 
+            // }
+            ie_[ip] = fmin( fmax(iend_custom[ip]- istart[ip], 0), topo->nloc(ip));
+        }
     }
-    printf("ISTART : %d,%d,%d \n",istart[0],istart[1],istart[2]);
+    const int is[3] = {is_[0], is_[1], is_[2]};
+    const int ie[3] = {ie_[0], ie_[1], ie_[2]};
 
+    // printf("IS_0 : %d,%d,%d \n",is[0],is[1],is[2]);
+    // printf("IS_E : %d,%d,%d \n",ie[0],ie[1],ie[2]);
+    // printf("ISTART : %d,%d,%d \n",istart[0],istart[1],istart[2]);
+    // printf("K_OFFSET : %lf,%lf,%lf \n",koffset[0],koffset[1],koffset[2]);
+    // printf("IEND : %d,%d,%d \n",topo->nloc(0),topo->nloc(1),topo->nloc(2));
 
-    for (int i2 = is2; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = is1; i1 < topo->nloc(ax1); i1++) {
+    for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
+        for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
             size_t id = localindex_ao(0, i1, i2, topo);
 
-            for (int i0 = is0; i0 < topo->nloc(ax0); i0++) {
-                int is[3];
-                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
+            for (int i0 = is[ax0]; i0 < ie[ax0]; i0++) {
+                int il[3];
+                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,il);
+                //the previous call works with koffset below because there is never a shiftgreen AND a symstart together
 
                 // (symmetrized) wave number
-                const double k0 = (is[ax0]+koffset[ax0])*kfact[ax0];
-                const double k1 = (is[ax1]+koffset[ax1])*kfact[ax1];
-                const double k2 = (is[ax2]+koffset[ax2])*kfact[ax2];
+                const double k0 = (il[ax0]+koffset[ax0])*kfact[ax0];
+                const double k1 = (il[ax1]+koffset[ax1])*kfact[ax1];
+                const double k2 = (il[ax2]+koffset[ax2])*kfact[ax2];
 
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
@@ -649,7 +717,9 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
         }
     }
     // reset the value in 0.0
-    if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 && koffset[0]+koffset[1]+koffset[2]<0.2 && ishift[0]==0 && ishift[1]==0 && ishift[2]==0) {
+    if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
+        && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
         green[0] = -0.0;
     }
 }
+/**@} */
