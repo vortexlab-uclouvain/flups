@@ -10,7 +10,7 @@ CC = mpicc
 # set the flag (optimisation or not)
 
 ## For debugging:
-# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_H5
+# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG
 ## For profiling:
 # CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
 ## For production:

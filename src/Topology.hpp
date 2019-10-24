@@ -29,6 +29,7 @@
 #include "defines.hpp"
 #include "hdf5_io.hpp"
 #include "mpi.h"
+#include <cstring>
 
 /**
  * @brief Class Topology
@@ -38,15 +39,17 @@
  */
 class Topology {
    protected:
-    int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
+    int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
+    int       _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _axis;       /**<@brief fastest rotating index in the topology  */
+    int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    const int _alignment;
+    MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -55,8 +58,16 @@ class Topology {
 
    public:
     // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
     ~Topology();
+
+    /**
+     * @name setters
+     * 
+     * @{
+     */
+    void change_comm(MPI_Comm comm);
+    /**@} */
 
     /**
      * @name getters
@@ -74,6 +85,7 @@ class Topology {
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
     inline int axproc(const int dim) const { return _axproc[dim]; }
+    inline MPI_Comm get_comm() const {return _comm; }
     /**
      * @name Functions to compute intersection data with other Topologies
      * 
@@ -87,6 +99,7 @@ class Topology {
      * 
      * @{
      */
+    void cmpt_sizes();
     /**
      * @brief returns the local size of on this proc
      * 
@@ -105,12 +118,9 @@ class Topology {
      * 
      */
     inline void get_istart_glob(int istart[3]) const {
-        const int ax0 = _axis;
-        const int ax1 = (ax0 + 1) % 3;
-        const int ax2 = (ax0 + 2) % 3;
-        istart[ax0]   = _rankd[ax0] * _nbyproc[ax0];
-        istart[ax1]   = _rankd[ax1] * _nbyproc[ax1];
-        istart[ax2]   = _rankd[ax2] * _nbyproc[ax2];
+        istart[0]   = _rankd[0] * _nbyproc[0];
+        istart[1]   = _rankd[1] * _nbyproc[1];
+        istart[2]   = _rankd[2] * _nbyproc[2];
     }
 
     /**
@@ -141,23 +151,33 @@ class Topology {
     }
 
     void disp() const;
-    void disp_rank() const;
+    void disp_rank() ;
 };
 
 /**
  * @brief split the rank into rank per dimensions
  * 
- * @param rank the rank of the proc (from MPI)
+ * axproc is not used if comm is of type MPI_CART.
+ * 
+ * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
  * @param nproc the number of procs along each direction
+ * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], int rankd[3]) {
+inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
     const int ax0 = axproc[0];
     const int ax1 = axproc[1];
     const int ax2 = axproc[2];
-    rankd[ax0]    = rank % nproc[ax0];
-    rankd[ax1]    = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
-    rankd[ax2]    = rank / (nproc[ax0] * nproc[ax1]);
+
+    int mpi_topo_type;
+    MPI_Topo_test(comm, &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_coords(comm, rank, 3, rankd);
+    } else {
+        rankd[ax0] = rank % nproc[ax0];
+        rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+        rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
+    }
 }
 
 /**
@@ -171,7 +191,15 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
     const int ax1 = topo->axproc(1);
     const int ax2 = topo->axproc(2);
-    return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+
+    int mpi_topo_type, rank;
+    MPI_Topo_test(topo->get_comm(), &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_rank(topo->get_comm(), rankd, &rank);
+    } else {
+        rank = rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+    }
+    return rank;
 }
 
 // /**

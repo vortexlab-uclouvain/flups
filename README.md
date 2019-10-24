@@ -79,7 +79,7 @@ To build the documentation, go to the `doc` subfolder and type `doxygen`.
 
 #### 4. Compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
-- `DUMP_H5`: if specified, the solver will I/O fields using the HDF5 library.
+- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to remove various checks inside the library
@@ -102,7 +102,7 @@ int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
 bool isComplex = false;          // real data
 
 // no specific alignement => we put a value of 1
-Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1);
+Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1, MPI_COMM_WORLD);
 
 // define additional quantities
 double L = {1.0, 2.0, 1.0};
@@ -117,7 +117,7 @@ FLUPS::Solver *      mysolver   = new FLUPS::Solver(topo, mybc, h, L);
 
 // setup the solver
 mysolver->set_GreenType(FLUPS::HEJ2);
-mysolver->setup();
+mysolver->setup(false);
 ```
 
 To solve a field `rhs` that has been defined on the topology, use

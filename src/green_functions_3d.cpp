@@ -181,7 +181,7 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
-    // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
+    // double* mygreen = green; //casting of the Green function to be able to access real and complex part
 
     // const double eps     = alpha * hfact[0];
     
@@ -287,7 +287,7 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
-    // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
+    // double* mygreen = green; //casting of the Green function to be able to access real and complex part
 
     switch (typeGreen) {
         case HEJ_2:

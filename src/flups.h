@@ -32,8 +32,10 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define MAX(a,b) std::max(a,b)
 #else
 #include "stdlib.h"
+#define MAX(a,b) a>b?a:b;
 #endif
 
 //=============================================================================
@@ -174,12 +176,6 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
     return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
 }
 
-#ifdef __cplusplus
-#define MAX(a,b) std::max(a,b)
-#else
-#define MAX(a,b) a>b?a:b;
-#endif
-
 /**
  * @brief compute the local k-index in spectral coordinates for a point (i0,i1,i2) in axsrc-indexing.
  * The returned value is in the axtrg-indexing.
@@ -256,18 +252,18 @@ static inline void flups_symID(const int axsrc, const int i0, const int i1, cons
  * @param nglob The global number of points in each direction of the domain
  * @param nproc The number of processors per direction.
  * @param isComplex The state of the topo: real (false) or complex (true)
- * @param axproc The correspondance between the physical dimensions and the dimensions in memory, otherwise NULL.
+ * @param axproc The correspondance between the physical dimensions and the rank decomposition. NULL for the default behavior (0 1 2).
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-const FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
 
 /**
  * @brief Clean and free the topo.
  * 
  * @param t topo to be freed
  */
-void flups_topo_free(const FLUPS_Topology* t);
+void flups_topo_free(FLUPS_Topology* t);
 
 /**
  * @brief Determines if the topo works on real or complex numbers
@@ -296,14 +292,22 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
  * 
  * @return long 
  */
-
 size_t flups_topo_get_locsize(const FLUPS_Topology* t);
+
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
+
+/**
+ * @brief returns the communicator of the topology
+ * 
+ * @param t the Topology of interest
+ * @param comm the communicator
+ */
+MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
 
 /**@} */
 
@@ -314,15 +318,28 @@ size_t flups_topo_get_memsize(const FLUPS_Topology* t);
  */
 
 // get a new solver
-FLUPS_Solver* flups_init(const FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
-FLUPS_Solver* flups_init_timed(const  FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
+
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s);
 
 // setup the solver
 void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
-double* flups_setup(FLUPS_Solver* s);
+
+/**
+ * @brief setup the solver
+ * 
+ * @warning after this call the solver cannot change anymore!
+ * 
+ * @warning if changeComm is true, the rank has to be computed and the communicator has to be reset to the one provided by flups_topo_get_comm
+ * 
+ * @param s 
+ * @param changeComm indicate if we are allowed to change the communicator
+ * @return double* 
+ */
+double* flups_setup(FLUPS_Solver* s,const bool changeComm);
 
 // solve
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);

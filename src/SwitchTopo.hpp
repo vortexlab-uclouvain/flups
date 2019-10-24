@@ -48,8 +48,11 @@
  */
 class SwitchTopo {
    protected:
+    MPI_Comm _inComm = NULL; /**<@brief the reference input communicator */
+    MPI_Comm _outComm = NULL; /**<@brief the reference output communicator */
     MPI_Comm _subcomm; /**<@brief the subcomm for this switchTopo */
     int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
+    int _shift[3]; /**<@brief the shift in memory */
 
     int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
     int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
@@ -63,8 +66,8 @@ class SwitchTopo {
     int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
     int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
-    opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
-    opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
 
     const Topology *_topo_in  = NULL; /**<@brief input topology  */
     const Topology *_topo_out = NULL; /**<@brief  output topology */
@@ -82,9 +85,10 @@ class SwitchTopo {
 
    public:
     virtual ~SwitchTopo() {};
-    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) = 0;
-    virtual void execute(opt_double_ptr v, const int sign) const                 = 0;
-    virtual void disp() const                                                    = 0;
+    virtual void setup()                                                                    = 0;
+    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)            = 0;
+    virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
+    virtual void disp() const                                                               = 0;
 
     /**
      * @brief return the memory size of a block (including the padding for odd numbers if needed)
@@ -92,7 +96,6 @@ class SwitchTopo {
      * @return size_t 
      */
     inline size_t get_blockMemSize() const {
-        BEGIN_FUNC;
         // get the max block size
         size_t total = 1;
         for (int id = 0; id < 3; id++) {
@@ -103,7 +106,7 @@ class SwitchTopo {
         total *= (size_t)_topo_out->nf();
         // add the difference with the alignement to be always aligned
         size_t alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
-        FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
+        // FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
         total = total + alignDelta;
         FLUPS_CHECK((total*sizeof(double))%FLUPS_ALIGNMENT == 0 , "The total size of one block HAS to match the alignement size",LOCATION);
         // return the total size
@@ -115,7 +118,6 @@ class SwitchTopo {
      * @return size_t 
      */
     inline size_t get_bufMemSize() const {
-        BEGIN_FUNC;
         // nultiply by the number of blocks
         size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
         total *= get_blockMemSize();
@@ -138,19 +140,58 @@ class SwitchTopo {
         return stride;
     };
 
+    void add_toGraph(int* sourcesW, int* destsW) const;
+
    protected:
     void _cmpt_nByBlock();
-    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* nBlockEachProc, int* destRank, int* destTag);
+    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* startBlockEachProc, const int* nBlockEachProc, int* destRank, int* destTag);
     void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]);
-    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* nBlockEachProc);
+    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* startBlockEachProc, int* nBlockEachProc);
 
     void _cmpt_commSplit();
-    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count, int** start);
+    void _setup_subComm(const int nBlock[3], int* destRank, int** count, int** start);
+    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock[3], int* destRank, int** count, int** start);
     void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
 };
 
 static inline int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
+}
+
+/**
+ * @brief translate a list of ranks of size size from inComm to outComm
+ * 
+ * ranks are replaced with their new values.
+ * 
+ * @param size 
+ * @param ranks a list of ranks expressed in the inComm
+ * @param inComm input communicator
+ * @param outComm output communicator
+ */
+inline static void  translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
+    BEGIN_FUNC;
+
+    int comp;
+    MPI_Comm_compare(inComm, outComm, &comp);
+    FLUPS_CHECK(size!=0,"size cant be 0.",LOCATION);
+
+    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
+    std::memcpy(tmprnks,ranks,size*sizeof(int));
+
+    int err;
+    if (comp != MPI_IDENT) {
+        MPI_Group group_in, group_out;
+        err = MPI_Comm_group(inComm, &group_in);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in",LOCATION);
+        err = MPI_Comm_group(outComm, &group_out);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
+
+        err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
+        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
+    }
+
+    flups_free(tmprnks);
+    END_FUNC;
 }
 
 #endif

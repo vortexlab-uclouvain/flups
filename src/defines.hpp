@@ -37,6 +37,8 @@
 
 #define GREEN_DIM 3
 
+#define REORDER_RANKS
+
 //=============================================================================
 // LOCATORS
 //=============================================================================
@@ -430,6 +432,12 @@ static inline void flups_mem_free(void* data) {
     free(data);
 #endif
 }
+
+#if defined(__INTEL_COMPILER)
+    #define FLUPS_ASSUME_ALIGNED(a,b) __assume_aligned(a,b)
+#elif defined(__GNUC__)
+    #define FLUPS_ASSUME_ALIGNED(a,b) __builtin_assume_aligned(a,b)
+#endif
 
 typedef enum FLUPS_BoundaryType BoundaryType;
 typedef enum FLUPS_GreenType    GreenType;

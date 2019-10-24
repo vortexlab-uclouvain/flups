@@ -44,8 +44,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int nSolve) {
 // void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve) {
     int rank, comm_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &comm_size);
 
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
@@ -58,8 +59,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    const FLUPS_Topology *topo    = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT);
-    // const Topology *topo    = new Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT);
+    FLUPS_Topology *topo = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    // const Topology *topo    = new Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT,comm);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
@@ -68,7 +69,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L,prof);
     flups_set_greenType(mysolver,typeGreen);
-    flups_setup(mysolver);
+    flups_setup(mysolver,true);
+
+    // update the comm and the rank
+    comm = flups_topo_get_comm(topo);
+    MPI_Comm_rank(comm, &rank);
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
@@ -156,8 +161,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             }
         }
     }
-    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, comm);
+    MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, comm);
     gIs *= (h[0]*h[1]*h[2]);
     // const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -276,7 +281,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 
 
-#ifdef DUMP_H5
+#ifdef DDUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
@@ -305,7 +310,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //         }
     //     }
     // }
-    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, comm);
     // // gIs *= (h[0]*h[1]*h[2]);
     // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
     //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
@@ -316,7 +321,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //     }
     // }
 
-#ifdef DUMP_H5
+#ifdef DDUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
     hdf5_dump(topo, msg, rhs);
@@ -347,8 +352,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     }
     double erri = 0.0;
     double err2 = 0.0;
-    MPI_Allreduce(&lerr2, &err2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&lerri, &erri, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&lerr2, &err2, 1, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(&lerri, &erri, 1, MPI_DOUBLE, MPI_MAX, comm);
 
     err2 = sqrt(err2);
 
