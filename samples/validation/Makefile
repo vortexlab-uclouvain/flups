@@ -62,6 +62,11 @@ FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
 
+#---- METIS
+
+INC+= -I$(METIS_INC)
+LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))

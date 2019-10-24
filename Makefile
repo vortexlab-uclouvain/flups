@@ -59,6 +59,11 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
+#---- METIS
+
+INC+= -I$(METIS_INCLUDE)
+LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
