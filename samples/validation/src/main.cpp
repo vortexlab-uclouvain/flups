@@ -208,7 +208,8 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        // FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
+        printf("The MPI-provided thread behavior does not match\n");
+        MPI_Abort(MPI_COMM_WORLD,1);
     }
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

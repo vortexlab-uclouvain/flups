@@ -24,20 +24,16 @@
 ################################################################################
 # ARCH DEPENDENT VARIABLES
 ARCH_FILE ?= make_arch/make.osx_gcc
-#DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
 include ../../$(ARCH_FILE)
-#include $(ARCH_FILE)
 
 FLUPSDIR := ../../
-#/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver
-P3DFFTDIR++ := ./
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
 PREFIX ?= ./
-NAME := flups_vs_p3dfft++
+NAME := solve_advanced
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
@@ -47,23 +43,16 @@ BUILDDIR := ./build
 SRC_DIR := ./
 OBJ_DIR := ./build
 
-## add the headers to the vpaths
-INC := -I$(SRC_DIR)
-
 #-----------------------------------------------------------------------------
 #---- FLUPS
-INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src 
+INC += -I$(FLUPSDIR)/include
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
-
-#---- P3DFFT++
-INC += -I$(P3DFFTDIR++)/include -DHAVE_CONFIG_H
-LIB += -L$(P3DFFTDIR++)/lib -lp3dfft.3
 
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3f 
+FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
 INC += -I$(FFTW_INC)
 LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
@@ -76,17 +65,18 @@ LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
-SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
-HEAD := $(wildcard $(SRC_DIR)/*.hpp)
+SRC := $(notdir $(wildcard $(SRC_DIR)/*.c))
+# HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 
 ## generate object list
-DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
-OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
+# DEP := $(SRC:%.c=$(OBJ_DIR)/%.d)
+OBJ := $(SRC:%.c=$(OBJ_DIR)/%.o)
 
 ################################################################################
 
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CCFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
 default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
@@ -94,10 +84,10 @@ default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 all: default
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_A2A) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 	mkdir -p $(PREFIX)/bin
@@ -123,6 +113,6 @@ info:
 	@echo $(ARCH_FILE)
 	$(info SRC = $(SRC))
 	$(info OBJ = $(OBJ))
-	$(info DEP = $(DEP))
+	# $(info DEP = $(DEP))
 
--include $(DEP)
+# -include $(DEP)

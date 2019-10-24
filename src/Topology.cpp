@@ -235,6 +235,10 @@ void Topology::disp_rank() {
         this->switch2real();
     }
 
+#ifdef DUMP_DBG
+    std::string h5name = "rank_topo_axis" + std::to_string(this->axis());
+    hdf5_dump(this, name, rankdata);
+#endif
     flups_free(rankdata);
     END_FUNC;
 }

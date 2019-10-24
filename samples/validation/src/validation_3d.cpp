@@ -67,7 +67,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
-    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L,prof);
+    FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L,prof);
     flups_set_greenType(mysolver,typeGreen);
     flups_setup(mysolver,true);
 
@@ -281,13 +281,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 
 
-#ifdef DDUMP_H5
+#ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, sol);
+    flups_hdf5_dump(topo, msg, sol);
 #endif
 
     //-------------------------------------------------------------------------
@@ -321,10 +321,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //     }
     // }
 
-#ifdef DDUMP_H5
+#ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
 #endif    
 
     //-------------------------------------------------------------------------
