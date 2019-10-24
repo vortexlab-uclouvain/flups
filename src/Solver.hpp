@@ -157,7 +157,7 @@ class FLUPS::Solver {
     void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
     void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
-    void _finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3],SwitchTopo_a2a* switchtopo[3], FFTW_plan_dim* plans[3]);
+    void _finalizeGreenFunction(const Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* plans);
     /**@} */
 
    public:
