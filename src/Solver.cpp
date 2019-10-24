@@ -375,20 +375,22 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) flups_free(_green);
-
+    // delete the plans
+    _delete_plans(_plan_forward);
+    _delete_plans(_plan_backward);
+    
+    // free the sendBuf,recvBuf
     _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
+    // deallocate the swithTopo
+    _delete_switchtopos(_switchtopo);
 
     // cleanup the communicator if any
 #ifdef REORDER_RANKS
     MPI_Comm mycomm = _topo_hat[2]->get_comm();
     MPI_Comm_free(&mycomm);
 #endif
-
-    // for the field
-    _delete_plans(_plan_forward);
-    _delete_plans(_plan_backward);
     _delete_topologies(_topo_hat);
-    _delete_switchtopos(_switchtopo);
+    
     if (_data != NULL) flups_free(_data);
 
     //cleanup
@@ -1047,7 +1049,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
     FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
 
-    double *             myfield = field;
     opt_double_ptr       mydata  = _data;
     // const opt_double_ptr myrhs   = rhs;
 
