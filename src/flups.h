@@ -254,11 +254,11 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  */
 
 // get a new solver
-#ifndef PROF
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
-#else
+// #ifndef PROF
+FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+// #else
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
-#endif
+// #endif
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s);

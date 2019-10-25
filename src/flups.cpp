@@ -99,17 +99,17 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-#ifndef PROF
+// #ifndef PROF
 FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
-#else
+// #else
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
     return s;
 }
-#endif
+// #endif
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s){
