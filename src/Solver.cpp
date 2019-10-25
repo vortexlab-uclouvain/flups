@@ -24,9 +24,6 @@
  */
 
 #include "Solver.hpp"
-#ifdef HAVE_METIS
-#include "metis.h"
-#endif
 
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
@@ -146,116 +143,6 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
 }
 
 /**
- * @brief reorder the MPI-ranks using metis
- * 
- * @warning this functions assume an evenly distributed amount of procs on the nodes
- * 
- * @param comm 
- * @param sources 
- * @param sourcesW 
- * @param dests 
- * @param destsW 
- * @param n_nodes 
- * @param order 
- */
-static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int n_nodes, int *order) {
-    int comm_size;
-    int comm_rank;
-    MPI_Comm_rank(comm, &comm_rank);
-    MPI_Comm_size(comm, &comm_size);
-
-#ifdef HAVE_METIS
-
-    //-------------------------------------------------------------------------
-    /** - get the neighbour list and the associated weights */
-    //-------------------------------------------------------------------------
-    // we count the number of neighbours
-    int n_neighbours = 0;
-    // if we have either one way in or one way out, we have a neighbour
-    for (int i = 0; i < comm_size; ++i) {
-        if ((sourcesW[i] + destsW[i]) > 0 && i != comm_rank) n_neighbours++;
-    }
-    // allocate the number of neighbours and their weights
-    int *neighbours = (int *)flups_malloc(sizeof(int) * n_neighbours);
-    int *weights    = (int *)flups_malloc(sizeof(int) * n_neighbours);
-    n_neighbours    = 0;
-    for (int i = 0; i < comm_size; ++i) {
-        if (sourcesW[i] + destsW[i] > 0 && i != comm_rank) {
-            neighbours[n_neighbours] = i;
-            weights[n_neighbours]    = sourcesW[i] + destsW[i];
-            n_neighbours++;
-        }
-    }
-
-    //-------------------------------------------------------------------------
-    /** - build the graph on proc 0 and ask for partioning
-     * The graph structure follows metis rules:
-     * the edges (= id of the destination of the edges) starting from proc k are located
-     * from adj[xadj[k]] to adj[xadj[k+1]-1]
-     * Same structure is used for the weights with the ajdw
-     * */
-    //-------------------------------------------------------------------------
-    if (comm_rank == 0) {
-        int *xadj = (int *)flups_malloc((comm_size + 1) * sizeof(int));
-        int *nadj = (int *)flups_malloc((comm_size) * sizeof(int));
-
-        // get the number of neighbours from everybody
-        MPI_Gather(&n_neighbours, 1, MPI_INT, nadj, 1, MPI_INT, 0, comm);
-        // get the starting indexes of the neighbour description for everybody
-        xadj[0] = 0;
-        for (int i = 0; i < comm_size; ++i) {
-            xadj[i + 1] = xadj[i] + nadj[i];
-        }
-
-        // allocate the adjency list + weights and fill it with the neighbour list from everybody
-        int *adj  = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
-        int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
-        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
-        MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
-        int  ncon = 1;  // the number of balancing constraints
-        int  objval;
-        int *part = (int *)flups_malloc(comm_size * sizeof(int));
-        int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
-        // ask of the partitioning
-        METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
-        flups_free(xadj);
-        flups_free(adj);
-        flups_free(adjw);
-        // compute how many block in each group
-        for (int i = 0; i < n_nodes; ++i) {
-            rids[i] = i * (comm_size / n_nodes);
-        }
-        // assign the rank value and redistribute
-        for (int i = 0; i < comm_size; ++i) {
-            order[i] = rids[part[i]]++;
-        }
-        flups_free(part);
-        flups_free(rids);
-    } else {
-        MPI_Gather(&n_neighbours, 1, MPI_INT, NULL, 1, MPI_INT, 0, comm);
-        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
-        MPI_Gatherv(weights, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
-    }
-    flups_free(neighbours);
-    flups_free(weights);
-
-    //-------------------------------------------------------------------------
-    /** - give the rank info to everybody */
-    //-------------------------------------------------------------------------
-    MPI_Bcast(order, comm_size, MPI_INT, 0, comm);
-    if (comm_rank == 3) {
-        for (int i = 0; i < comm_size; ++i) {
-            printf("%i : %i \n", i, order[i]);
-        }
-    }
-#else
-    for (int i = 0; i < comm_size; ++i) {
-        order[i] = i;
-    }
-#endif
-}
-
-/**
  * @brief Sets up the Solver
  * 
  * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init
@@ -323,15 +210,26 @@ double* Solver::setup(const bool changeTopoComm) {
     }
 
     //-------------------------------------------------------------------------
-    /** - Build the new comm based on that graph */
+    /** - Build the new comm based on that graph using metis if available, graph_topo if not */
     //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
-    MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW, \
-                                                    worldsize, dests, destsW, \
-                                                    MPI_INFO_NULL, 1, &graph_comm);
+#ifndef HAVE_METIS
+    MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW,
+                                   worldsize, dests, destsW,
+                                   MPI_INFO_NULL, 1, &graph_comm);
+#else
+    //Erase what was just done by MPI, and rather try to partition the comm graph ourself
+    int *order = (int *)flups_malloc(sizeof(int) * worldsize);
+    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);  //CAUTION: HARDCODED NUMBER OF NODES, AND ASSUME WE HAVE THE SAME NUMBER OF PROCS PER NODE
+    // create a new comm based on the order given by metis
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
+    MPI_Group_incl(group_in, worldsize, order, &group_out);           //manually reorder the ranks
+    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
+    flups_free(order);
+#endif
 
-
-#ifdef VERBOSE    
+#ifdef VERBOSE
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
     printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
@@ -361,19 +259,7 @@ double* Solver::setup(const bool changeTopoComm) {
     free(Dest);
     free(DestW);
 #endif
-    
-#ifdef HAVE_METIS
-    //Erase what was just done by MPI, and rather try to partition the comm graph ourself
-    int *order = (int*)flups_malloc(sizeof(int)*worldsize);
-    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, 2, order); //CAUTION: HARDCODED NUMBER OF NODES, AND ASSUME WE HAVE THE SAME NUMBER OF PROCS PER NODE
-   
-    MPI_Group group_in, group_out;
-    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
-    MPI_Group_incl(group_in, worldsize, order, &group_out);        //manually reorder the ranks
-    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
 
-    flups_free(order);
-#endif
     flups_free(sources);
     flups_free(sourcesW);
     flups_free(dests);

@@ -40,6 +40,10 @@
 #include "Profiler.hpp"
 #include "omp.h"
 
+#ifdef HAVE_METIS
+#include "metis.h"
+#endif
+
 using namespace std;
 
 /**
@@ -284,5 +288,141 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
     FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
 }
+
+/**
+ * @brief reorder the MPI-ranks using metis
+ * 
+ * @warning this functions assume an evenly distributed amount of procs on the nodes
+ * 
+ * @param comm 
+ * @param sources 
+ * @param sourcesW 
+ * @param dests 
+ * @param destsW 
+ * @param n_nodes 
+ * @param order 
+ */
+static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order) {
+    int comm_size;
+    int comm_rank;
+    MPI_Comm_rank(comm, &comm_rank);
+    MPI_Comm_size(comm, &comm_size);
+
+#ifdef HAVE_METIS
+
+    //-------------------------------------------------------------------------
+    /** - get the total number of nodes */
+    //-------------------------------------------------------------------------
+    // create a group where everybody can create a shared memory region
+    MPI_Comm nodecomm;
+    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, NULL, &nodecomm);
+    // we store the comm size
+    int local_nodesize;
+    MPI_Comm_size(nodecomm, &local_nodesize);
+
+    // gather on each proc the gcd
+    int *vec_nodesize = (int *)flups_malloc(sizeof(int) * comm_size);
+    MPI_Allgather(&local_nodesize, 1, MPI_INT, vec_nodesize, 1, MPI_INT, comm);
+    // get the Greatest Common Divider among every process
+    int nodesize = comm_size;
+    for (int ip = 0; ip < comm_size; ip++) {
+        nodesize = gcd(nodesize, vec_nodesize[ip]);
+    }
+    // store the number of nodes
+    int n_nodes = comm_size / nodesize;
+
+    // free stuffs
+    flups_free(vec_nodesize);
+    MPI_Comm_free(&nodecomm);
+
+    //-------------------------------------------------------------------------
+    /** - get the neighbour list and the associated weights */
+    //-------------------------------------------------------------------------
+    // we count the number of neighbours
+    int n_neighbours = 0;
+    // if we have either one way in or one way out, we have a neighbour
+    for (int i = 0; i < comm_size; ++i) {
+        if ((sourcesW[i] + destsW[i]) > 0 && i != comm_rank) n_neighbours++;
+    }
+    // allocate the number of neighbours and their weights
+    int *neighbours = (int *)flups_malloc(sizeof(int) * n_neighbours);
+    int *weights    = (int *)flups_malloc(sizeof(int) * n_neighbours);
+    n_neighbours    = 0;
+    for (int i = 0; i < comm_size; ++i) {
+        if (sourcesW[i] + destsW[i] > 0 && i != comm_rank) {
+            neighbours[n_neighbours] = i;
+            weights[n_neighbours]    = sourcesW[i] + destsW[i];
+            n_neighbours++;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    /** - build the graph on proc 0 and ask for partioning
+     * The graph structure follows metis rules:
+     * the edges (= id of the destination of the edges) starting from proc k are located
+     * from adj[xadj[k]] to adj[xadj[k+1]-1]
+     * Same structure is used for the weights with the ajdw
+     * */
+    //-------------------------------------------------------------------------
+    if (comm_rank == 0) {
+        int *xadj = (int *)flups_malloc((comm_size + 1) * sizeof(int));
+        int *nadj = (int *)flups_malloc((comm_size) * sizeof(int));
+
+        // get the number of neighbours from everybody
+        MPI_Gather(&n_neighbours, 1, MPI_INT, nadj, 1, MPI_INT, 0, comm);
+        // get the starting indexes of the neighbour description for everybody
+        xadj[0] = 0;
+        for (int i = 0; i < comm_size; ++i) {
+            xadj[i + 1] = xadj[i] + nadj[i];
+        }
+
+        // allocate the adjency list + weights and fill it with the neighbour list from everybody
+        int *adj  = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
+        int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
+        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
+        MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
+        int  ncon = 1;  // the number of balancing constraints
+        int  objval;
+        int *part = (int *)flups_malloc(comm_size * sizeof(int));
+        int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
+        // ask of the partitioning
+        METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
+        flups_free(xadj);
+        flups_free(adj);
+        flups_free(adjw);
+        // compute how many block in each group
+        for (int i = 0; i < n_nodes; ++i) {
+            rids[i] = i * nodesize;
+        }
+        // assign the rank value and redistribute
+        for (int i = 0; i < comm_size; ++i) {
+            order[i] = rids[part[i]]++;
+        }
+        flups_free(part);
+        flups_free(rids);
+    } else {
+        MPI_Gather(&n_neighbours, 1, MPI_INT, NULL, 1, MPI_INT, 0, comm);
+        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
+        MPI_Gatherv(weights, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
+    }
+    flups_free(neighbours);
+    flups_free(weights);
+
+    //-------------------------------------------------------------------------
+    /** - give the rank info to everybody */
+    //-------------------------------------------------------------------------
+    MPI_Bcast(order, comm_size, MPI_INT, 0, comm);
+    if (comm_rank == 3) {
+        for (int i = 0; i < comm_size; ++i) {
+            printf("%i : %i \n", i, order[i]);
+        }
+    }
+#else
+    for (int i = 0; i < comm_size; ++i) {
+        order[i] = i;
+    }
+#endif
+}
+
 
 #endif
