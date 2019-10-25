@@ -213,7 +213,7 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - Build the new comm based on that graph */
     //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
-    MPI_Dist_graph_create_adjacent(MPI_COMM_WORLD, worldsize, sources, sourcesW, \
+    MPI_Dist_graph_create_adjacent(_topo_phys->get_comm(), worldsize, sources, sourcesW, \
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
     
@@ -257,7 +257,7 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
 #ifdef DEV_SIMULATE_GRAPHCOMM
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(_topo_phys->get_comm(), &rank);
 
     //switch indices by a random number:
 #ifdef DEV_REORDER_SHIFT
@@ -278,9 +278,9 @@ double* Solver::setup(const bool changeTopoComm) {
     }
     
     MPI_Group group_in, group_out;
-    MPI_Comm_group(MPI_COMM_WORLD, &group_in);                //get the group of the current comm
+    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
     MPI_Group_incl(group_in, worldsize, outRanks, &group_out);        //manually reorder the ranks
-    MPI_Comm_create(MPI_COMM_WORLD, group_out, &graph_comm);  // create the new comm
+    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
 
     flups_free(outRanks);
 #endif
@@ -375,19 +375,28 @@ Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
     if (_green != NULL) flups_free(_green);
-
-    _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
-
-    // for the field
+    // delete the plans
     _delete_plans(_plan_forward);
     _delete_plans(_plan_backward);
-    _delete_topologies(_topo_hat);
+    
+    // free the sendBuf,recvBuf
+    _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
+    // deallocate the swithTopo
     _delete_switchtopos(_switchtopo);
+
+    // cleanup the communicator if any
+#ifdef REORDER_RANKS
+    MPI_Comm mycomm = _topo_hat[2]->get_comm();
+    MPI_Comm_free(&mycomm);
+#endif
+    _delete_topologies(_topo_hat);
+    
     if (_data != NULL) flups_free(_data);
 
     //cleanup
     fftw_cleanup_threads();
     fftw_cleanup();
+
     END_FUNC;
 }
 
@@ -511,7 +520,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     // @Todo: check that _plan_forward exists before doing _plan_green !
 
     int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_size(topo->get_comm(), &comm_size);
 
     //-------------------------------------------------------------------------
     /** - Store the current topology */
@@ -1040,7 +1049,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
     FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
 
-    double *             myfield = field;
     opt_double_ptr       mydata  = _data;
     // const opt_double_ptr myrhs   = rhs;
 
