@@ -173,14 +173,14 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     int n_neighbours = 0;
     // if we have either one way in or one way out, we have a neighbour
     for (int i = 0; i < comm_size; ++i) {
-        if (sourcesW[i] + destsW[i] > 0) n_neighbours++;
+        if ((sourcesW[i] + destsW[i]) > 0 && i != comm_rank) n_neighbours++;
     }
     // allocate the number of neighbours and their weights
     int *neighbours = (int *)flups_malloc(sizeof(int) * n_neighbours);
     int *weights    = (int *)flups_malloc(sizeof(int) * n_neighbours);
     n_neighbours    = 0;
     for (int i = 0; i < comm_size; ++i) {
-        if (sourcesW[i] + destsW[i] > 0) {
+        if (sourcesW[i] + destsW[i] > 0 && i != comm_rank) {
             neighbours[n_neighbours] = i;
             weights[n_neighbours]    = sourcesW[i] + destsW[i];
             n_neighbours++;
