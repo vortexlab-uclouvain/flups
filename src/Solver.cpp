@@ -145,14 +145,30 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     END_FUNC;
 }
 
+/**
+ * @brief reorder the MPI-ranks using metis
+ * 
+ * @warning this functions assume an evenly distributed amount of procs on the nodes
+ * 
+ * @param comm 
+ * @param sources 
+ * @param sourcesW 
+ * @param dests 
+ * @param destsW 
+ * @param n_nodes 
+ * @param order 
+ */
 static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int n_nodes, int *order) {
     int comm_size;
     int comm_rank;
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
 
-    // #ifdef HAVE_METIS
+#ifdef HAVE_METIS
 
+    //-------------------------------------------------------------------------
+    /** - get the neighbour list and the associated weights */
+    //-------------------------------------------------------------------------
     // we count the number of neighbours
     int n_neighbours = 0;
     // if we have either one way in or one way out, we have a neighbour
@@ -170,32 +186,46 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
             n_neighbours++;
         }
     }
-    // what about me? Am I defacto in neighbours
 
+    //-------------------------------------------------------------------------
+    /** - build the graph on proc 0 and ask for partioning
+     * The graph structure follows metis rules:
+     * the edges (= id of the destination of the edges) starting from proc k are located
+     * from adj[xadj[k]] to adj[xadj[k+1]-1]
+     * Same structure is used for the weights with the ajdw
+     * */
+    //-------------------------------------------------------------------------
     if (comm_rank == 0) {
         int *xadj = (int *)flups_malloc((comm_size + 1) * sizeof(int));
         int *nadj = (int *)flups_malloc((comm_size) * sizeof(int));
-        // count the number of neighbours of everybody
+
+        // get the number of neighbours from everybody
         MPI_Gather(&n_neighbours, 1, MPI_INT, nadj, 1, MPI_INT, 0, comm);
-        // 
+        // get the starting indexes of the neighbour description for everybody
         xadj[0] = 0;
         for (int i = 0; i < comm_size; ++i) {
             xadj[i + 1] = xadj[i] + nadj[i];
         }
+
+        // allocate the adjency list + weights and fill it with the neighbour list from everybody
         int *adj  = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
         int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
         MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
         MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
-        int  ncon = 1;
+        int  ncon = 1;  // the number of balancing constraints
         int  objval;
         int *part = (int *)flups_malloc(comm_size * sizeof(int));
         int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
-        METIS_PartGraphKway(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
+        // ask of the partitioning
+        METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
         flups_free(xadj);
         flups_free(adj);
         flups_free(adjw);
-        for (int i = 0; i < n_nodes; ++i)
+        // compute how many block in each group
+        for (int i = 0; i < n_nodes; ++i) {
             rids[i] = i * (comm_size / n_nodes);
+        }
+        // assign the rank value and redistribute
         for (int i = 0; i < comm_size; ++i) {
             order[i] = rids[part[i]]++;
         }
@@ -208,17 +238,21 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     }
     flups_free(neighbours);
     flups_free(weights);
+
+    //-------------------------------------------------------------------------
+    /** - give the rank info to everybody */
+    //-------------------------------------------------------------------------
     MPI_Bcast(order, comm_size, MPI_INT, 0, comm);
     if (comm_rank == 3) {
         for (int i = 0; i < comm_size; ++i) {
             printf("%i : %i \n", i, order[i]);
         }
     }
-    // #else
-    //   for (int i = 0; i < comm_size; ++i) {
-    //     order[i] = i;
-    //   }
-    // #endif
+#else
+    for (int i = 0; i < comm_size; ++i) {
+        order[i] = i;
+    }
+#endif
 }
 
 /**
