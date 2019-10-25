@@ -635,8 +635,6 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
     FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0", LOCATION);
     FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
 
-    printf("eps : %lf \n",eps);
- 
     GreenKernel G;   // the Green kernel (general expression in the whole domain)
 
     switch (typeGreen) {
