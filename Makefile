@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.vagrant_intel
+ARCH_FILE ?= make_arch/make.generic
 
 include $(ARCH_FILE)
 
@@ -82,7 +82,7 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-default: lib_static info
+default: lib_static 
 
 # for the validation, do a static lib
 validation: install_static
@@ -94,9 +94,9 @@ all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
 
-lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
+lib_static: info $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
 
-lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
+lib_dynamic: info $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
 
 lib: lib_static
 
@@ -127,7 +127,7 @@ install_static: lib_static
 	@cp $(API) $(PREFIX)/include
 
 # for a standard installation, do the dynamic link	
-install: install_static logo
+install: info install_static
 
 test:
 	@echo $(SRC)
@@ -168,7 +168,9 @@ info: logo
 	$(info - DEP = $(DEP))
 	$(info ------------)
 
-logo:
+.NOTPARALLEL: logo
+
+logo: 
 	@echo "----------------------------------------------------"
 	@echo "    ______   _        _    _   _____     _____       "
 	@echo "   |  ____| | |      | |  | | |  __ \   / ____|     "

@@ -30,11 +30,15 @@
 #ifndef FLUPS_H
 #define FLUPS_H
 
+#include "mpi.h"
 
 #ifdef __cplusplus
 extern "C" {
+#define MAX(a,b) std::max(a,b)
+#else
+#include "stdlib.h"
+#define MAX(a,b) a>b?a:b;
 #endif
-
 
 //=============================================================================
 /**
@@ -42,7 +46,6 @@ extern "C" {
  * @{
  */
 //=============================================================================
-
 
 /**
  * @brief List of supported boundary conditions
@@ -107,6 +110,10 @@ typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
 typedef struct Profiler FLUPS_Profiler;
 
+typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
+typedef enum FLUPS_GreenType    FLUPS_GreenType;
+typedef enum FLUPS_SolverType   FLUPS_SolverType;
+
 /**@} */
 
 //=============================================================================
@@ -151,7 +158,7 @@ void flups_free(void* data);
  *  }
  * @endcode
  * 
- * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param axsrc the FRI, reference axis aligned with index i0
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
@@ -171,6 +178,66 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
     return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
 }
 
+/**
+ * @brief compute the local k-index in spectral coordinates for a point (i0,i1,i2) in axsrc-indexing.
+ * The returned value is in the axtrg-indexing.
+ * 
+ * For example if going through a topology following the standard indexing:
+ * @code{.cpp}
+ *  const int ax0     = flups_topo_get_axis(topoSpec);
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nf      = 2; //topo is complex
+    
+    int nmemSpec[3];
+    for(int i=0;i<3;i++){
+        nmemSpec[i] = flups_topo_get_nmem(topoSpec,i);
+    }
+        
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
+            //local indexes start
+            const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
+                int is[3];
+                flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
+
+                // the (symmetrized) wave numbers:
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+
+                data[id + i0 * nf] = ...; //REAL part
+                data[id + i0 * nf + 1] = ...; //COMPLEX part
+            }
+        }
+    }
+ * @endcode
+ * 
+ * @param axsrc the FRI, reference axis aligned with index i0
+ * @param i0 the index in the axsrc direction
+ * @param i1 the index in the (axsrc+1)%3 direction
+ * @param i2 the index in the (axsrc+2)%3 direction
+ * @param istart start index of the local block (as provided by @flups_get_istartGlob)
+ * @param symstart indexes where the symmetry starts (as provided by @flups_get_spectralInfo)
+ * @param axtrg the FRI of the target topology, i.e. the way the memory is aligned in the current topology
+ * @param is the spectral index
+ */
+static inline void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+    // get the global indexes in the axsrc configuration
+    const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
+    // cmpt the shift in axis and the axis for the symstart
+    const int dax0 = (3 + axtrg - axsrc) % 3;
+    const int dax1 = (dax0 + 1) % 3;
+    const int dax2 = (dax0 + 2) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
+    const int ax2  = (ax0 + 2) % 3;
+    // fill the array in the axtrg configuration
+    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : MAX((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
+    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : MAX((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
+    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : MAX((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
+}
 /**@} */
 
 //=============================================================================
@@ -198,44 +265,43 @@ FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int npr
  * 
  * @param t topo to be freed
  */
-void flups_topo_free(FLUPS_Topology* t);
+void flups_topo_free(const FLUPS_Topology* t);
 
 /**
- * @brief 
+ * @brief Determines if the topo works on real or complex numbers
  * 
  * @param t 
  * @return true if the topo is on complex numbers
  * @return false if the topo is on real numbers
  */
-bool flups_topo_get_isComplex(FLUPS_Topology* t);
+bool flups_topo_get_isComplex(const FLUPS_Topology* t);
 
 /**
- * @brief 
+ * @brief Determines the physical direction aligned in memory
  * 
  * @param t 
  * @return int 
  */
-int  flups_topo_get_axis(FLUPS_Topology* t);
-int  flups_topo_get_nglob(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nloc(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nmem(FLUPS_Topology* t, const int dim);
-int  flups_topo_get_nproc(FLUPS_Topology* t, const int dim);
-void flups_topo_get_istartGlob(FLUPS_Topology* t, int istart[3]);
+int  flups_topo_get_axis(const FLUPS_Topology* t);
+int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nloc(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nmem(const FLUPS_Topology* t, const int dim);
+int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
+void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
  * @brief returns the local size of on this proc
  * 
  * @return long 
  */
-
-unsigned long long flups_topo_get_locsize(FLUPS_Topology* t);
+size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 
 /**
  * @brief returns the memory size of on this proc
  * 
  * @return long 
  */
-unsigned long long flups_topo_get_memsize(FLUPS_Topology* t);
+size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
 /**
  * @brief returns the communicator of the topology
@@ -254,11 +320,8 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  */
 
 // get a new solver
-// #ifndef PROF
-FLUPS_Solver* flups_init_(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
-// #else
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
-// #endif
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s);
@@ -289,13 +352,15 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  * @name SOLVER (Advanced)
  * @{
  */
-unsigned long long flups_get_allocSize(FLUPS_Solver* s);
+size_t flups_get_allocSize(FLUPS_Solver* s);
+
+void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
-FLUPS_Topology* flups_get_topo_physical(FLUPS_Solver* s);
-FLUPS_Topology* flups_get_topo_spectral(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s);
+const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
 
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
