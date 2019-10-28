@@ -320,7 +320,6 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  */
 
 // get a new solver
-
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 

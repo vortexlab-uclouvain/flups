@@ -304,7 +304,7 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------    
 #ifdef PERF_VERBOSE
     int rankworld;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rankworld);
+    MPI_Comm_rank(inComm, &rankworld);
     // we display important information for the performance
     string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rankworld) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");

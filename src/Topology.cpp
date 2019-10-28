@@ -226,6 +226,7 @@ void Topology::disp_rank() {
     MPI_Comm_get_name(_comm, commname, &rlen);
     std::string cn(commname,rlen);
 
+#ifdef DUMP_DBG
     std::string name = "rank_topo_axis" + std::to_string(this->axis()) + "_procs" + std::to_string(this->nproc(0)) + std::to_string(this->nproc(1)) + std::to_string(this->nproc(2)) + "_" + cn;
     if(this->isComplex()){
         hdf5_dump(this, name, rankdata);
@@ -234,10 +235,6 @@ void Topology::disp_rank() {
         hdf5_dump(this, name, rankdata);
         this->switch2real();
     }
-
-#ifdef DUMP_DBG
-    std::string h5name = "rank_topo_axis" + std::to_string(this->axis());
-    hdf5_dump(this, name, rankdata);
 #endif
     flups_free(rankdata);
     END_FUNC;

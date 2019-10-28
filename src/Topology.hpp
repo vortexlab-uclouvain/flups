@@ -114,7 +114,7 @@ class Topology {
     inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
 
     /**
-     * @brief returns the starting global index of the current proc
+     * @brief returns the starting global index on the current proc
      * 
      */
     inline void get_istart_glob(int istart[3]) const {

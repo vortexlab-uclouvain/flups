@@ -15,8 +15,6 @@ BC1.append(["3","3"])
 n_success = 0
 n_failure = 0
 
-tmp = [["4","4"]]
-
 i = 0
 for bcx in BC1 :
     for bcy in BC1 :
