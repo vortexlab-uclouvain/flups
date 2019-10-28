@@ -190,11 +190,11 @@ void flups_profiler_free(FLUPS_Profiler* p) {
     delete p;
 }
 
-void flups_profiler_disp(FLUPS_Profiler* p) {
+void flups_profiler_disp_root(FLUPS_Profiler* p) {
     p->disp();
 }
 
-void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
+void flups_profiler_disp(FLUPS_Profiler* p, const char* name) {
     const std::string myname(name);
     p->disp(myname);
 }

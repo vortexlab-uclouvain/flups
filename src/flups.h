@@ -378,8 +378,8 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 FLUPS_Profiler* flups_profiler_new();
 FLUPS_Profiler* flups_profiler_new_n(const char name[]);
 void            flups_profiler_free(FLUPS_Profiler* p);
-void            flups_profiler_disp(FLUPS_Profiler* p);
-void            flups_profiler_disp_root(FLUPS_Profiler* p,const char name[]);
+void            flups_profiler_disp_root(FLUPS_Profiler* p);
+void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 
 /**@} */
 
