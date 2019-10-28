@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    const Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
     
