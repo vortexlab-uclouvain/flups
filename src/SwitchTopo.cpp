@@ -251,7 +251,7 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
         for (int ib = 0; ib < old_nBlock; ib++) {
             // if we have a matching block
             if ((*destRank)[ib] == newDestRank[nib]) {
-                FLUPS_INFO("old block %d go to the same proc: %d vs %d", ib, (*destRank)[ib], newDestRank[nib]);
+                // FLUPS_INFO("old block %d go to the same proc: %d vs %d", ib, (*destRank)[ib], newDestRank[nib]);
                 // get the block id in 3D
                 int bidv[3];
                 localSplit(ib, nBlockv, 0, bidv, 1);
@@ -264,21 +264,21 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
                 int nib_start[3] = {newblockiStart[0][nib], newblockiStart[1][nib], newblockiStart[2][nib]};
                 int nib_end[3]   = {nib_start[0] + newBlockSize[0][nib], nib_start[1] + newBlockSize[1][nib], nib_start[2] + newBlockSize[2][nib]};
                 
-                FLUPS_INFO(">>> old block lim = %d %d %d -> %d %d %d",ib_start[0],ib_start[1],ib_start[2],ib_end[0],ib_end[1],ib_end[2]);
-                FLUPS_INFO(">>> new block lim = %d %d %d -> %d %d %d",nib_start[0],nib_start[1],nib_start[2],nib_end[0],nib_end[1],nib_end[2]);
+                // FLUPS_INFO(">>> old block lim = %d %d %d -> %d %d %d",ib_start[0],ib_start[1],ib_start[2],ib_end[0],ib_end[1],ib_end[2]);
+                // FLUPS_INFO(">>> new block lim = %d %d %d -> %d %d %d",nib_start[0],nib_start[1],nib_start[2],nib_end[0],nib_end[1],nib_end[2]);
 
                 // get the new starting index (and overwrittes the INT_MAX if any!!)
                 newblockiStart[0][nib] = std::min(nib_start[0], ib_start[0]);
                 newblockiStart[1][nib] = std::min(nib_start[1], ib_start[1]);
                 newblockiStart[2][nib] = std::min(nib_start[2], ib_start[2]);
-                FLUPS_INFO(">>> new block start = %d %d %d",newblockiStart[0][nib],newblockiStart[1][nib],newblockiStart[2][nib]);
+                // FLUPS_INFO(">>> new block start = %d %d %d",newblockiStart[0][nib],newblockiStart[1][nib],newblockiStart[2][nib]);
                 
                 // 2. the size
                 newBlockSize[0][nib] = std::max(nib_end[0], ib_end[0]) - newblockiStart[0][nib];
                 newBlockSize[1][nib] = std::max(nib_end[1], ib_end[1]) - newblockiStart[1][nib];
                 newBlockSize[2][nib] = std::max(nib_end[2], ib_end[2]) - newblockiStart[2][nib];
-                FLUPS_INFO(">>> new block end = %d %d %d",std::max(nib_end[0], ib_end[0]),std::max(nib_end[1], ib_end[1]),std::max(nib_end[2], ib_end[2]));
-                FLUPS_INFO(">>> new block size = %d %d %d",newBlockSize[0][nib],newBlockSize[1][nib],newBlockSize[2][nib]);
+                // FLUPS_INFO(">>> new block end = %d %d %d",std::max(nib_end[0], ib_end[0]),std::max(nib_end[1], ib_end[1]),std::max(nib_end[2], ib_end[2]));
+                // FLUPS_INFO(">>> new block size = %d %d %d",newBlockSize[0][nib],newBlockSize[1][nib],newBlockSize[2][nib]);
             }
         }
         

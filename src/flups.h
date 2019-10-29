@@ -320,7 +320,6 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  */
 
 // get a new solver
-
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
@@ -379,8 +378,8 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 FLUPS_Profiler* flups_profiler_new();
 FLUPS_Profiler* flups_profiler_new_n(const char name[]);
 void            flups_profiler_free(FLUPS_Profiler* p);
-void            flups_profiler_disp(FLUPS_Profiler* p);
-void            flups_profiler_disp_root(FLUPS_Profiler* p,const char name[]);
+void            flups_profiler_disp_root(FLUPS_Profiler* p);
+void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 
 /**@} */
 

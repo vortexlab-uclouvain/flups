@@ -112,17 +112,17 @@ double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 Then, you can define a new solver and it's boundary condition
 ```cpp
 // define the solver
-const BoundaryType mybc[3][2] = {{FLUPS::UNB, FLUPS::UNB}, {FLUPS::EVEN, FLUPS::ODD}, {FLUPS::UNB, FLUPS::EVEN}};  // BC in X,Y,Z
-FLUPS::Solver *      mysolver   = new FLUPS::Solver(topo, mybc, h, L);
+const BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
+Solver *      mysolver   = new Solver(topo, mybc, h, L);
 
 // setup the solver
-mysolver->set_GreenType(FLUPS::HEJ2);
+mysolver->set_GreenType(HEJ2);
 mysolver->setup(false);
 ```
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(rhs, rhs, FLUPS::SRHS);
+mysolver->solve(rhs, rhs, SRHS);
 ```
 
 Then, destroy the solver

@@ -100,25 +100,18 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
+    Solver* s = new Solver(t, bc, h, L, NULL);
+    return s;
+}
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], Profiler* prof) {
 #ifndef PROF
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
     Solver* s = new Solver(t, bc, h, L, NULL);
-    return s;
-}
-FLUPS_Solver* flups_init_timed( FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
-    Solver* s = new Solver(t, bc, h, L, NULL);
-    return s;
-}
 #else
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
-    Solver* s = new Solver(t, bc, h, L, NULL);
-    return s;
-}
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],Profiler* prof){
     Solver* s = new Solver(t, bc, h, L, prof);
+#endif
     return s;
 }
-#endif
 
 // destroy the solver
 void flups_cleanup(FLUPS_Solver* s){
@@ -196,11 +189,11 @@ void flups_profiler_free(FLUPS_Profiler* p) {
     delete p;
 }
 
-void flups_profiler_disp(FLUPS_Profiler* p) {
+void flups_profiler_disp_root(FLUPS_Profiler* p) {
     p->disp();
 }
 
-void flups_profiler_disp_root(FLUPS_Profiler* p, const char* name) {
+void flups_profiler_disp(FLUPS_Profiler* p, const char* name) {
     const std::string myname(name);
     p->disp(myname);
 }

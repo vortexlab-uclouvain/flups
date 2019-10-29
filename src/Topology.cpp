@@ -217,23 +217,22 @@ void Topology::disp_rank() {
     BEGIN_FUNC;
 #ifdef DUMP_DBG
     // we only focus on the real size = local size
-    double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize()*2);
-    int rank, rank_new;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    MPI_Comm_rank(_comm,&rank_new);
+    double* rankdata = (double*)flups_malloc(sizeof(double) * this->locsize() * 2);
+    int     rank, rank_new;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(_comm, &rank_new);
 
-    for(int i=0; i<this->locsize(); i++){
-        rankdata[2*i] = rank + rank_new/100.;
-        rankdata[2*i+1] = _rankd[0]+_rankd[1]/10.+_rankd[2]/100.;
+    for (int i = 0; i < this->locsize(); i++) {
+        rankdata[2 * i]     = rank + rank_new / 100.;
+        rankdata[2 * i + 1] = _rankd[0] + _rankd[1] / 10. + _rankd[2] / 100.;
     }
 
-    int rlen;
+    int  rlen;
     char commname[MPI_MAX_OBJECT_NAME];
     MPI_Comm_get_name(_comm, commname, &rlen);
-    std::string cn(commname,rlen);
-
+    std::string cn(commname, rlen);
     std::string name = "rank_topo_axis" + std::to_string(this->axis()) + "_procs" + std::to_string(this->nproc(0)) + std::to_string(this->nproc(1)) + std::to_string(this->nproc(2)) + "_" + cn;
-    if(this->isComplex()){
+    if (this->isComplex()) {
         hdf5_dump(this, name, rankdata);
     } else {
         this->switch2complex();
