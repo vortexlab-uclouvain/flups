@@ -429,7 +429,7 @@ static inline void flups_mem_free(void* data) {
 #if defined(__INTEL_COMPILER)
     _mm_free(data);
 #elif defined(__GNUC__)
-    free(data);
+    free(data);    
 #endif
 }
 

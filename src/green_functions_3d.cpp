@@ -234,7 +234,7 @@ static inline double _chat_2_2unb1spe_r0(const void* params) {
 }
 static inline double _chat_2_2unb1spe_k0(const void* params) {
     const double r      = ((double*)params) [0];
-    const double sig = ((double*)params)[2];
+    // const double sig = ((double*)params)[2];
     
     return  - c_1o2pi * log(r) ; //caution: mistake on the sign in [Chatelain2010]
 }
