@@ -312,6 +312,17 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
     END_FUNC;
 }
 
+/**
+ * @brief get the tag for a block after a gather_blocks function
+ * 
+ * @param comm the communicator to use
+ * @param inBlock the number of block in the input topo
+ * @param onBlock the number of blocks in the output topo
+ * @param i2o_destRank the destination rank array fo input to output
+ * @param o2i_destRank the destination rank array for output to input
+ * @param i2o_destTag the destination tag for input to output
+ * @param o2i_destTag the destination tag for output to input
+ */
 void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag) {
     // free the memory
     flups_free(*i2o_destTag);
