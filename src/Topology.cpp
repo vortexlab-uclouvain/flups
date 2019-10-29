@@ -215,6 +215,7 @@ void Topology::disp() const {
 
 void Topology::disp_rank() {
     BEGIN_FUNC;
+#ifdef DUMP_DBG
     // we only focus on the real size = local size
     double* rankdata = (double*) flups_malloc(sizeof(double)*this->locsize()*2);
     int rank, rank_new;
@@ -239,11 +240,7 @@ void Topology::disp_rank() {
         hdf5_dump(this, name, rankdata);
         this->switch2real();
     }
-
-#ifdef DUMP_DBG
-    std::string h5name = "rank_topo_axis" + std::to_string(this->axis());
-    hdf5_dump(this, name, rankdata);
-#endif
     flups_free(rankdata);
+#endif
     END_FUNC;
 }
