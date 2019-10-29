@@ -571,7 +571,13 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                pencil_nproc(dimID, nproc, comm_size, size_tmp);
+                //This was to keep an aspect ratio of the pencils in ax0 close to 1:
+                // pencil_nproc(dimID, nproc, comm_size, size_tmp);
+                //---------
+                //Finally, we opt for the following, which will maximize the total number of subcoms that we will be able to do
+                // over the 3 switchtopos:
+                const int nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
+                pencil_nproc_hint(dimID, nproc, comm_size, dimOrder[1], nproc_hint);
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
