@@ -50,21 +50,24 @@ class SwitchTopo {
    protected:
     MPI_Comm _inComm = NULL; /**<@brief the reference input communicator */
     MPI_Comm _outComm = NULL; /**<@brief the reference output communicator */
-    MPI_Comm _subcomm; /**<@brief the subcomm for this switchTopo */
-    int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
+    MPI_Comm _subcomm = NULL; /**<@brief the subcomm for this switchTopo */
+    // int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
     int _shift[3]; /**<@brief the shift in memory */
 
-    int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
-    int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
-    int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
-    int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
-    int _oend[3];   /**<@brief the ending index for #_topo_out to be inside #_topo_in  */
+    // int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
+    // int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
+    // int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
+    // int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
+    // int _oend[3];   /**<@brief the ending index for #_topo_out to be inside #_topo_in  */
 
-    int _inBlock[3];  /**<@brief the local number of block in each dim in the input topology */
-    int _onBlock[3];  /**<@brief the local number of block in each dim in the output topology  */
+    int _inBlock; /**<@brief the local number of block in each dim in the input topology */
+    int _onBlock; /**<@brief the local number of block in each dim in the output topology  */
 
-    int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-    int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* _iBlockiStart[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the input topo  */
+    int* _oBlockiStart[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the output topo  */
+
+    int* _iBlockSize[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* _oBlockSize[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
     int* _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
     int* _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
@@ -90,25 +93,44 @@ class SwitchTopo {
     virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
     virtual void disp() const                                                               = 0;
 
+    // /**
+    //  * @brief return the memory size of a block (including the padding for odd numbers if needed)
+    //  * 
+    //  * @return size_t 
+    //  */
+    // inline size_t get_blockMemSize() const {
+    //     // get the max block size
+    //     size_t total = 1;
+    //     for (int id = 0; id < 3; id++) {
+    //         // if the block size is 1, no need to pad :)
+    //         total *= (_nByBlock[id] == 1) ? 1 : (size_t)(_nByBlock[id] + _exSize[id] % 2);
+    //     }
+    //     // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
+    //     total *= (size_t)_topo_out->nf();
+    //     // add the difference with the alignement to be always aligned
+    //     size_t alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
+    //     // FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
+    //     total = total + alignDelta;
+    //     FLUPS_CHECK((total*sizeof(double))%FLUPS_ALIGNMENT == 0 , "The total size of one block HAS to match the alignement size",LOCATION);
+    //     // return the total size
+    //     return total;
+    // };
+
     /**
-     * @brief return the memory size of a block (including the padding for odd numbers if needed)
+     * @brief Get the memory size of a block padded to ensure alignment
      * 
-     * @return size_t 
+     * @param ib the block id
+     * @param nf the number of fields inside an element
+     * @param blockSize the number of element in 3d for each block
+     * @return size_t the padded size in memory of one block
      */
-    inline size_t get_blockMemSize() const {
-        // get the max block size
-        size_t total = 1;
-        for (int id = 0; id < 3; id++) {
-            // if the block size is 1, no need to pad :)
-            total *= (_nByBlock[id] == 1) ? 1 : (size_t)(_nByBlock[id] + _exSize[id] % 2);
-        }
-        // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        total *= (size_t)_topo_out->nf();
+    inline size_t get_blockMemSize(const int ib, const int nf,const int * const blockSize[3]) const {
+        // get the in and out sizes
+        size_t total = (size_t)(blockSize[0][ib]) * (size_t)(blockSize[1][ib]) * (size_t)(blockSize[2][ib]) * (size_t)(nf);
         // add the difference with the alignement to be always aligned
-        size_t alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
-        // FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
-        total = total + alignDelta;
-        FLUPS_CHECK((total*sizeof(double))%FLUPS_ALIGNMENT == 0 , "The total size of one block HAS to match the alignement size",LOCATION);
+        size_t alignDelta = ((total * sizeof(double)) % FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total * sizeof(double)) % FLUPS_ALIGNMENT) / sizeof(double);
+        total             = total + alignDelta;
+        FLUPS_CHECK((total * sizeof(double)) % FLUPS_ALIGNMENT == 0, "The total size of one block HAS to match the alignement size", LOCATION);
         // return the total size
         return total;
     };
@@ -118,9 +140,16 @@ class SwitchTopo {
      * @return size_t 
      */
     inline size_t get_bufMemSize() const {
+        // the nf is the maximum between in and out
+        const int nf = std::max(_topo_in->nf(),_topo_out->nf());
         // nultiply by the number of blocks
-        size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
-        total *= get_blockMemSize();
+        size_t total = 0;
+        for(int ib=0; ib<_inBlock; ib++){
+            total += get_blockMemSize(ib,nf,_iBlockSize);
+        }
+        for(int ib=0; ib<_onBlock; ib++){
+            total += get_blockMemSize(ib,nf,_oBlockSize);
+        }
         // return the total size
         return total;
     };
@@ -143,15 +172,17 @@ class SwitchTopo {
     void add_toGraph(int* sourcesW, int* destsW) const;
 
    protected:
-    void _cmpt_nByBlock();
+    void _cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]);
     void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* startBlockEachProc, const int* nBlockEachProc, int* destRank, int* destTag);
     void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]);
     void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* startBlockEachProc, int* nBlockEachProc);
 
     void _cmpt_commSplit();
-    void _setup_subComm(const int nBlock[3], int* destRank, int** count, int** start);
-    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock[3], int* destRank, int** count, int** start);
+    void _setup_subComm(const int nBlock, int* blockSize[3], int* destRank, int** count, int** start);
+    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock, int* blockSize[3], int* destRank, int** count, int** start);
     void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
+    void _gather_blocks(const Topology* topo, int nByBlock[3], int istart[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank);
+    void _gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag);
 };
 
 static inline int gcd(int a, int b) {

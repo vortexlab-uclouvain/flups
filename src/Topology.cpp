@@ -97,7 +97,12 @@ void Topology::cmpt_sizes() {
         // compute the _nbyproc
         // number of unknows everywhere except the last one
         _nbyproc[id] = _nglob[id] / _nproc[id];  // integer division = floor
-
+        // if we don't change anything
+        int nlast = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * (_nproc[id] - 1));
+        // if we have a weird load balancing and the last one can give one to each of its friend
+        if(nlast - _nbyproc[id] > 1 && nlast > _nproc[id]){
+            _nbyproc[id] += 1;
+        }
         // if we are the last rank in the direction, we take everything what is left
         if ((_rankd[id] < (_nproc[id] - 1))) {
             _nloc[id] = _nbyproc[id];
@@ -105,7 +110,7 @@ void Topology::cmpt_sizes() {
             _nmem[id] = _nloc[id];
         } else {
             // we get the max between the nglob and
-            _nloc[id] = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * _rankd[id]);
+            _nloc[id] = _nglob[id] - _nbyproc[id] * (_nproc[id] - 1);
             _nmem[id] = _nloc[id];
             // if we are in the axis, we padd to ensure that every pencil is ok with alignment
             if (id == _axis) {
