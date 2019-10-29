@@ -98,10 +98,12 @@ void Topology::cmpt_sizes() {
         // number of unknows everywhere except the last one
         _nbyproc[id] = _nglob[id] / _nproc[id];  // integer division = floor
         // if we don't change anything
-        int nlast = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * (_nproc[id] - 1));
-        // if we have a weird load balancing and the last one can give one to each of its friend
-        if(nlast - _nbyproc[id] > 1 && nlast > _nproc[id]){
+        int nlastProc = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * (_nproc[id] - 1));
+        // if the last proc has too much unknows compare to the other
+        // and we are able to give up some points
+        while((nlastProc - _nbyproc[id]) > 1 && nlastProc >= _nproc[id]){
             _nbyproc[id] += 1;
+            nlastProc -= (_nproc[id] - 1);
         }
         // if we are the last rank in the direction, we take everything what is left
         if ((_rankd[id] < (_nproc[id] - 1))) {

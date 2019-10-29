@@ -365,7 +365,6 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
-        // nBlock[id] += ((iend[id] - istart[id]) % nByBlock[id] != 0) ? 1 : 0;
         // get the list of number of procs
         MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
         // set the starting indexes to 0
