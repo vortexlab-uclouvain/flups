@@ -92,17 +92,15 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
         // initialize the destrank
         int global_bid[3] = {0, 0, 0};
         int destrankd[3] = {0, 0, 0};
-        
         // determine the dest rank for each dimension
         for (int id = 0; id < 3; id++) {
             // we go trough every rank on the given dim
             global_bid[id] = bidv[id] + blockIDStart[id];
-            
             for (int ir = 0; ir < topo->nproc(id); ir++) {
                 // update the destination rank
                 destrankd[id] = ir;
 
-                // update the number of block already visited                
+                // update the number of block already visited
                 int minBlockLocal = startBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
                 int maxBlockLocal = minBlockLocal + nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
 
@@ -140,6 +138,51 @@ void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockI
 
     END_FUNC;
 }
+
+/**
+ * @brief compute the destination rank for every block on the current processor
+ * 
+ * @param nBlock the number of block on the current proc (012-indexing)
+ * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
+ * @param topo the destination topology
+ * @param nBlockOnProc the number of block on each proc in the destination topology
+ * @param destRank the computed destination rank for each block
+ */
+void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],const int istart[3], const int blockIDStart[3], const Topology *topo, int *destRank) {
+    BEGIN_FUNC;
+    int comm_size;
+    MPI_Comm_size(_inComm, &comm_size);
+    // go through each block
+    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
+        // get the split index
+        int bidv[3];
+        localSplit(ib, nBlock, 0, bidv, 1);
+        // initialize the destrank
+        int global_bid[3] = {0, 0, 0};
+        int destrankd[3] = {0, 0, 0};
+
+        // determine the dest rank for each dimension
+        for (int id = 0; id < 3; id++) {
+            // we go trough every rank on the given dim
+            global_bid[id] = bidv[id] + blockIDStart[id];
+            // compute the global id of the first index in the block
+            // the (0,0,0) in topo out is located in istart in my topo
+            FLUPS_INFO("block %d starts at %d / %d ",ib,(global_bid[id] * nByBlock[id] - istart[id]),topo->nbyproc(id));
+            destrankd[id] = (global_bid[id] * nByBlock[id] - istart[id]) / topo->nbyproc(id);
+            // if the last proc has more data than the other ones, we need to max the destrank
+            destrankd[id] = std::min(destrankd[id],topo->nproc(id)-1);
+        }
+        destRank[ib] = rankindex(destrankd, topo);
+        
+        FLUPS_INFO("block %d will go to proc %d",ib,destRank[ib]);
+    }
+    //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
+    //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.
+    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo->get_comm(), _inComm);
+
+    END_FUNC;
+}
+
 /**
  * @brief compute the size of the blocks inside the given topology
  * 
@@ -247,7 +290,6 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
     // loop over the blocks and store the information
     for (int nib = 0; nib < newNBlock; nib++) {
         // FLUPS_INFO(">>> looking for new block %d", nib);
-
         for (int ib = 0; ib < old_nBlock; ib++) {
             // if we have a matching block
             if ((*destRank)[ib] == newDestRank[nib]) {
@@ -324,9 +366,13 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
  * @param o2i_destTag the destination tag for output to input
  */
 void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag) {
-    // free the memory
-    flups_free(*i2o_destTag);
-    flups_free(*o2i_destTag);
+    // free the memory if it has been allocated
+    if((*i2o_destTag) != NULL){
+        flups_free(*i2o_destTag);
+    }
+    if((*o2i_destTag) != NULL){
+        flups_free(*o2i_destTag);
+    }
     // reallocate it at the correct size
     (*i2o_destTag) = (int*)flups_malloc(sizeof(int) * inBlock);
     (*o2i_destTag) = (int*)flups_malloc(sizeof(int) * onBlock);

@@ -192,8 +192,10 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
 
     // get the ranks
-    _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, NULL);
-    _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,NULL);
+    _cmpt_blockDestRank(inBlockv,nByBlock,istart,iblockIDStart,topo_out,_i2o_destRank);
+    _cmpt_blockDestRank(onBlockv,nByBlock,ostart,oblockIDStart,topo_in,_o2i_destRank);
+    // _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, NULL);
+    // _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,NULL);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
     _gather_blocks(topo_in, nByBlock, istart, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);

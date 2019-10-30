@@ -185,17 +185,19 @@ void SwitchTopo_nb::_init_blockInfo(const Topology* topo_in, const Topology* top
     // allocate the destination ranks
     _i2o_destRank = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
     _o2i_destRank = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
-    // allocate the destination tags
-    _i2o_destTag = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    _o2i_destTag = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    // // allocate the destination tags
+    // _i2o_destTag = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    // _o2i_destTag = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
     // get the size of the blocks
     _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
     _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
 
     // get the ranks
-    _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, _i2o_destTag);
-    _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,_o2i_destTag);
+    _cmpt_blockDestRank(inBlockv,nByBlock,istart,iblockIDStart,topo_out,_i2o_destRank);
+    _cmpt_blockDestRank(onBlockv,nByBlock,ostart,oblockIDStart,topo_in,_o2i_destRank);
+    // _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, _i2o_destTag);
+    // _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,_o2i_destTag);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
     _gather_blocks(topo_in, nByBlock, istart, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
