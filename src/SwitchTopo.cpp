@@ -153,9 +153,9 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
     // go through each block
+    int bidv[3];
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         // get the split index
-        int bidv[3];
         localSplit(ib, nBlock, 0, bidv, 1);
         // initialize the destrank
         int global_id[3] = {0, 0, 0};
@@ -166,14 +166,14 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
             // get the global starting index in my current topo = topo_in
             global_id[id] = bidv[id] * nByBlock[id] + topo_in->nbyproc(id) * topo_in->rankd(id) + istart[id];
             // the (0,0,0) in topo in is located in shift in topo_out
-            FLUPS_INFO("block %d starts at %d / %d ",ib,(global_id[id] + shift[id]),topo_out->nbyproc(id));
+            FLUPS_INFO_4("block %d starts at %d / %d ",ib,(global_id[id] + shift[id]),topo_out->nbyproc(id));
             destrankd[id] = (global_id[id] + shift[id]) / topo_out->nbyproc(id);
             // if the last proc has more data than the other ones, we need to max the destrank
             destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
         }
         destRank[ib] = rankindex(destrankd, topo_out);
         
-        FLUPS_INFO("block %d will go to proc %d",ib,destRank[ib]);
+        FLUPS_INFO_4("block %d will go to proc %d",ib,destRank[ib]);
     }
     //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
     //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.

@@ -311,21 +311,13 @@ double* Solver::setup(const bool changeTopoComm) {
     /** In every cases, we do */
     //-------------------------------------------------------------------------
 
+    
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the Green's function */
+    //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_data");
-    //-------------------------------------------------------------------------
-    /** - allocate the data for the field and Green */
-    //-------------------------------------------------------------------------
-    _allocate_data(_topo_hat, _topo_phys, &_data);
     _allocate_data(_topo_green, NULL, &_green);
     if (_prof != NULL) _prof->stop("alloc_data");
-
-    //-------------------------------------------------------------------------
-    /** - allocate the plans forward and backward for the field */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_plans");
-    _allocate_plans(_topo_hat, _plan_forward, _data);
-    _allocate_plans(_topo_hat, _plan_backward, _data);
-    if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
@@ -356,6 +348,21 @@ double* Solver::setup(const bool changeTopoComm) {
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
     if (_prof != NULL) _prof->stop("setup");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the plans forward and backward for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_plans");
+    _allocate_plans(_topo_hat, _plan_forward, _data);
+    _allocate_plans(_topo_hat, _plan_backward, _data);
+    if (_prof != NULL) _prof->stop("alloc_plans");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_data");
+    _allocate_data(_topo_hat, _topo_phys, &_data);
+    if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */
