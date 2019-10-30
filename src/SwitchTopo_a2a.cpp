@@ -166,8 +166,8 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     //-------------------------------------------------------------------------
     //recompute _start and _end
     topo_in->cmpt_intersect_id(_shift, topo_out, istart, iend);
-    int tmp[3] = {-_shift[0], -_shift[1], -_shift[2]};
-    topo_out->cmpt_intersect_id(tmp, topo_in, ostart, oend);
+    int mshift[3] = {-_shift[0], -_shift[1], -_shift[2]};
+    topo_out->cmpt_intersect_id(mshift, topo_in, ostart, oend);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
@@ -192,14 +192,15 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
 
     // get the ranks
-    _cmpt_blockDestRank(inBlockv,nByBlock,istart,iblockIDStart,topo_out,_i2o_destRank);
-    _cmpt_blockDestRank(onBlockv,nByBlock,ostart,oblockIDStart,topo_in,_o2i_destRank);
+    // shift if the root position of the topo_in in the topo_out
+    _cmpt_blockDestRank(inBlockv,nByBlock,_shift,istart,topo_in,topo_out,_i2o_destRank);
+    _cmpt_blockDestRank(onBlockv,nByBlock,mshift,ostart,topo_out,topo_in,_o2i_destRank);
     // _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, NULL);
     // _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,NULL);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
-    _gather_blocks(topo_in, nByBlock, istart, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
-    _gather_blocks(topo_out, nByBlock, ostart, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
+    _gather_blocks(topo_in, nByBlock, istart,iend, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
+    _gather_blocks(topo_out, nByBlock, ostart,oend, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
 
     // free the temp arrays
     flups_free(inBlockEachProc);
