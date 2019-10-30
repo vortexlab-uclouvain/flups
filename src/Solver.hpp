@@ -390,6 +390,34 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         flups_free(xadj);
         flups_free(adj);
         flups_free(adjw);
+
+#ifdef PROF
+        //writing graph to file, CSR format
+        string filename = "prof/graph.csr";
+        FILE* file      = fopen(filename.c_str(), "w+");
+        for(int i=0; i<=comm_size; i++){
+            fprintf(file, "%d ",xadj[i]);
+        }
+        fprintf(file,"\n");
+        for(int i=0; i<xadj[comm_size]; i++){
+            fprintf(file, "%d (%d), ",adj[i],adjw[i]);
+        }
+        fprintf(file,"\n");
+        fclose(file);
+
+        //writing graph to file, per node
+        filename = "prof/graph.txt";
+        file     = fopen(filename.c_str(), "w+");
+        for(int i=0; i<comm_size; i++){
+            fprintf(file, "%d: ",i);
+            for(int j = xadj[i]; j<xadj[i+1]; j++){
+                    fprintf(file, "%d (%d), ",adj[j],adjw[j]);
+            }
+            fprintf(file,"\n");
+        }
+        fclose(file);
+#endif
+
         // compute how many block in each group
         for (int i = 0; i < n_nodes; ++i) {
             rids[i] = i * nodesize;
@@ -412,11 +440,18 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     /** - give the rank info to everybody */
     //-------------------------------------------------------------------------
     MPI_Bcast(order, comm_size, MPI_INT, 0, comm);
+#ifdef PROF        
     if (comm_rank == 3) {
+        //writing reordering to file
+        string filename = "prof/order.txt";
+        FILE* file      = fopen(filename.c_str(), "w+");
         for (int i = 0; i < comm_size; ++i) {
+            fprintf(file,"%i : %i \n", i, order[i]);
             printf("%i : %i \n", i, order[i]);
         }
+        fclose(file);
     }
+#endif
 #else
     for (int i = 0; i < comm_size; ++i) {
         order[i] = i;
