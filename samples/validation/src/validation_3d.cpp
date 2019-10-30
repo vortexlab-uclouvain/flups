@@ -78,8 +78,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    // FLUPS_INFO("topo memsize = %d vs %d %d %d",flups_topo_get_memsize(topo),topo->nmem(0),topo->nmem(1),topo->nmem(2));
-
     double *rhs   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *sol   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *field = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));

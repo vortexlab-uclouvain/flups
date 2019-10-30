@@ -267,7 +267,7 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
 
-    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
     }
@@ -305,7 +305,7 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[sharedID] = nproc_hint[sharedID];
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
-    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
     FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
 
     if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){

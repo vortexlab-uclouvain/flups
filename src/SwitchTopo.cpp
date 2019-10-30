@@ -706,10 +706,10 @@ void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, con
         }
     }
     // display some info
-    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d",topo_in->axis(),topo_out->axis());
-    FLUPS_INFO("shuffle: nf = %d, blocksize = %d %d %d",nf,bSize[0],bSize[1],bSize[2]);
-    FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d",dims[0].n,dims[0].is,dims[0].os);
-    FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d",dims[1].n,dims[1].is,dims[1].os);
+    FLUPS_INFO_3("shuffle: setting up the shuffle form %d to %d",topo_in->axis(),topo_out->axis());
+    FLUPS_INFO_3("shuffle: nf = %d, blocksize = %d %d %d",nf,bSize[0],bSize[1],bSize[2]);
+    FLUPS_INFO_3("shuffle: DIM 0: n = %d, is=%d, os=%d",dims[0].n,dims[0].is,dims[0].os);
+    FLUPS_INFO_3("shuffle: DIM 1: n = %d, is=%d, os=%d",dims[1].n,dims[1].is,dims[1].os);
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
@@ -732,8 +732,6 @@ void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, con
  */
 void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
     BEGIN_FUNC;
-
-    FLUPS_INFO("we call the graph on %d and %d blocks",_inBlock,_onBlock);
 
     // count the number of out edges
     for (int ib = 0; ib < _inBlock; ib++) {

@@ -222,7 +222,7 @@ double* Solver::setup(const bool changeTopoComm) {
     flups_free(dests);
     flups_free(destsW);
 
-#ifdef VERBOSE    
+#if defined(VERBOSE) && VERBOSE==2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
     printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
@@ -807,7 +807,7 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
         size_tot = std::max(topo_phys->memsize(), size_tot);
     }
 
-    FLUPS_INFO("Complex memory allocation, size = %ld", size_tot);
+    FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
     (*data) = (double *)flups_malloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));
