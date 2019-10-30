@@ -88,7 +88,9 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
 }
 
 /**
- * @brief compute the nloc and nmem sizes using _rankd, _nglob, _nproc, _nloc, _
+ * @brief compute the nloc and nmem sizes using _rankd, _nglob, _nproc, _nloc
+ * 
+ * This function padds the size of the domain if needed
  * 
  */
 void Topology::cmpt_sizes() {

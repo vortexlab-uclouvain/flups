@@ -153,53 +153,58 @@ void SwitchTopo_nb::_init_blockInfo(const Topology* topo_in, const Topology* top
     int  oend[3];
     int  nByBlock[3];
 
-    int  iblockIDStart[3];
-    int  oblockIDStart[3];
-    int* inBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* onBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int  iblockIDStart[3];
+    // int  oblockIDStart[3];
+    // int* inBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* onBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
 
     //-------------------------------------------------------------------------
     /** - Compute intersection ids */
     //-------------------------------------------------------------------------
     //recompute _start and _end
     topo_in->cmpt_intersect_id(_shift, topo_out, istart, iend);
-    int tmp[3] = {-_shift[0], -_shift[1], -_shift[2]};
-    topo_out->cmpt_intersect_id(tmp, topo_in, ostart, oend);
+    int mshift[3] = {-_shift[0], -_shift[1], -_shift[2]};
+    topo_out->cmpt_intersect_id(mshift, topo_in, ostart, oend);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
     _cmpt_nByBlock(istart,iend,ostart,oend,nByBlock);
 
-    _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv, iblockIDStart, istartBlockEachProc, inBlockEachProc);
-    _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
+    // _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv, iblockIDStart, istartBlockEachProc, inBlockEachProc);
+    // _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
+    _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv);
+    _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv);
 
-    // allocte the block size
-    for (int id = 0; id < 3; id++) {
-        _iBlockSize[id] = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-        _oBlockSize[id] = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
-    }
+    // // allocte the block size
+    // for (int id = 0; id < 3; id++) {
+    //     _iBlockSize[id] = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    //     _oBlockSize[id] = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    // }
 
     // allocate the destination ranks
     _i2o_destRank = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
     _o2i_destRank = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
-    // allocate the destination tags
-    _i2o_destTag = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    _o2i_destTag = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    // // allocate the destination tags
+    // _i2o_destTag = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    // _o2i_destTag = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
-    // get the size of the blocks
-    _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
-    _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
+    // // get the size of the blocks
+    // _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
+    // _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
 
     // get the ranks
-    _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, _i2o_destTag);
-    _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,_o2i_destTag);
+    _cmpt_blockDestRank(inBlockv,nByBlock,_shift,istart,topo_in,topo_out,_i2o_destRank);
+    _cmpt_blockDestRank(onBlockv,nByBlock,mshift,ostart,topo_out,topo_in,_o2i_destRank);
+    // _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, _i2o_destTag);
+    // _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,_o2i_destTag);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
-    _gather_blocks(topo_in, nByBlock, istart, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
-    _gather_blocks(topo_out, nByBlock, ostart, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
+    _gather_blocks(topo_in, nByBlock, istart, iend, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
+    _gather_blocks(topo_out, nByBlock, ostart, oend, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
+    // get the tags for the gathered blocks
     _gather_tags(_inComm, _inBlock, _onBlock, _i2o_destRank, _o2i_destRank, &_i2o_destTag, &_o2i_destTag);
 
     // allocate the requests
@@ -209,10 +214,10 @@ void SwitchTopo_nb::_init_blockInfo(const Topology* topo_in, const Topology* top
     _o2i_recvRequest = (MPI_Request*)flups_malloc(_inBlock * sizeof(MPI_Request));
 
     // free the temp arrays
-    flups_free(inBlockEachProc);
-    flups_free(onBlockEachProc);
-    flups_free(istartBlockEachProc);
-    flups_free(ostartBlockEachProc);
+    // flups_free(inBlockEachProc);
+    // flups_free(onBlockEachProc);
+    // flups_free(istartBlockEachProc);
+    // flups_free(ostartBlockEachProc);
 
     END_FUNC;
 }
