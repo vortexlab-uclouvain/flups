@@ -153,12 +153,12 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     int  oend[3];
     int  nByBlock[3];
 
-    int  iblockIDStart[3];
-    int  oblockIDStart[3];
-    int* inBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* onBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int  iblockIDStart[3];
+    // int  oblockIDStart[3];
+    // int* inBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* onBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
+    // int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
 
 
     //-------------------------------------------------------------------------
@@ -174,22 +174,24 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     //-------------------------------------------------------------------------
     _cmpt_nByBlock(istart,iend,ostart,oend,nByBlock);
 
-    _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv, iblockIDStart, istartBlockEachProc, inBlockEachProc);
-    _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
+    // _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv, iblockIDStart, istartBlockEachProc, inBlockEachProc);
+    // _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
+    _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv);
+    _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv);
 
-    // allocte the block size
-    for (int id = 0; id < 3; id++) {
-        _iBlockSize[id] = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-        _oBlockSize[id] = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
-    }
+    // // allocte the block size
+    // for (int id = 0; id < 3; id++) {
+    //     _iBlockSize[id] = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    //     _oBlockSize[id] = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    // }
 
     // allocate the destination ranks
     _i2o_destRank = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
     _o2i_destRank = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
-    // get the size of the blocks
-    _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
-    _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
+    // // get the size of the blocks
+    // _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
+    // _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
 
     // get the ranks
     // shift if the root position of the topo_in in the topo_out
@@ -203,10 +205,10 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     _gather_blocks(topo_out, nByBlock, ostart,oend, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
 
     // free the temp arrays
-    flups_free(inBlockEachProc);
-    flups_free(onBlockEachProc);
-    flups_free(istartBlockEachProc);
-    flups_free(ostartBlockEachProc);
+    // flups_free(inBlockEachProc);
+    // flups_free(onBlockEachProc);
+    // flups_free(istartBlockEachProc);
+    // flups_free(ostartBlockEachProc);
     END_FUNC;
 }
 

@@ -298,11 +298,11 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
                 localSplit(ib, nBlockv, 0, bidv, 1);
 
                 // compute the block size
-                // int myblockSize[3] = {0,0,0};
-                // for (int id = 0; id < 3; id++) {
-                //     myblockSize[id] = (bidv[id] < (nBlock[id] - 1))? nByBlock[id] : (iend[id] - istart[id]) - bidv[id] * nByBlock[id];
-                // }
-                int myblockSize[3] = {blockSize[0][ib],blockSize[1][ib],blockSize[2][ib]};
+                int myblockSize[3] = {0,0,0};
+                for (int id = 0; id < 3; id++) {
+                    myblockSize[id] = (bidv[id] < (nBlockv[id] - 1))? nByBlock[id] : (iend[id] - istart[id]) - bidv[id] * nByBlock[id];
+                }
+                // int myblockSize[3] = {blockSize[0][ib],blockSize[1][ib],blockSize[2][ib]};
                 
                 // get the current indexes of the block
                 int ib_start[3] = {istart[0] + bidv[0] * nByBlock[0], istart[1] + bidv[1] * nByBlock[1], istart[2] + bidv[2] * nByBlock[2]};
@@ -426,34 +426,34 @@ void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBloc
  * @param blockIDStart the starting id of the block (0,0,0)
  * @param nBlockEachProc the number of blocks on each proc
  */
-void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
-                                     int nBlock[3], int blockIDStart[3], int *startBlockEachProc, int *nBlockEachProc) {
+// void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
+//                                      int nBlock[3], int blockIDStart[3], int *startBlockEachProc, int *nBlockEachProc) {
+void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]) {
     BEGIN_FUNC;
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
-        // get the list of number of procs
-        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
-        // set the starting indexes to 0
-        blockIDStart[id] = 0;
-        // compute the starting index
-        const int myrankd  = topo->rankd(id);
-        int       rankd[3] = {topo->rankd(0), topo->rankd(1), topo->rankd(2)};
-        for (int ir = 0; ir < myrankd; ir++) {
-            // update the rankd
-            rankd[id] = ir;
-            // increment the block counter
-            blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
-        }
+        // // get the list of number of procs
+        // MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
+        // // set the starting indexes to 0
+        // blockIDStart[id] = 0;
+        // // compute the starting index
+        // const int myrankd  = topo->rankd(id);
+        // int       rankd[3] = {topo->rankd(0), topo->rankd(1), topo->rankd(2)};
+        // for (int ir = 0; ir < myrankd; ir++) {
+        //     // update the rankd
+        //     rankd[id] = ir;
+        //     // increment the block counter
+        //     blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
+        // }
         // do some checks
         FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
 
         //everybody needs to know the startID of the first block in each proc
-        MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
+        // MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
     }
-    
     END_FUNC;
 }
 
