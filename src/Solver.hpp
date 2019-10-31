@@ -267,11 +267,11 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
     nproc[id1] = (int)n1;
     nproc[id2] = (int)n2;
 
-    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
     }
-    if(comm_size>8 && (n1==1||n2==2)){
+    if(comm_size>8 && (n1==1||n2==1)){
         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
@@ -283,6 +283,15 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
     }
 }
 
+/**
+ * @brief compute the pencil layout given the pencil direction, compatible with another pencil decoposition given as a hint
+ * 
+ * @param id the pencil direction
+ * @param nproc the number of proc in each direction
+ * @param comm_size the total communicator size
+ * @param id_hint the axis of the pencils in another decomposition, which we want this decomposition to be compatible with
+ * @param nproc_hint the number of procs in the other decomposition we want to be compatible with
+ */
 static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_size, const int id_hint, const int nproc_hint[3]) {
     // get the id shared between the hint topo
     int sharedID = 0;
@@ -296,8 +305,12 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[sharedID] = nproc_hint[sharedID];
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
-    FLUPS_INFO("my proc repartition is %d %d %d\n",nproc[0],nproc[1],nproc[2]);
+    FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
     FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+
+    if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){
+        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+    }
 }
 
 #endif

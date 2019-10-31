@@ -477,7 +477,6 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         if (doShuffle) {
             int tmp_size[3] = {_iBlockSize[0][ib], _iBlockSize[1][ib], _iBlockSize[2][ib]};
             _setup_shuffle(tmp_size, _topo_out, _topo_in, _sendBuf[ib], &_o2i_shuffle[ib]);
-            FLUPS_INFO("doing a shuffle allocation");
         }
     }
 
@@ -499,7 +498,6 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         if (doShuffle) {
             int tmp_size[3] = {_oBlockSize[0][ib], _oBlockSize[1][ib], _oBlockSize[2][ib]};
             _setup_shuffle(tmp_size,_topo_in,_topo_out, _recvBuf[ib], &_i2o_shuffle[ib]);
-            FLUPS_INFO("doing a shuffle allocation");
         }
     }
 
@@ -648,9 +646,9 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
     }
 
-    FLUPS_INFO("previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
-    FLUPS_INFO("new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
-    FLUPS_INFO("using %d blocks on send and %d on recv", send_nBlock, recv_nBlock);
+    FLUPS_INFO("switch: previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
+    FLUPS_INFO("switch: new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
+    FLUPS_INFO("switch: using %d blocks on send and %d on recv", send_nBlock, recv_nBlock);
 
     // define important constants
     const int iax0 = topo_in->axis();
@@ -688,8 +686,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
         const bool isBuffAligned = FLUPS_ISALIGNED(sendBuf[bid]) &&  nmax%FLUPS_ALIGNMENT == 0;
         // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
-        FLUPS_INFO("moving the pointer by %d %d %d elements", iBlockiStart[0][bid], iBlockiStart[1][bid], iBlockiStart[2][bid]);
-        FLUPS_INFO("Tackling a block of size %d %d %d", iBlockSize[0][bid], iBlockSize[1][bid], iBlockSize[2][bid]);
+        FLUPS_INFO_3("block %d: Moving the pointer by %d %d %d elements", bid, iBlockiStart[0][bid], iBlockiStart[1][bid], iBlockiStart[2][bid]);
+        FLUPS_INFO_3("block %d: Tackling a block of size %d %d %d", bid, iBlockSize[0][bid], iBlockSize[1][bid], iBlockSize[2][bid]);
         double*    my_v            = v + localIndex(iax0, iBlockiStart[iax0][bid], iBlockiStart[iax1][bid], iBlockiStart[iax2][bid], iax0, inmem, nf);
         const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && inmem[iax0] % FLUPS_ALIGNMENT == 0;
 

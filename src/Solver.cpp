@@ -222,7 +222,7 @@ double* Solver::setup(const bool changeTopoComm) {
     flups_free(dests);
     flups_free(destsW);
 
-#ifdef VERBOSE    
+#if defined(VERBOSE) && VERBOSE==2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
     printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
@@ -311,21 +311,13 @@ double* Solver::setup(const bool changeTopoComm) {
     /** In every cases, we do */
     //-------------------------------------------------------------------------
 
+    
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the Green's function */
+    //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_data");
-    //-------------------------------------------------------------------------
-    /** - allocate the data for the field and Green */
-    //-------------------------------------------------------------------------
-    _allocate_data(_topo_hat, _topo_phys, &_data);
     _allocate_data(_topo_green, NULL, &_green);
     if (_prof != NULL) _prof->stop("alloc_data");
-
-    //-------------------------------------------------------------------------
-    /** - allocate the plans forward and backward for the field */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_plans");
-    _allocate_plans(_topo_hat, _plan_forward, _data);
-    _allocate_plans(_topo_hat, _plan_backward, _data);
-    if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
@@ -356,6 +348,21 @@ double* Solver::setup(const bool changeTopoComm) {
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
     if (_prof != NULL) _prof->stop("setup");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the plans forward and backward for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_plans");
+    _allocate_plans(_topo_hat, _plan_forward, _data);
+    _allocate_plans(_topo_hat, _plan_backward, _data);
+    if (_prof != NULL) _prof->stop("alloc_plans");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_data");
+    _allocate_data(_topo_hat, _topo_phys, &_data);
+    if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */
@@ -571,7 +578,13 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                pencil_nproc(dimID, nproc, comm_size, size_tmp);
+                //This was to keep an aspect ratio of the pencils in ax0 close to 1:
+                // pencil_nproc(dimID, nproc, comm_size, size_tmp);
+                //---------
+                //Finally, we opt for the following, which will maximize the total number of subcoms that we will be able to do
+                // over the 3 switchtopos:
+                const int nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
+                pencil_nproc_hint(dimID, nproc, comm_size, dimOrder[1], nproc_hint);
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
@@ -801,7 +814,7 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
         size_tot = std::max(topo_phys->memsize(), size_tot);
     }
 
-    FLUPS_INFO("Complex memory allocation, size = %ld", size_tot);
+    FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
     (*data) = (double *)flups_malloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));

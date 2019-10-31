@@ -218,15 +218,15 @@ int main(int argc, char *argv[]) {
     if (predef == 0){
         // Display
         if (rank == 0) {
-            // FLUPS_INFO("I will run with:");
-            // FLUPS_INFO("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
-            // FLUPS_INFO("  -L: %lf,%lf,%lf", L[0], L[1], L[2]);
-            // FLUPS_INFO("  -bc: %d,%d ; %d,%d ; %d,%d", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
-            // FLUPS_INFO("  --kernel: %d", kernel);
-            // FLUPS_INFO("  --nsolve: %d", nsolve);
-            // for (int i = 0; i < nsample; i++) {
-            //     FLUPS_INFO("   -> sample %d: %d %d %d", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
-            // }
+            printf("I will run with:\n");
+            printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
+            printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
+            printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
+            printf("  --kernel: %d\n", kernel);
+            printf("  --nsolve: %d\n", nsolve);
+            for (int i = 0; i < nsample; i++) {
+                printf("   -> sample %d: %d %d %d\n", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
+            }
         }
 
         for (int is = 0; is < nsample; is++) {

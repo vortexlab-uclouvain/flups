@@ -68,8 +68,8 @@ API := $(wildcard $(SRC_DIR)/*.h)
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
-IN_A2A := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
+IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
 $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
@@ -111,6 +111,8 @@ $(TARGET_LIB_A2A).a: $(OBJ_A2A)
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
 	ar rvs $@  $^  
+
+preproc: $(IN)
 
 install_dynamic: lib_dynamic
 	@mkdir -p $(PREFIX)/lib

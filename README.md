@@ -193,3 +193,10 @@ for(int iz=0; iz<n[2]; iz++){
     }
 }
 ```
+
+#### Debugging
+
+FLUPS can be compiled with different levels of verbosity. The following compilation flags are accepted:
+- ```-DVERBOSE(=1)``` provides basic output with essential information
+- ```-DVERBOSE=2``` generates an output at the beginning and at the end of each function call. If the flag ```-DPROF``` is also defined, the execution of each function call is timed and displayed when exiting the function.
+- ```-DVERBOSE=3``` or ```-DVERBOSE=4``` adds even more debugging information
