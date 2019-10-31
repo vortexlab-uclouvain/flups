@@ -311,7 +311,6 @@ double* Solver::setup(const bool changeTopoComm) {
     /** In every cases, we do */
     //-------------------------------------------------------------------------
 
-    
     //-------------------------------------------------------------------------
     /** - allocate the data for the Green's function */
     //-------------------------------------------------------------------------
@@ -336,7 +335,7 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat[2], _green, _topo_green[2], _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
-    
+
     //-------------------------------------------------------------------------
     /** - Clean the Green's function accessories (allocated topo and plans) */
     //-------------------------------------------------------------------------
@@ -347,7 +346,6 @@ double* Solver::setup(const bool changeTopoComm) {
     _delete_topologies(_topo_green);
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
-    if (_prof != NULL) _prof->stop("setup");
 
     //-------------------------------------------------------------------------
     /** - allocate the data for the field */
@@ -368,6 +366,8 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - Setup the SwitchTopo, this will take the latest comm into account */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+
+    if (_prof != NULL) _prof->stop("setup");
 
     FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
