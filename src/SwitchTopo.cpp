@@ -378,6 +378,7 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
  * @param o2i_destTag the destination tag for output to input
  */
 void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag) {
+    BEGIN_FUNC;
     // free the memory if it has been allocated
     if((*i2o_destTag) != NULL){
         flups_free(*i2o_destTag);
@@ -389,23 +390,40 @@ void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBloc
     (*i2o_destTag) = (int*)flups_malloc(sizeof(int) * inBlock);
     (*o2i_destTag) = (int*)flups_malloc(sizeof(int) * onBlock);
 
+
+    // allocate the requests
+    MPI_Request* irequest = (MPI_Request*)flups_malloc(inBlock * sizeof(MPI_Request));
+    MPI_Request* orequest = (MPI_Request*)flups_malloc(onBlock * sizeof(MPI_Request));
+
     //----------------------------
     // for each block in the output configuration, I give its ID to the sender
     for (int ib = 0; ib < onBlock; ib++) {
-        MPI_Send(&ib, 1, MPI_INT, o2i_destRank[ib], 0, comm);
+        MPI_Isend(&ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
     }
     // for each block in the input configuration, I receive from the destinator of this block the tag to put in the comm
     for (int ib = 0; ib < inBlock; ib++) {
-        MPI_Recv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm, MPI_STATUS_IGNORE);
+        MPI_Irecv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm,irequest+ib);
     }
+    // for for everything to be done
+    MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
+    MPI_Waitall(onBlock,orequest,MPI_STATUSES_IGNORE);
     //----------------------------
     // same but in the backward direction
     for (int ib = 0; ib < inBlock; ib++) {
-        MPI_Send(&ib, 1, MPI_INT, i2o_destRank[ib], 1, comm);
+        MPI_Isend(&ib, 1, MPI_INT, i2o_destRank[ib], 1, comm,irequest+ib);
     }
     for (int ib = 0; ib < onBlock; ib++) {
-        MPI_Recv(&((*o2i_destTag)[ib]), 1, MPI_INT, o2i_destRank[ib], 1, comm, MPI_STATUS_IGNORE);
+        MPI_Irecv(&((*o2i_destTag)[ib]), 1, MPI_INT, o2i_destRank[ib], 1, comm, orequest+ib);
     }
+    // for for everything to be done
+    MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
+    MPI_Waitall(onBlock,orequest,MPI_STATUSES_IGNORE);
+
+    // free the requests
+    flups_free(irequest);
+    flups_free(orequest);
+
+    END_FUNC;
 }
 
 /**
