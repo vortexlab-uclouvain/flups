@@ -350,19 +350,19 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->stop("setup");
 
     //-------------------------------------------------------------------------
+    /** - allocate the data for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_data");
+    _allocate_data(_topo_hat, _topo_phys, &_data);
+    if (_prof != NULL) _prof->stop("alloc_data");
+
+    //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
     if (_prof != NULL) _prof->stop("alloc_plans");
-
-    //-------------------------------------------------------------------------
-    /** - allocate the data for the field */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_data");
-    _allocate_data(_topo_hat, _topo_phys, &_data);
-    if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */

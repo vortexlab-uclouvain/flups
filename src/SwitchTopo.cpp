@@ -153,9 +153,9 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
     int comm_size;
     MPI_Comm_size(_inComm, &comm_size);
     // go through each block
-    int bidv[3];
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         // get the split index
+        int bidv[3];
         localSplit(ib, nBlock, 0, bidv, 1);
         // initialize the destrank
         int global_id[3] = {0, 0, 0};
