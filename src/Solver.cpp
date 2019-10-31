@@ -311,7 +311,6 @@ double* Solver::setup(const bool changeTopoComm) {
     /** In every cases, we do */
     //-------------------------------------------------------------------------
 
-    
     //-------------------------------------------------------------------------
     /** - allocate the data for the Green's function */
     //-------------------------------------------------------------------------
@@ -336,7 +335,7 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->start("green_final");
     _finalizeGreenFunction(_topo_hat[2], _green, _topo_green[2], _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
-    
+
     //-------------------------------------------------------------------------
     /** - Clean the Green's function accessories (allocated topo and plans) */
     //-------------------------------------------------------------------------
@@ -347,7 +346,13 @@ double* Solver::setup(const bool changeTopoComm) {
     _delete_topologies(_topo_green);
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
-    if (_prof != NULL) _prof->stop("setup");
+
+    //-------------------------------------------------------------------------
+    /** - allocate the data for the field */
+    //-------------------------------------------------------------------------
+    if (_prof != NULL) _prof->start("alloc_data");
+    _allocate_data(_topo_hat, _topo_phys, &_data);
+    if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
     /** - allocate the plans forward and backward for the field */
@@ -358,16 +363,11 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
-    /** - allocate the data for the field */
-    //-------------------------------------------------------------------------
-    if (_prof != NULL) _prof->start("alloc_data");
-    _allocate_data(_topo_hat, _topo_phys, &_data);
-    if (_prof != NULL) _prof->stop("alloc_data");
-
-    //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */
     //-------------------------------------------------------------------------
     _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+
+    if (_prof != NULL) _prof->stop("setup");
 
     FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
