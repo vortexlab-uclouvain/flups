@@ -397,23 +397,23 @@ void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBloc
 
     //----------------------------
     // for each block in the output configuration, I give its ID to the sender
-    for (int ib = 0; ib < onBlock; ib++) {
-        MPI_Isend(&ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
-    }
     // for each block in the input configuration, I receive from the destinator of this block the tag to put in the comm
     for (int ib = 0; ib < inBlock; ib++) {
         MPI_Irecv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm,irequest+ib);
+    }
+    for (int ib = 0; ib < onBlock; ib++) {
+        MPI_Isend(&ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
     }
     // for for everything to be done
     MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
     MPI_Waitall(onBlock,orequest,MPI_STATUSES_IGNORE);
     //----------------------------
     // same but in the backward direction
-    for (int ib = 0; ib < inBlock; ib++) {
-        MPI_Isend(&ib, 1, MPI_INT, i2o_destRank[ib], 1, comm,irequest+ib);
-    }
     for (int ib = 0; ib < onBlock; ib++) {
         MPI_Irecv(&((*o2i_destTag)[ib]), 1, MPI_INT, o2i_destRank[ib], 1, comm, orequest+ib);
+    }
+    for (int ib = 0; ib < inBlock; ib++) {
+        MPI_Isend(&ib, 1, MPI_INT, i2o_destRank[ib], 1, comm,irequest+ib);
     }
     // for for everything to be done
     MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
