@@ -387,14 +387,13 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
         // ask of the partitioning
         METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
-        flups_free(xadj);
-        flups_free(adj);
-        flups_free(adjw);
 
+        FLUPS_INFO("I will try to partition the graph in %d chunks.",n_nodes);
 #ifdef PROF
         //writing graph to file, CSR format
         string filename = "prof/graph.csr";
         FILE* file      = fopen(filename.c_str(), "w+");
+        fprintf(file,"I will try to partition the graph in %d chunks.\n",n_nodes);
         for(int i=0; i<=comm_size; i++){
             fprintf(file, "%d ",xadj[i]);
         }
@@ -417,6 +416,9 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         }
         fclose(file);
 #endif
+        flups_free(xadj);
+        flups_free(adj);
+        flups_free(adjw);
 
         // compute how many block in each group
         for (int i = 0; i < n_nodes; ++i) {
