@@ -86,11 +86,7 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
 
 #ifdef PROF    
     _prof     = prof;
-    for (int ip=0;ip<3;ip++){
-        if(_topo_in->axis() == _topo_in->axproc(ip)){
-            _iswitch  = ip;
-        }
-    }
+    _iswitch = _topo_out->axproc(_topo_out->axis());
 #endif
     //-------------------------------------------------------------------------
     /** - compute block info */
