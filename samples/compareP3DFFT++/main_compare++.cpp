@@ -7,6 +7,23 @@
 void print_res(p3dfft::complex_double *A, int *sdims, int *gstart);
 void print_res(double *A, const Topology* topo);
 
+/**
+ * @brief Compare P3DFFT++ and FLUPS on the same FFT 3D
+ * 
+ * This code will time both libraries on a give FFT 3D: the full periodic/DFT.
+ * Notice that P3D requires the data to be already in pencils, which
+ * is not the case of FLUPS. To do a fair comparison, the time required
+ * by FLUPS to switch from the initial topology to the inner pencil topology 
+ * (Switch0) must be substracted from the total time of the solve.
+ * 
+ * Alternatively, we could have chosen to do an ODD-ODD/DST2 in the x direction.
+ * As a result, FLUPS would automatically skip Switch0. However, we could not 
+ * manage to do that case with P3DFFT...
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     // Default values
@@ -104,7 +121,7 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const BoundaryType mybc[3][2] = {PER, PER,
+    const BoundaryType mybc[3][2] = {PER, PER, //or ODD, ODD,
                                     PER, PER,
                                     PER, PER};
 
@@ -177,6 +194,7 @@ int main(int argc, char *argv[]) {
     // Define the transform types for these two transforms
     int type_ids1[3] = {p3dfft::R2CFFT_D,p3dfft::CFFT_FORWARD_D ,p3dfft::CFFT_FORWARD_D };
     int type_ids2[3] = {p3dfft::C2RFFT_D,p3dfft::CFFT_BACKWARD_D,p3dfft::CFFT_BACKWARD_D};
+    //Unfortunately, P3D segfaults when you do a DST2_REAL_D followed by a R2CFFT_D !!
     p3dfft::trans_type3D type_rcc(type_ids1); 
     p3dfft::trans_type3D type_ccr(type_ids2);
 
@@ -275,6 +293,8 @@ int main(int argc, char *argv[]) {
                 double       y    = (istartGlo[1] + i1 ) * h[1]; //+ 0.5
                 double       z    = (istartGlo[2] + i2 ) * h[2]; //+ 0.5
 
+                // double       xF   = (istartGlo[0] + i0 + .5 ) * h[0]; 
+
                 size_t id;
                 id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
@@ -298,18 +318,18 @@ int main(int argc, char *argv[]) {
     for (int iter=0;iter<n_iter;iter++){
         
         MPI_Barrier(comm);
-        if(rank==0){
-            printf("Iter %i\n",iter);
-        }
-        fflush(stdout);
 
         // ------------------P3D---------------:
+        if(rank==0){
+            printf("Iter %i P3D\n",iter);
+        }
+        fflush(stdout);
 
         P3Dprof->start("FFTandSwitch");
         trans_f.exec(rhsP3D,solP3D,false);  // Execute forward real-to-complex FFT
         P3Dprof->stop("FFTandSwitch");
 
-// #define PRINT_RES
+#define PRINT_RES
 #ifdef PRINT_RES
         /* normalize */
         for(int id = 0; id<P3DmemsizeOUT; id++){
@@ -320,11 +340,17 @@ int main(int argc, char *argv[]) {
 
         // ------------------FLUPS---------------:
         MPI_Barrier(comm);
+        if(rank==0){
+            printf("Iter %i FLUPS\n",iter);
+        }
+        fflush(stdout);
 
         //reinit sol to prepare for inplace 3D FFT
         std::memcpy(solFLU, rhsFLU, sizeof(double ) * FLUmemsizeIN);
 
+        FLUprof->start("solve");
         mysolver->do_FFT(solFLU,FLUPS_FORWARD);
+        FLUprof->stop("solve");
 
 #ifdef PRINT_RES
         /* normalize*/
