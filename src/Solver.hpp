@@ -320,8 +320,11 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     int local_nodesize;
     MPI_Comm_size(nodecomm, &local_nodesize);
 
+// #define PART_OF_EQUAL_SIZE
+#ifdef PART_OF_EQUAL_SIZE
+    //_______ OPTION 1 with gcd (suboptimal)________
     // gather on each proc the gcd
-    int *vec_nodesize = (int *)flups_malloc(sizeof(int) * comm_size);
+    int *vec_nodesize = (int  *)flups_malloc(sizeof(int) * comm_size);
     MPI_Allgather(&local_nodesize, 1, MPI_INT, vec_nodesize, 1, MPI_INT, comm);
     // get the Greatest Common Divider among every process
     int nodesize = comm_size;
@@ -330,6 +333,30 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     }
     // store the number of nodes
     int n_nodes = comm_size / nodesize;
+    double* tpwgts = NULL;
+#else
+    //_______ OPTION 2 with various size partitions________
+    // gather on proc 1 the number of proc per node
+    int *vec_nodesize = (int *)flups_malloc(sizeof(int) * comm_size);
+    MPI_Allgather(&local_nodesize, 1, MPI_INT, vec_nodesize, 1, MPI_INT, comm);
+    
+    // count the number of partitions we'll need:
+    int n_nodes = 0;
+    int id = 0;
+    while( id < comm_size){
+        id += vec_nodesize[id];
+        n_nodes++;
+    }
+
+    float* tpwgts = (float*) flups_malloc(sizeof(float)*n_nodes);
+    // deduce the size of each partition:
+    id = 0;
+    for (int ip = 0; ip<n_nodes; ip++ ){
+        tpwgts[ip] = ((float)vec_nodesize[id])/((float) comm_size);
+        id += vec_nodesize[id];
+    }
+    //______________________________________________
+#endif
 
     // free stuffs
     flups_free(vec_nodesize);
@@ -381,53 +408,113 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
         MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
         MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
+#ifdef PROF
+        {
+            //writing graph to file, CSR format
+            string filename = "prof/graph.csr";
+            FILE* file      = fopen(filename.c_str(), "w+");
+            for(int i=0; i<=comm_size; i++){
+                fprintf(file, "%d ",xadj[i]);
+            }
+            fprintf(file,"\n");
+            for(int i=0; i<xadj[comm_size]; i++){
+                fprintf(file, "%d (%d), ",adj[i],adjw[i]);
+            }
+            fprintf(file,"\n");
+            fclose(file);
+
+            //writing graph to file, per node
+            filename = "prof/graph.txt";
+            file     = fopen(filename.c_str(), "w+");
+            for(int i=0; i<comm_size; i++){
+                fprintf(file, "%d: ",i);
+                for(int j = xadj[i]; j<xadj[i+1]; j++){
+                        fprintf(file, "%d (%d), ",adj[j],adjw[j]);
+                }
+                fprintf(file,"\n");
+            }
+            fclose(file);
+        }
+#endif
+
+        //prepare vall to metis
         int  ncon = 1;  // the number of balancing constraints
+        float tol = 1.0001; //tolerance on the constraint 
         int  objval;
         int *part = (int *)flups_malloc(comm_size * sizeof(int));
         int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
-        // ask of the partitioning
-        METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, NULL, NULL, NULL, &objval, part);
+        std::memset(rids,0,sizeof(int)*n_nodes);
 
-        FLUPS_INFO("I will try to partition the graph in %d chunks.",n_nodes);
+        // ask of the partitioning. call metis several times in case the tolerance on the partition size is not exactly respected 
+        int max_iter = 10;
+        if(n_nodes==1){
+            max_iter = 0;
+            FLUPS_WARNING("METIS: you asked only 1 node. I can't do the partitaioning.",LOCATION);
+        }
+        int iter;
+        for(iter = 0; iter<max_iter; iter++){
+            FLUPS_INFO("METIS: graph partitioning attempt %d",iter+1);
+            METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, tpwgts, &tol, NULL, &objval, part);
+            
+            // compute how many proc in each group, resulting from metis partitioning
+            for (int i = 0; i < comm_size; ++i) {
+                rids[part[i]]++;
+            }
+            // check that we did respect the constraint on the size of the partitions
+            bool succeed = (rids[0] == (int)(tpwgts[0] * comm_size));
+            FLUPS_INFO("METIS:   part %d: size %d (should be %d)",0, rids[0], (int)(tpwgts[0] * comm_size));
+            for (int ip = 1; ip < n_nodes; ++ip) {
+                succeed &= (rids[ip] == (int)(tpwgts[ip] * comm_size));
+                FLUPS_INFO("METIS:   part %d: size %d (should be %d)",ip, rids[ip], (int)(tpwgts[ip] * comm_size));
+                rids[ip] += rids[ip-1]; //switch to cumulative numbering
+            }
+            for (int ip = 1; ip < n_nodes; ++ip) {
+                rids[ip] = rids[ip-1]; //offset by 1
+            }
+            rids[0] = 0;
+            if(!succeed){
+                FLUPS_INFO("METIS:   attempt failed.");
+            }else{
+                // assign the rank value and redistribute
+                for (int i = 0; i < comm_size; ++i) {
+                    order[i] = rids[part[i]]++ ;
+                }
+                break;
+            }
+        }
+        // check that we did not reach max_iter
+        if(iter>=max_iter){
+            FLUPS_WARNING("Failed to find a graph partitioning with the current allocation. I will not change the rank orderegin in the graph_comm!",LOCATION);
+            for (int i = 0; i < comm_size; ++i) {
+                order[i] = i;
+            }
+        }
+
+        // result of the partitioning
+    #ifdef PART_OF_EQUAL_SIZE   
+        FLUPS_INFO("I have partitioned the graph in %d chunks of size %d\n",n_nodes,comm_size/n_nodes);
+    #else            
+        FLUPS_INFO("I have partitioned the graph in %d chunks.",n_nodes);
+    #endif
 #ifdef PROF
         //writing graph to file, CSR format
-        string filename = "prof/graph.csr";
+        string filename = "prof/partitions.txt";
         FILE* file      = fopen(filename.c_str(), "w+");
-        fprintf(file,"I will try to partition the graph in %d chunks.\n",n_nodes);
-        for(int i=0; i<=comm_size; i++){
-            fprintf(file, "%d ",xadj[i]);
+    #ifdef PART_OF_EQUAL_SIZE   
+        fprintf(file,"%d partitions of size %d\n",n_nodes,comm_size/n_nodes);
+    #else
+        fprintf(file,"%d partitions of size:\n",n_nodes);
+        for(int i=0; i<n_nodes; i++){
+            fprintf(file, "part %d with %d elems\n",i,(int)(comm_size*tpwgts[i]));
         }
-        fprintf(file,"\n");
-        for(int i=0; i<xadj[comm_size]; i++){
-            fprintf(file, "%d (%d), ",adj[i],adjw[i]);
-        }
-        fprintf(file,"\n");
+    #endif
         fclose(file);
+#endif        
 
-        //writing graph to file, per node
-        filename = "prof/graph.txt";
-        file     = fopen(filename.c_str(), "w+");
-        for(int i=0; i<comm_size; i++){
-            fprintf(file, "%d: ",i);
-            for(int j = xadj[i]; j<xadj[i+1]; j++){
-                    fprintf(file, "%d (%d), ",adj[j],adjw[j]);
-            }
-            fprintf(file,"\n");
-        }
-        fclose(file);
-#endif
         flups_free(xadj);
         flups_free(adj);
         flups_free(adjw);
 
-        // compute how many block in each group
-        for (int i = 0; i < n_nodes; ++i) {
-            rids[i] = i * nodesize;
-        }
-        // assign the rank value and redistribute
-        for (int i = 0; i < comm_size; ++i) {
-            order[i] = rids[part[i]]++;
-        }
         flups_free(part);
         flups_free(rids);
     } else {
@@ -437,6 +524,9 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     }
     flups_free(neighbours);
     flups_free(weights);
+#ifndef PART_OF_EQUAL_SIZE
+    flups_free(tpwgts);
+#endif
 
     //-------------------------------------------------------------------------
     /** - give the rank info to everybody */
