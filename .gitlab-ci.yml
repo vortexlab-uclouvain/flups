@@ -229,8 +229,11 @@ run metis:
     - make install -j4
     - cd ./samples/validation
     - make all -j2
-    - mpirun -np 4 ./flups_validation_a2a -np 2 1 2 -res 16 16 16 -bc 4 4 4 4 4 4 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_444441_typeGreen=0.txt'))"
+    - mkdir prof
+    - mpirun --mca btl_vader_single_copy_mechanism none -np 4 ./flups_validation_a2a -np 2 1 2 -res 16 16 16 -bc 4 4 4 4 4 4 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_444444_typeGreen=0.txt'))"
+    - mpirun --mca btl_vader_single_copy_mechanism none -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
 ################################################################################
 # NON BLOCKING
