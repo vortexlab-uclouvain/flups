@@ -1,9 +1,10 @@
 # build image
-docker build -t immc/flups-valid:v0.1 .
+docker build -t immc/flups-valid:v0.4 .
+#v0.3 has valgrind but not metis
 
 # push image to docker-hub
 docker login
-docker push immc/flups-valid
+docker push immc/flups-valid:v0.4
 
 # local test:
-docker run -it --rm immc/flups-valid:v0.2
+docker run -it --rm immc/flups-valid:v0.4

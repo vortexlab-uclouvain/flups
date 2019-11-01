@@ -347,6 +347,15 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         id += vec_nodesize[id];
         n_nodes++;
     }
+    
+#ifdef DEV_SIMULATE_GRAPHCOMM
+    //CHEATING: imposing that there will be 2 groups (there needs to be at least 4 procs)
+    n_nodes = 2;
+    for (int ip = 0; ip<comm_size; ip++ ){
+        vec_nodesize[ip]=comm_size/3;
+    }
+    vec_nodesize[0]=comm_size-vec_nodesize[1];
+#endif
 
     float* tpwgts = (float*) flups_malloc(sizeof(float)*n_nodes);
     // deduce the size of each partition:
