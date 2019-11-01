@@ -650,6 +650,28 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     FLUPS_INFO("switch: new topo: %d,%d,%d  axis=%d", topo_out->nglob(0), topo_out->nglob(1), topo_out->nglob(2), topo_out->axis());
     FLUPS_INFO("switch: using %d blocks on send and %d on recv", send_nBlock, recv_nBlock);
 
+    // check if we can return already, because the switchtopo would be useless
+    {
+        int rank;
+        MPI_Comm_rank(_subcomm, &rank);
+
+        bool cond = (_topo_in->axis() == _topo_out->axis()); //same axis
+        cond &= (send_nBlock == 1); //only one block on this proc
+        cond &= (recv_nBlock == 1);   
+        cond &= (_i2o_destRank[0] == rank) ; //the only block will stay with me
+        cond &= (_o2i_destRank[0] == rank) ;
+        for (int i = 0; i < 3; i++) {
+            cond &= (_shift[i] == 0); //no shift in memory
+            cond &= (_topo_in->nloc(i) == _topo_out->nloc(i)); //same size of topology
+        }
+        cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
+        if(cond){
+            FLUPS_INFO("I skip this switch because nothing needs to change.");
+            PROF_STOP("reorder");
+            return void();
+        }
+    };
+
     // define important constants
     const int iax0 = topo_in->axis();
     const int iax1 = (iax0 + 1) % 3;
