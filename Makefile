@@ -60,8 +60,9 @@ INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
 #---- METIS
-
-INC+= -I$(METIS_INCLUDE)
+METIS_INC ?= /usr/include
+METIS_LIB ?= /usr/lib
+INC+= -I$(METIS_INC)
 LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
 
 #-----------------------------------------------------------------------------

@@ -315,7 +315,9 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     //-------------------------------------------------------------------------
     // create a group where everybody can create a shared memory region
     MPI_Comm nodecomm;
-    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, NULL, &nodecomm);
+    MPI_Info mpinfo;
+    MPI_Info_create(&mpinfo);
+    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, mpinfo, &nodecomm);
     // we store the comm size
     int local_nodesize;
     MPI_Comm_size(nodecomm, &local_nodesize);
