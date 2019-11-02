@@ -17,6 +17,9 @@ If you use FLUPS, please cite it as follows in your publications:
 
 
 ### Installation
+
+Compilation of FLUPS was tested with Intel compilers and GCC.
+
 #### 1. Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
@@ -27,6 +30,7 @@ CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-
 ```shell
 CC=mpiicc CXX=mpiicpc FC=mpif90 ./configure --prefix=hdf5_prefix --enable-build-mode=production --enable-parallel
 ```
+- METIS (> v5.1.0) - only if compiling with `REORDER_RANKS`
 
 #### 2. The Library
 You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `FFTWDIR` and `HDF5DIR`.
@@ -82,8 +86,10 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
-- `NDEBUG`: use this flag to remove various checks inside the library
-- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve
+- `NDEBUG`: use this flag to bypass various checks inside the library
+- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
+- `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
+- `HAVE_METIS`: in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 

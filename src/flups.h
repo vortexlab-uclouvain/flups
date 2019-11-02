@@ -280,13 +280,47 @@ bool flups_topo_get_isComplex(const FLUPS_Topology* t);
  * @brief Determines the physical direction aligned in memory
  * 
  * @param t 
- * @return int 
+ * @return int the direction [0-3]
  */
 int  flups_topo_get_axis(const FLUPS_Topology* t);
+/**
+ * @brief Determines the total number of points in the domain in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the number of elements (real or complex)
+ */
 int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the local number of points in the domain (on this process) in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the number of elements (real or complex)
+ */
 int  flups_topo_get_nloc(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the local memory usage per direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the memory occupation in double/float
+ */
 int  flups_topo_get_nmem(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the number of processes in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int 
+ */
 int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the start index of this process in all 3 directions
+ * 
+ * @param t 
+ * @param istart 
+ */
 void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
@@ -334,10 +368,10 @@ void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * 
  * @warning after this call the solver cannot change anymore!
  * 
- * @warning if changeComm is true, the rank has to be computed and the communicator has to be reset to the one provided by flups_topo_get_comm
+ * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @flups_topo_get_comm 
  * 
  * @param s 
- * @param changeComm indicate if we are allowed to change the communicator
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);

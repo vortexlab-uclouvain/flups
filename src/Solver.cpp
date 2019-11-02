@@ -145,7 +145,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
 /**
  * @brief Sets up the Solver
  * 
- * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init
+ * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init (if compiled with REODRED_RANKS)
  * 
  * @warning
  * To be able to change the communicator, the user MUST ensure that NOTHING has been done with the topology yet, except creating it.
