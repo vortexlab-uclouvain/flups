@@ -41,7 +41,8 @@ NAME := flups_vs_p3dfft++
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
-
+TARGET_EXE_A2A_SKIP := $(NAME)_a2a_noP3D
+TARGET_EXE_NB_SKIP := $(NAME)_nb_noP3D
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
 SRC_DIR := ./
@@ -74,6 +75,15 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
+#---- METIS
+#check if HAVE_METIS
+ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
+	METIS_INC ?= /usr/include
+	METIS_LIB ?= /usr/lib
+	INC+= -I$(METIS_INC)
+	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
+endif
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
@@ -82,14 +92,20 @@ HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
+OBJ_SKIP := $(SRC:%.cpp=$(OBJ_DIR)/noP3D_%.o)
 
 ################################################################################
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
+$(OBJ_DIR)/noP3D_%.o : $(SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -DSKIP_P3D -fPIC -MMD -c $< -o $@
+
 ################################################################################
 default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+
+skip: $(TARGET_EXE_A2A_SKIP) $(TARGET_EXE_NB_SKIP)
 
 all: default
 
@@ -97,6 +113,12 @@ $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
 
 $(TARGET_EXE_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
+
+$(TARGET_EXE_A2A_SKIP): $(OBJ_SKIP)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
+
+$(TARGET_EXE_NB_SKIP): $(OBJ_SKIP)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
@@ -113,16 +135,17 @@ clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_EXE_A2A_SKIP)
+	rm -f $(TARGET_EXE_NB_SKIP)
 	
-destroy:
-	rm -f $(TARGET_EXE_A2A)
-	rm -f $(TARGET_EXE_NB)
+destroy: clean
 	rm -f $(OBJ_DIR)/*
 	
 info:
 	@echo $(ARCH_FILE)
 	$(info SRC = $(SRC))
 	$(info OBJ = $(OBJ))
+	$(info OBJ_SKIP = $(OBJ_SKIP))
 	$(info DEP = $(DEP))
 
 -include $(DEP)
