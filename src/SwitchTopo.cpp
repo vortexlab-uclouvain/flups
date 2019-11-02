@@ -753,14 +753,14 @@ void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
 
     // count the number of out edges
     for (int ib = 0; ib < _inBlock; ib++) {
-        //destsW[_i2o_destRank[ib]] += _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib];
-        destsW[_i2o_destRank[ib]] = max(destsW[_i2o_destRank[ib]], _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib]);
+        destsW[_i2o_destRank[ib]] += _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib];
+        // destsW[_i2o_destRank[ib]] = max(destsW[_i2o_destRank[ib]], _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib]);
     }
 
     // count the number of in edges
     for (int ib = 0; ib < _onBlock; ib++) {
-        // sourcesW[_o2i_destRank[ib]] += _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib];
-        sourcesW[_o2i_destRank[ib]] = max(sourcesW[_o2i_destRank[ib]], _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib]);
+        sourcesW[_o2i_destRank[ib]] += _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib];
+        // sourcesW[_o2i_destRank[ib]] = max(sourcesW[_o2i_destRank[ib]], _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib]);
     }
 
     // Note: by counting the edges like this on every process, we actually obtain
