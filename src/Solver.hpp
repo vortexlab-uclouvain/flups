@@ -359,11 +359,11 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
     vec_nodesize[0]=comm_size-vec_nodesize[1];
 #endif
 
-    float* tpwgts = (float*) flups_malloc(sizeof(float)*n_nodes);
+    real_t* tpwgts = (real_t*) flups_malloc(sizeof(real_t)*n_nodes);
     // deduce the size of each partition:
     id = 0;
     for (int ip = 0; ip<n_nodes; ip++ ){
-        tpwgts[ip] = ((float)vec_nodesize[id])/((float) comm_size);
+        tpwgts[ip] = ((real_t)vec_nodesize[id])/((real_t) comm_size);
         id += vec_nodesize[id];
     }
     //______________________________________________
@@ -424,6 +424,7 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
             //writing graph to file, CSR format
             string filename = "prof/graph.csr";
             FILE* file      = fopen(filename.c_str(), "w+");
+            if(file==NULL){FLUPS_ERROR("Could not create file in ./prof. Did you create the folder?",LOCATION);}
             for(int i=0; i<=comm_size; i++){
                 fprintf(file, "%d ",xadj[i]);
             }
@@ -450,7 +451,7 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
 
         //prepare vall to metis
         int  ncon = 1;  // the number of balancing constraints
-        float tol = 1.0001; //tolerance on the constraint 
+        real_t tol = 1.0001; //tolerance on the constraint 
         int  objval;
         int *part = (int *)flups_malloc(comm_size * sizeof(int));
         int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
@@ -463,9 +464,34 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
             FLUPS_WARNING("METIS: you asked only 1 node. I can't do the partitaioning.",LOCATION);
         }
         int iter;
+        idx_t options[METIS_NOPTIONS];
+        METIS_SetDefaultOptions(options);
+
+        //METIS options: ncuts and niter seems to have the most effect
+        options[METIS_OPTION_SEED] = 1;
+        options[METIS_OPTION_NCUTS] = 50;
+        options[METIS_OPTION_NITER] = 50;
+        options[METIS_OPTION_UFACTOR] = 1.;
+        // options[METIS_OPTION_IPTYPE] = 
+        //     METIS_IPTYPE_GROW,
+        //     METIS_IPTYPE_RANDOM,
+        //     METIS_IPTYPE_EDGE,
+        //     METIS_IPTYPE_NODE,
+        //     METIS_IPTYPE_METISRB
+        // options[METIS_OPTION_RTYPE] = 
+        //     METIS_RTYPE_FM,
+        //     METIS_RTYPE_GREEDY,
+        //     METIS_RTYPE_SEP2SIDED,
+        //     METIS_RTYPE_SEP1SIDED
+
         for(iter = 0; iter<max_iter; iter++){
             FLUPS_INFO("METIS: graph partitioning attempt %d",iter+1);
-            METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, tpwgts, &tol, NULL, &objval, part);
+            METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, tpwgts, &tol, options, &objval, part);
+            tol=((tol-1.)/2.)+1.;
+            options[METIS_OPTION_NCUTS] +=10;
+            options[METIS_OPTION_NITER] +=10;
+            options[METIS_OPTION_SEED] += 1; 
+            // options[METIS_OPTION_UFACTOR] /= 1.;
             
             // compute how many proc in each group, resulting from metis partitioning
             for (int i = 0; i < comm_size; ++i) {
@@ -479,7 +505,7 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
                 FLUPS_INFO("METIS:   part %d: size %d (should be %d)",ip, rids[ip], (int)(tpwgts[ip] * comm_size));
                 rids[ip] += rids[ip-1]; //switch to cumulative numbering
             }
-            for (int ip = 1; ip < n_nodes; ++ip) {
+            for (int ip = n_nodes-1; ip > 0; --ip) {
                 rids[ip] = rids[ip-1]; //offset by 1
             }
             rids[0] = 0;
@@ -523,6 +549,7 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
 #endif        
 
         flups_free(xadj);
+        flups_free(nadj);
         flups_free(adj);
         flups_free(adjw);
 
@@ -551,6 +578,7 @@ static void reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests
         for (int i = 0; i < comm_size; ++i) {
             FLUPS_INFO("METIS ORDER %i : %i \n", i, order[i]);
             printf("%i : %i \n", i, order[i]);
+            fprintf(file,"%i : %i \n", i, order[i]);
         }
         fclose(file);
     }
