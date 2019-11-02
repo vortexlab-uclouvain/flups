@@ -67,7 +67,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
-    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L,prof);
+    FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L,prof);
     flups_set_greenType(mysolver,typeGreen);
     flups_setup(mysolver,true);
 
@@ -78,8 +78,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
-    // FLUPS_INFO("topo memsize = %d vs %d %d %d",flups_topo_get_memsize(topo),topo->nmem(0),topo->nmem(1),topo->nmem(2));
-
     double *rhs   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *sol   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *field = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
@@ -202,7 +200,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     
     struct manuParams params[3]; 
     params[0].freq = 1;
-    params[1].freq = 2;
+    params[1].freq = 2; 
     params[2].freq = 4;
 
     // Selecting manufactured solution compatible with the BCs
@@ -226,7 +224,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             manuSol[dir] = &fEvenOdd;
             if (params[dir].freq < 1) params[dir].freq = 1;            
         } else if (mybc[dir][0] == UNB) {
-            params[dir].center  = .5;
             if (mybc[dir][1] == ODD) {
                 params[dir].center  = .7;
                 params[dir].sign[1] = -1.;
@@ -234,37 +231,72 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                 params[dir].center  = .7;
                 params[dir].sign[1] = +1.;
             }
-            manuRHS[dir] = &d2dx2_fUnb;
-            manuSol[dir] = &fUnb;
-//still blobs missing if multiple mix
+            // manuRHS[dir] = &d2dx2_fUnb;
+            // manuSol[dir] = &fUnb;
+            manuRHS[dir] = &d2dx2_fUnbSpietz;
+            manuSol[dir] = &fUnbSpietz;
         } else if (mybc[dir][1] == UNB) {
-            params[dir].center  = .5;
             if (mybc[dir][0] == ODD) {
                 params[dir].center  = .3;
                 params[dir].sign[0] = -1.;
             } else if (mybc[dir][0] == EVEN) {
                 params[dir].center  = .3;
                 params[dir].sign[0] = +1.;
-            }
-            manuRHS[dir] = &d2dx2_fUnb;
-            manuSol[dir] = &fUnb;
+            }           
+            // manuRHS[dir] = &d2dx2_fUnb;
+            // manuSol[dir] = &fUnb;
+            manuRHS[dir] = &d2dx2_fUnbSpietz;
+            manuSol[dir] = &fUnbSpietz;
         } else {
             // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
 
+    //USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
+    // manuRHS[0] = &fZero;
+    // manuSol[0] = &fCst;
+    // manuRHS[1] = &d2dx2_fUnbSpietz;
+    // manuSol[1] = &fUnbSpietz;
+    // manuRHS[2] = &d2dx2_fUnbSpietz;
+    // manuSol[2] = &fUnbSpietz;
+
     {
+        // Obtaining the reference sol and rhs
         const int ax0     = flups_topo_get_axis(topo);
         const int ax1     = (ax0 + 1) % 3;
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
+            
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
                     const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
                     const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                         (istart[ax1] + i1 + 0.5) * h[ax1],
-                                         (istart[ax2] + i2 + 0.5) * h[ax2]};
+                                            (istart[ax1] + i1 + 0.5) * h[ax1],
+                                            (istart[ax2] + i2 + 0.5) * h[ax2]};
+
+
+                    // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
+                    // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
+                    // const double r = sqrt(rsq);
+                    
+                    //CST(z):
+                    // sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
+                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) ;
+
+                    //SIN(z):
+                    // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
+                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (sin(2.*M_PI*x[0] /L[0])) ;
+                    // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+
+                    //CST(z)+sin(z):
+                    // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
+                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
+                    // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                    
 
                     for (int dir = 0; dir < 3; dir++) {
                         const int dir2 = (dir + 1) % 3;
@@ -281,13 +313,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 
 
-#ifdef DDUMP_H5
+#ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, sol);
+    flups_hdf5_dump(topo, msg, sol);
 #endif
 
     //-------------------------------------------------------------------------
@@ -297,7 +329,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         flups_solve(mysolver,field, rhs, type);
     }
 
-    flups_profiler_disp_root(prof,"solve");
+#ifdef PROF
+    flups_profiler_disp(prof,"solve");
+#endif
     flups_profiler_free(prof);
 
     // lIs = 1.e10, gIs = 0.0;
@@ -321,10 +355,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //     }
     // }
 
-#ifdef DDUMP_H5
+#ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, rhs);
 #endif    
 
     //-------------------------------------------------------------------------

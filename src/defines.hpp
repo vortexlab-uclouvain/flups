@@ -178,8 +178,6 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
     sprintf(tmp, a.c_str(), b, c, d, e, f, g, h, i, j);
     FLUPS_INFO_DISP(tmp);
 };
-#define BEGIN_FUNC {FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);};
-#define END_FUNC {FLUPS_INFO(">>> leaving %s from %s at line %d", __func__, __FILE__, __LINE__);};
 #else
 static inline void FLUPS_INFO_DISP(std::string a) {
     (void(0));
@@ -223,8 +221,46 @@ template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T
 static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
     ((void)0);
 };
-#define BEGIN_FUNC { ((void)0);};
-#define END_FUNC { ((void)0);};
+#endif
+
+//=============================================================================
+// VERBOSITY LEVELS
+//=============================================================================
+#if VERBOSE>=2
+    #ifdef PROF
+        #define BEGIN_FUNC double T0 = MPI_Wtime();\
+                            FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);
+        #define END_FUNC double T1 = MPI_Wtime();\
+                            FLUPS_INFO(">>> leaving %s from %s at line %d after %lf [s]", __func__, __FILE__, __LINE__,(T1)-(T0));
+    #else
+        #define BEGIN_FUNC {FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);};
+        #define END_FUNC {FLUPS_INFO(">>> leaving %s from %s at line %d", __func__, __FILE__, __LINE__);};
+    #endif
+#else
+    #define BEGIN_FUNC { ((void)0);};
+    #define END_FUNC { ((void)0);};
+#endif
+
+
+#if VERBOSE>=1
+    #define FLUPS_INFO_1(...) FLUPS_INFO(__VA_ARGS__)
+#else
+    #define FLUPS_INFO_1(...) ((void)0);
+#endif
+#if VERBOSE>=2
+    #define FLUPS_INFO_2(...) FLUPS_INFO(__VA_ARGS__)
+#else
+    #define FLUPS_INFO_2(...) ((void)0);
+#endif
+#if VERBOSE>=3
+    #define FLUPS_INFO_3(...) FLUPS_INFO(__VA_ARGS__)
+#else
+    #define FLUPS_INFO_3(...) ((void)0);
+#endif
+#if VERBOSE>=4
+    #define FLUPS_INFO_4(...) FLUPS_INFO(__VA_ARGS__)
+#else
+    #define FLUPS_INFO_4(...) ((void)0);
 #endif
 
 //=============================================================================
@@ -427,7 +463,7 @@ static inline void flups_mem_free(void* data) {
 #if defined(__INTEL_COMPILER)
     _mm_free(data);
 #elif defined(__GNUC__)
-    free(data);
+    free(data);    
 #endif
 }
 
@@ -445,12 +481,15 @@ static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
 static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
 static const double c_1osqrtpi = 1.0 / sqrt(M_PI);
+static const double c_sqrtpi   = sqrt(M_PI);
 static const double c_1o2      = 1.0 / 2.0;
 static const double c_1o4      = 1.0 / 4.0;
 static const double c_7o4      = 7. / 4.;
 static const double c_19o8     = 19. / 8;
 static const double c_2o3      = 2. / 3;
 static const double c_1o24     = 1. / 24;
+static const double c_5o16     = 5. / 16.;
+static const double c_1o16     = 1. / 16.;
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

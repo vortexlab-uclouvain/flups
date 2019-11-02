@@ -44,6 +44,19 @@ compil opt :
     - cd ./samples/validation
     - make all -j4
 
+compil solve_advanced:
+  stage: build
+  only:
+    - /.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make install_static -j4
+    - cd ./samples/solve_advanced_C
+    - make 
+
+
 #checks that the code runs without error in serial dbg
 ################################################################################
 # ALL TO ALL

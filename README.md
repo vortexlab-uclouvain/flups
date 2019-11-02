@@ -79,7 +79,7 @@ To build the documentation, go to the `doc` subfolder and type `doxygen`.
 
 #### 4. Compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
-- `DUMP_H5`: if specified, the solver will I/O fields using the HDF5 library.
+- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to remove various checks inside the library
@@ -112,17 +112,17 @@ double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 Then, you can define a new solver and it's boundary condition
 ```cpp
 // define the solver
-const BoundaryType mybc[3][2] = {{FLUPS::UNB, FLUPS::UNB}, {FLUPS::EVEN, FLUPS::ODD}, {FLUPS::UNB, FLUPS::EVEN}};  // BC in X,Y,Z
-FLUPS::Solver *      mysolver   = new FLUPS::Solver(topo, mybc, h, L);
+const BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
+Solver *      mysolver   = new Solver(topo, mybc, h, L);
 
 // setup the solver
-mysolver->set_GreenType(FLUPS::HEJ2);
+mysolver->set_GreenType(HEJ2);
 mysolver->setup(false);
 ```
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(rhs, rhs, FLUPS::SRHS);
+mysolver->solve(rhs, rhs, SRHS);
 ```
 
 Then, destroy the solver
@@ -193,3 +193,10 @@ for(int iz=0; iz<n[2]; iz++){
     }
 }
 ```
+
+#### Debugging
+
+FLUPS can be compiled with different levels of verbosity. The following compilation flags are accepted:
+- ```-DVERBOSE(=1)``` provides basic output with essential information
+- ```-DVERBOSE=2``` generates an output at the beginning and at the end of each function call. If the flag ```-DPROF``` is also defined, the execution of each function call is timed and displayed when exiting the function.
+- ```-DVERBOSE=3``` or ```-DVERBOSE=4``` adds even more debugging information

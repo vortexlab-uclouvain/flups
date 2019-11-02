@@ -79,7 +79,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 struct manuParams {
     double       freq    = 1; //an integer or 0.5
     double       sign[2] = {0., 0.};
-    double       sigma   = 0.15;
+    // double       sigma   = 0.15; //sigma for the classic Gaussian
+    double       sigma   = .5; //sigma for the compact Gaussian
     double       center  = 0.5;
 };
 
@@ -129,6 +130,34 @@ static inline double d2dx2_fUnb(const double x, const double L, const manuParams
     return                   -2. / (params.sigma * params.sigma) * exp(-x0*x0 ) * (1. - 2. * ( x0 * x0)) + \
             params.sign[0] * -2. / (params.sigma * params.sigma) * exp(-x1*x1 ) * (1. - 2. * ( x1 * x1)) + \
             params.sign[1] * -2. / (params.sigma * params.sigma) * exp(-x2*x2 ) * (1. - 2. * ( x2 * x2)) ;
+}
+
+
+static const double c_C = 10.;
+
+static inline double fUnbSpietz(const double x, const double L, const manuParams params) {
+    const double x0 = (x -       params.center  * L) / (params.sigma * L);
+    const double x1 = (x +       params.center  * L) / (params.sigma * L);
+    const double x2 = (x - (2. - params.center) * L) / (params.sigma * L);
+    return    (fabs(x0)>=1. ? 0.0 :                  exp(c_C * (1. - 1. / (1. - x0 * x0)))) + \
+              (fabs(x1)>=1. ? 0.0 : params.sign[0] * exp(c_C * (1. - 1. / (1. - x1 * x1)))) + \
+              (fabs(x2)>=1. ? 0.0 : params.sign[1] * exp(c_C * (1. - 1. / (1. - x2 * x2))));
+}
+static inline double d2dx2_fUnbSpietz(const double x, const double L, const manuParams params) {
+    const double x0sq = pow((x -       params.center  * L) / (params.sigma * L),2);
+    const double x1sq = pow((x +       params.center  * L) / (params.sigma * L),2);
+    const double x2sq = pow((x - (2. - params.center) * L) / (params.sigma * L),2);
+    return    (fabs(x0sq)>=1. ? 0.0 :                  exp(c_C * (1. - 1. / (1. - x0sq))) * (2. * c_C * (2. * (c_C - 1.) * x0sq + 3. * x0sq * x0sq - 1.)) / pow(x0sq - 1., 4) / (params.sigma*L*params.sigma*L)) + \
+              (fabs(x1sq)>=1. ? 0.0 : params.sign[0] * exp(c_C * (1. - 1. / (1. - x1sq))) * (2. * c_C * (2. * (c_C - 1.) * x1sq + 3. * x1sq * x1sq - 1.)) / pow(x1sq - 1., 4) / (params.sigma*L*params.sigma*L)) + \
+              (fabs(x2sq)>=1. ? 0.0 : params.sign[1] * exp(c_C * (1. - 1. / (1. - x2sq))) * (2. * c_C * (2. * (c_C - 1.) * x2sq + 3. * x2sq * x2sq - 1.)) / pow(x2sq - 1., 4) / (params.sigma*L*params.sigma*L)) ;
+}
+
+
+static inline double fCst(const double x, const double L, const manuParams params) {
+    return 1.0;
+}
+static inline double fZero(const double x, const double L, const manuParams params) {
+    return 0.0;
 }
 
 #endif

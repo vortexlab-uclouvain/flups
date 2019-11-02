@@ -26,6 +26,10 @@
 #ifndef HDF5_IO_HPP
 #define HDF5_IO_HPP
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "defines.hpp"
 #include "hdf5.h"
 #include "Topology.hpp"

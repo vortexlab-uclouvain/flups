@@ -163,7 +163,7 @@ class Solver {
     void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
     void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
-    void _finalizeGreenFunction(Topology* topo_field[3],double* green, Topology* topo[3], FFTW_plan_dim* plans[3]);
+    void _finalizeGreenFunction(Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* planmap[3]);
     /**@} */
 
    public:
@@ -187,6 +187,21 @@ class Solver {
         }
         return size_tot;
     };
+
+    /**
+     * @brief Get the spectral information to compute the modes k in full spectral space
+     * 
+     * @param kfact  multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+     * @param koffset  add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+     */
+    void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
+        for (int ip = 0; ip < 3; ip++) {
+            const int dimID = _plan_forward[ip]->dimID();
+            kfact[dimID]    = _plan_forward[ip]->kfact();
+            koffset[dimID]  = _plan_forward[ip]->koffset();
+            symstart[dimID] = _plan_forward[ip]->symstart();
+        }
+    }
 
     /**
      * @name Solver use 
@@ -260,7 +275,7 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
     }
-    if(comm_size>8 && (n1==1||n2==2)){
+    if(comm_size>8 && (n1==1||n2==1)){
         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
@@ -272,6 +287,15 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
     }
 }
 
+/**
+ * @brief compute the pencil layout given the pencil direction, compatible with another pencil decoposition given as a hint
+ * 
+ * @param id the pencil direction
+ * @param nproc the number of proc in each direction
+ * @param comm_size the total communicator size
+ * @param id_hint the axis of the pencils in another decomposition, which we want this decomposition to be compatible with
+ * @param nproc_hint the number of procs in the other decomposition we want to be compatible with
+ */
 static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_size, const int id_hint, const int nproc_hint[3]) {
     // get the id shared between the hint topo
     int sharedID = 0;
@@ -285,8 +309,12 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[sharedID] = nproc_hint[sharedID];
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
-    FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
+    FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
     FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+
+    if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){
+        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+    }
 }
 
 /**
