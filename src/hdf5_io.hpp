@@ -26,6 +26,10 @@
 #ifndef HDF5_IO_HPP
 #define HDF5_IO_HPP
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "defines.hpp"
 #include "hdf5.h"
 #include "Topology.hpp"
@@ -33,9 +37,9 @@
 using namespace std;
 
 void hdf5_dumptest();
-void hdf5_dump(const FLUPS::Topology *topo, const string filename, const double *data);
+void hdf5_dump(const Topology *topo, const string filename, const double *data);
 
-void xmf_write(const FLUPS::Topology *topo, const string filename, const string attribute);
-void hdf5_write(const FLUPS::Topology *topo, const string filename, const string attribute, const double *data);
+void xmf_write(const Topology *topo, const string filename, const string attribute);
+void hdf5_write(const Topology *topo, const string filename, const string attribute, const double *data);
 
 #endif

@@ -3,15 +3,27 @@
 #---------------------------------------------------------
 # specify the compiler
 CXX = mpiicpc
+CC = mpiicc
 
 # set the flag (optimisation or not)
 # CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -qopt-report=5 -qopt-report-phase=all -restrict -guide -guide-file=guide.txt
-CXXFLAGS := -qopenmp -O3 -xavx -axcore-avx2 -g -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all
+CXXFLAGS := -qopenmp -O3 -xavx -axcore-avx2 -g -DPROF -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all -DREORDER_RANKS -DHAVE_METIS
 #CXXFLAGS := -g -qopenmp -xcore-avx2 -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE
 
-LDFLAGS := -qopenmp
+CCFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc99
+
+LDFLAGS := -qopenmp -lstdc++
+
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
 #---------------------------------------------------------
-FFTWDIR  := ${HOME}/soft_all/fftw-3.3.8-intel2019.3-impi5.1.3
-HDF5DIR  := ${HOME}/soft_all/hdf5-1.10.5-intel2019.3-impi5.1.3
+FFTW_DIR  := ${HOME}/soft/fftw-3.3.8-intel2017.4-impi2017.3
+HDF5_DIR  := ${HOME}/soft/hdf5-1.10.5-intel2017.4-impi2017.3
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+#_avx512
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
+
+METIS_LIB := $(METIS_DIR)/lib
+METIS_INC := $(METIS_INCLUDE)

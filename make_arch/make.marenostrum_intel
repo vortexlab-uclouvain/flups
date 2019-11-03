@@ -1,0 +1,18 @@
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+# specify the compiler
+CXX = mpiicpc
+
+# set the flag (optimisation or not)
+CXXFLAGS := -qopenmp -O3 -xHost -qopt-zmm-usage=high -parallel -g -DPROF -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all -DREORDER_RANKS
+
+LDFLAGS := -qopenmp
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+#_avx512
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include

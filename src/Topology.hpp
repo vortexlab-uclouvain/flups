@@ -29,6 +29,7 @@
 #include "defines.hpp"
 #include "hdf5_io.hpp"
 #include "mpi.h"
+#include <cstring>
 
 /**
  * @brief Class Topology
@@ -36,16 +37,19 @@
  * A topology describes the layout of the data on the current processor.
  * 
  */
-class FLUPS::Topology {
+class Topology {
    protected:
-    int _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int _axis;       /**<@brief fastest rotating index in the topology  */
-    int _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
+    int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
+    int       _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _axis;       /**<@brief fastest rotating index in the topology  */
+    int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    const int _alignment;
+    MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
     // double _h[3]; //**< @brief grid spacing */
     // double _L[3];//**< @brief length of the domain  */
@@ -54,8 +58,16 @@ class FLUPS::Topology {
 
    public:
     // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
+    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
     ~Topology();
+
+    /**
+     * @name setters
+     * 
+     * @{
+     */
+    void change_comm(MPI_Comm comm);
+    /**@} */
 
     /**
      * @name getters
@@ -68,10 +80,12 @@ class FLUPS::Topology {
 
     inline int nglob(const int dim) const { return _nglob[dim]; }
     inline int nloc(const int dim) const { return _nloc[dim]; }
+    inline int nmem(const int dim) const { return _nmem[dim]; }
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
     inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
     inline int axproc(const int dim) const { return _axproc[dim]; }
+    inline MPI_Comm get_comm() const {return _comm; }
     /**
      * @name Functions to compute intersection data with other Topologies
      * 
@@ -85,30 +99,28 @@ class FLUPS::Topology {
      * 
      * @{
      */
+    void cmpt_sizes();
     /**
-     * @brief returns the local size of the memory (in double!) on this proc
+     * @brief returns the local size of on this proc
      * 
      * @return size_t 
      */
-    inline size_t locmemsize() const { return _nloc[0] * _nloc[1] * _nloc[2] * _nf; }
+    inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
     /**
-     * @brief returns the global memory size (in double!)
+     * @brief returns the memory size of on this proc
      * 
      * @return size_t 
      */
-    inline size_t globmemsize() const { return _nglob[0] * _nglob[1] * _nglob[2] * _nf; }
+    inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
 
     /**
-     * @brief returns the starting global index of the current proc
+     * @brief returns the starting global index on the current proc
      * 
      */
     inline void get_istart_glob(int istart[3]) const {
-        const int ax0 = _axis;
-        const int ax1 = (ax0 + 1) % 3;
-        const int ax2 = (ax0 + 2) % 3;
-        istart[ax0]   = _rankd[ax0] * _nbyproc[ax0];
-        istart[ax1]   = _rankd[ax1] * _nbyproc[ax1];
-        istart[ax2]   = _rankd[ax2] * _nbyproc[ax2];
+        istart[0]   = _rankd[0] * _nbyproc[0];
+        istart[1]   = _rankd[1] * _nbyproc[1];
+        istart[2]   = _rankd[2] * _nbyproc[2];
     }
 
     /**
@@ -120,6 +132,7 @@ class FLUPS::Topology {
             _nf = 2;
             _nglob[_axis] /= 2;
             _nloc[_axis] /= 2;
+            _nmem[_axis] /= 2;
             _nbyproc[_axis] /= 2;
         }
     }
@@ -132,28 +145,39 @@ class FLUPS::Topology {
             _nf = 1;
             _nglob[_axis] *= 2;
             _nloc[_axis] *= 2;
+            _nmem[_axis] *= 2;
             _nbyproc[_axis] *= 2;
         }
     }
 
     void disp() const;
-    void disp_rank() const;
+    void disp_rank() ;
 };
 
 /**
  * @brief split the rank into rank per dimensions
  * 
- * @param rank the rank of the proc (from MPI)
+ * axproc is not used if comm is of type MPI_CART.
+ * 
+ * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
  * @param nproc the number of procs along each direction
+ * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], int rankd[3]) {
+inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
     const int ax0 = axproc[0];
     const int ax1 = axproc[1];
     const int ax2 = axproc[2];
-    rankd[ax0]    = rank % nproc[ax0];
-    rankd[ax1]    = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
-    rankd[ax2]    = rank / (nproc[ax0] * nproc[ax1]);
+
+    int mpi_topo_type;
+    MPI_Topo_test(comm, &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_coords(comm, rank, 3, rankd);
+    } else {
+        rankd[ax0] = rank % nproc[ax0];
+        rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+        rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
+    }
 }
 
 /**
@@ -163,73 +187,148 @@ inline static void ranksplit(const int rank, const int axproc[3], const int npro
  * @param topo the topology
  * @return int 
  */
-inline static int rankindex(const int rankd[3], const FLUPS::Topology *topo) {
+inline static int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
     const int ax1 = topo->axproc(1);
     const int ax2 = topo->axproc(2);
-    return rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+
+    int mpi_topo_type, rank;
+    MPI_Topo_test(topo->get_comm(), &mpi_topo_type);
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_rank(topo->get_comm(), rankd, &rank);
+    } else {
+        rank = rankd[ax0] + topo->nproc(ax0) * (rankd[ax1] + topo->nproc(ax1) * rankd[ax2]);
+    }
+    return rank;
 }
 
+// /**
+//  * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
+//  * 
+//  * @param ix index in the X direction
+//  * @param iy index in the Y direction
+//  * @param iz index in the Z direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const Topology *topo) {
+//     const int nf = topo->nf();
+
+//     const int i[3] = {ix, iy, iz};
+//     const int ax0  = topo->axis();
+//     const int ax1  = (ax0 + 1) % 3;
+//     const int ax2  = (ax0 + 2) % 3;
+
+//     return i[ax0] * nf + topo->nloc(ax0) * nf * (i[ax1] + topo->nloc(ax1) * i[ax2]);
+// }
+
+// /**
+//  * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
+//  * 
+//  * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
+//  * @param i1 index along the ax1 direction
+//  * @param i2 index along the ax2 direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex_ao(const int i0, const int i1, const int i2, const Topology *topo) {
+//     const int nf  = topo->nf();
+//     const int ax0 = topo->axis();
+//     const int ax1 = (ax0 + 1) % 3;
+
+//     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
+// }
+// /**
+//  * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
+//  *
+//  * @param axis index of the axis corresponding to i0
+//  * @param ix index in the X direction
+//  * @param iy index in the Y direction
+//  * @param iz index in the Z direction
+//  * @param topo 
+//  * @return size_t 
+//  */
+// inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
+//     const int nf   = topo->nf();
+//     const int i[3] = {i0, i1, i2};
+//     // compute the shift to perform from the axis reference to
+//     const int dax0 = (3 + topo->axis() - axis) % 3;
+//     const int dax1 = (dax0 + 1) % 3;
+//     const int dax2 = (dax0 + 2) % 3;
+
+//     const int ax0 = topo->axis();
+//     const int ax1 = (ax0 + 1) % 3;
+
+//     // return localindex_xyz(i[0], i[1], i[2], topo);
+//     return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
+// }
 /**
- * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
+ * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
  * 
- * @param ix index in the X direction
- * @param iy index in the Y direction
- * @param iz index in the Z direction
- * @param topo 
+ * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param i0
+ * @param i1 
+ * @param i2 
+ * @param axtrg the target FRI
+ * @param size the size of the memory (012-indexing)
+ * @param nf the number of unknows in one element
  * @return size_t 
  */
-inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const FLUPS::Topology *topo) {
-    const int nf = topo->nf();
-
-    const int i[3] = {ix, iy, iz};
-    const int ax0  = topo->axis();
-    const int ax1  = (ax0 + 1) % 3;
-    const int ax2  = (ax0 + 2) % 3;
-
-    return i[ax0] * nf + topo->nloc(ax0) * nf * (i[ax1] + topo->nloc(ax1) * i[ax2]);
-}
-
-/**
- * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
- * 
- * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
- * @param i1 index along the ax1 direction
- * @param i2 index along the ax2 direction
- * @param topo 
- * @return size_t 
- */
-inline static size_t localindex_ao(const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
-    const int nf  = topo->nf();
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-
-    return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
-}
-
-/**
- * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
- *
- * @param axis index of the axis corresponding to i0
- * @param ix index in the X direction
- * @param iy index in the Y direction
- * @param iz index in the Z direction
- * @param topo 
- * @return size_t 
- */
-inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const FLUPS::Topology *topo) {
-    const int nf   = topo->nf();
+static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+                                const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
-    // compute the shift to perform from the axis reference to
-    const int dax0 = (3 + topo->axis() - axis) % 3;
+    const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
     const int dax2 = (dax0 + 2) % 3;
-
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
+    const int ax0  = axtrg;
+    const int ax1  = (ax0 + 1) % 3;
 
     // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
+}
+/**
+ * @brief compute the memory local index for a point (i0,id) in axsrc-indexing in a memory in the same indexing
+ * 
+ * The memory id is computed as the collapsed version of the 2 external loops
+ * 
+ * @param axsrc the FRI for the point (i0,i1,i2)
+ * @param i0 the index aligned along the axsrc axis
+ * @param id the collapsed id of the outer two loops
+ * @param size the size of the memory (012-indexing)
+ * @param nf the number of unknows in one element
+ * @return size_t 
+ */
+static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
+    const int ax0  = axsrc;
+    return i0 * nf + size[ax0] * nf * id;
+}
+
+/**
+ * @brief split a global index along the different direction using the FRI axtrg
+ * 
+ * @param id the global id
+ * @param size the size in 012-indexing
+ * @param axtrg the target axis
+ * @param idv the indexes along each directions
+ */
+static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int ax2   = (ax0 + 2) % 3;
+    const int size0 = (size[ax0] * nf);
+
+    idv[ax0] = id % size0;
+    idv[ax1] = (id % (size0 * size[ax1])) / size0;
+    idv[ax2] = id / (size0 * size[ax1]);
+}
+static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
+    const int ax0   = axtrg;
+    const int ax1   = (ax0 + 1) % 3;
+    const int size0 = (size[ax0] * nf);
+
+    (*id0) = id % size0;
+    (*id1) = (id % (size0 * size[ax1])) / size0;
+    (*id2) = id / (size0 * size[ax1]);
 }
 
 /**
@@ -238,7 +337,7 @@ inline static size_t localindex(const int axis, const int i0, const int i1, cons
  * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
  * @param topo 
  */
-inline static void get_istart_glob(int istart[3], const FLUPS::Topology *topo) {
+inline static void get_istart_glob(int istart[3], const Topology *topo) {
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
@@ -246,17 +345,6 @@ inline static void get_istart_glob(int istart[3], const FLUPS::Topology *topo) {
     istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0);
     istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
     istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
-}
-
-/**
- * @brief return the number of local point for the proc index iproc in the dimension id 
- * 
- * @param id the dimension ID
- * @param iproc the id of the proc in the direction id
- * @param topo the topology
- */
-inline static int get_nloc(const int id, const int iproc, const FLUPS::Topology *topo) {
-    return (iproc != (topo->nproc(id) - 1)) ? topo->nbyproc(id) : std::max(topo->nbyproc(id), topo->nglob(id) - topo->nbyproc(id) * iproc);
 }
 
 /**

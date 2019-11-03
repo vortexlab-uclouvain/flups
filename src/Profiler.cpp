@@ -220,7 +220,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double locSelfTime = (this->timeAcc()-sumChild);
         double selfTime;
         double self_percent;
-        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name, LOCATION);
+        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name.c_str(), LOCATION);
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
@@ -273,12 +273,12 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 //===============================================================================================================================
 
 
-Profiler::Profiler(){
-    _name = "default";
+Profiler::Profiler(): _name("default")
+{
     _createSingle("root");
 }
-Profiler::Profiler(string myname){
-    _name = myname;
+Profiler::Profiler(const string myname): _name(myname)
+{
     _createSingle("root");
 }
 Profiler::~Profiler() {
@@ -387,6 +387,26 @@ void Profiler::addMem(string name,size_t mem) {
 }
 
 /**
+ * @brief get the accumulated time
+ * 
+ * @param name 
+ * @return double 
+ */
+double Profiler::get_timeAcc(const std::string ref){
+
+    int commSize;
+    double localTotalTime = _timeMap[ref]->timeAcc();
+    double totalTime;
+    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+
+    MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    totalTime /= commSize;
+
+    return totalTime;
+}
+
+
+/**
  * @brief display the whole profiler using 
  * 
  */
@@ -407,8 +427,15 @@ void Profiler::disp(const std::string ref) {
     /** - I/O of the parentality */
     //-------------------------------------------------------------------------
     FILE* file;
+    string folder = "./prof";
+
     if (rank == 0) {
-        string filename = "prof/" + _name + "_parent.csv";
+        struct stat st = {0};
+        if (stat(folder.c_str(), &st) == -1) {
+                mkdir(folder.c_str(), 0770);
+        }
+
+        string filename = folder + "/" + _name + "_parent.csv";
         file            = fopen(filename.c_str(), "w+");
         _timeMap["root"]->writeParentality(file,0);
         fclose(file);
@@ -426,15 +453,13 @@ void Profiler::disp(const std::string ref) {
     // display the header
     if (rank == 0) {
         printf("===================================================================================================================================================\n");
-        printf("        PROFILER %s  \n", _name.c_str());
+        printf("        PROFILER %s \n", _name.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
         printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
     // get the global timing
-    double localTotalTime = _timeMap[ref]->timeAcc();
-    double totalTime;
-    MPI_Allreduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    totalTime /= commSize;
+    double totalTime = this->get_timeAcc(ref);
+
     // display root with the total time
     _timeMap["root"]->disp(file,0,totalTime);
     // display footer

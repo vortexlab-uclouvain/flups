@@ -1,0 +1,7 @@
+CXX = mpic++
+CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align -fopenmp  -DPROF -DDEV_SIMULATE_GRAPHCOMM
+LDFLAGS += -fopenmp
+FFTW_LIB := /usr/lib/x86_64-linux-gnu
+HDF5_INC := /usr/include/hdf5/openmpi
+HDF5_LIB := /usr/lib/x86_64-linux-gnu
+HDF5_LIBNAME := -lhdf5_openmpi

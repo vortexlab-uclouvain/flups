@@ -37,7 +37,7 @@
 #include "mpi.h"
 #include "Topology.hpp"
 #include "Profiler.hpp"
-#include "omp.h"
+#include "SwitchTopo.hpp"
 
 /**
  * @brief Takes care of the switch between to different topologies
@@ -53,259 +53,32 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class FLUPS::SwitchTopo_a2a {
+class SwitchTopo_a2a : public SwitchTopo {
    protected:
-    MPI_Comm _subcomm;            /**<@brief subcomm used for this SwitchTopo */
-    bool     _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
+    bool _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
 
     int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
     int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
-
     int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
     int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
-    int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
+    opt_double_ptr _sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
+    opt_double_ptr _recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
 
-    int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
-    int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
-    int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
-    int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
-    int _oend[3];   /**<@brief the ending index for #_topo_out to be inside #_topo_in  */
-
-    int _inBlock[3];  /**<@brief the local number of block in each dim in the input topology */
-    int _onBlock[3];  /**<@brief the local number of block in each dim in the output topology  */
-
-    int* _iBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-    int* _oBlockSize[3] = {NULL,NULL,NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-
-    opt_int_ptr _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
-    opt_int_ptr _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
-
-    const Topology *_topo_in  = NULL; /**<@brief input topology  */
-    const Topology *_topo_out = NULL; /**<@brief  output topology */
-
-    opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
-    opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
-
-    Profiler* _prof = NULL;
+    void _init_blockInfo(const Topology* topo_in, const Topology* topo_out);
+    void _free_blockInfo();
 
    public:
     SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
     ~SwitchTopo_a2a();
 
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
-    void execute(opt_double_ptr v, const int sign);
-
-    /**
-     * @brief return the memory size of a block (including the padding for odd numbers if needed)
-     * 
-     * @return size_t 
-     */
-    inline size_t get_blockMemSize() const {
-        // get the max block size
-        size_t total = 1;
-        for (int id = 0; id < 3; id++) {
-            total *= (size_t)(_nByBlock[id] + _exSize[id] % 2);
-        }
-        // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-        total *= (size_t)_topo_out->nf();
-        // return the total size
-        return total;
-    };
-    /**
-     * @brief return the buffer size for one proc = number of blocks * blocks memory size
-     * 
-     * @return size_t 
-     */
-    inline size_t get_bufMemSize() const {
-        // nultiply by the number of blocks
-        size_t total = (size_t) std::max(_inBlock[0] * _inBlock[1] * _inBlock[2], _onBlock[0] * _onBlock[1] * _onBlock[2]);
-        total *= get_blockMemSize();
-        // return the total size
-        return total;
-    };
-
-    void disp();
-
-   protected:
-    void _setup_subComm(MPI_Comm newcomm, const int nBlock[3], int* destRank, int** count,int** start);
+    void execute(double* v, const int sign) const;
+    void setup();
+    void disp() const;
 };
 
 void SwitchTopo_a2a_test();
-
-static inline int gcd(int a, int b) {
-    return (a == 0) ? b : gcd(b % a, a);
-}
-
-/**
- * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
- * 
- * @param axsrc the FRI for the point (i0,i1,i2)
- * @param i0
- * @param i1 
- * @param i2 
- * @param axtrg the target FRI
- * @param size the size of the memory (012-indexing)
- * @param nf the number of unknows in one element
- * @return size_t 
- */
-static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
-                                const int axtrg, const int size[3], const int nf) {
-    const int i[3] = {i0, i1, i2};
-    const int dax0 = (3 + axtrg - axsrc) % 3;
-    const int dax1 = (dax0 + 1) % 3;
-    const int dax2 = (dax0 + 2) % 3;
-    const int ax0  = axtrg;
-    const int ax1  = (ax0 + 1) % 3;
-
-    // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
-}
-
-/**
- * @brief split a global index along the different direction using the FRI axtrg
- * 
- * @param id the global id
- * @param size the size in 012-indexing
- * @param axtrg the target axis
- * @param idv the indexes along each directions
- */
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
-    const int ax0   = axtrg;
-    const int ax1   = (ax0 + 1) % 3;
-    const int ax2   = (ax0 + 2) % 3;
-    const int size0 = (size[ax0] * nf);
-
-    idv[ax0] = id % size0;
-    idv[ax1] = (id % (size0 * size[ax1])) / size0;
-    idv[ax2] = id / (size0 * size[ax1]);
-}
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
-    const int ax0   = axtrg;
-    const int ax1   = (ax0 + 1) % 3;
-    const int size0 = (size[ax0] * nf);
-
-    (*id0) = id % size0;
-    (*id1) = (id % (size0 * size[ax1])) / size0;
-    (*id2) = id / (size0 * size[ax1]);
-}
-
-/**
- * @brief compute the destination rank for every block on the current processor
- * 
- * @param nBlock the number of block on the current proc (012-indexing)
- * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
- * @param topo the destination topology
- * @param nBlockOnProc the number of block on each proc in the destination topology
- * @param destRank the computed destination rank for each block
- */
-static inline void cmpt_blockDestRank(const int nBlock[3], const int blockIDStart[3], const FLUPS::Topology *topo, const int *nBlockEachProc,int *destRank) {
-    BEGIN_FUNC;
-    int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    // go through each block
-    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        // get the split index
-        int bidv[3];
-        localSplit(ib, nBlock, 0, bidv, 1);
-
-        // initialize the destrank
-        int destrankd[3] = {0, 0, 0};
-        // determine the dest rank for each dimension
-        for (int id = 0; id < 3; id++) {
-            // we go trough every rank on the given dim
-            int block_count = 0;
-            for (int ir = 0; ir < topo->nproc(id); ir++) {
-                // update the destination rank
-                destrankd[id] = ir;
-                // update the number of block already visited
-                block_count += nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
-                // if we have already visited more block than my block id then we have found the destination rank
-                if ((bidv[id] + blockIDStart[id]) < block_count) {
-                    break;
-                }
-            }
-        }
-
-        // get the global destination rank
-        destRank[ib] = rankindex(destrankd, topo);
-        FLUPS_CHECK(destRank[ib] < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destRank[ib], destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
-    }
-}
-/**
- * @brief compute the size of the blocks inside the given topology
- * 
- * @param nBlock 
- * @param blockIDStart 
- * @param nByBlock 
- * @param topo 
- * @param nBlockSize 
- */
-static inline void cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]) {
-    // go through each block
-    for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
-        for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
-            for (int ib0 = 0; ib0 < nBlock[0]; ib0++) {
-                // get the global block index
-                const int bidv[3] = {ib0, ib1, ib2};
-                const int bid     = localIndex(0, ib0, ib1, ib2, 0, nBlock, 1);
-                // determine the size in each direction
-                for (int id = 0; id < 3; id++) {
-                    //if I am the last block, I forgive a small difference between the blocksizes
-                    if (bidv[id] == (nBlock[id]-1)) {
-                        nBlockSize[id][bid] = (iend[id]-istart[id]) - bidv[id] * nByBlock[id];
-                    } else {
-                        nBlockSize[id][bid] = nByBlock[id];
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * @brief compute the number of blocks, the starting indexes of the block (0,0,0) and the number of block in each proc
- * 
- * This function computes several usefull indexes for the block:
- * - the number of blocks on the current procs
- * - the starting index in the topo of the block (0,0,0)
- * - the number of block on each proc.
- * 
- * For a given proc, nBlockEachProc[comm_size * id + ip] is the number of proc in the dimension id on the proc ip
- * 
- * @param istart the starting indexes on this proc
- * @param iend the end indexes on this proc
- * @param nByBlock the number of unkowns in one block (012-indexing)
- * @param topo the current topology
- * @param nBlock the number of block in this proc
- * @param blockIDStart the starting point of the block (0,0,0)
- * @param nBlockEachProc the number of procs on each proc
- */
-static inline void cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const FLUPS::Topology *topo,
-                                     int nBlock[3], int blockIDStart[3], int *nBlockEachProc) {
-    int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    for (int id = 0; id < 3; id++) {
-        // send/recv number of block on my proc
-        nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
-        // get the list of number of procs
-        MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, MPI_COMM_WORLD);
-        // set the starting indexes to 0
-        blockIDStart[id] = 0;
-        // compute the starting index
-        const int myrankd  = topo->rankd(id);
-        int       rankd[3] = {topo->rankd(0), topo->rankd(1), topo->rankd(2)};
-        for (int ir = 0; ir < myrankd; ir++) {
-            // update the rankd
-            rankd[id] = ir;
-            // increment the block counter
-            blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
-        }
-        // do some checks
-        // FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ",istart[0],istart[1],istart[2],iend[0],iend[1],iend[2], LOCATION);
-    }
-
-    
-}
+void SwitchTopo_a2a_test2();
 
 #endif
