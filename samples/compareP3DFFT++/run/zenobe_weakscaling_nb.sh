@@ -1,7 +1,7 @@
 #!/bin/sh
 ## RM the previous validation dir
 
-HOME_FLUPS=/home/acad/ucl-tfl/dcaprace/FLUPS/flups/P3DFFT++/
+HOME_FLUPS=${PWD}/../
 
 
 VER=nb
@@ -12,13 +12,14 @@ EXE=flups_vs_p3dfft++_${VER}
 SCRATCH=/SCRATCH/acad/examples/dcaprace/flupsVSp3dfft3_weak_$VER
 
 # clean the validation dir
-rm -rf ${SCRATCH}
+# rm -rf ${SCRATCH}
 mkdir -p $SCRATCH
 mkdir -p $SCRATCH/data
 mkdir -p $SCRATCH/prof
 # copy the needed info
-cp $HOME_FLUPS/P3DFFT++/$EXE $SCRATCH
-cp $HOME_FLUPS/P3DFFT++/run/zenobe_kernel.sh $SCRATCH
+cp $HOME_FLUPS/$EXE $SCRATCH
+cp $HOME_FLUPS/${EXE}_noP3D $SCRATCH
+cp $HOME_FLUPS/run/zenobe_kernel.sh $SCRATCH
 
 cd $SCRATCH
 

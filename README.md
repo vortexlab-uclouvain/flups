@@ -18,7 +18,8 @@ If you use FLUPS, please cite it as follows in your publications:
 
 ### Installation
 
-Compilation of FLUPS was tested with Intel compilers and GCC.
+FLUPS is a C++ library, with an API in C.
+The compilation of FLUPS was tested with Intel compilers and GCC.
 
 #### 1. Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
@@ -60,9 +61,7 @@ By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. Y
 Then you need to reference the created configuration file and the prefix you wish to :
 ```shell
 export ARCH_FILE=make_arch/my_arch_dependent_file
-export 
 ```
-You can now 
 
 Finally, go to the main folder and type the compilation command.
 - Check the compilation details before doing the installation
@@ -71,15 +70,17 @@ make info
 ## or
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make info
 ```
-- Install the library
+- Install the library (to the PREFIX location, or by default in ./lib and ./include )
 ```shell
 make install
 ## or
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
-#### 3. The documentation
-To build the documentation, go to the `doc` subfolder and type `doxygen`.
+#### 3. Documentation
+
+The documentation is built with Doxygen.
+To build the documentation, please go to the `./doc` subfolder and type `doxygen`.
 
 #### 4. Compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
@@ -96,7 +97,10 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 ### How to use a solver?
 
 #### Detailed reference
-For a detailed view of the API, have a look at @ref flups.h
+
+The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)"
+
+For the detailed specifications of the API, have a look at @ref flups.h .
 
 
 #### FLUPS in a nutshell
@@ -136,7 +140,11 @@ Then, destroy the solver
 delete (mysolver);
 ```
 
-#### Memory usage
+#### Advanced usage
+
+Examples of usage of FLUPS in C programs are provided in the `./sample` subfolder.
+
+#### Memory footprint
 
 For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
 - the all to all version uses ~530Mb (O.253kB/unknown)
