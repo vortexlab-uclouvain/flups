@@ -59,6 +59,15 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
+#---- METIS
+#check if HAVE_METIS
+ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
+	METIS_INC ?= /usr/include
+	METIS_LIB ?= /usr/lib
+	INC+= -I$(METIS_INC)
+	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
+endif
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))

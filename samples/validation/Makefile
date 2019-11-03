@@ -62,6 +62,15 @@ FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
 
+#---- METIS
+#check if HAVE_METIS
+ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
+	METIS_INC ?= /usr/include
+	METIS_LIB ?= /usr/lib
+	INC+= -I$(METIS_INC)
+	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
+endif
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))

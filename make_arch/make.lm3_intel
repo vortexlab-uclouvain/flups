@@ -7,8 +7,8 @@ CC = mpiicc
 
 # set the flag (optimisation or not)
 # CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -qopt-report=5 -qopt-report-phase=all -restrict -guide -guide-file=guide.txt
-CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -restrict -xCORE-AVX512 -mtune=skylake -qopt-zmm-usage=high -qopt-report=5 -qopt-report-phase=all 
-#CXXFLAGS := -qopenmp -O3 -xavx2 -g -DNDEBUG -stdc++11 -restrict -fargument-noalias -DPROF -qopt-report=5 -qopt-report-phase=all
+CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -restrict -xCORE-AVX512 -mtune=skylake -qopt-zmm-usage=high -DREORDER_RANKS -DPROF -DHAVE_METIS -qopt-report=5 -qopt-report-phase=all 
+#CXXFLAGS := -qopenmp -O3 -xavx2 -g -DNDEBUG -stdc++11 -restrict -fargument-noalias -xCORE-AVX512 -mtune=skylake -qopt-zmm-usage=high -DREORDER_RANKS -DHAVE_METIS 
 #CXXFLAGS := -g -qopenmp -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE 
 
 CCFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc99 -xCOMMON-AVX512 
@@ -24,3 +24,5 @@ FFTW_INC := ${FFTW_DIR}/include
 #_avx512
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
+METIS_LIB := /home/ucl/tfl/dcaprace/soft/intel-2018.1.136/metis-5.1.0/build/Linux-x86_64/libmetis
+METIS_INC := /home/ucl/tfl/dcaprace/soft/intel-2018.1.136/metis-5.1.0/include

@@ -20,9 +20,8 @@ NCPUS=$((1*${MY_NY}*${MY_NZ}))
 echo "CPU         :  $NCPUS"
 
 module purge
-module load compiler/gcc/7.2.0
-module load compiler/intel/comp_and_lib/2019.3.199
-module load intelmpi/5.1.3.181/64
+module load compiler/intel/comp_and_lib/2017.4.196 intelmpi/2017.3.196/64 compiler/gcc/7.2.0
+module load metis/5.1.0/32/intel/2016.2.181
 #module load devtoolset/8
 
 
@@ -36,6 +35,11 @@ MY_SIZE_Z=$((${MY_SIZE}*${LZ}))
 
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}
+
+echo "============================== FLUPS ONLY, WITHOUT METIS ==========================================" >> stdout_${PBS_JOBID}
+
+echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}"
+mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE}_noP3D -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}
 
 
 ################## 

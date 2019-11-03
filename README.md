@@ -17,6 +17,10 @@ If you use FLUPS, please cite it as follows in your publications:
 
 
 ### Installation
+
+FLUPS is a C++ library, with an API in C.
+The compilation of FLUPS was tested with Intel compilers and GCC.
+
 #### 1. Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
@@ -27,6 +31,7 @@ CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-
 ```shell
 CC=mpiicc CXX=mpiicpc FC=mpif90 ./configure --prefix=hdf5_prefix --enable-build-mode=production --enable-parallel
 ```
+- METIS (> v5.1.0) - only if compiling with `REORDER_RANKS`
 
 #### 2. The Library
 You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `FFTWDIR` and `HDF5DIR`.
@@ -56,9 +61,7 @@ By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. Y
 Then you need to reference the created configuration file and the prefix you wish to :
 ```shell
 export ARCH_FILE=make_arch/my_arch_dependent_file
-export 
 ```
-You can now 
 
 Finally, go to the main folder and type the compilation command.
 - Check the compilation details before doing the installation
@@ -67,30 +70,37 @@ make info
 ## or
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make info
 ```
-- Install the library
+- Install the library (to the PREFIX location, or by default in ./lib and ./include )
 ```shell
 make install
 ## or
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
-#### 3. The documentation
-To build the documentation, go to the `doc` subfolder and type `doxygen`.
+#### 3. Documentation
+
+The documentation is built with Doxygen.
+To build the documentation, please go to the `./doc` subfolder and type `doxygen`.
 
 #### 4. Compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
-- `NDEBUG`: use this flag to remove various checks inside the library
-- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve
+- `NDEBUG`: use this flag to bypass various checks inside the library
+- `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
+- `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
+- `HAVE_METIS`: in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
 ### How to use a solver?
 
 #### Detailed reference
-For a detailed view of the API, have a look at @ref flups.h
+
+The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)"
+
+For the detailed specifications of the API, have a look at @ref flups.h .
 
 
 #### FLUPS in a nutshell
@@ -130,7 +140,11 @@ Then, destroy the solver
 delete (mysolver);
 ```
 
-#### Memory usage
+#### Advanced usage
+
+Examples of usage of FLUPS in C programs are provided in the `./sample` subfolder.
+
+#### Memory footprint
 
 For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
 - the all to all version uses ~530Mb (O.253kB/unknown)

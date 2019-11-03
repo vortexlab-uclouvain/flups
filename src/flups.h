@@ -280,13 +280,47 @@ bool flups_topo_get_isComplex(const FLUPS_Topology* t);
  * @brief Determines the physical direction aligned in memory
  * 
  * @param t 
- * @return int 
+ * @return int the direction [0-3]
  */
 int  flups_topo_get_axis(const FLUPS_Topology* t);
+/**
+ * @brief Determines the total number of points in the domain in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the number of elements (real or complex)
+ */
 int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the local number of points in the domain (on this process) in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the number of elements (real or complex)
+ */
 int  flups_topo_get_nloc(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the local memory usage per direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int the memory occupation in double/float
+ */
 int  flups_topo_get_nmem(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the number of processes in a given direction
+ * 
+ * @param t 
+ * @param dim 
+ * @return int 
+ */
 int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
+/**
+ * @brief Determines the start index of this process in all 3 directions
+ * 
+ * @param t 
+ * @param istart 
+ */
 void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
@@ -319,14 +353,37 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @{
  */
 
-// get a new solver
+/**
+ * @brief Creates a solver for the specified domain.
+ * 
+ * @param t user-determined topology of data in physical space, describing the data that will be provided to the solver
+ * @param bc boundary conditions of the domain
+ * @param h physical space increment in each direction
+ * @param L physical length of the domain in each direction
+ * @return FLUPS_Solver* the new solver
+ */
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+/**
+ * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF)
+ * 
+ * @param prof 
+ */
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
-// destroy the solver
+/**
+ * @brief must be called before execution terminates
+ * 
+ * @param s 
+ */
 void flups_cleanup(FLUPS_Solver* s);
 
-// setup the solver
+/**
+ * @brief 
+ * @warning must be done before @ref flups_setup
+ * 
+ * @param s 
+ * @param type the type of the solver (CHAT2 by default)
+ */
 void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
 
 /**
@@ -334,15 +391,24 @@ void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * 
  * @warning after this call the solver cannot change anymore!
  * 
- * @warning if changeComm is true, the rank has to be computed and the communicator has to be reset to the one provided by flups_topo_get_comm
+ * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
  * 
  * @param s 
- * @param changeComm indicate if we are allowed to change the communicator
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);
 
-// solve
+/**
+ * @brief solve the Poisson equation on rhs, and returns the solution in field (can be done in-place)
+ * 
+ * FLUPS uses his own allocated memory to do the operations. 
+ * 
+ * @param s 
+ * @param field 
+ * @param rhs 
+ * @param type 
+ */
 void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
 
 /**@} */
@@ -350,7 +416,19 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
 //=============================================================================
 /**
  * @name SOLVER (Advanced)
+ * Optimized use of the library may require the use of advanced features. This is especially true if you
+ * want to use the memory allocated by flups, and avoid copies.
+ * 
+ * The functions @ref flups_do_copy, @ref flups_do_FFT, @ref flups_do_mult give access to atomic operations 
+ * that are done in @ref flups_solve.
  * @{
+ */
+
+/**
+ * @brief get the total amount of memory allocated by FLUPS
+ * 
+ * @param s 
+ * @return size_t 
  */
 size_t flups_get_allocSize(FLUPS_Solver* s);
 
@@ -389,6 +467,13 @@ void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
  * @{
  */
 
+/**
+ * @brief dumps data in a hdf5 format with a xdmf compatible description, in the folder ./data
+ * 
+ * @param topo 
+ * @param filename 
+ * @param data 
+ */
 void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data);
 
 /**@} */

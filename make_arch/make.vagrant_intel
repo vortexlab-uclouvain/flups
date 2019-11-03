@@ -8,7 +8,7 @@ CC = mpiicc
 
 # set the flag (optimisation or not)
 # CXXFLAGS := -qopenmp -O3 -g -DNDEBUG -stdc++11 -qopt-report=5 -qopt-report-phase=all -restrict -guide -guide-opts -guide-file=guide.txt -parallel
-# CXXFLAGS := -qopenmp -O3 -g -parallel -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all -DPERF_VERBOSE -DPROF
+# CXXFLAGS := -qopenmp -O3 -g -parallel -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all -DPERF_VERBOSE -DPROF -DREORDER_RANKS
 CXXFLAGS := -g -qopenmp -Wunused-variable -Wunused-function -Wuninitialized -Wreturn-type -O0 -traceback -ftrapuv -debug all -stdc++11 -DVERBOSE -DPERF_VERBOSE  -DPROF
 
 CCFLAGS := -qopenmp -O3 -g -parallel -DNDEBUG -stdc99 -restrict -fargument-noalias
@@ -20,7 +20,10 @@ LDFLAGS := -qopenmp -lstdc++
 #---------------------------------------------------------
 FFTWDIR  := /vagrant/soft/fftw-3.3.8-intel_2019.04
 HDF5DIR  := /vagrant/soft/hdf5-1.10.5-intel_2019.04
+METIS_DIR := /vagrant/soft/metis-5.1.0-intel_2019.04
 FFTW_INC := $(FFTWDIR)/include
 FFTW_LIB := $(FFTWDIR)/lib
 HDF5_INC := $(HDF5DIR)/include
 HDF5_LIB := $(HDF5DIR)/lib
+METIS_INC := $(METIS_DIR)/include
+METIS_LIB := $(METIS_DIR)/lib

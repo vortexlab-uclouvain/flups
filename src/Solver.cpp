@@ -145,7 +145,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
 /**
  * @brief Sets up the Solver
  * 
- * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init
+ * @param changeTopoComm determine if the user allows the solver to rewrite the communicator associated with the provided topo at the init (if compiled with REODRED_RANKS)
  * 
  * @warning
  * To be able to change the communicator, the user MUST ensure that NOTHING has been done with the topology yet, except creating it.
@@ -210,9 +210,10 @@ double* Solver::setup(const bool changeTopoComm) {
     }
 
     //-------------------------------------------------------------------------
-    /** - Build the new comm based on that graph */
+    /** - Build the new comm based on that graph using metis if available, graph_topo if not */
     //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
+#ifndef HAVE_METIS
     MPI_Dist_graph_create_adjacent(_topo_phys->get_comm(), worldsize, sources, sourcesW, \
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
@@ -222,7 +223,7 @@ double* Solver::setup(const bool changeTopoComm) {
     flups_free(dests);
     flups_free(destsW);
 
-#if defined(VERBOSE) && VERBOSE==2
+    #if defined(VERBOSE) && VERBOSE==2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
     printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
@@ -251,7 +252,8 @@ double* Solver::setup(const bool changeTopoComm) {
     free(SourW);
     free(Dest);
     free(DestW);
-#endif
+    #endif
+
     //-------------------------------------------------------------------------
     /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
     //-------------------------------------------------------------------------
@@ -284,6 +286,23 @@ double* Solver::setup(const bool changeTopoComm) {
 
     flups_free(outRanks);
 #endif
+
+#else
+    //Use METIS to find a smart partition of the graph
+    int *order = (int *)flups_malloc(sizeof(int) * worldsize);
+    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);
+    // create a new comm based on the order given by metis
+    MPI_Group group_in, group_out;
+    MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
+    MPI_Group_incl(group_in, worldsize, order, &group_out);           //manually reorder the ranks
+    MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
+    flups_free(order);
+#endif
+
+    flups_free(sources);
+    flups_free(sourcesW);
+    flups_free(dests);
+    flups_free(destsW);
 
     std::string commname = "graph_comm";
     MPI_Comm_set_name(graph_comm, commname.c_str());

@@ -5,7 +5,7 @@
 CXX = mpiicpc
 
 # set the flag (optimisation or not)
-CXXFLAGS := -qopenmp -O3 -xHost -qopt-zmm-usage=high -parallel -g -DPROF -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all
+CXXFLAGS := -qopenmp -O3 -xHost -qopt-zmm-usage=high -parallel -g -DPROF -DNDEBUG -stdc++11 -restrict -fargument-noalias -qopt-report=5 -qopt-report-phase=all -DREORDER_RANKS
 
 LDFLAGS := -qopenmp
 #---------------------------------------------------------

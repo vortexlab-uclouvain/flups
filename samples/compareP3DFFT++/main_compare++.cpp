@@ -140,7 +140,11 @@ int main(int argc, char *argv[]) {
     const int  nglobOut[3] = {17, 32, 64};
     
     // prepare profiling
+#ifdef SKIP_P3D
+    std::string FLUPSprof = "only_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
+#else
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
+#endif
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
     // solver creation and init
@@ -169,7 +173,7 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     /** - Initialize P3DFFT */
     //-------------------------------------------------------------------------
-
+#ifndef SKIP_P3D
     int conf;
     int dims[2] = {nproc[1],nproc[2]};
     int  proc_order[3] = {0, 1, 2};
@@ -250,7 +254,7 @@ int main(int argc, char *argv[]) {
         glob_startOUT[mem_orderOUT[i]] = gridOUT.glob_start[i];
     }
     int P3DmemsizeOUT = P3DnlocOUT[0]*P3DnlocOUT[1]*P3DnlocOUT[2];
-
+#endif
     
 
     // //-------------------------------------------------------------------------
@@ -262,25 +266,31 @@ int main(int argc, char *argv[]) {
     printf("[FLUPS] topo OUT glob : %d %d %d \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2));
     printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoSpec->nmem(0),topoSpec->nmem(1),topoSpec->nmem(2),topoSpec->nf(),topoSpec->nloc(0),topoSpec->nloc(1),topoSpec->nloc(2));
 
+#ifndef SKIP_P3D
     printf("[P3DFFT++] topo IN glob  : %d %d %d  \n",gdimsIN[0],gdimsIN[1],gdimsIN[2]);
     printf("[P3DFFT++] topo IN loc   : %d %d %d (is: %d %d %d) \n",P3DnlocIN[0],P3DnlocIN[1],P3DnlocIN[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
     printf("[P3DFFT++] topo OUT glob : %d %d %d  \n",gdimsOUT[0],gdimsOUT[1],gdimsOUT[2]);
     printf("[P3DFFT++] topo OUT loc  : %d %d %d (is: %d %d %d) \n",P3DnlocOUT[0],P3DnlocOUT[1],P3DnlocOUT[2],glob_startOUT[0],glob_startOUT[1],glob_startOUT[2]);
+#endif
 
 
-
-    printf("I am going to allocate FLUPS: %d (inside FLUPS: %d) , P3D: %d (out %d C) \n",FLUmemsizeIN,FLUmemsizeOUT,P3DmemsizeIN,P3DmemsizeOUT);
+    printf("I am going to allocate FLUPS: %d (inside FLUPS: %d)\n",FLUmemsizeIN,FLUmemsizeOUT);
+#ifndef SKIP_P3D    
+    printf("                        P3D: %d (out %d C) \n",P3DmemsizeIN,P3DmemsizeOUT);
+#endif
     
  
     double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
     //solFLU   allocated by sflups setup with the larger size
-    double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
-    p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
-
     std::memset(rhsFLU, 0, sizeof(double ) * FLUmemsizeIN);
     std::memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
+
+#ifndef SKIP_P3D 
+    double *rhsP3D   = (double *)fftw_malloc(sizeof(double) * P3DmemsizeIN);
+    p3dfft::complex_double *solP3D   = (p3dfft::complex_double *)fftw_malloc(sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
     std::memset(rhsP3D, 0, sizeof(double ) * P3DmemsizeIN);
     std::memset(solP3D, 0, sizeof(p3dfft::complex_double) * P3DmemsizeOUT);
+#endif
     
     // printf("istart: %d %d %d =? %d %d %d(P3D)\n",istartGlo[0],istartGlo[1],istartGlo[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
 
@@ -298,10 +308,12 @@ int main(int argc, char *argv[]) {
                 size_t id;
                 id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
-                
+
+#ifndef SKIP_P3D                 
                 //p3d does not care of the size you allocate, juste fill the first isize elements
                 id =  localIndex(0, i0, i1, i2, 0, P3DnlocIN, 1);
                 rhsP3D[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
+#endif
             }
         }
     }
@@ -319,6 +331,7 @@ int main(int argc, char *argv[]) {
         
         MPI_Barrier(comm);
 
+#ifndef SKIP_P3D  
         // ------------------P3D---------------:
         if(rank==0){
             printf("Iter %i P3D\n",iter);
@@ -329,13 +342,14 @@ int main(int argc, char *argv[]) {
         trans_f.exec(rhsP3D,solP3D,false);  // Execute forward real-to-complex FFT
         P3Dprof->stop("FFTandSwitch");
 
-#define PRINT_RES
+// #define PRINT_RES
 #ifdef PRINT_RES
         /* normalize */
         for(int id = 0; id<P3DmemsizeOUT; id++){
             solP3D[id] *= factor;
         }
         print_res(solP3D,P3DnlocOUT,glob_startOUT);
+#endif
 #endif
 
         // ------------------FLUPS---------------:
@@ -372,6 +386,7 @@ int main(int argc, char *argv[]) {
     FLUprof->disp("solve");
     delete(FLUprof);
 
+#ifndef SKIP_P3D  
     // --- P3DFFT -------
 #ifdef P3DMODIF
     double times[8][3];
@@ -407,19 +422,24 @@ int main(int argc, char *argv[]) {
     p3dfft::timers.print(comm);
 #endif
     delete(P3Dprof);
+#endif
 
     if(rank==0)
         printf("Done ! Now let's clean...\n");
     fflush(stdout);
-    
+
+#ifndef SKIP_P3D      
     fftw_free(solP3D);
     fftw_free(rhsP3D);
+#endif
     fftw_free(rhsFLU);
 
     topoIn->~Topology();
     topoSpec->~Topology();
     mysolver->~Solver();
+#ifndef SKIP_P3D      
     p3dfft::cleanup();
+#endif
 
     MPI_Finalize();
 }

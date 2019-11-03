@@ -13,8 +13,8 @@ CC = gcc-9 -I$(MPIDIR)/include/ -L$(MPIDIR)/lib/ -lmpi -lopen-rte -lopen-pal -lu
 
 # CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -fopenmp -DVERBOSE  -DPERF_VERBOSE 
 # CXXFLAGS := -O3 -g -Wall -std=c++17 -fopenmp -DPROF -fdump-ipa-switch-all -fdump-lang-switch-all -fopt-info-optall=optinfo.txt
-# CXXFLAGS := -O3 -g -DNDEBUG -std=c++17 -fopenmp -DPROF -fopt-info-optall=optinfo.txt -DPERF_VERBOSE 
-CXXFLAGS := -O3 -std=c++17 -fopenmp -DNDEBUG
+CXXFLAGS := -O3 -g -DNDEBUG -std=c++17 -fopenmp -DPROF -fopt-info-optall=optinfo.txt -DPERF_VERBOSE -DREORDER_RANKS
+# CXXFLAGS := -O3 -std=c++17 -fopenmp -DNDEBUG 
 
 CCFLAGS := -O3 -g -DNDEBUG -std=c99 -fopenmp
 
