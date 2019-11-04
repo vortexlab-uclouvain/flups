@@ -260,24 +260,24 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - allocate rhs and solution */
     // //-------------------------------------------------------------------------
-    
-    printf("[FLUPS] topo IN glob : %d %d %d \n",topoIn->nglob(0),topoIn->nglob(1),topoIn->nglob(2));
-    printf("[FLUPS] topo IN loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
-    printf("[FLUPS] topo OUT glob : %d %d %d \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2));
-    printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoSpec->nmem(0),topoSpec->nmem(1),topoSpec->nmem(2),topoSpec->nf(),topoSpec->nloc(0),topoSpec->nloc(1),topoSpec->nloc(2));
+    if(rank == 0) {
+        printf("[FLUPS] topo IN glob : %d %d %d \n",topoIn->nglob(0),topoIn->nglob(1),topoIn->nglob(2));
+        printf("[FLUPS] topo IN loc : %d*%d*%d = %d (check: %d %d %d)\n",topoIn->nmem(0),topoIn->nmem(1),topoIn->nmem(2),topoIn->memsize(),topoIn->nloc(0),topoIn->nloc(1),topoIn->nloc(2));
+        printf("[FLUPS] topo OUT glob : %d %d %d \n",topoSpec->nglob(0),topoSpec->nglob(1),topoSpec->nglob(2));
+        printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d nf:%d (nloc: %d %d %d)  \n",topoSpec->nmem(0),topoSpec->nmem(1),topoSpec->nmem(2),topoSpec->nf(),topoSpec->nloc(0),topoSpec->nloc(1),topoSpec->nloc(2));
 
 #ifndef SKIP_P3D
-    printf("[P3DFFT++] topo IN glob  : %d %d %d  \n",gdimsIN[0],gdimsIN[1],gdimsIN[2]);
-    printf("[P3DFFT++] topo IN loc   : %d %d %d (is: %d %d %d) \n",P3DnlocIN[0],P3DnlocIN[1],P3DnlocIN[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
-    printf("[P3DFFT++] topo OUT glob : %d %d %d  \n",gdimsOUT[0],gdimsOUT[1],gdimsOUT[2]);
-    printf("[P3DFFT++] topo OUT loc  : %d %d %d (is: %d %d %d) \n",P3DnlocOUT[0],P3DnlocOUT[1],P3DnlocOUT[2],glob_startOUT[0],glob_startOUT[1],glob_startOUT[2]);
+        printf("[P3DFFT++] topo IN glob  : %d %d %d  \n",gdimsIN[0],gdimsIN[1],gdimsIN[2]);
+        printf("[P3DFFT++] topo IN loc   : %d %d %d (is: %d %d %d) \n",P3DnlocIN[0],P3DnlocIN[1],P3DnlocIN[2],glob_startIN[0],glob_startIN[1],glob_startIN[2]);
+        printf("[P3DFFT++] topo OUT glob : %d %d %d  \n",gdimsOUT[0],gdimsOUT[1],gdimsOUT[2]);
+        printf("[P3DFFT++] topo OUT loc  : %d %d %d (is: %d %d %d) \n",P3DnlocOUT[0],P3DnlocOUT[1],P3DnlocOUT[2],glob_startOUT[0],glob_startOUT[1],glob_startOUT[2]);
 #endif
 
-
-    printf("I am going to allocate FLUPS: %d (inside FLUPS: %d)\n",FLUmemsizeIN,FLUmemsizeOUT);
+        printf("I am going to allocate FLUPS: %d (inside FLUPS: %d)\n",FLUmemsizeIN,FLUmemsizeOUT);
 #ifndef SKIP_P3D    
-    printf("                        P3D: %d (out %d C) \n",P3DmemsizeIN,P3DmemsizeOUT);
+        printf("                        P3D: %d (out %d C) \n",P3DmemsizeIN,P3DmemsizeOUT);
 #endif
+    }
     
  
     double *rhsFLU   = (double *)fftw_malloc(sizeof(double) * FLUmemsizeIN);
