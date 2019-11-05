@@ -219,11 +219,6 @@ double* Solver::setup(const bool changeTopoComm) {
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
     
-    flups_free(sources);
-    flups_free(sourcesW);
-    flups_free(dests);
-    flups_free(destsW);
-
     #if defined(VERBOSE) && VERBOSE==2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
@@ -260,11 +255,11 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
 #ifdef DEV_SIMULATE_GRAPHCOMM
     //switch indices by a random number:
-#ifdef DEV_REORDER_SHIFT
-    int shift = DEV_REORDER_SHIFT;
-#else
-    int shift = worldsize/2;
-#endif
+    #ifdef DEV_REORDER_SHIFT
+        int shift = DEV_REORDER_SHIFT;
+    #else
+        int shift = worldsize/2;
+    #endif
 
     int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
     if(rank == 0){
@@ -284,13 +279,14 @@ double* Solver::setup(const bool changeTopoComm) {
 
     flups_free(outRanks);
 #endif
+//end simulate_graph
 
-#ifdef PROF
+    #ifdef PROF
     //writing reordering to console
     int newrank;
     MPI_Comm_rank(graph_comm, &newrank);
     printf("[MPI ORDER] %i : %i \n", rank, newrank);
-#endif
+    #endif
 
 #else
     //Use METIS to find a smart partition of the graph
@@ -325,9 +321,9 @@ double* Solver::setup(const bool changeTopoComm) {
         _topo_phys->change_comm(graph_comm);
     }
 
-#ifdef PERF_VERBOSE
+    #ifdef PERF_VERBOSE
     _topo_hat[0]->disp_rank();
-#endif
+    #endif
 
 #endif //REORDER_RANKS
 
