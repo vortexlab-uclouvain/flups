@@ -170,8 +170,9 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - Precompute the communication graph */
     //-------------------------------------------------------------------------
     // get the communication size
-    int worldsize;
+    int worldsize, rank;
     MPI_Comm_size(_topo_phys->get_comm(), &worldsize);
+    MPI_Comm_rank(_topo_phys->get_comm(), &rank);
     
     // initialize the sources, sources weights, destination and destination weights
     int* sources  = (int*)flups_malloc(worldsize * sizeof(int));
@@ -258,9 +259,6 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
     //-------------------------------------------------------------------------
 #ifdef DEV_SIMULATE_GRAPHCOMM
-    int rank;
-    MPI_Comm_rank(_topo_phys->get_comm(), &rank);
-
     //switch indices by a random number:
 #ifdef DEV_REORDER_SHIFT
     int shift = DEV_REORDER_SHIFT;
@@ -285,6 +283,13 @@ double* Solver::setup(const bool changeTopoComm) {
     MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
 
     flups_free(outRanks);
+#endif
+
+#ifdef PROF
+    //writing reordering to console
+    int newrank;
+    MPI_Comm_rank(graph_comm, &newrank);
+    printf("[MPI ORDER] %i : %i \n", rank, newrank);
 #endif
 
 #else
