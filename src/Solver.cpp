@@ -290,7 +290,7 @@ double* Solver::setup(const bool changeTopoComm) {
 #else
     //Use METIS to find a smart partition of the graph
     int *order = (int *)flups_malloc(sizeof(int) * worldsize);
-    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);
+    _reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);
     // create a new comm based on the order given by metis
     MPI_Group group_in, group_out;
     MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
