@@ -170,8 +170,9 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - Precompute the communication graph */
     //-------------------------------------------------------------------------
     // get the communication size
-    int worldsize;
+    int worldsize, rank;
     MPI_Comm_size(_topo_phys->get_comm(), &worldsize);
+    MPI_Comm_rank(_topo_phys->get_comm(), &rank);
     
     // initialize the sources, sources weights, destination and destination weights
     int* sources  = (int*)flups_malloc(worldsize * sizeof(int));
@@ -218,11 +219,6 @@ double* Solver::setup(const bool changeTopoComm) {
                                                     worldsize, dests, destsW, \
                                                     MPI_INFO_NULL, 1, &graph_comm);
     
-    flups_free(sources);
-    flups_free(sourcesW);
-    flups_free(dests);
-    flups_free(destsW);
-
     #if defined(VERBOSE) && VERBOSE==2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
@@ -258,15 +254,12 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
     //-------------------------------------------------------------------------
 #ifdef DEV_SIMULATE_GRAPHCOMM
-    int rank;
-    MPI_Comm_rank(_topo_phys->get_comm(), &rank);
-
     //switch indices by a random number:
-#ifdef DEV_REORDER_SHIFT
-    int shift = DEV_REORDER_SHIFT;
-#else
-    int shift = worldsize/2;
-#endif
+    #ifdef DEV_REORDER_SHIFT
+        int shift = DEV_REORDER_SHIFT;
+    #else
+        int shift = worldsize/2;
+    #endif
 
     int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
     if(rank == 0){
@@ -286,11 +279,19 @@ double* Solver::setup(const bool changeTopoComm) {
 
     flups_free(outRanks);
 #endif
+//end simulate_graph
+
+    #ifdef PROF
+    //writing reordering to console
+    int newrank;
+    MPI_Comm_rank(graph_comm, &newrank);
+    printf("[MPI ORDER] %i : %i \n", rank, newrank);
+    #endif
 
 #else
     //Use METIS to find a smart partition of the graph
     int *order = (int *)flups_malloc(sizeof(int) * worldsize);
-    reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);
+    _reorder_metis(_topo_phys->get_comm(), sources, sourcesW, dests, destsW, order);
     // create a new comm based on the order given by metis
     MPI_Group group_in, group_out;
     MPI_Comm_group(_topo_phys->get_comm(), &group_in);                //get the group of the current comm
@@ -320,9 +321,9 @@ double* Solver::setup(const bool changeTopoComm) {
         _topo_phys->change_comm(graph_comm);
     }
 
-#ifdef PERF_VERBOSE
+    #ifdef PERF_VERBOSE
     _topo_hat[0]->disp_rank();
-#endif
+    #endif
 
 #endif //REORDER_RANKS
 
@@ -1470,4 +1471,289 @@ void Solver::dothemagic_rhs_complex_nmult3(double *data) {
     BEGIN_FUNC;
     FLUPS_CHECK(false, "not implemented yet", LOCATION);
     END_FUNC;
+}
+
+
+/**
+ * @brief reorder the MPI-ranks using metis
+ * 
+ * @warning this functions assume an evenly distributed amount of procs on the nodes
+ * 
+ * @param comm 
+ * @param sources 
+ * @param sourcesW 
+ * @param dests 
+ * @param destsW 
+ * @param n_nodes 
+ * @param order 
+ */
+void Solver::_reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order) {
+    int comm_size;
+    int comm_rank;
+    MPI_Comm_rank(comm, &comm_rank);
+    MPI_Comm_size(comm, &comm_size);
+
+#ifdef HAVE_METIS
+
+    //-------------------------------------------------------------------------
+    /** - get the total number of nodes */
+    //-------------------------------------------------------------------------
+    // create a group where everybody can create a shared memory region
+    MPI_Comm nodecomm;
+    MPI_Info mpinfo;
+    MPI_Info_create(&mpinfo);
+    MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, comm_rank, mpinfo, &nodecomm);
+    // we store the comm size
+    int local_nodesize;
+    MPI_Comm_size(nodecomm, &local_nodesize);
+
+    // gather on proc 1 the number of proc per node
+    int *vec_nodesize = (int *)flups_malloc(sizeof(int) * comm_size);
+    MPI_Allgather(&local_nodesize, 1, MPI_INT, vec_nodesize, 1, MPI_INT, comm);
+    
+    // count the number of partitions we'll need:
+    int n_nodes = 0;
+    int id = 0;
+    while( id < comm_size){
+        id += vec_nodesize[id];
+        n_nodes++;
+    }
+    
+#ifdef DEV_SIMULATE_GRAPHCOMM
+    //CHEATING: imposing that there will be 2 groups (there needs to be at least 4 procs)
+    n_nodes = 2;
+    for (int ip = 0; ip<comm_size; ip++ ){
+        vec_nodesize[ip]=comm_size/3;
+    }
+    vec_nodesize[0]=comm_size-vec_nodesize[1];
+#endif
+
+    real_t* tpwgts = (real_t*) flups_malloc(sizeof(real_t)*n_nodes);
+    // deduce the size of each partition:
+    id = 0;
+    for (int ip = 0; ip<n_nodes; ip++ ){
+        tpwgts[ip] = ((real_t)vec_nodesize[id])/((real_t) comm_size);
+        id += vec_nodesize[id];
+    }
+    //______________________________________________
+
+    // free stuffs
+    flups_free(vec_nodesize);
+    MPI_Comm_free(&nodecomm);
+
+    //-------------------------------------------------------------------------
+    /** - get the neighbour list and the associated weights */
+    //-------------------------------------------------------------------------
+    // we count the number of neighbours
+    int n_neighbours = 0;
+    // if we have either one way in or one way out, we have a neighbour
+    for (int i = 0; i < comm_size; ++i) {
+        if ((sourcesW[i] + destsW[i]) > 0 && i != comm_rank) n_neighbours++;
+    }
+    // allocate the number of neighbours and their weights
+    int *neighbours = (int *)flups_malloc(sizeof(int) * n_neighbours);
+    int *weights    = (int *)flups_malloc(sizeof(int) * n_neighbours);
+    n_neighbours    = 0;
+    for (int i = 0; i < comm_size; ++i) {
+        if (sourcesW[i] + destsW[i] > 0 && i != comm_rank) {
+            neighbours[n_neighbours] = i;
+            weights[n_neighbours]    = sourcesW[i] + destsW[i];
+            n_neighbours++;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    /** - build the graph on proc 0 and ask for partioning
+     * The graph structure follows metis rules:
+     * the edges (= id of the destination of the edges) starting from proc k are located
+     * from adj[xadj[k]] to adj[xadj[k+1]-1]
+     * Same structure is used for the weights with the ajdw
+     * */
+    //-------------------------------------------------------------------------
+    if (comm_rank == 0) {
+        int *xadj = (int *)flups_malloc((comm_size + 1) * sizeof(int));
+        int *nadj = (int *)flups_malloc((comm_size) * sizeof(int));
+
+        // get the number of neighbours from everybody
+        MPI_Gather(&n_neighbours, 1, MPI_INT, nadj, 1, MPI_INT, 0, comm);
+        // get the starting indexes of the neighbour description for everybody
+        xadj[0] = 0;
+        for (int i = 0; i < comm_size; ++i) {
+            xadj[i + 1] = xadj[i] + nadj[i];
+        }
+
+        // allocate the adjency list + weights and fill it with the neighbour list from everybody
+        int *adj  = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
+        int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
+        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
+        MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
+#ifdef PROF
+        {
+            //writing graph to file, CSR format
+            string filename = "prof/graph.csr";
+            FILE* file      = fopen(filename.c_str(), "w+");
+            if(file==NULL){FLUPS_ERROR("Could not create file in ./prof. Did you create the folder?",LOCATION);}
+            for(int i=0; i<=comm_size; i++){
+                fprintf(file, "%d ",xadj[i]);
+            }
+            fprintf(file,"\n");
+            for(int i=0; i<xadj[comm_size]; i++){
+                fprintf(file, "%d (%d), ",adj[i],adjw[i]);
+            }
+            fprintf(file,"\n");
+            fclose(file);
+
+            //writing graph to file, per node
+            filename = "prof/graph.txt";
+            file     = fopen(filename.c_str(), "w+");
+            for(int i=0; i<comm_size; i++){
+                fprintf(file, "%d: ",i);
+                for(int j = xadj[i]; j<xadj[i+1]; j++){
+                        fprintf(file, "%d (%d), ",adj[j],adjw[j]);
+                }
+                fprintf(file,"\n");
+            }
+            fclose(file);
+        }
+#endif
+
+        //prepare vall to metis
+        int  ncon = 1;  // the number of balancing constraints
+        real_t tol = 1.0001; //tolerance on the constraint 
+        int  objval;
+        int *part = (int *)flups_malloc(comm_size * sizeof(int));
+        int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
+        std::memset(rids,0,sizeof(int)*n_nodes);
+
+        // ask of the partitioning. call metis several times in case the tolerance on the partition size is not exactly respected 
+        int max_iter = 10;
+        if(n_nodes==1){
+            max_iter = 0;
+            FLUPS_WARNING("METIS: you asked only 1 node. I can't do the partitaioning.",LOCATION);
+        }
+        int iter;
+        idx_t options[METIS_NOPTIONS];
+        METIS_SetDefaultOptions(options);
+
+        //METIS options: ncuts and niter seems to have the most effect
+        options[METIS_OPTION_SEED] = 1;
+        options[METIS_OPTION_NCUTS] = 50;
+        options[METIS_OPTION_NITER] = 50;
+        options[METIS_OPTION_UFACTOR] = 1.;
+        // options[METIS_OPTION_IPTYPE] = 
+        //     METIS_IPTYPE_GROW,
+        //     METIS_IPTYPE_RANDOM,
+        //     METIS_IPTYPE_EDGE,
+        //     METIS_IPTYPE_NODE,
+        //     METIS_IPTYPE_METISRB
+        // options[METIS_OPTION_RTYPE] = 
+        //     METIS_RTYPE_FM,
+        //     METIS_RTYPE_GREEDY,
+        //     METIS_RTYPE_SEP2SIDED,
+        //     METIS_RTYPE_SEP1SIDED
+
+        for(iter = 0; iter<max_iter; iter++){
+            FLUPS_INFO("METIS: graph partitioning attempt %d",iter+1);
+            METIS_PartGraphRecursive(&comm_size, &ncon, xadj, adj, NULL, NULL, adjw, &n_nodes, tpwgts, &tol, options, &objval, part);
+            tol=((tol-1.)/2.)+1.;
+            options[METIS_OPTION_NCUTS] +=10;
+            options[METIS_OPTION_NITER] +=10;
+            options[METIS_OPTION_SEED] += 1; 
+            // options[METIS_OPTION_UFACTOR] /= 1.;
+            
+            // compute how many proc in each group, resulting from metis partitioning
+            for (int i = 0; i < comm_size; ++i) {
+                rids[part[i]]++;
+            }
+            // check that we did respect the constraint on the size of the partitions
+            bool succeed = (rids[0] == (int)(tpwgts[0] * comm_size));
+            FLUPS_INFO("METIS:   part %d: size %d (should be %d)",0, rids[0], (int)(tpwgts[0] * comm_size));
+            for (int ip = 1; ip < n_nodes; ++ip) {
+                succeed &= (rids[ip] == (int)(tpwgts[ip] * comm_size));
+                FLUPS_INFO("METIS:   part %d: size %d (should be %d)",ip, rids[ip], (int)(tpwgts[ip] * comm_size));
+                rids[ip] += rids[ip-1]; //switch to cumulative numbering
+            }
+            for (int ip = n_nodes-1; ip > 0; --ip) {
+                rids[ip] = rids[ip-1]; //offset by 1
+            }
+            rids[0] = 0;
+            if(!succeed){
+                FLUPS_INFO("METIS:   attempt failed.");
+            }else{
+                // assign the rank value and redistribute
+                for (int i = 0; i < comm_size; ++i) {
+                    order[i] = rids[part[i]]++ ;
+                }
+                break;
+            }
+        }
+        // check that we did not reach max_iter
+        if(iter>=max_iter){
+            FLUPS_WARNING("Failed to find a graph partitioning with the current allocation. I will not change the rank orderegin in the graph_comm!",LOCATION);
+            for (int i = 0; i < comm_size; ++i) {
+                order[i] = i;
+            }
+        }
+
+        // result of the partitioning
+    #ifdef PART_OF_EQUAL_SIZE   
+        FLUPS_INFO("I have partitioned the graph in %d chunks of size %d\n",n_nodes,comm_size/n_nodes);
+    #else            
+        FLUPS_INFO("I have partitioned the graph in %d chunks.",n_nodes);
+    #endif
+#ifdef PROF
+        //writing graph to file, CSR format
+        string filename = "prof/partitions.txt";
+        FILE* file      = fopen(filename.c_str(), "w+");
+    #ifdef PART_OF_EQUAL_SIZE   
+        fprintf(file,"%d partitions of size %d\n",n_nodes,comm_size/n_nodes);
+    #else
+        fprintf(file,"%d partitions of size:\n",n_nodes);
+        for(int i=0; i<n_nodes; i++){
+            fprintf(file, "part %d with %d elems\n",i,(int)(comm_size*tpwgts[i]));
+        }
+    #endif
+        fclose(file);
+#endif        
+
+        flups_free(xadj);
+        flups_free(nadj);
+        flups_free(adj);
+        flups_free(adjw);
+
+        flups_free(part);
+        flups_free(rids);
+    } else {
+        MPI_Gather(&n_neighbours, 1, MPI_INT, NULL, 1, MPI_INT, 0, comm);
+        MPI_Gatherv(neighbours, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
+        MPI_Gatherv(weights, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
+    }
+    flups_free(neighbours);
+    flups_free(weights);
+#ifndef PART_OF_EQUAL_SIZE
+    flups_free(tpwgts);
+#endif
+
+    //-------------------------------------------------------------------------
+    /** - give the rank info to everybody */
+    //-------------------------------------------------------------------------
+    MPI_Bcast(order, comm_size, MPI_INT, 0, comm);
+#ifdef PROF        
+    if (comm_rank == 3) {
+        //writing reordering to file
+        string filename = "prof/order.txt";
+        FILE* file      = fopen(filename.c_str(), "w+");
+        for (int i = 0; i < comm_size; ++i) {
+            FLUPS_INFO("METIS ORDER %i : %i \n", i, order[i]);
+            printf("%i : %i \n", i, order[i]);
+            fprintf(file,"%i : %i \n", i, order[i]);
+        }
+        fclose(file);
+    }
+#endif
+#else
+    for (int i = 0; i < comm_size; ++i) {
+        order[i] = i;
+    }
+#endif
 }
