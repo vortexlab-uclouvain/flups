@@ -286,13 +286,13 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             Gr0 = &_hej_2_2unb1spe_r0;
             break;
         case HEJ_4:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.");
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.",LOCATION);
             G   = &_zero;
             Gk0 = &_hej_4_2unb1spe_k0;
             Gr0 = &_hej_4_2unb1spe_r0;
             break;
         case HEJ_6:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.");
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.",LOCATION);
             G   = &_zero;
             Gk0 = &_hej_6_2unb1spe_k0;
             Gr0 = &_hej_6_2unb1spe_r0;
