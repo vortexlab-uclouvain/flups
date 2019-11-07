@@ -272,7 +272,9 @@ void SwitchTopo_nb::setup(){
     MPI_Comm_compare(inComm, _inComm, &compIn);
     MPI_Comm_compare(outComm, _outComm, &compOut);
     if( compIn != MPI_IDENT || compOut != MPI_IDENT){
-        FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+        if (rank == 0){
+            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+        }
 
         _inComm = inComm;
         _outComm = outComm;
