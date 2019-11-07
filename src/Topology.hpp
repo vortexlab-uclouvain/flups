@@ -36,6 +36,12 @@
  * 
  * A topology describes the layout of the data on the current processor.
  * 
+ * The number of unkowns in each direction owned by a rank divides them in two groups.
+ * First, we compute the integer division, nbyproc, between _nglob and _nproc.
+ * 
+ * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(_nglob,_nproc)-1, included.
+ * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(_nglob,_nproc) to rank _nproc, included.
+ * 
  */
 class Topology {
    protected:
@@ -47,7 +53,7 @@ class Topology {
     int       _axis;       /**<@brief fastest rotating index in the topology  */
     int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
     int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
+    // int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
     const int _alignment;
     MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
@@ -83,10 +89,31 @@ class Topology {
     inline int nmem(const int dim) const { return _nmem[dim]; }
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
-    inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
+    // inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
     inline int axproc(const int dim) const { return _axproc[dim]; }
     inline MPI_Comm get_comm() const {return _comm; }
+    
+
+    inline int cmpt_nbyproc(const int id) const{
+        return (_nglob[id]/_nproc[id]) + 1 * ((_nglob[id]%_nproc[id]) > _rankd[id]);
+    }
+
     /**
+     * @name Functions to compute the starting index of each topology
+     */
+    inline int cmpt_start_id(const int id) const {
+        return (_rankd[id]) * (_nglob[id] / _nproc[id]) + std::min(_rankd[id], _nglob[id] % _nproc[id]);
+    }
+
+    inline int cmpt_rank_fromid(const int global_id, const int id) const{
+        const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
+        const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
+        const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
+
+        return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
+    }
+
+     /**
      * @name Functions to compute intersection data with other Topologies
      * 
      * @{
@@ -118,9 +145,9 @@ class Topology {
      * 
      */
     inline void get_istart_glob(int istart[3]) const {
-        istart[0]   = _rankd[0] * _nbyproc[0];
-        istart[1]   = _rankd[1] * _nbyproc[1];
-        istart[2]   = _rankd[2] * _nbyproc[2];
+        istart[0]   = cmpt_start_id(0);
+        istart[1]   = cmpt_start_id(1);
+        istart[2]   = cmpt_start_id(2);
     }
 
     /**
@@ -133,7 +160,7 @@ class Topology {
             _nglob[_axis] /= 2;
             _nloc[_axis] /= 2;
             _nmem[_axis] /= 2;
-            _nbyproc[_axis] /= 2;
+            // _nbyproc[_axis] /= 2;
         }
     }
     /**
@@ -146,7 +173,7 @@ class Topology {
             _nglob[_axis] *= 2;
             _nloc[_axis] *= 2;
             _nmem[_axis] *= 2;
-            _nbyproc[_axis] *= 2;
+            // _nbyproc[_axis] *= 2;
         }
     }
 
@@ -331,21 +358,21 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
     (*id2) = id / (size0 * size[ax1]);
 }
 
-/**
- * @brief Get the istart in global indexing
- * 
- * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
- * @param topo 
- */
-inline static void get_istart_glob(int istart[3], const Topology *topo) {
-    const int ax0 = topo->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
+// /**
+//  * @brief Get the istart in global indexing
+//  * 
+//  * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
+//  * @param topo 
+//  */
+// inline static void get_istart_glob(int istart[3], const Topology *topo) {
+//     const int ax0 = topo->axis();
+//     const int ax1 = (ax0 + 1) % 3;
+//     const int ax2 = (ax0 + 2) % 3;
 
-    istart[ax0] = topo->rankd(ax0) * topo->nbyproc(ax0);
-    istart[ax1] = topo->rankd(ax1) * topo->nbyproc(ax1);
-    istart[ax2] = topo->rankd(ax2) * topo->nbyproc(ax2);
-}
+//     istart[ax0] = topo->cmpt_start_id(ax0);
+//     istart[ax1] = topo->cmpt_start_id(ax1);
+//     istart[ax2] = topo->cmpt_start_id(ax2);
+// }
 
 /**
  * @brief compute the global symmetrized index of a given point.

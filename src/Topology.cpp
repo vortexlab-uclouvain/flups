@@ -96,34 +96,17 @@ Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const
 void Topology::cmpt_sizes() {
     BEGIN_FUNC;
     for (int id = 0; id < 3; id++) {
-        // compute the _nbyproc
-        // number of unknows everywhere except the last one
-        _nbyproc[id] = _nglob[id] / _nproc[id];  // integer division = floor
-        // if we don't change anything
-        int nlastProc = std::max(_nbyproc[id], _nglob[id] - _nbyproc[id] * (_nproc[id] - 1));
-        // if the last proc has too much unknows compare to the other
-        // and we are able to give up some points
-        while((nlastProc - _nbyproc[id]) > 1 && nlastProc >= _nproc[id]){
-            _nbyproc[id] += 1;
-            nlastProc -= (_nproc[id] - 1);
-        }
-        // if we are the last rank in the direction, we take everything what is left
-        if ((_rankd[id] < (_nproc[id] - 1))) {
-            _nloc[id] = _nbyproc[id];
-            // the memory size is the same as the local size
-            _nmem[id] = _nloc[id];
-        } else {
-            // we get the max between the nglob and
-            _nloc[id] = _nglob[id] - _nbyproc[id] * (_nproc[id] - 1);
-            _nmem[id] = _nloc[id];
-            // if we are in the axis, we padd to ensure that every pencil is ok with alignment
-            if (id == _axis) {
-                // compute by how many we are not aligned: the global size in double = nglob * nf
-                const int modulo = (_nglob[id] * _nf * sizeof(double)) % _alignment;
-                // compute the number of points to add (in double indexing)
-                const int delta = (_alignment - modulo) / sizeof(double);
-                _nmem[id] += (modulo == 0) ? 0 : delta / _nf;
-            }
+        // we get the max between the nglob and
+        _nloc[id] = cmpt_nbyproc(id);
+        _nmem[id] = _nloc[id];
+        // if we are in the axis and the last proc, we padd to ensure that every pencil is ok with alignment
+        // if (id == _axis && _rankd[id] == (_nproc[id] - 1)) {
+        if (id == _axis) {
+            // compute by how many we are not aligned: the global size in double = nglob * nf
+            const int modulo = (_nloc[id] * _nf * sizeof(double)) % _alignment;
+            // compute the number of points to add (in double indexing)
+            const int delta = (_alignment - modulo) / sizeof(double);
+            _nmem[id] += (modulo == 0) ? 0 : delta / _nf;
         }
     }
     END_FUNC;
@@ -182,7 +165,7 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
         // for the input configuration
         for (int i = 0; i < _nloc[id]; ++i) {
             // get the global id in the other topology
-            int oid_global = _rankd[id] * _nbyproc[id] + i + shift[id];
+            int oid_global = cmpt_start_id(id) + i + shift[id];
             if (oid_global <= 0) start[id] = i;
             if (oid_global < onglob) end[id] = i + 1;
         }
@@ -209,7 +192,7 @@ void Topology::disp() const {
     FLUPS_INFO(" - nmem = %d %d %d", _nmem[0], _nmem[1], _nmem[2]);
     FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
     FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
-    FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
+    // FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
     FLUPS_INFO(" - axproc = %d %d %d", _axproc[0], _axproc[1], _axproc[2]);
     FLUPS_INFO(" - isComplex = %d", _nf == 2);
     // FLUPS_INFO(" - h = %f %f %f",_h[0],_h[1],_h[2]);

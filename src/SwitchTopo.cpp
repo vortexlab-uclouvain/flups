@@ -164,12 +164,13 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
         // determine the dest rank for each dimension
         for (int id = 0; id < 3; id++) {
             // get the global starting index in my current topo = topo_in
-            global_id[id] = bidv[id] * nByBlock[id] + topo_in->nbyproc(id) * topo_in->rankd(id) + istart[id];
+            global_id[id] = bidv[id] * nByBlock[id] + topo_in->cmpt_start_id(id) + istart[id];
             // the (0,0,0) in topo in is located in shift in topo_out
-            FLUPS_INFO_4("block %d starts at %d / %d ",ib,(global_id[id] + shift[id]),topo_out->nbyproc(id));
-            destrankd[id] = (global_id[id] + shift[id]) / topo_out->nbyproc(id);
+            FLUPS_INFO_4("block %d starts at %d ",ib,(global_id[id] + shift[id]));
+            // destrankd[id] = (global_id[id] + shift[id]) / topo_out->nbyproc(id);
+            destrankd[id] = topo_out->cmpt_rank_fromid(global_id[id] + shift[id],id);
             // if the last proc has more data than the other ones, we need to max the destrank
-            destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
+            // destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
         }
         destRank[ib] = rankindex(destrankd, topo_out);
         
