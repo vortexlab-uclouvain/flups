@@ -1,7 +1,6 @@
 #!/bin/bash
 # Submission script for Marenostrum
 #SBATCH --job-name=scaling
-#SBATCH --time=00:10:00
 #
 #SBATCH --output=flups_%j.out
 #SBATCH --error=flups_%j.err
