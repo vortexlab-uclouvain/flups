@@ -259,7 +259,8 @@ void SwitchTopo_a2a::setup() {
     int compIn, compOut;
     MPI_Comm_compare(inComm, _inComm, &compIn);
     MPI_Comm_compare(outComm, _outComm, &compOut);
-    if( compIn != MPI_IDENT || compOut != MPI_IDENT){
+    //if the graph communicator has the same numbering as the old commn we will skip the following
+    if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
             FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
         }
