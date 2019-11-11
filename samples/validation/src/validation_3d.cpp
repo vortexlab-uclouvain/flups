@@ -407,7 +407,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
             fclose(myfile);
         } else {
-            // FLUPS_CHECK(false, "unable to open file %s", filename, LOCATION);
+            printf("unable to open file %s ! Here is what I would have written:", filename);
+            printf("%d %12.12e %12.12e\n", nglob[0], err2, erri);
         }
     }
 
