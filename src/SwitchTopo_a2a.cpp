@@ -294,6 +294,29 @@ void SwitchTopo_a2a::setup() {
         _is_all2all = _is_all2all && (tmp_size == _o2i_count[ir]);
     }
 
+    //-------------------------------------------------------------------------
+    /** - Check that everybody is in the same communication mode*/
+    //-------------------------------------------------------------------------
+    // determine if every proc is in the all_to_all mode
+    bool global_is_alltoall;
+    MPI_Allreduce(&_is_all2all, &global_is_alltoall, 1, MPI_CXX_BOOL, MPI_LAND, _subcomm);
+    // determine if at least one proc is in the all to all mode
+    bool any_is_alltoall;
+    MPI_Allreduce(&_is_all2all,&any_is_alltoall,1,MPI_CXX_BOOL,MPI_LOR,_subcomm);
+    // generate an error if it is not compatible
+    if (_is_all2all && (!global_is_alltoall)){
+        int rlen;
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_ERROR("communicator %s: at least one process is NOT in the all to all communication scheme",myname,LOCATION);
+    }
+    if((!_is_all2all) && any_is_alltoall){
+        int rlen;
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_ERROR("communicator %s: at least one process is in the all to all communication scheme",myname,LOCATION);
+    }
+    
     // if we are all to all, clean the start array
     if (_is_all2all) {
         if (_i2o_start != NULL) {
