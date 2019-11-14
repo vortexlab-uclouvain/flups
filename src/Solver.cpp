@@ -215,32 +215,30 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
 #ifndef HAVE_METIS
-    MPI_Dist_graph_create_adjacent(_topo_phys->get_comm(), worldsize, sources, sourcesW, \
-                                                    worldsize, dests, destsW, \
-                                                    MPI_INFO_NULL, 1, &graph_comm);
-    
-    #if defined(VERBOSE) && VERBOSE==2
+    MPI_Dist_graph_create_adjacent(_topo_phys->get_comm(), worldsize, sources, sourcesW,
+                                   worldsize, dests, destsW,
+                                   MPI_INFO_NULL, 1, &graph_comm);
+
+#if defined(VERBOSE) && VERBOSE == 2
     int inD, outD, wei;
     MPI_Dist_graph_neighbors_count(graph_comm, &inD, &outD, &wei);
-    printf("[FGRAPH] inD:%d outD:%d wei:%d\n",inD,outD,wei);
+    printf("[FGRAPH] inD:%d outD:%d wei:%d\n", inD, outD, wei);
 
-    int* Sour = (int*) malloc(sizeof(int)*inD);
-    int* SourW = (int*) malloc(sizeof(int)*inD);
-    int* Dest = (int*) malloc(sizeof(int)*outD);
-    int* DestW = (int*) malloc(sizeof(int)*outD);
+    int *Sour  = (int *)malloc(sizeof(int) * inD);
+    int *SourW = (int *)malloc(sizeof(int) * inD);
+    int *Dest  = (int *)malloc(sizeof(int) * outD);
+    int *DestW = (int *)malloc(sizeof(int) * outD);
 
-    MPI_Dist_graph_neighbors(graph_comm, inD,  Sour,      SourW,
-                                        outD, Dest,      DestW);
+    MPI_Dist_graph_neighbors(graph_comm, inD, Sour, SourW,
+                             outD, Dest, DestW);
 
     printf("[FGRAPH] INedges: ");
-    for (int i=0; i<inD; i++)
-    {
-        printf("%d (%d), ",Sour[i],SourW[i]);
+    for (int i = 0; i < inD; i++) {
+        printf("%d (%d), ", Sour[i], SourW[i]);
     }
     printf("\n[FGRAPH] OUTedges: ");
-    for (int i=0; i<outD; i++)
-    {
-        printf("%d (%d), ",Dest[i],DestW[i]);
+    for (int i = 0; i < outD; i++) {
+        printf("%d (%d), ", Dest[i], DestW[i]);
     }
     printf("\n");
 
@@ -248,7 +246,7 @@ double* Solver::setup(const bool changeTopoComm) {
     free(SourW);
     free(Dest);
     free(DestW);
-    #endif
+#endif
 
     //-------------------------------------------------------------------------
     /** - if asked by the user, we overwrite the graph comm by a forced version (for test purpose) */
@@ -298,7 +296,7 @@ double* Solver::setup(const bool changeTopoComm) {
     MPI_Group_incl(group_in, worldsize, order, &group_out);           //manually reorder the ranks
     MPI_Comm_create(_topo_phys->get_comm(), group_out, &graph_comm);  // create the new comm
     flups_free(order);
-#endif
+#endif // METIS
 
     flups_free(sources);
     flups_free(sourcesW);
@@ -1152,8 +1150,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     do_mult(mydata, type);
 
-    if (_prof != NULL) _prof->stop("domagic");
-
 #ifdef DUMP_DBG
     // io if needed
     hdf5_dump(_topo_hat[2], "sol_h", mydata);
@@ -1353,6 +1349,7 @@ void Solver::do_mult(double *data, const SolverType type){
 
         //dothemagic...
     }
+    if (_prof != NULL) _prof->stop("domagic");
     END_FUNC;
 }
 

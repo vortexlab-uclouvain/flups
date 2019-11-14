@@ -194,6 +194,7 @@ class Solver {
      * 
      * @param kfact  multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
      * @param koffset  add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+     * @param symstart  returns the first index of the symmetry
      */
     void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
         for (int ip = 0; ip < 3; ip++) {

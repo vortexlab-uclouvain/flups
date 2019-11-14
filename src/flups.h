@@ -42,7 +42,7 @@ extern "C" {
 
 //=============================================================================
 /**
- * @name Common definitions
+ * @name STRUCTURES AND DEFINITIONS
  * @{
  */
 //=============================================================================
@@ -83,19 +83,19 @@ enum FLUPS_SolverType {
 };
 
 /**
- * @brief to be used as "sign" for all of the FORARD tranform
+ * @brief to be used as "sign" for all of the FORWARD tranform
  * 
  */
-#define FLUPS_FORWARD -1  // = FFTW_FORWARD
+#define FLUPS_FORWARD -1  // equivalent to FFTW_FORWARD
 
 /**
  * @brief to be used as "sign" for all of the BACKWARD tranform
  * 
  */
-#define FLUPS_BACKWARD 1  // = FFTW_BACKWARD
+#define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
 
 /**
- * @brief Memory alignment constant in bytes.
+ * @brief Memory alignment in bytes.
  * 
  */
 #define FLUPS_ALIGNMENT 16
@@ -129,11 +129,13 @@ typedef enum FLUPS_SolverType   FLUPS_SolverType;
  * 
  * @param size the data to be allocated
  */
-void * flups_malloc(size_t size);
+void* flups_malloc(size_t size);
 
 /**
  * 
  * @brief Free the memory allocated with flups_malloc
+ * 
+ * @warning You must free the memory allocate using flups_malloc using this function.
  * 
  * @param data the data to be freed
  */
@@ -143,19 +145,26 @@ void flups_free(void* data);
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory.
  * The returned value is in the axtrg-indexing
  * 
- * For example if going through a topology following the standard indexing:
+ * For example if going through a complex topology following the standard indexing:
  * @code{.cpp}
- *  const int ax0     = flups_topo_get_axis(topo);
+    // the topology is complex
+    const int nf = 2;
+    // get the topology indexing
+    const int ax0     = flups_topo_get_axis(topo);
+    // the memory size is given in the 012 order
     const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
     for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
             for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
-                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, 1);
- *                  
- *              data[id] = ...;
- *          }
- *      }
- *  }
+                // the i0, i1 and i2 are given in a 0-indexing
+                // the id is aimed for an array in the ax0-indexing
+                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, nf);
+                    
+                data[id+0] = ...;
+                data[id+1] = ...;
+            }
+        }
+    }
  * @endcode
  * 
  * @param axsrc the FRI, reference axis aligned with index i0
@@ -163,7 +172,7 @@ void flups_free(void* data);
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
- * @param size the size of the memory (012-indexing)
+ * @param size the size of the memory (given in the 012-order)
  * @param nf the number of unknows in one element
  * @return size_t 
  */
@@ -179,16 +188,17 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
 }
 
 /**
- * @brief compute the local k-index in spectral coordinates for a point (i0,i1,i2) in axsrc-indexing.
+ * @brief compute them symmetrized local index for a point (i0,i1,i2) in axsrc-indexing in an extended topology (e.g. spectral topologies).
  * The returned value is in the axtrg-indexing.
  * 
- * For example if going through a topology following the standard indexing:
+ * For example if going through a complex topology following the standard indexing, one can get the spectral indexing:
  * @code{.cpp}
- *  const int ax0     = flups_topo_get_axis(topoSpec);
+    const int ax0     = flups_topo_get_axis(topoSpec);
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
     const int nf      = 2; //topo is complex
     
+    // get the memory size of the spectral array
     int nmemSpec[3];
     for(int i=0;i<3;i++){
         nmemSpec[i] = flups_topo_get_nmem(topoSpec,i);
@@ -200,6 +210,7 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
             const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
             for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
                 int is[3];
+                // get the symmetrized ID
                 flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
 
                 // the (symmetrized) wave numbers:
@@ -218,8 +229,8 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
- * @param istart start index of the local block (as provided by @flups_get_istartGlob)
- * @param symstart indexes where the symmetry starts (as provided by @flups_get_spectralInfo)
+ * @param istart start index of the local block (as provided by @ref flups_get_istartGlob)
+ * @param symstart indexes where the symmetry starts, i.e. the first index which is symmetrized (as provided by @ref flups_get_spectralInfo)
  * @param axtrg the FRI of the target topology, i.e. the way the memory is aligned in the current topology
  * @param is the spectral index
  */
@@ -248,7 +259,11 @@ static inline void flups_symID(const int axsrc, const int i0, const int i1, cons
 //=============================================================================
 
 /**
- * @brief Create and returns a topology.
+ * @brief Creates and returns a topology.
+ * 
+ * @warning Once specified, the fastest rotating inde defines the memory layout.
+ * We assume fortran memory layout, i.e. if the FRI is 2, the next dimension is 0 and the last one is 1.
+ * This is opposed to the C indexing: when the FRI is 2, the next dimension is 1 and the last one is 0.
  * 
  * @param axis The direction which is aligned with the fastest rotating index
  * @param nglob The global number of points in each direction of the domain
@@ -292,7 +307,10 @@ int  flups_topo_get_axis(const FLUPS_Topology* t);
  */
 int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
 /**
- * @brief Determines the local number of points in the domain (on this process) in a given direction
+ * @brief Determines the local number of points in the domain (on this rank) in a given direction
+ * 
+ * @warning due to some memory padding to ensure memory alignement for the FFTs, @ref flups_topo_get_nloc may
+ * not return the same result as @ref flups_topo_get_nmem
  * 
  * @param t 
  * @param dim 
@@ -300,7 +318,10 @@ int  flups_topo_get_nglob(const FLUPS_Topology* t, const int dim);
  */
 int  flups_topo_get_nloc(const FLUPS_Topology* t, const int dim);
 /**
- * @brief Determines the local memory usage per direction
+ * @brief Determines the local memory size per direction
+ * 
+ * @warning due to some memory padding to ensure memory alignement for the FFTs, @ref flups_topo_get_nloc may
+ * not return the same result as @ref flups_topo_get_nmem
  * 
  * @param t 
  * @param dim 
@@ -324,21 +345,21 @@ int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
 void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
- * @brief returns the local size of on this proc
+ * @brief returns the local size of on this rank, i.e. the number of unknowns in this rank
  * 
  * @return long 
  */
 size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 
 /**
- * @brief returns the memory size of on this proc
+ * @brief returns the memory size of on this proc, i.e. the number of bytes in this proc, including padded memory
  * 
  * @return long 
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
 /**
- * @brief returns the communicator of the topology
+ * @brief returns the MPI-communicator of the topology
  * 
  * @param t the Topology of interest
  * @param comm the communicator
@@ -364,21 +385,22 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  */
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
 /**
- * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF)
+ * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
 
 /**
- * @brief must be called before execution terminates
+ * @brief must be called before execution terminates as it frees the memory used by the solver
  * 
  * @param s 
  */
 void flups_cleanup(FLUPS_Solver* s);
 
 /**
- * @brief 
+ * @brief sets the type of the Green's function used by the solver
+ * 
  * @warning must be done before @ref flups_setup
  * 
  * @param s 
@@ -387,14 +409,14 @@ void flups_cleanup(FLUPS_Solver* s);
 void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
 
 /**
- * @brief setup the solver
+ * @brief setup the solver and do the memory allocation
  * 
- * @warning after this call the solver cannot change anymore!
+ * @warning after this call the solver cannot been change anymore!
  * 
  * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
  * 
  * @param s 
- * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only if compiled with RORDER_RANKS)
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only valid if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);
@@ -425,23 +447,80 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  */
 
 /**
- * @brief get the total amount of memory allocated by FLUPS
+ * @brief get the maximun amount of memory required by FLUPS
  * 
  * @param s 
  * @return size_t 
  */
 size_t flups_get_allocSize(FLUPS_Solver* s);
 
+/**
+ * @brief get information required to compute the spectral mode associated with each spectral field entry
+ * 
+ * The spectral mode in direction i is given by (index[i] + koffset[i])*kfact[i]
+ * 
+ * @param s the FLUPS solver
+ * @param kfact returns the multiplication factor to used to get 
+ * @param koffset returns the spectral offeset given the type of boundary condition used
+ * @param symstart the first point which is symmetrized, to use with @ref flups_symID
+ */
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
+/**
+ * @brief while using Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * 
+ * @param s 
+ * @param alpha 
+ */
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
+
+/**
+ * @brief sets the order of derivative while using divergence or rotational formulation
+ * 
+ * @param s 
+ * @param order 
+ */
 void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
+/**
+ * @brief returns the physical topology, i.e. the one used for rhs and solution
+ * 
+ * @param s 
+ * @return const FLUPS_Topology* 
+ */
 const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s);
+/**
+ * @brief returns the spectral topology, i.e. the one which is fully spectral
+ * 
+ * @param s 
+ * @return const FLUPS_Topology* 
+ */
 const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
 
+/**
+ * @brief do the copy from the data provided by the user to FLUPS owned data arrays
+ * 
+ * @param s 
+ * @param topo 
+ * @param data 
+ * @param sign 
+ */
 void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign);
+/**
+ * @brief compute the FFT, go from the physical space to the spectral one
+ * 
+ * @param s 
+ * @param data 
+ * @param sign 
+ */
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
+/**
+ * @brief compute the multiplication between the Green's function and the field
+ * 
+ * @param s 
+ * @param data 
+ * @param type 
+ */
 void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**@} */
@@ -453,10 +532,37 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
  * @{
  */
 
+/**
+ * @brief create a timer using the default name "default".
+ * 
+ * @return FLUPS_Profiler* 
+ */
 FLUPS_Profiler* flups_profiler_new();
+/**
+ * @brief create a timer with a name "name"
+ * 
+ * @param name 
+ * @return FLUPS_Profiler* 
+ */
 FLUPS_Profiler* flups_profiler_new_n(const char name[]);
+/**
+ * @brief free the profiler created
+ * 
+ * @param p 
+ */
 void            flups_profiler_free(FLUPS_Profiler* p);
+/**
+ * @brief display the profiler using the "root" as a reference
+ * 
+ * @param p 
+ */
 void            flups_profiler_disp_root(FLUPS_Profiler* p);
+/**
+ * @brief display the profiler using "name" as reference
+ * 
+ * @param p 
+ * @param name 
+ */
 void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 
 /**@} */
