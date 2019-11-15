@@ -42,7 +42,12 @@
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
  */
-typedef double (*GreenKernel)(const void* );
+typedef double (*GreenKernel)(const void*);
+/**
+ * @brief generic type for unbounded Green kernel, alike the @ref GreenKernel but with an additional data array for the LGF case
+ * 
+ */
+typedef double (*GreenKernel_unb)(const void*,const double*);
 
 
 /**
@@ -52,26 +57,91 @@ typedef double (*GreenKernel)(const void* );
  */
 // ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 //notice that these function will likely not be inlined as we have a pointer to them...
-static inline double _hej_2_3unb0spe(const void* params) {
+static inline double _hej_2_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     return c_1o4pi / r * (erf(r / eps * c_1osqrt2));
 }
-static inline double _hej_4_3unb0spe(const void* params) {
+static inline double _hej_4_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (rho)*exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_6_3unb0spe(const void* params) {
+static inline double _hej_6_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _chat_2_3unb0spe(const void* params) {
+static inline double _chat_2_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     return c_1o4pi / r ;
+}
+static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
+    int  ix    =(int) ((double*) params)[2];
+    int  iy    =(int) ((double*) params)[3];
+    int  iz    =(int) ((double*) params)[4];
+    int  N     =(int) ((double*) params)[5];
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (ix < N && iy < N && iz < N) {
+        green = data[ix + iy * N + iz * N * N];
+
+    } else {  // if not, we use the extrapolation
+        const double rho      = sqrt(ix * ix + iy * iy + iz * iz);
+        const double n_pos[3] = {ix, iy, iz};
+        green = c_1o4pi / rho \
+                 +(std::pow(n_pos[0],4.0) + std::pow(n_pos[1],4.0) + std::pow(n_pos[2],4.0) \
+                   -3.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0)   \
+                   -3.0  * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0)   \
+                   -3.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[2],2.0)) / \
+                   (16.0  * M_PI * std::pow(rho,7.0))  \
+                +(  23.0  * std::pow(n_pos[0],8.0)   \
+                   +23.0  * std::pow(n_pos[1],8.0)   \
+                   +23.0  * std::pow(n_pos[2],8.0)   \
+                   -244.0  * std::pow(n_pos[0],6.0) * (std::pow(n_pos[1],2.0) + std::pow(n_pos[2],2.0))   \
+                   -244.0  * std::pow(n_pos[1],6.0) * (std::pow(n_pos[0],2.0) + std::pow(n_pos[2],2.0))   \
+                   -244.0  * std::pow(n_pos[2],6.0) * (std::pow(n_pos[0],2.0) + std::pow(n_pos[1],2.0))   \
+                   -228.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0) * std::pow(rho,2.0)   \
+                   +621.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],4.0)   \
+                   +621.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[2],4.0)   \
+                   +621.0  * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],4.0)) / \
+                   (128.0  * M_PI * std::pow(rho,13.0)) \
+                +(  2588.0  * std::pow(n_pos[0],12.0)   \
+                   +2588.0  * std::pow(n_pos[1],12.0)   \
+                   +2588.0  * std::pow(n_pos[2],12.0)   \
+                   -65676.0  * std::pow(n_pos[0],10.0) * std::pow(n_pos[1],2.0)   \
+                   -65676.0  * std::pow(n_pos[0],10.0) * std::pow(n_pos[2],2.0)   \
+                   -65676.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],10.0)   \
+                   -65676.0  * std::pow(n_pos[1],10.0) * std::pow(n_pos[2],2.0)   \
+                   -65676.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[2],10.0)   \
+                   -65676.0  * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],10.0)   \
+                   +426144.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[1],4.0)   \
+                   +426144.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],8.0)   \
+                   +426144.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[2],4.0)   \
+                   +426144.0  * std::pow(n_pos[1],8.0) * std::pow(n_pos[2],4.0)   \
+                   +426144.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[2],8.0)   \
+                   +426144.0  * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],8.0)   \
+                   -712884.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],6.0)   \
+                   -712884.0  * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],6.0)   \
+                   -712884.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[2],6.0)   \
+                   -62892.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0)   \
+                   -62892.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],8.0) * std::pow(n_pos[2],2.0)   \
+                   -62892.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],8.0)   \
+                   -297876.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],2.0)   \
+                   -297876.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],2.0)   \
+                   -297876.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],6.0)   \
+                   -297876.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],6.0)   \
+                   -297876.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],4.0)   \
+                   -297876.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],4.0)   \
+                   +2507340.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],4.0)   ) / \
+                   (2048.0  * M_PI * std::pow(rho,19.0));        
+    }
+
+    //  FLUPS_INFO_1("[DEBUG] Sanity Check: G(%d,%d,%d) = %.12f",ix,iy,iz,green);
+    return green;
 }
 
 /**
@@ -96,7 +166,9 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
     double      G0;  //value of G in 0
-    GreenKernel G;
+    GreenKernel_unb G;
+    int GN = 0;
+    double* Gdata = NULL;
 
     switch (typeGreen) {
         case HEJ_2:
@@ -116,8 +188,11 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
             G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
-            //please add the parameters you need to params
+            // read the LGF data and store it
+            _lgf_readfile(&GN,&Gdata);
+            // associate the Green's function
+            G  = &_lgf_2_3unb0spe;
+            G0 = Gdata[0];
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -149,8 +224,9 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
 
-                const double tmp[2] = {r, eps};
-                green[id + i0 * nf] = -G(tmp);
+                // the first two arguments are used in standard kernels and the others 5 ones are aimed for LGFs only
+                const double tmp[6] = {r, eps, is[ax0], is[ax1], is[ax2],GN};
+                green[id + i0 * nf] = -G(tmp,Gdata);
             }
         }
     }
@@ -158,6 +234,11 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         green[0] = -G0;
     }
+    // free Gdata if needed
+    if (Gdata != NULL) {
+        flups_free(Gdata);
+    }
+
     END_FUNC;
 }
 /**@} */

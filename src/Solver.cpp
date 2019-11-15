@@ -1166,7 +1166,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
 #ifdef DUMP_DBG
     // io if needed
-    hdf5_dump(_topo_phys, "sol", myfield);
+    hdf5_dump(_topo_phys, "sol", field);
 #endif
     // stop the whole timer
     if (_prof != NULL) _prof->stop("solve");
