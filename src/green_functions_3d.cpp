@@ -79,10 +79,11 @@ static inline double _chat_2_3unb0spe(const void* params,const double* data) {
     return c_1o4pi / r ;
 }
 static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
-    int  ix    =(int) ((double*) params)[2];
-    int  iy    =(int) ((double*) params)[3];
-    int  iz    =(int) ((double*) params)[4];
-    int  N     =(int) ((double*) params)[5];
+    int    ix = (int)((double*)params)[2];
+    int    iy = (int)((double*)params)[3];
+    int    iz = (int)((double*)params)[4];
+    int    N  = (int)((double*)params)[5];
+    double h  = ((double*)params)[6];
 
     // if the point is close enough, it will be already precomputed
     double green;
@@ -90,58 +91,40 @@ static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
         green = data[ix + iy * N + iz * N * N];
 
     } else {  // if not, we use the extrapolation
-        const double rho      = sqrt(ix * ix + iy * iy + iz * iz);
-        const double n_pos[3] = {ix, iy, iz};
-        green = c_1o4pi / rho \
-                 +(std::pow(n_pos[0],4.0) + std::pow(n_pos[1],4.0) + std::pow(n_pos[2],4.0) \
-                   -3.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0)   \
-                   -3.0  * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0)   \
-                   -3.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[2],2.0)) / \
-                   (16.0  * M_PI * std::pow(rho,7.0))  \
-                +(  23.0  * std::pow(n_pos[0],8.0)   \
-                   +23.0  * std::pow(n_pos[1],8.0)   \
-                   +23.0  * std::pow(n_pos[2],8.0)   \
-                   -244.0  * std::pow(n_pos[0],6.0) * (std::pow(n_pos[1],2.0) + std::pow(n_pos[2],2.0))   \
-                   -244.0  * std::pow(n_pos[1],6.0) * (std::pow(n_pos[0],2.0) + std::pow(n_pos[2],2.0))   \
-                   -244.0  * std::pow(n_pos[2],6.0) * (std::pow(n_pos[0],2.0) + std::pow(n_pos[1],2.0))   \
-                   -228.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0) * std::pow(rho,2.0)   \
-                   +621.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],4.0)   \
-                   +621.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[2],4.0)   \
-                   +621.0  * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],4.0)) / \
-                   (128.0  * M_PI * std::pow(rho,13.0)) \
-                +(  2588.0  * std::pow(n_pos[0],12.0)   \
-                   +2588.0  * std::pow(n_pos[1],12.0)   \
-                   +2588.0  * std::pow(n_pos[2],12.0)   \
-                   -65676.0  * std::pow(n_pos[0],10.0) * std::pow(n_pos[1],2.0)   \
-                   -65676.0  * std::pow(n_pos[0],10.0) * std::pow(n_pos[2],2.0)   \
-                   -65676.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],10.0)   \
-                   -65676.0  * std::pow(n_pos[1],10.0) * std::pow(n_pos[2],2.0)   \
-                   -65676.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[2],10.0)   \
-                   -65676.0  * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],10.0)   \
-                   +426144.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[1],4.0)   \
-                   +426144.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],8.0)   \
-                   +426144.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[2],4.0)   \
-                   +426144.0  * std::pow(n_pos[1],8.0) * std::pow(n_pos[2],4.0)   \
-                   +426144.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[2],8.0)   \
-                   +426144.0  * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],8.0)   \
-                   -712884.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],6.0)   \
-                   -712884.0  * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],6.0)   \
-                   -712884.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[2],6.0)   \
-                   -62892.0  * std::pow(n_pos[0],8.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],2.0)   \
-                   -62892.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],8.0) * std::pow(n_pos[2],2.0)   \
-                   -62892.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],8.0)   \
-                   -297876.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],2.0)   \
-                   -297876.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],2.0)   \
-                   -297876.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],6.0)   \
-                   -297876.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],6.0)   \
-                   -297876.0  * std::pow(n_pos[0],6.0) * std::pow(n_pos[1],2.0) * std::pow(n_pos[2],4.0)   \
-                   -297876.0  * std::pow(n_pos[0],2.0) * std::pow(n_pos[1],6.0) * std::pow(n_pos[2],4.0)   \
-                   +2507340.0  * std::pow(n_pos[0],4.0) * std::pow(n_pos[1],4.0) * std::pow(n_pos[2],4.0)   ) / \
-                   (2048.0  * M_PI * std::pow(rho,19.0));        
-    }
+        const double rho   = sqrt(ix * ix + iy * iy + iz * iz);
+        const double rho_2 = rho * rho;
+        const double rho_3 = rho * rho * rho;
+        const double rho_4 = rho * rho * rho * rho;
+        // const double n_pos[3] = {ix, iy, iz};
+        // const double ix_1     = ix;
+        const double ix_2     = std::pow(ix, 2.0);
+        const double ix_4     = std::pow(ix, 4.0);
+        const double ix_6     = std::pow(ix, 6.0);
+        const double ix_8     = std::pow(ix, 8.0);
+        const double ix_10    = std::pow(ix, 10.0);
+        const double ix_12    = std::pow(ix, 12.0);
+        // const double iy_1     = iy;
+        const double iy_2     = std::pow(iy, 2.0);
+        const double iy_4     = std::pow(iy, 4.0);
+        const double iy_6     = std::pow(iy, 6.0);
+        const double iy_8     = std::pow(iy, 8.0);
+        const double iy_10    = std::pow(iy, 10.0);
+        const double iy_12    = std::pow(iy, 12.0);
+        // const double iz_1     = iz;
+        const double iz_2     = std::pow(iz, 2.0);
+        const double iz_4     = std::pow(iz, 4.0);
+        const double iz_6     = std::pow(iz, 6.0);
+        const double iz_8     = std::pow(iz, 8.0);
+        const double iz_10    = std::pow(iz, 10.0);
+        const double iz_12    = std::pow(iz, 12.0);
 
-    //  FLUPS_INFO_1("[DEBUG] Sanity Check: G(%d,%d,%d) = %.12f",ix,iy,iz,green);
-    return green;
+        green = c_1o4pi / rho \
+            + (ix_4 + iy_4 + iz_4 - 3.0 * (ix_2 * iy_2 + iy_2 * iz_2 + ix_2 * iz_2)) / (16.0 * M_PI * rho_4 * rho_3) \
+            + (23.0 * (ix_8 + iy_8 + iz_8) - 244.0 * (ix_6 * (iy_2 + iz_2) + iy_6 * (ix_2 + iz_2) + iz_6 * (ix_2 + iy_2)) - 228.0 * ix_2 * iy_2 * iz_2 * rho_2 + 621.0 * (ix_4 * iy_4 + ix_4 * iz_4 + iy_4 * iz_4)) / (128.0 * M_PI * rho_4 * rho_4 * rho_3 * rho_2) \
+            + (2588.0 * (ix_12 + iy_12 + iz_12) - 65676.0 * (ix_10 * iy_2 + ix_10 * iz_2 + ix_2 * iy_10 + iy_10 * iz_2 + ix_2 * iz_10 + iy_2 * iz_10) + 426144.0 * (ix_8 * iy_4 + ix_4 * iy_8 + ix_8 * iz_4 + iy_8 * iz_4 + ix_4 * iz_8 + iy_4 * iz_8) - 712884.0 * (ix_6 * iy_6 + iy_6 * iz_6 + ix_6 * iz_6) - 62892.0 * (ix_8 * iy_2 * iz_2 + ix_2 * iy_8 * iz_2 + ix_2 * iy_2 * iz_8) - 297876.0 * (ix_6 * iy_4 * iz_2 + ix_4 * iy_6 * iz_2 + ix_4 * iy_2 * iz_6 + ix_2 * iy_4 * iz_6 + ix_6 * iy_2 * iz_4 + ix_2 * iy_6 * iz_4) + 2507340.0 * ix_4 * iy_4 * iz_4) / (2048.0 * M_PI * std::pow(rho, 19.0));
+    }
+    
+    return green/(h);
 }
 
 /**
@@ -188,6 +171,8 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
             G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
+            FLUPS_CHECK(hfact[0] == hfact[1],"the grid has to be isotropic to use the LGFs",LOCATION);
+            FLUPS_CHECK(hfact[1] == hfact[2],"the grid has to be isotropic to use the LGFs",LOCATION);
             // read the LGF data and store it
             _lgf_readfile(&GN,&Gdata);
             // associate the Green's function
@@ -225,7 +210,7 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
                 const double r  = sqrt(r2);
 
                 // the first two arguments are used in standard kernels and the others 5 ones are aimed for LGFs only
-                const double tmp[6] = {r, eps, is[ax0], is[ax1], is[ax2],GN};
+                const double tmp[7] = {r, eps, is[ax0], is[ax1], is[ax2],GN,hfact[ax0]};
                 green[id + i0 * nf] = -G(tmp,Gdata);
             }
         }
