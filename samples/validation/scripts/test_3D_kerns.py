@@ -10,7 +10,7 @@ BCs = [ ["4","4","4","4","4","4"],
         ["4","0","1","4","4","4"],
         ["4","0","1","4","4","1"]]
 
-Kernels = ['0','2','3','4']
+Kernels = ['0','1','2','3','4']
 
 #Running all combinations of bcs and all kernels
 n_success = 0
@@ -27,31 +27,32 @@ for bcs in BCs :
 
         code = ''.join(bcs)
 
-        # Launching test
-        #+ ["-oversubscribe"]
-        r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
-        
-        if r.returncode != 0 :
-            print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
-            print("=================================== STDOUT =============================================" )
-            print(r.stdout.decode())
-            print("=================================== STDERR =============================================" )
-            print(r.stderr.decode())
-            n_failure += 1
-            print("=================================== ====== =============================================\n" )
-            continue
+        # if kernel = LGF, we only do the unbounded, if not, we do everything
+        if ((kern == 1 and bcs==["4","4","4","4","4","4"]) or (kern != 1) ):
+            # Launching test
+            #+ ["-oversubscribe"]
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+            
+            if r.returncode != 0 :
+                print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
+                print("=================================== STDOUT =============================================" )
+                print(r.stdout.decode())
+                print("=================================== STDERR =============================================" )
+                print(r.stderr.decode())
+                n_failure += 1
+                print("=================================== ====== =============================================\n" )
+                continue
 
-        #Checking for exactness of results
-        n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen='+ kern +'.txt')
+            #Checking for exactness of results
+            n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen='+ kern +'.txt')
 
-        if n_mistake==0:
-            print("test %i (BCs : "%i + code + " and k="+ kern+ ") succeed")
-            n_success += 1    
-        else:
-            print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
-            print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n")
-            n_failure += 1
-
+            if n_mistake==0:
+                print("test %i (BCs : "%i + code + " and k="+ kern+ ") succeed")
+                n_success += 1    
+            else:
+                print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
+                print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n")
+                n_failure += 1
 
 print("%i test succeed out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)
