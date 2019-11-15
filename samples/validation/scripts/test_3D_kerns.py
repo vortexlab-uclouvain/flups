@@ -28,7 +28,7 @@ for bcs in BCs :
         code = ''.join(bcs)
 
         # if kernel = LGF, we only do the unbounded, if not, we do everything
-        if ((kern == 1 and bcs==["4","4","4","4","4","4"]) or (kern != 1) ):
+        if ((kern=='1' and bcs==["4","4","4","4","4","4"]) or (kern != '1') ):
             # Launching test
             #+ ["-oversubscribe"]
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
@@ -53,6 +53,8 @@ for bcs in BCs :
                 print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
                 print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n")
                 n_failure += 1
+        else:
+            print("test %i (BCs : "%i + code + " and k="+ kern+ ") does not apply")
 
 print("%i test succeed out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)
