@@ -444,7 +444,7 @@ void Profiler::disp(const std::string ref) {
             _timeMap["root"]->writeParentality(file,0);
             fclose(file);
         } else {
-            printf("unable to open file %s !", filename);
+            printf("unable to open file %s !", filename.c_str());
         }
     }
     
