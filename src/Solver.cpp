@@ -892,33 +892,48 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         }
     }
 
-    // count the number of spectral dimensions
+    // count the number of spectral dimensions and the green dimension
     int nbr_spectral = 0;
+    int green_dim = 3;
     for (int id = 0; id < 3; id++) {
         if (isSpectral[id]) {
             nbr_spectral++;
+        }
+        if(planmap[id]->type() == EMPTY){
+            green_dim--;
         }
     }
 
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
-    if (GREEN_DIM == 3) {
+    if (green_dim == 3) {
         if (nbr_spectral == 0) {
-            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded",_typeGreen);
+            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
             cmpt_Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 1) {
-            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral",_typeGreen);
+            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral", _typeGreen);
             cmpt_Green_3D_2dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 2) {
-            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral",_typeGreen);
+            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral", _typeGreen);
             cmpt_Green_3D_1dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
         } else if (nbr_spectral == 3) {
-            FLUPS_INFO(">> using Green function of type %d on 3 dir spectral",_typeGreen);        
+            FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
             cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
         }
+    } else if (green_dim == 2) {
+        if (nbr_spectral == 0) {
+            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
+            cmpt_Green_2D_2dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, epsilon);
+        } else if (nbr_spectral == 1) {
+            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral", _typeGreen);
+            cmpt_Green_2D_1dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        } else if (nbr_spectral == 2) {
+            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral", _typeGreen);
+            cmpt_Green_2D_0dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        }
     } else {
-        FLUPS_ERROR("Sorry, the Green's function for 2D problems are not provided in this version.", LOCATION);
+        FLUPS_ERROR("Sorry, the Green's function for 1D problems are not provided in this version.", LOCATION);
     }
 
     // dump the green func
@@ -960,7 +975,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
      *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
-    if (GREEN_DIM == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+    if (green_dim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
         int istart_cstm[3] = {0, 0, 0};  //global
 
         for (int ip = 0; ip < 3; ip++) {

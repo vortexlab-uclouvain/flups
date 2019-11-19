@@ -1,11 +1,15 @@
 /**
- * @file green_functions_3d.hpp
+ * @file green_functions_2d.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
+ * @brief Green functions for 2D Poisson problems
+ * @version
+ * @date 2019-11-18
+ * 
  * @copyright Copyright © UCLouvain 2019
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
  * 
@@ -33,11 +37,11 @@
 #define ZSTR(a) #a
 
 
-void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]);
+void cmpt_Green_2D_2dirunbounded_0dirspectral(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double eps);
+void cmpt_Green_2D_1dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
+void cmpt_Green_2D_0dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
+// void cmpt_Green_2D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
+// void cmpt_Green_2D_0dirunbounded_3dirspectral(const Topology *topo,                        const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]);
 
 /**
  * @brief read the LGF file in the KERNEL_PATH folder
@@ -51,7 +55,7 @@ static void _lgf_readfile(int* N, double** data) {
     // open the file
     char lgfname[512];
     char path[] = STR(KERNEL_PATH);
-    sprintf(lgfname, "%s/LGF_3d_sym_acc12_64.ker",path);
+    sprintf(lgfname, "%s/LGF_sym_acc12_64.ker",path);
     FILE *lgf_file = fopen(lgfname, "r");
     // display the information to the user
     FLUPS_INFO_1("loading the LGF kernel function %s", lgfname);

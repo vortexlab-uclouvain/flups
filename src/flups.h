@@ -56,7 +56,8 @@ enum FLUPS_BoundaryType {
     EVEN = 0, /**< EVEN boundary condition = zero flux  */
     ODD  = 1, /**< ODD boundary condition = zero value */
     PER  = 3, /**< PERiodic boundary conditions */
-    UNB  = 4  /**< UNBounded boundary condition */
+    UNB  = 4,  /**< UNBounded boundary condition */
+    NONE = 9 /**< No boundary condition = dimension not used */
 };
 
 /**

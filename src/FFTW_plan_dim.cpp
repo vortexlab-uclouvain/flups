@@ -80,6 +80,12 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
+    } else if (mytype == EMPTY) {
+        _type     = EMPTY;
+        _normfact = 1.0;
+        _volfact  = 1.0;
+        _kfact    = 1.0;
+        _koffset  = 0.0;
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
@@ -128,9 +134,11 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
         _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
         //this is the only transform that could give a R2C on data and being spectral for green
-        _init_periodic(size, isComplex); 
+        _init_periodic(size, isComplex);
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
+    } else if (_type == EMPTY) {
+        FLUPS_INFO_1("No plan required for this direction");
     }
     END_FUNC;
 }
@@ -591,6 +599,9 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         FLUPS_INFO(">> Doing plan periodic-periodic for dim %d", _dimID);
     } else if (_type == UNBUNB) {
         FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
+    } else if (_type == EMPTY) {
+        FLUPS_INFO(">> Doing no plan for dim %d", _dimID);
+        return;
     }
 
     const int howmany = _howmany;

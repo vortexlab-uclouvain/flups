@@ -23,7 +23,7 @@
  * 
  */
 
-#include "green_functions_3d.hpp"
+#include "green_functions_2d.hpp"
 
 // **Symmetry computation:**
 // 
@@ -57,28 +57,28 @@ typedef double (*GreenKernel_unb)(const void*,const double*);
  */
 // ----------------------------------------------------------- KERNELS ----------------------------------------------------------
 //notice that these function will likely not be inlined as we have a pointer to them...
-static inline double _hej_2_3unb0spe(const void* params,const double* data) {
+static inline double _hej_2_2unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     return c_1o4pi / r * (erf(r / eps * c_1osqrt2));
 }
-static inline double _hej_4_3unb0spe(const void* params,const double* data) {
+static inline double _hej_4_2unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (rho)*exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_6_3unb0spe(const void* params,const double* data) {
+static inline double _hej_6_2unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _chat_2_3unb0spe(const void* params,const double* data) {
+static inline double _chat_2_2unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     return c_1o4pi / r ;
 }
-static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
+static inline double _lgf_2_2unb0spe(const void* params,const double* data) {
     int    ix = (int)((double*)params)[2];
     int    iy = (int)((double*)params)[3];
     int    iz = (int)((double*)params)[4];

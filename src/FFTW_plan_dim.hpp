@@ -47,7 +47,8 @@ class FFTW_plan_dim {
         SYMSYM = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
         MIXUNB = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
         PERPER = 6, /**< type periodic - periodic: PERPER (6) */
-        UNBUNB = 8  /**< type fully unbounded UU (8) */
+        UNBUNB = 8, /**< type fully unbounded UU (8) */
+        EMPTY  = 18 /**< type empty, i.e. this direction is not used */
     };
 
    protected:
