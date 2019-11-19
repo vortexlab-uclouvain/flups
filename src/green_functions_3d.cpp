@@ -91,36 +91,36 @@ static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
         green = data[ix + iy * N + iz * N * N];
 
     } else {  // if not, we use the extrapolation
-        const double rho   = sqrt(ix * ix + iy * iy + iz * iz);
-        const double rho_2 = rho * rho;
-        const double rho_3 = rho * rho * rho;
-        const double rho_4 = rho * rho * rho * rho;
-        // const double ix_1     = ix;
-        const double ix_2     = std::pow(ix, 2.0);
-        const double ix_4     = std::pow(ix, 4.0);
-        const double ix_6     = std::pow(ix, 6.0);
-        const double ix_8     = std::pow(ix, 8.0);
-        const double ix_10    = std::pow(ix, 10.0);
-        const double ix_12    = std::pow(ix, 12.0);
-        // const double iy_1     = iy;
-        const double iy_2     = std::pow(iy, 2.0);
-        const double iy_4     = std::pow(iy, 4.0);
-        const double iy_6     = std::pow(iy, 6.0);
-        const double iy_8     = std::pow(iy, 8.0);
-        const double iy_10    = std::pow(iy, 10.0);
-        const double iy_12    = std::pow(iy, 12.0);
-        // const double iz_1     = iz;
-        const double iz_2     = std::pow(iz, 2.0);
-        const double iz_4     = std::pow(iz, 4.0);
-        const double iz_6     = std::pow(iz, 6.0);
-        const double iz_8     = std::pow(iz, 8.0);
-        const double iz_10    = std::pow(iz, 10.0);
-        const double iz_12    = std::pow(iz, 12.0);
+        const double rho     = sqrt(ix * ix + iy * iy + iz * iz);
+        const double rho_2   = rho * rho;
+        const double oorho_6 = 1.0 / std::pow(rho, 6.0);
+        const double oorho_7 = 1.0 / std::pow(rho, 7.0);
+        // ix
+        const double ix_2  = std::pow(ix, 2.0);
+        const double ix_4  = std::pow(ix, 4.0);
+        const double ix_6  = std::pow(ix, 6.0);
+        const double ix_8  = std::pow(ix, 8.0);
+        const double ix_10 = std::pow(ix, 10.0);
+        const double ix_12 = std::pow(ix, 12.0);
+        // iy
+        const double iy_2  = std::pow(iy, 2.0);
+        const double iy_4  = std::pow(iy, 4.0);
+        const double iy_6  = std::pow(iy, 6.0);
+        const double iy_8  = std::pow(iy, 8.0);
+        const double iy_10 = std::pow(iy, 10.0);
+        const double iy_12 = std::pow(iy, 12.0);
+        //iz
+        const double iz_2  = std::pow(iz, 2.0);
+        const double iz_4  = std::pow(iz, 4.0);
+        const double iz_6  = std::pow(iz, 6.0);
+        const double iz_8  = std::pow(iz, 8.0);
+        const double iz_10 = std::pow(iz, 10.0);
+        const double iz_12 = std::pow(iz, 12.0);
 
         green = c_1o4pi / rho \
-            + (ix_4 + iy_4 + iz_4 - 3.0 * (ix_2 * iy_2 + iy_2 * iz_2 + ix_2 * iz_2)) / (16.0 * M_PI * rho_4 * rho_3) \
-            + (23.0 * (ix_8 + iy_8 + iz_8) - 244.0 * (ix_6 * (iy_2 + iz_2) + iy_6 * (ix_2 + iz_2) + iz_6 * (ix_2 + iy_2)) - 228.0 * ix_2 * iy_2 * iz_2 * rho_2 + 621.0 * (ix_4 * iy_4 + ix_4 * iz_4 + iy_4 * iz_4)) / (128.0 * M_PI * rho_4 * rho_4 * rho_3 * rho_2) \
-            + (2588.0 * (ix_12 + iy_12 + iz_12) - 65676.0 * (ix_10 * iy_2 + ix_10 * iz_2 + ix_2 * iy_10 + iy_10 * iz_2 + ix_2 * iz_10 + iy_2 * iz_10) + 426144.0 * (ix_8 * iy_4 + ix_4 * iy_8 + ix_8 * iz_4 + iy_8 * iz_4 + ix_4 * iz_8 + iy_4 * iz_8) - 712884.0 * (ix_6 * iy_6 + iy_6 * iz_6 + ix_6 * iz_6) - 62892.0 * (ix_8 * iy_2 * iz_2 + ix_2 * iy_8 * iz_2 + ix_2 * iy_2 * iz_8) - 297876.0 * (ix_6 * iy_4 * iz_2 + ix_4 * iy_6 * iz_2 + ix_4 * iy_2 * iz_6 + ix_2 * iy_4 * iz_6 + ix_6 * iy_2 * iz_4 + ix_2 * iy_6 * iz_4) + 2507340.0 * ix_4 * iy_4 * iz_4) / (2048.0 * M_PI * std::pow(rho, 19.0));
+            + 1.0/(  16.0 * M_PI) * (ix_4 + iy_4 + iz_4 - 3.0 * (ix_2 * iy_2 + iy_2 * iz_2 + ix_2 * iz_2)) * oorho_7 \
+            + 1.0/( 128.0 * M_PI) * (23.0 * (ix_8 + iy_8 + iz_8) - 244.0 * (ix_6 * (iy_2 + iz_2) + iy_6 * (ix_2 + iz_2) + iz_6 * (ix_2 + iy_2)) - 228.0 * ix_2 * iy_2 * iz_2 * rho_2 + 621.0 * (ix_4 * iy_4 + ix_4 * iz_4 + iy_4 * iz_4)) * oorho_7 * oorho_6 \
+            + 1.0/(2048.0 * M_PI) * (2588.0 * (ix_12 + iy_12 + iz_12) - 65676.0 * (ix_10 * iy_2 + ix_10 * iz_2 + ix_2 * iy_10 + iy_10 * iz_2 + ix_2 * iz_10 + iy_2 * iz_10) + 426144.0 * (ix_8 * iy_4 + ix_4 * iy_8 + ix_8 * iz_4 + iy_8 * iz_4 + ix_4 * iz_8 + iy_4 * iz_8) - 712884.0 * (ix_6 * iy_6 + iy_6 * iz_6 + ix_6 * iz_6) - 62892.0 * (ix_8 * iy_2 * iz_2 + ix_2 * iy_8 * iz_2 + ix_2 * iy_2 * iz_8) - 297876.0 * (ix_6 * iy_4 * iz_2 + ix_4 * iy_6 * iz_2 + ix_4 * iy_2 * iz_6 + ix_2 * iy_4 * iz_6 + ix_6 * iy_2 * iz_4 + ix_2 * iy_6 * iz_4) + 2507340.0 * ix_4 * iy_4 * iz_4) * oorho_7 * oorho_6 * oorho_6;
     }
     
     return green/(h);

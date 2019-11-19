@@ -81,11 +81,13 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
     } else if (mytype == EMPTY) {
-        _type     = EMPTY;
-        _normfact = 1.0;
-        _volfact  = 1.0;
-        _kfact    = 1.0;
-        _koffset  = 0.0;
+        _type = EMPTY;
+        // chosen to have no influence
+        _normfact   = 1.0;
+        _volfact    = 1.0;
+        _kfact      = 0.0;
+        _koffset    = 0.0;
+        _isSpectral = false;
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }

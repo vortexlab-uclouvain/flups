@@ -55,7 +55,7 @@ static void _lgf_readfile(int* N, double** data) {
     // open the file
     char lgfname[512];
     char path[] = STR(KERNEL_PATH);
-    sprintf(lgfname, "%s/LGF_sym_acc12_64.ker",path);
+    sprintf(lgfname, "%s/LGF_2d_sym_acc12_32.ker",path);
     FILE *lgf_file = fopen(lgfname, "r");
     // display the information to the user
     FLUPS_INFO_1("loading the LGF kernel function %s", lgfname);

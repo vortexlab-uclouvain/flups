@@ -876,6 +876,8 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         FLUPS_ERROR("You are trying to use a regularized kernel while not having dx=dy=dz.",LOCATION);
     }
 
+    // get the infor + determine which green function to use:
+    int green_dim = 3;
     for (int ip = 0; ip < 3; ip++) {
         const int dimID = planmap[ip]->dimID();
         // get usefull datas
@@ -890,17 +892,18 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             kfact[dimID]   = planmap[ip]->kfact();
             koffset[dimID] = planmap[ip]->koffset();
         }
+        if (planmap[ip]->type() == EMPTY) {
+            green_dim--;
+            // kill the hfact to have no influence in the green's functions
+            hfact[dimID] = 0.0;
+        }
     }
 
     // count the number of spectral dimensions and the green dimension
     int nbr_spectral = 0;
-    int green_dim = 3;
     for (int id = 0; id < 3; id++) {
         if (isSpectral[id]) {
             nbr_spectral++;
-        }
-        if(planmap[id]->type() == EMPTY){
-            green_dim--;
         }
     }
 
