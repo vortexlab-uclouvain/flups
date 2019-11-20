@@ -427,8 +427,6 @@ static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5
     // CONSTANTS AND OTHERS
     //=============================================================================
 
-#define GAMMA 0.5772156649015328606
-
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;

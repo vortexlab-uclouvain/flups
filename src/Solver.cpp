@@ -991,19 +991,6 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         cmpt_Green_3D_0dirunbounded_3dirspectral(topo[2], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
     }
 
-    //-------------------------------------------------------------------------
-    // This is what you would fo if you had to fill only the first plan:
-    // {
-    //     int iend_cstm[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)}; //global
-    //     for (int ip = 0; ip < 3; ip++) {
-    //         const int dimID = planmap[ip]->dimID();
-    //         iend_cstm[ip]      = isSpectral[ip] ? 1 - planmap[ip]->shiftgreen() : topo->nloc(ip);  //selecting only mode 0 = cte (in per and even-even)
-    //         kfact[dimID]       = planmap[ip]->kfact();
-    //         koffset[dimID]    += planmap[ip]->shiftgreen();  //accounts for shifted modes which affect the value of k
-    //     }
-    //     cmpt_Green_3D_0dirunbounded_3dirspectral(topo, kfact, koffset, symstart, green, _typeGreen, epsilon, NULL, iend_cstm);
-    // }
-
 #ifdef DUMP_DBG
     hdf5_dump(topo[2], "green_h", green);
 #endif
