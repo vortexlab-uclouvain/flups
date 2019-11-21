@@ -31,6 +31,7 @@ if [ "$ver" = "small" ]; then
 ############################################################
 ############################################################
 
+export PARTITION=batch
 
 ############################################################
 # ALL TO ALL
@@ -73,7 +74,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --partition=${PARTITION} ./${KERNEL}
 
 
 #================== 2304 CPU's ================
@@ -98,7 +99,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 #================== 4608 CPU's ================
@@ -123,7 +124,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 
@@ -170,7 +171,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 #================== 2304 CPU's ================
@@ -195,7 +196,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 #================== 4608 CPU's ================
@@ -220,7 +221,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 elif [ "$ver" = "large" ]; then
@@ -232,7 +233,7 @@ elif [ "$ver" = "large" ]; then
 ############################################################
 ############################################################
 ############################################################
-
+export PARTITION=batch
 
 
 # ############################################################
@@ -277,7 +278,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 #================== 18432 CPU's ================
@@ -302,7 +303,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 
@@ -349,7 +350,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --partition=large ./${KERNEL}
 
 
 #================== 18432 CPU's ================
@@ -374,7 +375,7 @@ export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WOR
 # echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
 # sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
 echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  ./${KERNEL}
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
 
 
 elif [ "$ver" = "Xlarge" ]; then
@@ -386,7 +387,148 @@ elif [ "$ver" = "Xlarge" ]; then
 ############################################################
 ############################################################
 ############################################################
+export PARTITION=large
 
-echo "must be done"
+# ############################################################
+# # ALL TO ALL
+# #-----------------------------------------------------------
+export EXEC_FLUPS=flups_validation_a2a
+
+SCRATCH=/p/scratch/prpa79/$(whoami)/flups_strong_a2a_${ver}
+
+# clean the validation dir
+# rm -rf ${SCRATCH}
+mkdir -p $SCRATCH
+mkdir -p $SCRATCH/data
+mkdir -p $SCRATCH/prof
+
+# copy the needed info
+cp $HOME_FLUPS/${EXEC_FLUPS} $SCRATCH
+cp $HOME_FLUPS/run/${KERNEL} $SCRATCH
+# go to it
+cd $SCRATCH
+
+
+#================== 36,864 CPU's ================
+#-- requested walltime
+export WT='00:15:00'
+#-- proc domain
+export MY_NX=32
+export MY_NY=24
+export MY_NZ=48
+#-- domain length
+export L_X=1.0
+export L_Y=1.0
+export L_Z=1.0
+#-- global size
+export SIZE_X=$INITIAL_SIZE_X
+export SIZE_Y=$INITIAL_SIZE_Y
+export SIZE_Z=$INITIAL_SIZE_Z
+#-- 1 thread
+export MY_NTHREADS=1
+export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
+echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
+
+
+#================== 73,728 CPU's ================
+#-- requested walltime
+export WT='00:15:00'
+#-- proc domain
+export MY_NX=32
+export MY_NY=48
+export MY_NZ=48
+#-- domain length
+export L_X=1.0
+export L_Y=1.0
+export L_Z=1.0
+#-- global size
+export SIZE_X=$INITIAL_SIZE_X
+export SIZE_Y=$INITIAL_SIZE_Y
+export SIZE_Z=$INITIAL_SIZE_Z
+#-- 1 thread
+export MY_NTHREADS=1
+export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
+echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
+
+
+
+
+############################################################
+# NON-BLOCKING
+#-----------------------------------------------------------
+export EXEC_FLUPS=flups_validation_nb
+
+SCRATCH=/p/scratch/prpa79/$(whoami)/flups_strong_nb_${ver}
+
+# clean the validation dir
+# rm -rf ${SCRATCH}
+mkdir -p $SCRATCH
+mkdir -p $SCRATCH/data
+mkdir -p $SCRATCH/prof
+
+# copy the needed info
+cp $HOME_FLUPS/${EXEC_FLUPS} $SCRATCH
+cp $HOME_FLUPS/run/${KERNEL} $SCRATCH
+# go to it
+cd $SCRATCH
+
+
+#================== 36,864 CPU's ================
+#-- requested walltime
+export WT='00:15:00'
+#-- proc domain
+export MY_NX=32
+export MY_NY=24
+export MY_NZ=48
+#-- domain length
+export L_X=1.0
+export L_Y=1.0
+export L_Z=1.0
+#-- global size
+export SIZE_X=$INITIAL_SIZE_X
+export SIZE_Y=$INITIAL_SIZE_Y
+export SIZE_Z=$INITIAL_SIZE_Z
+#-- 1 thread
+export MY_NTHREADS=1
+export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
+echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
+
+
+#================== 73,728  CPU's ================
+#-- requested walltime
+export WT='00:15:00'
+#-- proc domain
+export MY_NX=32
+export MY_NY=48
+export MY_NZ=48
+#-- domain length
+export L_X=1.0
+export L_Y=1.0
+export L_Z=1.0
+#-- global size
+export SIZE_X=$INITIAL_SIZE_X
+export SIZE_Y=$INITIAL_SIZE_Y
+export SIZE_Z=$INITIAL_SIZE_Z
+#-- 1 thread
+export MY_NTHREADS=1
+export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./${KERNEL}"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./${KERNEL}
+echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} ./${KERNEL}"
+sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --partition=${PARTITION}  ./${KERNEL}
+
 
 fi

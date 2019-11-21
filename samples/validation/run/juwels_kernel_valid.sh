@@ -5,7 +5,6 @@
 #
 #SBATCH --output=flups_%j.out
 #SBATCH --error=flups_%j.err
-#SBATCH --partition=batch
 
 export OMP_NUM_THREADS=${MY_NTHREADS}
 
@@ -30,7 +29,7 @@ module load HDF5/1.10.5
 module load METIS/5.1.0
 module list
 
-
+#CHANGING COMMUNICATION METHOD, OTHERWISE MPI USE TOO MUCH MEMORY !
 export PSP_UCP=1
 export UCX_TLS=ud_mlx5,self,sm
 #export PSI_LOGGERDEBUG=1
@@ -43,4 +42,4 @@ srun --label ${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${SIZE_X} ${SIZE_
 
 scontrol show job ${SLURM_JOB_ID}
 
-sacct --format="JobID,NCPUS,NNodes,Elapsed,MaxRSS,ExitCode" | grep "$SLURM_JOB_ID"
+sacct --format="JobID,NCPUS,NNodes,Elapsed,MaxRSS,MaxVMSize,ExitCode" | grep "$SLURM_JOB_ID"
