@@ -101,8 +101,8 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
             for (int j = 0; j<3;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
                     L[j] = atof(argv[i+j+1]); 
-                    if(L[j]<=0.0){
-                        fprintf(stderr, "L must be >0\n");
+                    if(L[j]<0.0){
+                        fprintf(stderr, "L must be >=0\n");
                         return 1;
                     }
                 } else { //Missing argument

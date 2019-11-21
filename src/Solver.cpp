@@ -97,9 +97,12 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans given the BC and sort them by type */
     //-------------------------------------------------------------------------
-    for (int id = 0; id < 3; id++)
+    for (int id = 0; id < 3; id++){
         _hgrid[id] = h[id];
+    }
 
+    // we allocate 3 plans
+    // it might be empty ones but we keep them since we need some information inside...
     for (int id = 0; id < 3; id++) {
         _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, false);
         _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_BACKWARD, false);
@@ -110,6 +113,16 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
+
+    //-------------------------------------------------------------------------
+    /** - compute the real problem size using forward plans, i.e. are we 2D or 3D? */
+    //-------------------------------------------------------------------------
+    _ndim = 3;
+    for(int id=0; id<3; id++){
+        if(_plan_forward[id]->type() == FFTW_plan_dim::EMPTY){
+            _ndim --;
+        }
+    }
 
     //-------------------------------------------------------------------------
     /** - Initialise the topos, the plans and the SwitchTopos */
@@ -201,11 +214,11 @@ double* Solver::setup(const bool changeTopoComm) {
     // ranks not having a self block) !
     // if we can change the topology, do it for every swithTopo
     if (changeTopoComm) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < _ndim; i++) {
             _switchtopo[i]->add_toGraph(sourcesW, destsW);
         }
     } else {
-        for (int i = 1; i < 3; i++) {
+        for (int i = 1; i < _ndim; i++) {
             _switchtopo[i]->add_toGraph(sourcesW, destsW);
         }
     }
@@ -311,7 +324,7 @@ double* Solver::setup(const bool changeTopoComm) {
     // The first switch topo will serve to redistribute
     // data following the optimized topology on the cluster, with reordered 
     // ranks
-    for(int i=0;i<3;i++){
+    for(int i=0;i<_ndim;i++){
         _topo_hat[i]->change_comm(graph_comm);
         _topo_green[i]->change_comm(graph_comm);
     }
@@ -351,7 +364,7 @@ double* Solver::setup(const bool changeTopoComm) {
     // finalize green by replacing some data in full spectral if needed by the kernel,
     // and by doing a last switch to the field topo
     if (_prof != NULL) _prof->start("green_final");
-    _finalizeGreenFunction(_topo_hat[2], _green, _topo_green[2], _plan_green);
+    _finalizeGreenFunction(_topo_hat[_ndim-1], _green, _topo_green[_ndim-1], _plan_green);
     if (_prof != NULL) _prof->stop("green_final");
 
     //-------------------------------------------------------------------------
@@ -383,7 +396,7 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */
     //-------------------------------------------------------------------------
-    _allocate_switchTopo(3, _switchtopo, &_sendBuf, &_recvBuf);
+    _allocate_switchTopo(_ndim, _switchtopo, &_sendBuf, &_recvBuf);
 
     if (_prof != NULL) _prof->stop("setup");
 
@@ -412,7 +425,7 @@ Solver::~Solver() {
 
     // cleanup the communicator if any
 #ifdef REORDER_RANKS
-    MPI_Comm mycomm = _topo_hat[2]->get_comm();
+    MPI_Comm mycomm = _topo_hat[_ndim-1]->get_comm();
     MPI_Comm_free(&mycomm);
 #endif
     _delete_topologies(_topo_hat);
@@ -439,7 +452,7 @@ const Topology* Solver::get_innerTopo_physical() {
  * 
  */
 const Topology* Solver::get_innerTopo_spectral() {
-    return _topo_hat[2];
+    return _topo_hat[_ndim-1];
 }
 
 /**
@@ -577,7 +590,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     //-------------------------------------------------------------------------
     bool isComplex = false;  //this refers to the "current state" of the data during dry run
     int  nproc[3];
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = 0; ip < _ndim; ip++) {
         // initialize the plan (for Green only, using info from _plan_forward)
         planmap[ip]->init(size_tmp, isComplex);
         // update the size_tmp variable and get the complex information
@@ -596,15 +609,12 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                //This was to keep an aspect ratio of the pencils in ax0 close to 1:
-                // pencil_nproc(dimID, nproc, comm_size, size_tmp);
-                //---------
-                //Finally, we opt for the following, which will maximize the total number of subcoms that we will be able to do
-                // over the 3 switchtopos:
+                // for the first switchTopo, we keep the number of proc constant in the 3rd direction
                 const int nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
                 pencil_nproc_hint(dimID, nproc, comm_size, dimOrder[1], nproc_hint);
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
+                // for the other switchtopos, we keep constant the id that is not mine, neither the old topo id
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
@@ -659,7 +669,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     current_topo = NULL;
     // isComplex = false; //Change this for Helmolz: we will always need to fill Green in complex
     if (isGreen && topomap != NULL && switchtopo != NULL) {
-        for (int ip = 2; ip >= 0; ip--) {
+        for (int ip = _ndim-1; ip >= 0; ip--) {
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
 
@@ -669,10 +679,10 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // get the proc repartition
-            if(ip>1){
+            if(ip>_ndim-2){
                 //it has to be the same as the field in full spectral
                 for(int i = 0;i<3;i++){
-                    nproc[i]=_topo_hat[2]->nproc(i);
+                    nproc[i]=_topo_hat[_ndim-1]->nproc(i);
                 }
             }else{
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
@@ -682,7 +692,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // create the new topology in the output layout (size and isComplex)
             topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             //switchmap only to be done for topo0->topo1 and topo1->topo2
-            if (ip < 2) {
+            if (ip < _ndim-1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
                 int fieldstart[3] = {0};
                 // it shouldn't be different from 0 for the moment
@@ -735,7 +745,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
     //-------------------------------------------------------------------------
     /** - reset the topologies to real if needed, in order to prepare them for their execution  */
     //-------------------------------------------------------------------------
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = 0; ip < _ndim; ip++) {
         if (!isGreen && planmap[ip]->isr2c() && topomap != NULL) {
             topomap[ip]->switch2real();
         }
@@ -800,7 +810,7 @@ void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *sen
  */
 void Solver::_allocate_plans(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
     BEGIN_FUNC;
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = 0; ip < _ndim; ip++) {
         planmap[ip]->allocate_plan(topo[ip], data);
     }
     END_FUNC;
@@ -825,7 +835,7 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
     //-------------------------------------------------------------------------
     // the biggest size will be along the pencils
     size_t size_tot = 1;
-    for (int id = 0; id < 3; id++) {
+    for (int id = 0; id < _ndim; id++) {
         size_tot = std::max(topo[id]->memsize(), size_tot);
     }
     if (topo_phys != NULL) {
@@ -866,19 +876,18 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //-------------------------------------------------------------------------
     bool isSpectral[3] = {false};
 
-    double hfact[3];    // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
-    double kfact[3];    // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double koffset[3];  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double symstart[3];
-    double epsilon = _alphaGreen * _hgrid[0]; //the smoothing length scale of the HEJ kernels
+    double hfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
+    double kfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3]  = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double symstart[3] = {0.0, 0.0, 0.0};
+    double epsilon     = _alphaGreen * _hgrid[0];  //the smoothing length scale of the HEJ kernels
 
-    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6) && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) {
-        FLUPS_ERROR("You are trying to use a regularized kernel while not having dx=dy=dz.",LOCATION);
+    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
+        FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
     }
 
     // get the infor + determine which green function to use:
-    int green_dim = 3;
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = 0; ip < _ndim; ip++) {
         const int dimID = planmap[ip]->dimID();
         // get usefull datas
         isSpectral[dimID] = planmap[ip]->isSpectral();
@@ -892,8 +901,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             kfact[dimID]   = planmap[ip]->kfact();
             koffset[dimID] = planmap[ip]->koffset();
         }
-        if (planmap[ip]->type() == EMPTY) {
-            green_dim--;
+        if (planmap[ip]->type() == FFTW_plan_dim::EMPTY) {
             // kill the hfact to have no influence in the green's functions
             hfact[dimID] = 0.0;
         }
@@ -901,7 +909,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
     // count the number of spectral dimensions and the green dimension
     int nbr_spectral = 0;
-    for (int id = 0; id < 3; id++) {
+    for (int id = 0; id < _ndim; id++) {
         if (isSpectral[id]) {
             nbr_spectral++;
         }
@@ -910,33 +918,21 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //-------------------------------------------------------------------------
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
-    if (green_dim == 3) {
-        if (nbr_spectral == 0) {
-            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
-            cmpt_Green_3D_3dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, epsilon);
-        } else if (nbr_spectral == 1) {
-            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral", _typeGreen);
-            cmpt_Green_3D_2dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
-        } else if (nbr_spectral == 2) {
-            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral", _typeGreen);
-            cmpt_Green_3D_1dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
-        } else if (nbr_spectral == 3) {
-            FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
-            cmpt_Green_3D_0dirunbounded_3dirspectral(topo[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
-        }
-    } else if (green_dim == 2) {
-        if (nbr_spectral == 0) {
-            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
-            cmpt_Green_2D_2dirunbounded_0dirspectral(topo[0], hfact, symstart, green, _typeGreen, epsilon);
-        } else if (nbr_spectral == 1) {
-            FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded - 1 dir spectral", _typeGreen);
-            cmpt_Green_2D_1dirunbounded_1dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
-        } else if (nbr_spectral == 2) {
-            FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded - 2 dir spectral", _typeGreen);
-            cmpt_Green_2D_0dirunbounded_2dirspectral(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
-        }
+    int n_unbounded = _ndim - nbr_spectral;
+    if ((n_unbounded) == 3) {
+        FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
+        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, _typeGreen, epsilon);
+    } else if ((n_unbounded) == 2) {
+        FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+    } else if ((n_unbounded) == 1) {
+        FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", _typeGreen);
+        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+    } else if ((n_unbounded) == 0) {
+        FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
+        cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
     } else {
-        FLUPS_ERROR("Sorry, the Green's function for 1D problems are not provided in this version.", LOCATION);
+        FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
     }
 
     // dump the green func
@@ -949,7 +945,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //-------------------------------------------------------------------------
     /** - compute a symmetry and do the forward transform*/
     //-------------------------------------------------------------------------
-    for (int ip = 0; ip < 3; ip++) {
+    for (int ip = 0; ip < _ndim; ip++) {
         const int dimID = planmap[ip]->dimID();
 
         // go to the topology for the plan, if we are not already on it
@@ -972,13 +968,13 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     //-------------------------------------------------------------------------
     // - Explixitely destroying mode 0 ? no need to do that: we impose Green[0] is 0
     //   in full spectral.
-    _scaleGreenFunction(topo[2], green, false);
+    _scaleGreenFunction(topo[_ndim-1], green, false);
 
     //-------------------------------------------------------------------------
     /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
      *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
-    if (green_dim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+    if (_ndim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
         int istart_cstm[3] = {0, 0, 0};  //global
 
         for (int ip = 0; ip < 3; ip++) {
@@ -988,7 +984,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             kfact[dimID]       = planmap[ip]->kfact();
             koffset[dimID]    += planmap[ip]->shiftgreen();  //accounts for shifted modes which affect the value of k
         }
-        cmpt_Green_3D_0dirunbounded_3dirspectral(topo[2], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
+        cmpt_Green_0dirunbounded(topo[2], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
     }
 
 #ifdef DUMP_DBG
@@ -1060,15 +1056,19 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
     /** - If needed, we create a new switchTopo from the current Green topo to the field one */
 
     //simulate that we have done the transforms
-    if(planmap[0]->isr2c() || planmap[1]->isr2c() || planmap[2]->isr2c()){
+    bool isr2c = false;
+    for(int id=0; id<_ndim; id++){
+        isr2c = isr2c || planmap[id]->isr2c();
+    }
+    if(isr2c){
         topo_field->switch2complex();
     }
 
-    if (planmap[2]->ignoreMode()) {
+    if (planmap[_ndim-1]->ignoreMode()) {
         const int dimID = planmap[2]->dimID();
         // get the shift
         int fieldstart[3] = {0};
-        fieldstart[dimID] = -planmap[2]->shiftgreen();
+        fieldstart[dimID] = -planmap[_ndim-1]->shiftgreen();
         // we do the link between topo of Green and the field topo
 #if defined(COMM_NONBLOCK)
         SwitchTopo *switchtopo = new SwitchTopo_nb(topo, topo_field, fieldstart, NULL);
@@ -1096,7 +1096,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
         FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     }
     //coming back (only if the last plan was r2c. No need it if was c2c or r2r...)
-    if(planmap[2]->isr2c()){
+    if(planmap[_ndim-1]->isr2c()){
         topo_field->switch2real();
     }
     END_FUNC;
@@ -1148,7 +1148,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     do_FFT(mydata, FLUPS_FORWARD);
 
 #ifdef DUMP_DBG
-    hdf5_dump(_topo_hat[2], "rhs_h", mydata);
+    hdf5_dump(_topo_hat[_ndim-1], "rhs_h", mydata);
 #endif
     //-------------------------------------------------------------------------
     /** - Perform the magic */
@@ -1157,7 +1157,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
 #ifdef DUMP_DBG
     // io if needed
-    hdf5_dump(_topo_hat[2], "sol_h", mydata);
+    hdf5_dump(_topo_hat[_ndim-1], "sol_h", mydata);
 #endif
     //-------------------------------------------------------------------------
     /** - go back to reals */
@@ -1283,7 +1283,7 @@ void Solver::do_FFT(double *data, const int sign){
     opt_double_ptr  mydata  = data;
 
     if (sign == FLUPS_FORWARD) {
-        for (int ip = 0; ip < 3; ip++) {
+        for (int ip = 0; ip < _ndim; ip++) {
             // go to the correct topo
             _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
             // run the FFT
@@ -1296,7 +1296,7 @@ void Solver::do_FFT(double *data, const int sign){
             }
         }
     } else {  //FLUPS_BACKWARD
-        for (int ip = 2; ip >= 0; ip--) {
+        for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
             if (_prof != NULL) _prof->stop("fftw");
@@ -1323,7 +1323,7 @@ void Solver::do_mult(double *data, const SolverType type){
     
     if (_prof != NULL) _prof->start("domagic");
     if (type == SRHS) {
-        if (!_topo_hat[2]->isComplex()) {
+        if (!_topo_hat[_ndim-1]->isComplex()) {
             //-> there is only the case of 3dirSYM in which we could stay real for the whole process
             if (_nbr_imult == 0)
                 dothemagic_rhs_real(data);
@@ -1341,16 +1341,18 @@ void Solver::do_mult(double *data, const SolverType type){
     } else {
         FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
 
-        // - Obtain what's needed to compute k 
-        double kfact[3];    // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-        double koffset[3];  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+        // - Obtain what's needed to compute k
+        double kfact[3]   = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+        double koffset[3] = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
 
-        for (int ip = 0; ip < 3; ip++) {
+        for (int ip = 0; ip < _ndim; ip++) {
             const int dimID = _plan_forward[ip]->dimID();
             kfact[dimID]    = _plan_forward[ip]->kfact();
             koffset[dimID]  = _plan_forward[ip]->koffset() + _plan_forward[ip]->shiftgreen();
         }
         // todo: if topo is not complex, need to handle the fact that we will multiply by i*
+
+        // WARNING: need to adapt the LDA of the topology WARNING
 
         //dothemagic...
     }
@@ -1365,10 +1367,11 @@ void Solver::do_mult(double *data, const SolverType type){
  */
 void Solver::dothemagic_rhs_real(double *data) {
     BEGIN_FUNC;
-    FLUPS_CHECK(_topo_hat[2]->nf() == 1, "The topo_hat[2] has to be real", LOCATION);
+    int cdim = _ndim-1; // get current dim
+    FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] has to be real", LOCATION);
 
     // get the axis
-    const int ax0 = _topo_hat[2]->axis();
+    const int ax0 = _topo_hat[cdim]->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
     // get the factors
@@ -1378,12 +1381,12 @@ void Solver::dothemagic_rhs_real(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
-        const size_t inmax   = _topo_hat[2]->nloc(ax0);
-        const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
+        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
+        const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
 
-        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)
@@ -1406,9 +1409,10 @@ void Solver::dothemagic_rhs_real(double *data) {
  */
 void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     BEGIN_FUNC;
-    FLUPS_CHECK(_topo_hat[2]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
+    int cdim = _ndim-1; // get current dim
+    FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
     // get the axis
-    const int ax0 = _topo_hat[2]->axis();
+    const int ax0 = _topo_hat[cdim]->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
     // get the factors
@@ -1418,12 +1422,12 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[2]->nloc(ax1) * _topo_hat[2]->nloc(ax2);
-        const size_t inmax   = _topo_hat[2]->nloc(ax0);
-        const int    nmem[3] = {_topo_hat[2]->nmem(0), _topo_hat[2]->nmem(1), _topo_hat[2]->nmem(2)};
+        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
+        const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
 
-        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[2]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)

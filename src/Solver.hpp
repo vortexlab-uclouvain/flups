@@ -30,7 +30,7 @@
 #include <map>
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
-#include "green_functions_3d.hpp"
+#include "green_functions.hpp"
 #include "hdf5_io.hpp"
 
 #include "SwitchTopo.hpp"
@@ -70,6 +70,7 @@ class Solver {
     // even is the dimension is 2, we allocate arrays of dimension 3
 
    protected:
+    int _ndim          = 3; /**@brief the dimension of the problem, i.e. 2D or 3D */
     int _fftwalignment = 0; /**< @brief alignement assumed by the FFTW Solver  */
     int _orderdiff     = 0; /**< @brief the order of derivative (spectral = 0)  */
     int _nbr_imult     = 0; /**< @brief the number of time we have applied a DST transform */
@@ -183,7 +184,7 @@ class Solver {
      */
     size_t get_allocSize() {
         size_t size_tot = 1;
-        for (int id = 0; id < 3; id++) {
+        for (int id = 0; id < _ndim; id++) {
             size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
         }
         return size_tot;
@@ -233,61 +234,61 @@ class Solver {
     /**@} */
 };
 
-/**
- * @brief compute the pencil layout given the pencil direction
- * 
- * The pencil layout is computed so as to obtain pencils with an aspect
- * ratio close to 1, i.e. the same number points per proc in the the 2 other directions than id.
- * 
- * @param id the pencil direction
- * @param nproc the number of proc in each direction
- * @param comm_size the total communicator size
- * @param nglob the domain size in each direction
- */
-static inline void pencil_nproc(const int id, int nproc[3], const int comm_size, const int nglob[3]) {
-    int id1 = (id + 1) % 3;
-    int id2 = (id + 2) % 3;
+// /**
+//  * @brief compute the pencil layout given the pencil direction
+//  * 
+//  * The pencil layout is computed so as to obtain pencils with an aspect
+//  * ratio close to 1, i.e. the same number points per proc in the the 2 other directions than id.
+//  * 
+//  * @param id the pencil direction
+//  * @param nproc the number of proc in each direction
+//  * @param comm_size the total communicator size
+//  * @param nglob the domain size in each direction
+//  */
+// static inline void pencil_nproc(const int id, int nproc[3], const int comm_size, const int nglob[3]) {
+//     int id1 = (id + 1) % 3;
+//     int id2 = (id + 2) % 3;
 
-    nproc[id] = 1;
+//     nproc[id] = 1;
 
-    double       n1       = 1;
-    double       n2       = (double) comm_size;
-    //invert indexes so that id1 is the dimension where nglob is the smallest
-    if( nglob[id1] > nglob[id2]){
-        const int tmp = id2;
-        id2 = id1;
-        id1 = tmp;
-    }
-    double       np1      = (double) nglob[id1];
-    double       np2      = (double) nglob[id2]/ comm_size;
-    const double npsquare = sqrt((double)(nglob[id1] * nglob[id2]) / comm_size);  //target number of points per dimension
+//     double       n1       = 1;
+//     double       n2       = (double) comm_size;
+//     //invert indexes so that id1 is the dimension where nglob is the smallest
+//     if( nglob[id1] > nglob[id2]){
+//         const int tmp = id2;
+//         id2 = id1;
+//         id1 = tmp;
+//     }
+//     double       np1      = (double) nglob[id1];
+//     double       np2      = (double) nglob[id2]/ comm_size;
+//     const double npsquare = sqrt((double)(nglob[id1] * nglob[id2]) / comm_size);  //target number of points per dimension
 
-    //keep on deviding as long as ncurr/2>nsquare
-    //we want to leave n1=1, and we do not want to reach n2=1
-    while ( (np1 > npsquare) && std::floor(n2*.5) == n2*.5) {
-        n1  *= 2.0;
-        np1 *= 0.5;
-        n2  *= 0.5;
-        np2 *= 2.0;
-    }
-    nproc[id1] = (int)n1;
-    nproc[id2] = (int)n2;
+//     //keep on deviding as long as ncurr/2>nsquare
+//     //we want to leave n1=1, and we do not want to reach n2=1
+//     while ( (np1 > npsquare) && std::floor(n2*.5) == n2*.5) {
+//         n1  *= 2.0;
+//         np1 *= 0.5;
+//         n2  *= 0.5;
+//         np2 *= 2.0;
+//     }
+//     nproc[id1] = (int)n1;
+//     nproc[id2] = (int)n2;
 
-    FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
-    if(nproc[0] * nproc[1] * nproc[2] != comm_size){
-        FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
-    }
-    if(comm_size>8 && (n1==1||n2==1)){
-        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
-        //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
-        // we manage to do All2All communications in subcoms of size sqrt(comm_size).
-        //We could prevent this to happen by doing something like:
-        // if(n2==1){
-        //     n2*=2;
-        //     n1*=0.5;
-        // }
-    }
-}
+//     FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
+//     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
+//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+//     }
+//     if(comm_size>8 && (n1==1||n2==1)){
+//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+//         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
+//         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
+//         //We could prevent this to happen by doing something like:
+//         // if(n2==1){
+//         //     n2*=2;
+//         //     n1*=0.5;
+//         // }
+//     }
+// }
 
 /**
  * @brief compute the pencil layout given the pencil direction, compatible with another pencil decoposition given as a hint
@@ -295,8 +296,9 @@ static inline void pencil_nproc(const int id, int nproc[3], const int comm_size,
  * @param id the pencil direction
  * @param nproc the number of proc in each direction
  * @param comm_size the total communicator size
- * @param id_hint the axis of the pencils in another decomposition, which we want this decomposition to be compatible with
+ * @param id_hint the axis where we allow the proc decomposition to change
  * @param nproc_hint the number of procs in the other decomposition we want to be compatible with
+ * 
  */
 static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_size, const int id_hint, const int nproc_hint[3]) {
     // get the id shared between the hint topo

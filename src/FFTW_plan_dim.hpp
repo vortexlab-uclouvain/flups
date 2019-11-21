@@ -35,6 +35,7 @@
  * 
  */
 class FFTW_plan_dim {
+   public:
     /**
      * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
      * 
@@ -63,12 +64,12 @@ class FFTW_plan_dim {
     int    _fftw_stride = 0;
     int    _howmany     = 0;
     int    _fieldstart  = 0;   /**< @brief the starting index for the field copy in the direction of the plan*/
-    int    _n_in        = 0;   /**< @brief the number of element in the transform*/
-    int    _n_out       = 0;   /**< @brief the number of element coming out of the transform*/
+    int    _n_in        = 1;   /**< @brief the number of element in the transform*/
+    int    _n_out       = 1;   /**< @brief the number of element coming out of the transform*/
     int    _shiftgreen  = 0;   /**< @brief the shift to set in the Green's function when doing the convolution*/
     double _symstart    = 0.0; /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double _normfact    = 0.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double _volfact     = 0.0; /**< @brief volume factor*/
+    double _normfact    = 1.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact     = 1.0; /**< @brief volume factor*/
     double _kfact       = 0.0; /**< @brief multiplication factor to have the correct k numbers*/
     double _koffset     = 0.0; /**< @brief additive factor to have the correct k numbers*/
 

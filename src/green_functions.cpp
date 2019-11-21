@@ -23,20 +23,14 @@
  * 
  */
 
-#include "green_functions_3d.hpp"
-#include "green_kernels_2d.hpp"
-#include "green_kernels_3d.hpp"
+#include "green_functions.hpp"
+#include "green_kernels.hpp"
 
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
  */
-typedef double (*GreenKernel)(const void*);
-/**
- * @brief generic type for unbounded Green kernel, alike the @ref GreenKernel but with an additional data array for the LGF case
- * 
- */
-typedef double (*GreenKernel_unb)(const void*,const double*);
+typedef double (*GreenKernel)(const void*,const double*);
 
 /**
  * @brief Compute the Green function for 0 dir spectral (i.e. 3 dir unbounded or 2 dirunbounded)
@@ -58,41 +52,40 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
     FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
-    double          G0;  //value of G in 0
-    int             GN    = 0;
-    double *        Gdata = NULL;
-    GreenKernel_unb G;
+    GreenKernel G;
+
+    double  G0;  //value of G in 0
+    int     GN    = 0;
+    double *Gdata = NULL;
 
     //==========================    3D  =================================
-    if (greendim == 3) {
-        switch (typeGreen) {
-            case HEJ_2:
-                G  = &_hej_2_3unb0spe;
-                G0 = M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
-                break;
-            case HEJ_4:
-                G  = &_hej_4_3unb0spe;
-                G0 = 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
-                break;
-            case HEJ_6:
-                G  = &_hej_6_3unb0spe;
-                G0 = 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
-                break;
-            case CHAT_2:
-                G  = &_chat_2_3unb0spe;
-                G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
-                break;
-            case LGF_2:
-                FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
-                FLUPS_CHECK(hfact[1] == hfact[2], "the grid has to be isotropic to use the LGFs", LOCATION);
-                // read the LGF data and store it
-                _lgf_readfile(&GN, &Gdata);
-                // associate the Green's function
-                G = &_lgf_2_3unb0spe;
-                break;
-            default:
-                FLUPS_ERROR("Green Function type unknow.", LOCATION);
-        }
+    switch (typeGreen) {
+        case HEJ_2:
+            G  = &_hej_2_3unb0spe;
+            G0 = M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            break;
+        case HEJ_4:
+            G  = &_hej_4_3unb0spe;
+            G0 = 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            break;
+        case HEJ_6:
+            G  = &_hej_6_3unb0spe;
+            G0 = 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            break;
+        case CHAT_2:
+            G  = &_chat_2_3unb0spe;
+            G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
+            break;
+        case LGF_2:
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
+            FLUPS_CHECK(hfact[1] == hfact[2], "the grid has to be isotropic to use the LGFs", LOCATION);
+            // read the LGF data and store it
+            _lgf_readfile(3,&GN, &Gdata);
+            // associate the Green's function
+            G = &_lgf_2_3unb0spe;
+            break;
+        default:
+            FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
 
     int istart[3];
@@ -121,8 +114,9 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
 
-                // the first two arguments are used in standard kernels and the others 5 ones are aimed for LGFs only
-                const double tmp[7] = {r, eps, is[ax0], is[ax1], is[ax2],GN,hfact[ax0]};
+                // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
+                // and the others 5 ones are aimed for LGFs only
+                const double tmp[9] = {r, eps, 0, 0, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
                 green[id + i0 * nf] = -G(tmp,Gdata);
             }
         }
@@ -175,10 +169,13 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
-    
+
     GreenKernel G;    // the Green kernel (general expression in the whole domain)
     GreenKernel Gk0;  // the Green kernel (particular expression in k=0)
     GreenKernel Gr0;  // the Green kernel (particular expression in r=0)
+
+    int     GN    = 0;
+    double *Gdata = NULL;
 
     switch (typeGreen) {
         case HEJ_2:
@@ -209,9 +206,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         case LGF_2:
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
             // read the LGF data and store it
-            _lgf_readfile(&GN, &Gdata);
+            _lgf_readfile(2,&GN, &Gdata);
             // associate the Green's function
-            G   = NULL;
+            G   = &_zero;
             Gk0 = &_lgf_2_2unb0spe;
             Gr0 = &_lgf_2_2unb0spe;
             break;
@@ -251,19 +248,19 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[4] = {r, k, eps, r_eq2D};
+                const double tmp[9] = {r, k, eps, r_eq2D, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
                     // we should enter this case for 2d and 3d cases
-                    green[id + i0 * topo->nf()] = -Gr0(tmp);
+                    green[id + i0 * topo->nf()] = -Gr0(tmp,Gdata);
                 } else if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
                     // we should always enter this routine for 2d case and sometimes for 3d cases
-                    green[id + i0 * topo->nf()] = -Gk0(tmp);
+                    green[id + i0 * topo->nf()] = -Gk0(tmp,Gdata);
                 } else {
-                    green[id + i0 * topo->nf()] = -G(tmp);
+                    green[id + i0 * topo->nf()] = -G(tmp,Gdata);
                 }
             }
         }
@@ -293,7 +290,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
  */
-void cmpt_Green_3D_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -367,10 +364,10 @@ void cmpt_Green_3D_1dirunbounded(const Topology *topo, const double hfact[3], co
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * nf] = -G0(tmp);
+                    green[id + i0 * nf] = -G0(tmp,NULL);
                 }
                 else{
-                    green[id + i0 * nf] = -G(tmp);
+                    green[id + i0 * nf] = -G(tmp,NULL);
                 }
             }
         }
@@ -390,6 +387,7 @@ void cmpt_Green_3D_1dirunbounded(const Topology *topo, const double hfact[3], co
  * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index.
  * 
  * @param topo the topology associated to the Green's function
+ * @param hgrid the grid spacing h = hx = hy = hz, used only for the LGF
  * @param kfact the k multiplicative factor
  * @param koffset the k additive factor
  * @param symstart index of the symmetry in each direction
@@ -397,10 +395,9 @@ void cmpt_Green_3D_1dirunbounded(const Topology *topo, const double hfact[3], co
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
-    cmpt_Green_0dirunbounded(topo, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
 }
-
 
 /**
  * @brief Compute the Green function for 3dirspectral (in a portion of the spectral domain)
@@ -420,7 +417,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double kfact[3], const
  * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
  * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]){
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]) {
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
@@ -444,7 +441,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double kfact[3], const
             G = &_chat_2_0unb3spe;
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
+            G = &_lgf_2_0unb3spe;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -501,9 +498,10 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double kfact[3], const
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
-                const double tmp[2] = {ksqr, eps};
+                // const double tmp[2] = {ksqr, eps};
+                const double tmp[6] = {ksqr, eps,k0,k1,k2,hgrid};
 
-                green[id + i0 * nf] = -G(tmp);
+                green[id + i0 * nf] = -G(tmp,NULL);
             }
         }
     }

@@ -248,6 +248,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             manuRHS[dir] = &d2dx2_fUnbSpietz;
             manuSol[dir] = &fUnbSpietz;
         } else {
+            manuRHS[dir] = &fZero;
+            manuSol[dir] = &fCst;
             // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }

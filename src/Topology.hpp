@@ -90,12 +90,17 @@ class Topology {
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
     // inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
-    inline int axproc(const int dim) const { return _axproc[dim]; }
-    inline MPI_Comm get_comm() const {return _comm; }
-    
+    inline int      axproc(const int dim) const { return _axproc[dim]; }
+    inline MPI_Comm get_comm() const { return _comm; }
 
-    inline int cmpt_nbyproc(const int id) const{
-        return (_nglob[id]/_nproc[id]) + 1 * ((_nglob[id]%_nproc[id]) > _rankd[id]);
+    /**
+     * @brief compute the number of unknowns on each proc
+     * 
+     * @param id 
+     * @return int 
+     */
+    inline int cmpt_nbyproc(const int id) const {
+        return (_nglob[id] / _nproc[id]) + 1 * ((_nglob[id] % _nproc[id]) > _rankd[id]);
     }
 
     /**
