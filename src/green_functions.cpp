@@ -62,19 +62,19 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     switch (typeGreen) {
         case HEJ_2:
             G  = &_hej_2_3unb0spe;
-            G0 = M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
             G  = &_hej_4_3unb0spe;
-            G0 = 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
             G  = &_hej_6_3unb0spe;
-            G0 = 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case CHAT_2:
             G  = &_chat_2_3unb0spe;
-            G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
+            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
@@ -117,13 +117,13 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
                 const double tmp[9] = {r, eps, 0, 0, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
-                green[id + i0 * nf] = -G(tmp,Gdata);
+                green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
     }
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
     if (typeGreen != LGF_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        green[0] = -G0;
+        green[0] = G0;
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -255,12 +255,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 // this routine with a high readability and lower efficency than the opposite.
                 if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
                     // we should enter this case for 2d and 3d cases
-                    green[id + i0 * topo->nf()] = -Gr0(tmp,Gdata);
+                    green[id + i0 * topo->nf()] = Gr0(tmp, Gdata);
                 } else if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
                     // we should always enter this routine for 2d case and sometimes for 3d cases
-                    green[id + i0 * topo->nf()] = -Gk0(tmp,Gdata);
+                    green[id + i0 * topo->nf()] = Gk0(tmp, Gdata);
                 } else {
-                    green[id + i0 * topo->nf()] = -G(tmp,Gdata);
+                    green[id + i0 * topo->nf()] = G(tmp, Gdata);
                 }
             }
         }
@@ -269,7 +269,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
+        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
     END_FUNC;
 }
@@ -364,10 +364,10 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * nf] = -G0(tmp,NULL);
+                    green[id + i0 * nf] = G0(tmp,NULL);
                 }
                 else{
-                    green[id + i0 * nf] = -G(tmp,NULL);
+                    green[id + i0 * nf] = G(tmp,NULL);
                 }
             }
         }
@@ -501,14 +501,14 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 // const double tmp[2] = {ksqr, eps};
                 const double tmp[6] = {ksqr, eps,k0,k1,k2,hgrid};
 
-                green[id + i0 * nf] = -G(tmp,NULL);
+                green[id + i0 * nf] = G(tmp,NULL);
             }
         }
     }
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        green[0] = -0.0;
+        green[0] = 0.0;
     }
     END_FUNC;
 }
