@@ -124,7 +124,6 @@ static inline double _lgf_2_2unb0spe(const void* params,const double* data) {
     int    iy = (int)((double*)params)[5];
     int    iz = (int)((double*)params)[6];
     int    N  = (int)((double*)params)[7];
-    double h  = ((double*)params)[8];
 
     // if the point is close enough, it will be already precomputed
     double green;
@@ -183,8 +182,7 @@ static inline double _hej_2_2unb1spe_k0(const void* params,const double* data) {
 }
 static inline double _hej_2_2unb1spe_r0(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
-
-    return -=c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig));
+    return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig));
 }
 
 static inline double _hej_4_2unb1spe_k0(const void* params,const double* data) {
