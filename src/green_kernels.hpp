@@ -132,32 +132,32 @@ static inline double _lgf_2_2unb0spe(const void* params,const double* data) {
         green = data[ix + iy * N];
 
     } else {  // if not, we use the extrapolation
-        const double rho   = sqrt(ix * ix + iy * iy);
-        const double oorho_6 = 1.0/std::pow(rho,6.0);
+        const double rho     = sqrt(ix * ix + iy * iy);
+        const double oorho_6 = 1.0 / std::pow(rho, 6.0);
         // const double ix_1     = ix;
-        const double ix_2     = std::pow(ix, 2.0);
-        const double ix_4     = std::pow(ix, 4.0);
-        const double ix_6     = std::pow(ix, 6.0);
-        const double ix_8     = std::pow(ix, 8.0);
-        const double ix_10    = std::pow(ix, 10.0);
-        const double ix_12    = std::pow(ix, 12.0);
-        const double ix_14    = std::pow(ix, 14.0);
-        const double ix_16    = std::pow(ix, 16.0);
+        const double ix_2  = std::pow(ix, 2.0);
+        const double ix_4  = std::pow(ix, 4.0);
+        const double ix_6  = std::pow(ix, 6.0);
+        const double ix_8  = std::pow(ix, 8.0);
+        const double ix_10 = std::pow(ix, 10.0);
+        const double ix_12 = std::pow(ix, 12.0);
+        const double ix_14 = std::pow(ix, 14.0);
+        const double ix_16 = std::pow(ix, 16.0);
         // const double iy_1     = iy;
-        const double iy_2     = std::pow(iy, 2.0);
-        const double iy_4     = std::pow(iy, 4.0);
-        const double iy_6     = std::pow(iy, 6.0);
-        const double iy_8     = std::pow(iy, 8.0);
-        const double iy_10    = std::pow(iy, 10.0);
-        const double iy_12    = std::pow(iy, 12.0);
-        const double iy_14    = std::pow(iy, 14.0);
-        const double iy_16    = std::pow(iy, 16.0);
+        const double iy_2  = std::pow(iy, 2.0);
+        const double iy_4  = std::pow(iy, 4.0);
+        const double iy_6  = std::pow(iy, 6.0);
+        const double iy_8  = std::pow(iy, 8.0);
+        const double iy_10 = std::pow(iy, 10.0);
+        const double iy_12 = std::pow(iy, 12.0);
+        const double iy_14 = std::pow(iy, 14.0);
+        const double iy_16 = std::pow(iy, 16.0);
 
-        green =   1.0 / (   2.0 * M_PI) * (log(rho) + c_gamma + log(8.0) * c_1o2)\
-                - 1.0 / (  24.0 * M_PI) * (ix_4 - 6.0 * ix_2 * iy_2 + iy_4) * oorho_6\
-                - 1.0 / ( 480.0 * M_PI) * (43.0 * (ix_8 + iy_8) - 772.0 * (ix_6 * iy_2 + ix_2 * iy_6) + 1570.0 * ix_4 * iy_4) * oorho_6 * oorho_6\
-                - 1.0 / (2016.0 * M_PI) * (609.0 * (ix_12 + iy_12) - 24234.0 * (ix_10 * iy_2 + ix_2 * iy_10) + 109935.0 * (ix_8 * iy_4 + ix_4 * iy_8) - 160524.0 * ix_6 * iy_6) * oorho_6 * oorho_6 * oorho_6\
-                - 1.0 / (2880.0 * M_PI) * (63139.0 * (ix_16 + iy_16) - 4467336.0 * (ix_14 * iy_2 + ix_2 * iy_14) + 38334996.0 * (ix_12 * iy_4 + ix_4 * iy_12) - 98512568.0 * (ix_10 * iy_6 + ix_6 * iy_10) + 122747922.0 * ix_8 * iy_8) * oorho_6 * oorho_6 * oorho_6 * oorho_6;
+        green = - 1.0 / (   2.0 * M_PI) * (log(rho) + c_gamma + log(8.0) * c_1o2)\
+                + 1.0 / (  24.0 * M_PI) * (ix_4 - 6.0 * ix_2 * iy_2 + iy_4) * oorho_6\
+                + 1.0 / ( 480.0 * M_PI) * (43.0 * (ix_8 + iy_8) - 772.0 * (ix_6 * iy_2 + ix_2 * iy_6) + 1570.0 * ix_4 * iy_4) * oorho_6 * oorho_6\
+                + 1.0 / (2016.0 * M_PI) * (609.0 * (ix_12 + iy_12) - 24234.0 * (ix_10 * iy_2 + ix_2 * iy_10) + 109935.0 * (ix_8 * iy_4 + ix_4 * iy_8) - 160524.0 * ix_6 * iy_6) * oorho_6 * oorho_6 * oorho_6\
+                + 1.0 / (2880.0 * M_PI) * (63139.0 * (ix_16 + iy_16) - 4467336.0 * (ix_14 * iy_2 + ix_2 * iy_14) + 38334996.0 * (ix_12 * iy_4 + ix_4 * iy_12) - 98512568.0 * (ix_10 * iy_6 + ix_6 * iy_10) + 122747922.0 * ix_8 * iy_8) * oorho_6 * oorho_6 * oorho_6 * oorho_6;
     }
     return green;
 }
