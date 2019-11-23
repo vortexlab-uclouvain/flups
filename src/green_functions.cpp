@@ -162,7 +162,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
     FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
-    FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    // FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    // check that if hfact or kfact != 0, they are not the same
+    FLUPS_CHECK(!(kfact[2] == hfact[2] && (kfact[2]!= 0.0 || hfact[2] != 0.0)), "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);

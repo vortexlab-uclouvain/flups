@@ -1065,7 +1065,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
     }
 
     if (planmap[_ndim-1]->ignoreMode()) {
-        const int dimID = planmap[2]->dimID();
+        const int dimID = planmap[_ndim-1]->dimID();
         // get the shift
         int fieldstart[3] = {0};
         fieldstart[dimID] = -planmap[_ndim-1]->shiftgreen();
