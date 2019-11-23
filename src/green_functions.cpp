@@ -501,7 +501,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
                 // const double tmp[2] = {ksqr, eps};
-                const double tmp[6] = {ksqr, eps,k0,k1,k2,hgrid};
+                const double tmp[6] = {ksqr, eps, k0, k1, k2, hgrid};
 
                 green[id + i0 * nf] = G(tmp,NULL);
             }
