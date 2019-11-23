@@ -18,7 +18,8 @@ compil dbg :
     paths: 
       - ./samples/validation/flups_validation_nb
       - ./samples/validation/flups_validation_a2a
-      - ./include/LGF_sym_acc12_64.ker
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
     when: on_success
   script:
     - cd ../../
@@ -37,8 +38,8 @@ compil opt :
     paths: 
       - ./samples/validation/flups_validation_nb
       - ./samples/validation/flups_validation_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
       - ./include/LGF_3d_sym_acc12_64.ker
-      - ./include/LGF_2d_sym_acc12_64.ker
     when: on_success
   script:
     - cd ../../
