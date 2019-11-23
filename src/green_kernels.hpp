@@ -363,7 +363,6 @@ static inline double _lgf_2_0unb3spe(const void* params, const double* data) {
     const double kz = ((double*)params)[4];
     const double h  = ((double*)params)[5];
 
-    // return h * h / (4.0 * pow(sin(kx * h / 2.0), 2.0) + 4.0 * pow(sin(ky * h / 2.0), 2.0) + 4.0 * pow(sin(kz * h / 2.0), 2.0));
-    return h * h / (4.0 * pow(sin(kx / 2.0), 2.0) + 4.0 * pow(sin(ky / 2.0), 2.0) + 4.0 * pow(sin(kz / 2.0), 2.0));
+    return - h * h / (4.0 * pow(sin(kx * h / 2.0), 2.0) + 4.0 * pow(sin(ky * h / 2.0), 2.0) + 4.0 * pow(sin(kz * h / 2.0), 2.0));
 }
 /**@} */
