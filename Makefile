@@ -69,6 +69,13 @@ ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
 endif
 
 #-----------------------------------------------------------------------------
+# LGF SPECIAL CASE
+# by default the LGF kernel data is installed in the include directory
+LGF_PATH=$(abspath $(PREFIX)/include)
+DEF += -DKERNEL_PATH=${LGF_PATH}
+LGF_DATA := $(wildcard $(PREFIX)/kernel/*.ker)
+
+#-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
 HEAD := $(wildcard $(SRC_DIR)/*.hpp)
@@ -129,6 +136,7 @@ install_dynamic: lib_dynamic
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
 
 install_static: lib_static 
 	@mkdir -p $(PREFIX)/lib
@@ -136,6 +144,7 @@ install_static: lib_static
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
 
 # for a standard installation, do the dynamic link	
 install: info install_static
@@ -163,6 +172,7 @@ info: logo
 	$(info compil. flags = $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD)
 	$(info linker flags = -shared $(LDFLAGS))
 	$(info using arch file = $(ARCH_FILE) )
+	$(info LGF path = $(LGF_PATH) )
 	$(info ------------)
 	$(info FFTW:)
 	$(info - include: -I$(FFTW_INC) )
@@ -177,6 +187,7 @@ info: logo
 	$(info - OBJ A2A = $(OBJ_A2A))
 	$(info - OBJ NB = $(OBJ_NB))
 	$(info - DEP = $(DEP))
+	$(info - LGF_DATA = $(LGF_DATA))
 	$(info ------------)
 
 .NOTPARALLEL: logo

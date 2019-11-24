@@ -258,7 +258,9 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         // printf the important information
         if (rank == 0) {
             printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
-            fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            if (file != NULL) {
+                fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+            }
         }
     }
     // recursive call to the childrens
@@ -437,8 +439,13 @@ void Profiler::disp(const std::string ref) {
 
         string filename = folder + "/" + _name + "_parent.csv";
         file            = fopen(filename.c_str(), "w+");
-        _timeMap["root"]->writeParentality(file,0);
-        fclose(file);
+
+        if (file != NULL) {
+            _timeMap["root"]->writeParentality(file,0);
+            fclose(file);
+        } else {
+            printf("unable to open file %s !", filename.c_str());
+        }
     }
     
 
@@ -447,7 +454,7 @@ void Profiler::disp(const std::string ref) {
     //-------------------------------------------------------------------------
     
     if (rank == 0) {
-        string filename = "prof/" + _name + "_time.csv";
+        string filename = "./prof/" + _name + "_time.csv";
         file            = fopen(filename.c_str(), "w+");
     }
     // display the header
@@ -475,6 +482,11 @@ void Profiler::disp(const std::string ref) {
         printf("Max time - the max time / call spend in that timer among the processors\n");
         printf("Mean cnt - the total number of time the timer has been called (averaged among the processors)\n");
         printf("===================================================================================================================================================\n");
-        fclose(file);
+    
+        if (file != NULL) {
+            fclose(file);
+        } else {
+            printf("unable to open file for profiling !");
+        }
     }
 }

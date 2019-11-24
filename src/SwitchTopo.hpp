@@ -51,14 +51,7 @@ class SwitchTopo {
     MPI_Comm _inComm = NULL; /**<@brief the reference input communicator */
     MPI_Comm _outComm = NULL; /**<@brief the reference output communicator */
     MPI_Comm _subcomm = NULL; /**<@brief the subcomm for this switchTopo */
-    // int _exSize[3]; /**<@brief exchanged size in each dimension (012-indexing) */
     int _shift[3]; /**<@brief the shift in memory */
-
-    // int _nByBlock[3]; /**<@brief The number of data per blocks in each dim (!same on each process! and 012-indexing)  */
-    // int _istart[3]; /**<@brief the starting index for #_topo_in to be inside #_topo_out  */
-    // int _ostart[3]; /**<@brief the starting index for #_topo_out to be inside #_topo_in  */
-    // int _iend[3];   /**<@brief the ending index for #_topo_in to be inside #_topo_out  */
-    // int _oend[3];   /**<@brief the ending index for #_topo_out to be inside #_topo_in  */
 
     int _inBlock; /**<@brief the local number of block in each dim in the input topology */
     int _onBlock; /**<@brief the local number of block in each dim in the output topology  */
@@ -93,31 +86,12 @@ class SwitchTopo {
     virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
     virtual void disp() const                                                               = 0;
 
-    // /**
-    //  * @brief return the memory size of a block (including the padding for odd numbers if needed)
-    //  * 
-    //  * @return size_t 
-    //  */
-    // inline size_t get_blockMemSize() const {
-    //     // get the max block size
-    //     size_t total = 1;
-    //     for (int id = 0; id < 3; id++) {
-    //         // if the block size is 1, no need to pad :)
-    //         total *= (_nByBlock[id] == 1) ? 1 : (size_t)(_nByBlock[id] + _exSize[id] % 2);
-    //     }
-    //     // the nf at the moment of the switchTopo is ALWAYS the one from the output topo!!
-    //     total *= (size_t)_topo_out->nf();
-    //     // add the difference with the alignement to be always aligned
-    //     size_t alignDelta = ((total*sizeof(double))%FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total*sizeof(double))%FLUPS_ALIGNMENT )/sizeof(double);
-    //     // FLUPS_INFO("alignDelta = %d for a total of %d = %d %d %d",alignDelta,total,_nByBlock[0] + _exSize[0] % 2,_nByBlock[1] + _exSize[1] % 2,_nByBlock[2] + _exSize[2] % 2);
-    //     total = total + alignDelta;
-    //     FLUPS_CHECK((total*sizeof(double))%FLUPS_ALIGNMENT == 0 , "The total size of one block HAS to match the alignement size",LOCATION);
-    //     // return the total size
-    //     return total;
-    // };
-
     /**
      * @brief Get the memory size of a block padded to ensure alignment
+     *
+     * @warning
+     * Since we use gathered blocks, it is NOT STRAIGHTFORWARD to impose a common size for every block on every proc.
+     * Therefore, we chose not to do it!!
      * 
      * @param ib the block id
      * @param nf the number of fields inside an element
@@ -174,9 +148,6 @@ class SwitchTopo {
    protected:
     void _cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]);
     void _cmpt_blockDestRank(const int nBlock[3], const int nByBlock[3], const int shift[3], const int istart[3], const Topology* topo_in, const Topology* topo_out, int* destRank);
-    void _cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology* topo, const int* startBlockEachProc, const int* nBlockEachProc, int* destRank, int* destTag);
-    void _cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int* nBlockSize[3]);
-    // void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology* topo, int nBlock[3], int blockIDStart[3], int* startBlockEachProc, int* nBlockEachProc);
     void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]);
 
     void _cmpt_commSplit();
@@ -201,7 +172,7 @@ static inline int gcd(int a, int b) {
  * @param inComm input communicator
  * @param outComm output communicator
  */
-inline static void  translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
+inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Comm outComm) {
     BEGIN_FUNC;
 
     int comp;

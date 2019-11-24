@@ -1,5 +1,5 @@
 /**
- * @file green_functions_3d.cpp
+ * @file green_functions.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2019
  * 
@@ -23,59 +23,17 @@
  * 
  */
 
-#include "green_functions_3d.hpp"
-
-// **Symmetry computation:**
-// 
-// We have to take the symmetry around symstart. e.g. in X direction: `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
-// 
-// In some cases when we have an R2C transform, it ask for 2 additional doubles.
-// The value is meaningless but we would like to avoid segfault and nan's.
-// To do so, we use 2 tricks:
-// - The `abs` is used to stay on the positivie side and hence avoid negative memory access
-// - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
-// 
-// As an example, the final formula is then ( in the X direction):
-// `max( abs(2 symstart[0] - ix) , 1)`
+#include "green_functions.hpp"
+#include "green_kernels.hpp"
 
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
  * 
  */
-typedef double (*GreenKernel)(const void* );
-
-
-/**
- * @name 3 directions unbounded - 0 direction spectral
- * 
- * @{
- */
-// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-//notice that these function will likely not be inlined as we have a pointer to them...
-static inline double _hej_2_3unb0spe(const void* params) {
-    double r   = ((double*)params) [0];
-    double eps = ((double*)params) [1];
-    return c_1o4pi / r * (erf(r / eps * c_1osqrt2));
-}
-static inline double _hej_4_3unb0spe(const void* params) {
-    double r   = ((double*)params) [0];
-    double eps = ((double*)params) [1];
-    double rho = r / eps;
-    return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (rho)*exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
-}
-static inline double _hej_6_3unb0spe(const void* params) {
-    double r   = ((double*)params) [0];
-    double eps = ((double*)params) [1];
-    double rho = r / eps;
-    return c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
-}
-static inline double _chat_2_3unb0spe(const void* params) {
-    double r   = ((double*)params) [0];
-    return c_1o4pi / r ;
-}
+typedef double (*GreenKernel)(const void*,const double*);
 
 /**
- * @brief Compute the Green function for 3dirunbounded
+ * @brief Compute the Green function for 0 dir spectral (i.e. 3 dir unbounded or 2 dirunbounded)
  * 
  * @param topo the topology associated to the Green's function
  * @param hfact the h multiplication factors
@@ -83,9 +41,8 @@ static inline double _chat_2_3unb0spe(const void* params) {
  * @param green the Green function array
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
- * 
  */
-void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
     BEGIN_FUNC;
 
     FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral", LOCATION);
@@ -95,29 +52,37 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
     FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
     FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
 
-    double      G0;  //value of G in 0
     GreenKernel G;
 
+    double  G0;  //value of G in 0
+    int     GN    = 0;
+    double *Gdata = NULL;
+
+    //==========================    3D  =================================
     switch (typeGreen) {
         case HEJ_2:
             G  = &_hej_2_3unb0spe;
-            G0 =       M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
             G  = &_hej_4_3unb0spe;
-            G0 = 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
             G  = &_hej_6_3unb0spe;
-            G0 = 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
             break;
         case CHAT_2:
             G  = &_chat_2_3unb0spe;
-            G0 = .5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
+            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
-            //please add the parameters you need to params
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
+            FLUPS_CHECK(hfact[1] == hfact[2], "the grid has to be isotropic to use the LGFs", LOCATION);
+            // read the LGF data and store it
+            _lgf_readfile(3,&GN, &Gdata);
+            // associate the Green's function
+            G = &_lgf_2_3unb0spe;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -149,95 +114,26 @@ void cmpt_Green_3D_3dirunbounded_0dirspectral(const Topology *topo, const double
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
 
-                const double tmp[2] = {r, eps};
-                green[id + i0 * nf] = -G(tmp);
+                // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
+                // and the others 5 ones are aimed for LGFs only
+                const double tmp[9] = {r, eps, 0, 0, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
+                green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
     }
-    // reset the value in 0.0
-    if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        green[0] = -G0;
+    // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
+    if (typeGreen != LGF_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+        green[0] = G0;
     }
+    // free Gdata if needed
+    if (Gdata != NULL) {
+        flups_free(Gdata);
+    }
+
     END_FUNC;
 }
-/**@} */
 
 
-/**
- * @name 2 directions unbounded - 1 direction spectral
- * 
- * @{
- */
-// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_2unb1spe_k0(const void* params) {
-    const double r   = ((double*)params)[0];
-    const double sig = ((double*)params)[2];
-
-    const double rho = r/sig;
-    const double rho2 = rho*rho;
-    // return -c_1o2pi * (log(r) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
-    return -c_1o2pi * (log(r) + .5 * expint_ei(rho2 / 2));
-    // return -c_1o2pi * (.5*log(rho*.5) + .5 * expint_ei(rho2 / 2));
-}
-static inline double _hej_2_2unb1spe_r0(const void* params) {
-    const double sig = ((double*)params)[2];
-
-    return c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig));
-}
-
-static inline double _hej_4_2unb1spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double sig = ((double*)params) [2];
-
-    const double rho  = r/sig;
-    const double rho2 = rho*rho;
-    // return -c_1o2pi * (log(r) - (1 - .5 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
-    return -c_1o2pi * (log(r) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
-    // return -c_1o2pi * (.5*log(rho2*.5) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
-}
-static inline double _hej_4_2unb1spe_r0(const void* params) {
-    const double sig = ((double*)params)[2];
-
-    return c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + .5);
-}
-
-static inline double _hej_6_2unb1spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double rho2 = rho*rho;
-    // return -c_1o2pi * (log(r) - (1 - rho2 + .125 * rho2 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2)); //mistaken coefs in [Spietz2018]
-    return -c_1o2pi * (log(r) - (.75 - .125 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
-    // return -c_1o2pi * (.5*log(rho2*.5) - (.75 - .125 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
-}
-static inline double _hej_6_2unb1spe_r0(const void* params) {
-    const double sig = ((double*)params)[2];
-
-    return c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + .75);
-}
-static inline double _zero(const void* params) {   
-    return - 0.0;
-}
-
-static inline double _chat_2_2unb1spe(const void* params) {
-    const double r      = ((double*)params) [0];
-    const double k      = ((double*)params) [1];
-
-    return c_1o2pi * besselk0(fabs(k) * r);
-}
-static inline double _chat_2_2unb1spe_r0(const void* params) {
-    const double k      = ((double*)params) [1];
-    const double r_eq2D = ((double*)params) [3];
-
-    return (1.0 - k * r_eq2D * besselk1(k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
-}
-static inline double _chat_2_2unb1spe_k0(const void* params) {
-    const double r      = ((double*)params) [0];
-    // const double sig = ((double*)params)[2];
-    
-    return  - c_1o2pi * log(r) ; //caution: mistake on the sign in [Chatelain2010]
-}
 
 /**
  * @brief Compute the Green function for 2dirunbounded and 1dirspectral
@@ -252,47 +148,52 @@ static inline double _chat_2_2unb1spe_k0(const void* params) {
  * @param green the Green function array
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
+ * 
+ * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
+            for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
+            We here fill with zero most part of Green data. Indeed, we are interested only in doing the FFT
+            of _hej_*_2unb1spe_k0 in the 2 remaining spatial directions. We will complete the Green function with the
+            full spectral part afterwards, while going through Solver::_cmptGreenFunction.
+ * 
  */
-void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
     BEGIN_FUNC;
     
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
     FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
-    FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    // check that if hfact or kfact != 0, they are not the same
+    FLUPS_CHECK(!(kfact[2] == hfact[2] && (kfact[2]!= 0.0 || hfact[2] != 0.0)), "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
     // opt_double_ptr mygreen = green; //casting of the Green function to be able to access real and complex part
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
-    
+
     GreenKernel G;    // the Green kernel (general expression in the whole domain)
     GreenKernel Gk0;  // the Green kernel (particular expression in k=0)
     GreenKernel Gr0;  // the Green kernel (particular expression in r=0)
 
+    int     GN    = 0;
+    double *Gdata = NULL;
+
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail a approximation.", LOCATION);
-            
-            // Note: 
-            // According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
-            // for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
-            // We here fill with zero the greatest part of Green: we are actually interested only in doing the FFT
-            // of _hej_*_2unb1spe_k0 in the 2 remaining spatial directions. We will complete the Green function with the
-            // full spectral part afterwards. 
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            // see warning in the function description
             G   = &_zero;
             Gk0 = &_hej_2_2unb1spe_k0;
             Gr0 = &_hej_2_2unb1spe_r0;
             break;
         case HEJ_4:
-            // FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail a approximation.");
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_4_2unb1spe_k0;
             Gr0 = &_hej_4_2unb1spe_r0;
             break;
         case HEJ_6:
-            // FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail a approximation.");
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_6_2unb1spe_k0;
             Gr0 = &_hej_6_2unb1spe_r0;
@@ -304,7 +205,13 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
+            // read the LGF data and store it
+            _lgf_readfile(2,&GN, &Gdata);
+            // associate the Green's function
+            G   = &_zero;
+            Gk0 = &_lgf_2_2unb0spe;
+            Gr0 = &_lgf_2_2unb0spe;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -323,19 +230,18 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0,0, i1, i2, ax0, nmem,nf);
-        
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
+
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
-                
                 // global indexes
                 int is[3];
-                cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
+                cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
 
                 // (symmetrized) wave number : only one kfact is non-zero
                 const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
                 const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
                 const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
-                const double k = k0 + k1 + k2;
+                const double k  = k0 + k1 + k2;
 
                 //(symmetrized) position : only one hfact is zero
                 const double x0 = (is[ax0]) * hfact[ax0];
@@ -343,110 +249,32 @@ void cmpt_Green_3D_2dirunbounded_1dirspectral(const Topology *topo, const double
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[4] = {r, k, eps, r_eq2D};
+                const double tmp[9] = {r, k, eps, r_eq2D, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
-                    green[id + i0 * topo->nf()] = -Gr0(tmp);
+                    // we should enter this case for 2d and 3d cases
+                    green[id + i0 * topo->nf()] = Gr0(tmp, Gdata);
                 } else if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * topo->nf()] = -Gk0(tmp);
+                    // we should always enter this routine for 2d case and sometimes for 3d cases
+                    green[id + i0 * topo->nf()] = Gk0(tmp, Gdata);
                 } else {
-                    green[id + i0 * topo->nf()] = -G(tmp);
+                    green[id + i0 * topo->nf()] = G(tmp, Gdata);
                 }
             }
         }
     }
     
-    // reset the value in x=y=0.0 and k=0
-    if (typeGreen == CHAT_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+    // reset the value in x=y=0.0 and k=0 for singular expressions
+    if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        green[0] = .25 * c_1o2pi * (M_PI - 6.0 + 2. * log(.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
+        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
     END_FUNC;
 }
-/**@} */
 
-
-/**
- * @name 1 direction unbounded - 2 directions spectral
- * 
- * @{
- */
-// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_1unb2spe(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double k   = ((double*)params) [1];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double s   = k*sig;
-
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
-    return .25 * sig / s * subfun ;
-}
-static inline double _hej_2_1unb2spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double rosqrt2 = r*c_1osqrt2;
-    // return -.5* (r * erf(rosqrt2/sig) + (exp(-r*r/(2*sig*sig)) - 1.)*sig*M_SQRT2*c_1osqrtpi) ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-    return -.5* r * erf(rosqrt2/sig) + (1.-exp(-rho*rho*.5)) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-}
-
-static inline double _hej_4_1unb2spe(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double k   = ((double*)params) [1];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double s   = k*sig;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
-    return .25 * sig / s * subfun + \
-           sig * M_SQRT2 * c_1osqrtpi * .25 * exp(-.5 * (s * s + rho * rho));
-}
-static inline double _hej_4_1unb2spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double rosqrt2 = r*c_1osqrt2;
-    return -.5* r * erf(rosqrt2/sig) + (1.-exp(-rho*rho*.5)) *.5*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-}
-
-static inline double _hej_6_1unb2spe(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double k   = ((double*)params) [1];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double s   = k*sig;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
-    return .25 * sig / s * subfun + \
-           sig * M_SQRT2 * c_1osqrtpi * (c_5o16 + c_1o16 * (s * s - rho * rho)) * exp(-.5 * (s * s + rho * rho));
-}
-static inline double _hej_6_1unb2spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double sig = ((double*)params) [2];
-
-    const double rho = r/sig;
-    const double rosqrt2 = r*c_1osqrt2;
-    return -.5* r * erf(rosqrt2/sig) + (3.-exp(-rho*rho*.5) * (rho*rho+3.) ) *.125*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-}
-
-static inline double _chat_2_1unb2spe(const void* params) {
-    const double r   = ((double*)params) [0];
-    const double k   = ((double*)params) [1];
-
-    return .5 * exp(-k * r) / k;
-}
-static inline double _chat_2_1unb2spe_k0(const void* params) {
-    const double r   = ((double*)params) [0];
-
-    return -.5 * fabs(r);
-}
 
 
 /**
@@ -463,13 +291,14 @@ static inline double _chat_2_1unb2spe_k0(const void* params) {
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
  */
-void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
     FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]", LOCATION);
     FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]", LOCATION);
-    FLUPS_CHECK(kfact[2] != hfact[2], "grid spacing[2] cannot be = to dk[2]", LOCATION);
+    // check that if hfact or kfact != 0, they are not the same
+    FLUPS_CHECK(!(kfact[2] == hfact[2] && (kfact[2]!= 0.0 || hfact[2] != 0.0)), "grid spacing[2] cannot be = to dk[2]", LOCATION);
 
     // @Todo For Helmolz, we need Green to be complex 
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.", LOCATION);
@@ -537,52 +366,15 @@ void cmpt_Green_3D_1dirunbounded_2dirspectral(const Topology *topo, const double
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * nf] = -G0(tmp);
+                    green[id + i0 * nf] = G0(tmp,NULL);
                 }
                 else{
-                    green[id + i0 * nf] = -G(tmp);
+                    green[id + i0 * nf] = G(tmp,NULL);
                 }
             }
         }
     }
     END_FUNC;
-}
-
-/**@} */
-
-
-/**
- * @name 3 directions spectral
- * 
- * @{
- */
-// ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_0unb3spe(const void* params) {
-    const double ksqr = ((double*)params)[0];
-    const double sig  = ((double*)params)[1];
-
-    const double ssqr = ksqr * (sig * sig);
-    return exp(-ssqr / 2) / (ksqr); 
-}
-static inline double _hej_4_0unb3spe(const void* params) {
-    const double ksqr = ((double*)params)[0];
-    const double sig  = ((double*)params)[1];
-
-    const double ssqr = ksqr * (sig * sig);
-    return (1 + ssqr / 2) * exp(-ssqr / 2) / (ksqr);
-}
-static inline double _hej_6_0unb3spe(const void* params) {
-    const double ksqr = ((double*)params)[0];
-    const double sig  = ((double*)params)[1];
-
-    const double ssqr = ksqr * (sig * sig);
-    return (1 + ssqr / 2 + ssqr * ssqr / 8) * exp(-ssqr / 2) / (ksqr);
-}
-
-static inline double _chat_2_0unb3spe(const void* params) {
-    const double ksqr   = ((double*)params) [0];
-
-    return 1 / ksqr;
 }
 
 /**
@@ -597,6 +389,7 @@ static inline double _chat_2_0unb3spe(const void* params) {
  * The wave number in each direction is obtained as k_i = (i_s + koffset_i) * kfact_i, where is the global (potentially symmetric) index.
  * 
  * @param topo the topology associated to the Green's function
+ * @param hgrid the grid spacing h = hx = hy = hz, used only for the LGF
  * @param kfact the k multiplicative factor
  * @param koffset the k additive factor
  * @param symstart index of the symmetry in each direction
@@ -604,10 +397,9 @@ static inline double _chat_2_0unb3spe(const void* params) {
  * @param typeGreen the type of Green function 
  * @param eps the smoothing length (only used for HEJ kernels)
  */
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
-    cmpt_Green_3D_0dirunbounded_3dirspectral(topo, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
 }
-
 
 /**
  * @brief Compute the Green function for 3dirspectral (in a portion of the spectral domain)
@@ -627,13 +419,13 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
  * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
  * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
  */
-void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]){
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]) {
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
     FLUPS_CHECK(kfact[0] != 0.0, "dk cannot be 0", LOCATION);
     FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0", LOCATION);
-    FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
+    // FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0", LOCATION);
 
     GreenKernel G;   // the Green kernel (general expression in the whole domain)
 
@@ -651,7 +443,7 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
             G = &_chat_2_0unb3spe;
             break;
         case LGF_2:
-            FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
+            G = &_lgf_2_0unb3spe;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -708,17 +500,18 @@ void cmpt_Green_3D_0dirunbounded_3dirspectral(const Topology *topo, const double
                 // green function value
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
-                const double tmp[2] = {ksqr, eps};
+                // const double tmp[2] = {ksqr, eps};
+                const double tmp[6] = {ksqr, eps, k0, k1, k2, hgrid};
 
-                green[id + i0 * nf] = -G(tmp);
+                green[id + i0 * nf] = G(tmp,NULL);
             }
         }
     }
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        green[0] = -0.0;
+        green[0] = 0.0;
     }
     END_FUNC;
 }
-/**@} */
+

@@ -15,13 +15,21 @@ For the list of all the contributors to the development of FLUPS, description an
 If you use FLUPS, please cite it as follows in your publications:
 - Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)
 
+### Why should you use FLUPS?
+- You can solve the Poisson on rectangular and uniform distributed 2D/3D grids;
+- You can use any boundary conditions, including truly unbounded boundary conditions and semi-unbounded conditions
+- You can solve may times the same Poisson problem at low cost using precomputed Green's function and communication patterns;
+- You can use threads and/or MPI to fasten the execution;
+- You can use the build-in profiler to optimize the execution speed;
+- You can use any part of the library on its own, especially the pre-computed communications and the FFTs;
+- You can apply filters or do any computation you want while in the Fourier space.
 
 ### Installation
 
 FLUPS is a C++ library, with an API in C.
-The compilation of FLUPS was tested with Intel compilers and GCC.
+The compilation of FLUPS was tested with Intel compilers and GCC.,
 
-#### 1. Dependencies
+#### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
 ```shell
@@ -31,9 +39,8 @@ CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-
 ```shell
 CC=mpiicc CXX=mpiicpc FC=mpif90 ./configure --prefix=hdf5_prefix --enable-build-mode=production --enable-parallel
 ```
-- METIS (> v5.1.0) - only if compiling with `REORDER_RANKS`
 
-#### 2. The Library
+#### Compilation
 You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `FFTWDIR` and `HDF5DIR`.
 For example:
 ```makefile
@@ -57,15 +64,21 @@ HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
 ```
 By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
-
-Then you need to reference the created configuration file and the prefix you wish to :
-```shell
-export ARCH_FILE=make_arch/my_arch_dependent_file
+For example:
+```makefile
+FFTW_LIBNAME := -lfftw3_omp -lfftw3
+HDF5_LIBNAME := -lhdf5_openmpi
 ```
 
+Then you need to reference the created configuration file (using `ARCH_FILE`) and the prefix in you wish to install the library (using `PREFIX`).
+You can either `export` the variables or reference them later while calling the Makefile.
+If no prefix is given, `make install` uses the current working directory to install the library
+
 Finally, go to the main folder and type the compilation command.
-- Check the compilation details before doing the installation
+- Check the compilation details before doing the installation\
 ```shell
+export ARCH_FILE=make_arch/my_arch_dependent_file
+export PREFIX=/my/lib/prefix
 make info
 ## or
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make info
@@ -77,12 +90,15 @@ make install
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
-#### 3. Documentation
+:warning: you must **install** the library. Indeed, we copy some data required by the solver.
+If you wish to keep everything local, simply do not give a prefix and the current directory will be selected.
 
-The documentation is built with Doxygen.
-To build the documentation, please go to the `./doc` subfolder and type `doxygen`.
+#### Documentation
 
-#### 4. Compilation flags
+The documentation is built using Doxygen.
+To build the documentation, go to the `./doc` subfolder and type `doxygen`.
+
+#### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
@@ -90,101 +106,19 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `NDEBUG`: use this flag to bypass various checks inside the library
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
 - `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
-- `HAVE_METIS`: in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources
+- `HAVE_METIS`: in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality.
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
 ### How to use a solver?
 
 #### Detailed reference
+The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)".
 
-The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)"
-
-For the detailed specifications of the API, have a look at @ref flups.h .
-
-
-#### FLUPS in a nutshell
-To use the solver, you first need to create a topology
-```cpp
-int  axis      = 0;              // aligned along the first dimension
-int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
-int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
-bool isComplex = false;          // real data
-
-// no specific alignement => we put a value of 1
-Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1, MPI_COMM_WORLD);
-
-// define additional quantities
-double L = {1.0, 2.0, 1.0};
-double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
-```
-
-Then, you can define a new solver and it's boundary condition
-```cpp
-// define the solver
-const BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
-Solver *      mysolver   = new Solver(topo, mybc, h, L);
-
-// setup the solver
-mysolver->set_GreenType(HEJ2);
-mysolver->setup(false);
-```
-
-To solve a field `rhs` that has been defined on the topology, use
-```cpp
-mysolver->solve(rhs, rhs, SRHS);
-```
-
-Then, destroy the solver
-```
-delete (mysolver);
-```
-
-#### Advanced usage
-
-Examples of usage of FLUPS in C programs are provided in the `./sample` subfolder.
-
-#### Memory footprint
-
-For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
-- the all to all version uses ~530Mb (O.253kB/unknown)
-- the non-blocking version uses ~560Mb (O.267kB/unknown)
-
-<!--
-(1500/(560/128^3))^(1/3)
-For 1.5Go, max 168
-14*12
-21*8 
-7*24-->
-
-**CAUTION**
-FLUPS was nerver tested above 1024^3 unknowns per core.
-
-### Implementation details and developers guide
-#### C++ use
-We use the C++ language in a very limited way, on purpose.
-The features used are the object oriented layout and some usefull features of the standard library.
-
-#### Conventions
-
-- Put a ```BEGIN_FUNC;``` at the begining of each function
-- how to name an action? ```action_mySuperFunction``` where ```action``` = ```set```, ```get```, ```execute```, ```switch```, ```cmpt```
-- how to name a function? ```mySuperFunction```
-- how to name an class? ```MyClass```
-- how to name an type? ```MyType```
-
-#### Format Guide
-We follow the Google formating rules, see https://google.github.io/styleguide/cppguide.html for more details
-
-To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
-
-Set then the value:
-```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignments: true, AlignConsecutiveDeclarations: true }```.
-
-Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
+A detailed description of the API is provided in the documentation (@ref flups.h), as well as many implementation details.
 
 #### Memory layout
-In this project we choose to handle the memory in a **Fortran** way of doing iven if we are in C/C++.
+In this project we choose to handle the memory in a **Fortran** way of doing even if we are in C/C++.
 So, the memory is aligned as a single row of size `n[0] * n[1] * n[2]`.
 The fastest rotating index is set to be `n[0]` then `n[1]` and finally `n[2]`.
 
@@ -206,7 +140,88 @@ for(int iz=0; iz<n[2]; iz++){
         }
     }
 }
+
+flups_free(data);
 ```
+
+#### FLUPS in a nutshell
+To use the solver, you first need to create a topology
+```cpp
+int  axis      = 0;              // aligned along the first dimension
+int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
+int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
+bool isComplex = false;          // real data
+
+// no specific alignement => we put a value of 1
+FLUPS_Topology *topo = flups_topo_new(axis, nglob, nproc, isComplex, NULL, 1, MPI_COMM_WORLD);
+
+// define additional quantities
+double L = {1.0, 2.0, 1.0};
+double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+```
+
+Then, you can define a new solver and its boundary condition
+```cpp
+// define the solver
+const FLUPS_BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
+FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L,prof);
+
+// setup the solver
+flups_set_greenType(mysolver,typeGreen);
+flups_setup(mysolver,false);
+```
+
+To solve a field `rhs` that has been defined on the topology, use
+```cpp
+flups_solve(mysolver,rhs, rhs, SRHS);
+```
+
+Then, destroy the solver and the created topology
+```
+flups_cleanup(mysolver);
+flups_topo_free(topo);
+```
+
+#### Advanced usage
+Examples of usage of FLUPS in C programs are provided in the `./sample` subfolder.
+
+#### Memory footprint
+For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
+- the all to all version uses ~530Mb (O.253kB/unknown)
+- the non-blocking version uses ~560Mb (O.267kB/unknown)
+
+<!--
+(1500/(560/128^3))^(1/3)
+For 1.5Go, max 168
+14*12
+21*8 
+7*24-->
+
+:warning: FLUPS was nerver tested above 1024^3 unknowns per core.
+
+### Implementation details and developers guide
+#### C++ use
+We use the C++ language in a very limited way, on purpose.
+The features used are the object oriented layout and some usefull features of the standard library.
+
+#### Conventions
+- Put a ```BEGIN_FUNC;``` at the begining and a ```END_FUNC;``` at the end of each function
+- Use ```FLUPS_INFO``` for verbosity (several levels available), ```FLUPS_CHECK``` for assertions and ```FLUPS_ERROR``` for error management
+- Use ```flups_malloc``` and ```flups_free``` function to allocate/free memory
+- how to name an action? ```action_mySuperFunction``` where ```action``` = ```set```, ```get```, ```execute```, ```switch```, ```cmpt```
+- how to name a function? ```mySuperFunction```
+- how to name an class? ```MyClass```
+- how to name an type? ```MyType```
+
+#### Format Guide
+We follow the Google formating rules, see https://google.github.io/styleguide/cppguide.html for more details
+
+To configure the auto-formatter in VsCode, search in the settings for `C_Cpp.clang_format_fallbackStyle`.
+
+Set then the value:
+```{ BasedOnStyle: Google, ColumnLimit: 0, IndentWidth: 4, AlignConsecutiveAssignments: true, AlignConsecutiveDeclarations: true }```.
+
+Inspired from https://clang.llvm.org/docs/ClangFormatStyleOptions.html (*Configurable Format Style Options* section)
 
 #### Debugging
 

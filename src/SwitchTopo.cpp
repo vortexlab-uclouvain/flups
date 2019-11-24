@@ -32,31 +32,28 @@
 #include "Topology.hpp"
 #include <limits>
 
-void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]){
+/**
+ * @brief computes nByBlock, the unit block size
+ * 
+ * @param istart the starting indexes on this rank in the input topology
+ * @param iend the end indexes on this rank in the input topology
+ * @param ostart the starting indexes on this rank in the output topology
+ * @param oend the end indexes on this rank in the output topology
+ * @param nByBlock 
+ */
+void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3], int nByBlock[3]) {
     BEGIN_FUNC;
 
     int comm_size;
-    MPI_Comm_size(_inComm,&comm_size);
+    MPI_Comm_size(_inComm, &comm_size);
 
     int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
-        int isend = (iend[id] - istart[id]);
-        int osend = (oend[id] - ostart[id]);
-        // // compute the exchanged size same if from the input or output
-        // MPI_Allreduce(&isend, &_exSize[id], 1, MPI_INT, MPI_SUM, _inComm);
-        // // we have summed the size nproc(id+1)*size nproc(id+2) * size, so we divide
-        // _exSize[id] /= _topo_in->nproc((id+1)%3) * _topo_in->nproc((id+2)%3);
-
-        // // if I am the last one, I decrease the blocksize by one if needed
-        // if (_topo_in->rankd(id) == (_topo_in->nproc(id) - 1)) {
-        //     isend = isend - _exSize[id] % 2;
-        // }
-        // if (_topo_out->rankd(id) == (_topo_out->nproc(id) - 1)) {
-        //     osend = osend - _exSize[id] % 2;
-        // }
-        int npoints = gcd(isend,osend);
+        int isend   = (iend[id] - istart[id]);
+        int osend   = (oend[id] - ostart[id]);
+        int npoints = gcd(isend, osend);
         // gather on each proc the gcd
         MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _inComm);
         // get the Greatest Common Divider among every process
@@ -72,75 +69,7 @@ void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int o
 }
 
 /**
- * @brief compute the destination rank for every block on the current processor
- * 
- * @param nBlock the number of block on the current proc (012-indexing)
- * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
- * @param topo the destination topology
- * @param nBlockOnProc the number of block on each proc in the destination topology
- * @param destRank the computed destination rank for each block
- */
-void SwitchTopo::_cmpt_blockDestRankAndTag(const int nBlock[3], const int blockIDStart[3], const Topology *topo, const int *startBlockEachProc, const int *nBlockEachProc, int *destRank, int *destTag) {
-    BEGIN_FUNC;
-    int comm_size;
-    MPI_Comm_size(_inComm, &comm_size);
-    // go through each block
-    for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
-        // get the split index
-        int bidv[3];
-        localSplit(ib, nBlock, 0, bidv, 1);
-        // initialize the destrank
-        int global_bid[3] = {0, 0, 0};
-        int destrankd[3] = {0, 0, 0};
-        // determine the dest rank for each dimension
-        for (int id = 0; id < 3; id++) {
-            // we go trough every rank on the given dim
-            global_bid[id] = bidv[id] + blockIDStart[id];
-            for (int ir = 0; ir < topo->nproc(id); ir++) {
-                // update the destination rank
-                destrankd[id] = ir;
-
-                // update the number of block already visited
-                int minBlockLocal = startBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
-                int maxBlockLocal = minBlockLocal + nBlockEachProc[id * comm_size + rankindex(destrankd, topo)];
-
-                // if we have already visited more block than my block id then we have found the destination rank
-                if (global_bid[id] >= minBlockLocal && global_bid[id] < maxBlockLocal) {
-                    break;
-                }
-            }
-        }
-
-        // get the global destination rank
-        const int destrank = rankindex(destrankd, topo);
-        // get the global destination tag
-        destRank[ib] = destrank;
-
-        FLUPS_CHECK(destrank < comm_size, "the destination rank is > than the commsize: %d = %d %d %d vs %d", destrank, destrankd[0], destrankd[1], destrankd[2], comm_size, LOCATION);
-        if (destTag != NULL) {
-            // get the number of block in the destination rank
-            int dest_nBlock[3] = {nBlockEachProc[0 * comm_size + destrank],
-                                  nBlockEachProc[1 * comm_size + destrank],
-                                  nBlockEachProc[2 * comm_size + destrank]};
-            // store the destination tag = local block index in the destination rank
-            // get the number of block in the destination rank
-            int dest_iBlock[3] = {global_bid[0]-startBlockEachProc[0 * comm_size + destrank],
-                                  global_bid[1]-startBlockEachProc[1 * comm_size + destrank],
-                                  global_bid[2]-startBlockEachProc[2 * comm_size + destrank]};
-            // create the tag 
-            destTag[ib] = localIndex(0, dest_iBlock[0], dest_iBlock[1], dest_iBlock[2], 0, dest_nBlock, 1);
-        }
-    }
-
-    //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
-    //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.
-    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo->get_comm(), _inComm);
-
-    END_FUNC;
-}
-
-/**
- * @brief compute the destination rank for every block on the current processor
+ * @brief compute the destination rank for every unit block on the current processor
  * 
  * @param nBlock the number of block on the current proc (012-indexing)
  * @param blockIDStart the global starting id of the block (0,0,0) in the current topo
@@ -164,12 +93,13 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
         // determine the dest rank for each dimension
         for (int id = 0; id < 3; id++) {
             // get the global starting index in my current topo = topo_in
-            global_id[id] = bidv[id] * nByBlock[id] + topo_in->nbyproc(id) * topo_in->rankd(id) + istart[id];
+            global_id[id] = bidv[id] * nByBlock[id] + topo_in->cmpt_start_id(id) + istart[id];
             // the (0,0,0) in topo in is located in shift in topo_out
-            FLUPS_INFO_4("block %d starts at %d / %d ",ib,(global_id[id] + shift[id]),topo_out->nbyproc(id));
-            destrankd[id] = (global_id[id] + shift[id]) / topo_out->nbyproc(id);
+            FLUPS_INFO_4("block %d starts at %d ",ib,(global_id[id] + shift[id]));
+            // destrankd[id] = (global_id[id] + shift[id]) / topo_out->nbyproc(id);
+            destrankd[id] = topo_out->cmpt_rank_fromid(global_id[id] + shift[id],id);
             // if the last proc has more data than the other ones, we need to max the destrank
-            destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
+            // destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
         }
         destRank[ib] = rankindex(destrankd, topo_out);
         
@@ -183,40 +113,7 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
 }
 
 /**
- * @brief compute the size of the blocks inside the given topology
- * 
- * @param nBlock 
- * @param blockIDStart 
- * @param nByBlock 
- * @param topo 
- * @param nBlockSize 
- */
-void SwitchTopo::_cmpt_blockSize(const int nBlock[3], const int blockIDStart[3], const int nByBlock[3], const int istart[3], const int iend[3], int *nBlockSize[3]) {
-    BEGIN_FUNC;
-    // go through each block
-    for (int ib2 = 0; ib2 < nBlock[2]; ib2++) {
-        for (int ib1 = 0; ib1 < nBlock[1]; ib1++) {
-            for (int ib0 = 0; ib0 < nBlock[0]; ib0++) {
-                // get the global block index
-                const int bidv[3] = {ib0, ib1, ib2};
-                const int bid     = localIndex(0, ib0, ib1, ib2, 0, nBlock, 1);
-                // determine the size in each direction
-                for (int id = 0; id < 3; id++) {
-                    //if I am the last block, I forgive a small difference between the blocksizes
-                    if (bidv[id] == (nBlock[id] - 1)) {
-                        nBlockSize[id][bid] = (iend[id] - istart[id]) - bidv[id] * nByBlock[id];
-                    } else {
-                        nBlockSize[id][bid] = nByBlock[id];
-                    }
-                }
-            }
-        }
-    }
-    END_FUNC;
-}
-
-/**
- * @brief given a topology, try to merge the blocks that go to the same destination
+ * @brief given a topology, merges the unit blocks that go to the same destination in order to create one big block for each proc
  * 
  * @param [in] topo the topology
  * @param [in] nByBlock the number of unknowns by blocks
@@ -238,6 +135,9 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
     int* nblockToEachProc = (int*)flups_malloc(sizeof(int) * commsize);
     std::memset(nblockToEachProc, 0, sizeof(int) * commsize);
 
+    //-------------------------------------------------------------------------
+    /** - count the number of block going to each proc */
+    //-------------------------------------------------------------------------
     const int old_nBlock = nBlockv[0] * nBlockv[1] * nBlockv[2];
     
     for (int ib = 0; ib < old_nBlock; ib++) {
@@ -251,6 +151,9 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
         }
     }
 
+    //-------------------------------------------------------------------------
+    /** - initialize destination rank, block sizes and blockiStart arrays */
+    //-------------------------------------------------------------------------
     // allocate the new arrays: rank, tag, blocksize, block istart
     int* newBlockSize[3]   = {NULL, NULL, NULL};
     int* newblockiStart[3] = {NULL, NULL, NULL};
@@ -284,8 +187,9 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
     // free the temp array
     flups_free(nblockToEachProc);
 
-    // recompute the number of blocks on each proc and the starting index
-
+    //-------------------------------------------------------------------------
+    /** - Gathering blocks: recompute the blocksize, the blockiStart and the destination rank */
+    //-------------------------------------------------------------------------
     // loop over the blocks and store the information
     for (int nib = 0; nib < newNBlock; nib++) {
         // FLUPS_INFO(">>> looking for new block %d", nib);
@@ -311,9 +215,6 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
                 // get the last index of the block
                 int nib_start[3] = {newblockiStart[0][nib], newblockiStart[1][nib], newblockiStart[2][nib]};
                 int nib_end[3]   = {nib_start[0] + newBlockSize[0][nib], nib_start[1] + newBlockSize[1][nib], nib_start[2] + newBlockSize[2][nib]};
-                
-                // FLUPS_INFO(">>> old block lim = %d %d %d -> %d %d %d",ib_start[0],ib_start[1],ib_start[2],ib_end[0],ib_end[1],ib_end[2]);
-                // FLUPS_INFO(">>> new block lim = %d %d %d -> %d %d %d",nib_start[0],nib_start[1],nib_start[2],nib_end[0],nib_end[1],nib_end[2]);
 
                 // get the new starting index (and overwrittes the INT_MAX if any!!)
                 newblockiStart[0][nib] = std::min(nib_start[0], ib_start[0]);
@@ -331,6 +232,9 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
         }
         
     }
+    //-------------------------------------------------------------------------
+    /** - free old arrays and store the new ones */
+    //-------------------------------------------------------------------------
     // store the new block number
     (*nBlock) = newNBlock;
 
@@ -427,25 +331,14 @@ void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBloc
 }
 
 /**
- * @brief compute the number of blocks, the starting indexes of the block (0,0,0) and the number of block in each proc
+ * @brief compute the number of blocks on each rank
  * 
- * This function computes several usefull indexes for the block:
- * - the number of blocks on the current procs
- * - the starting index in the topo of the block (0,0,0)
- * - the number of block on each proc.
- * 
- * For a given proc, nBlockEachProc[comm_size * id + ip] is the number of proc in the dimension id on the proc ip
- * 
- * @param istart the starting indexes on this proc
- * @param iend the end indexes on this proc
+ * @param istart the starting local indexes on this proc
+ * @param iend the end local indexes on this proc
  * @param nByBlock the number of unkowns in one block (012-indexing)
  * @param topo the current topology
  * @param nBlock the number of block in this proc
- * @param blockIDStart the starting id of the block (0,0,0)
- * @param nBlockEachProc the number of blocks on each proc
  */
-// void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,
-//                                      int nBlock[3], int blockIDStart[3], int *startBlockEachProc, int *nBlockEachProc) {
 void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]) {
     BEGIN_FUNC;
     int comm_size;
@@ -453,24 +346,8 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
-        // // get the list of number of procs
-        // MPI_Allgather(&(nBlock[id]), 1, MPI_INT, &(nBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
-        // // set the starting indexes to 0
-        // blockIDStart[id] = 0;
-        // // compute the starting index
-        // const int myrankd  = topo->rankd(id);
-        // int       rankd[3] = {topo->rankd(0), topo->rankd(1), topo->rankd(2)};
-        // for (int ir = 0; ir < myrankd; ir++) {
-        //     // update the rankd
-        //     rankd[id] = ir;
-        //     // increment the block counter
-        //     blockIDStart[id] += nBlockEachProc[comm_size * id + rankindex(rankd, topo)];
-        // }
         // do some checks
         FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
-
-        //everybody needs to know the startID of the first block in each proc
-        // MPI_Allgather(&(blockIDStart[id]), 1, MPI_INT, &(startBlockEachProc[comm_size * id]), 1, MPI_INT, topo->get_comm());
     }
     END_FUNC;
 }
@@ -478,8 +355,8 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
 /**
  * @brief split the _inComm communicator into subcomms
  * 
- * We here find the colors of the call graph, i.e. ranks communicating together have the same color.
- * Once the color are known, we divide the graph into subcomms.
+ * We here find the colors of the comm, i.e. ranks communicating together have the same color.
+ * Once the color are known, we divide the current communicator into subcomms.
  * 
  * 
  */
@@ -490,7 +367,6 @@ void SwitchTopo::_cmpt_commSplit(){
     MPI_Comm_rank(_inComm,&rank);
     MPI_Comm_size(_inComm,&comm_size);
 
-    
     //-------------------------------------------------------------------------
     /** - Set the starting color and determine who I wish to get in my group */
     //-------------------------------------------------------------------------
@@ -589,7 +465,7 @@ void SwitchTopo::_cmpt_commSplit(){
 }
 
 /**
- * @brief setup the lists according to the master and sub communicators
+ * @brief setup the subcommunicator form the destRank and the _inComm communicator
  * 
  * We setup the following lists:
  * - destRank: transformed from the values in the world comm to the values in the new comm.
@@ -616,10 +492,6 @@ void SwitchTopo::_setup_subComm(const int nBlock,int* blockSize[3], int* destRan
     int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
     MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _inComm);
 
-
-    // int* destRank_cpy = (int*) flups_malloc(nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));
-    // memcpy(destRank,destRank_cpy,nBlock[0] * nBlock[1] * nBlock[2] * sizeof(int));    
-
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock; ib++) {
         destRank[ib] = subRanks[destRank[ib]];
@@ -637,6 +509,16 @@ void SwitchTopo::_setup_subComm(const int nBlock,int* blockSize[3], int* destRan
     END_FUNC;
 }
 
+/**
+ * @brief compute the start and count arrays needed for the all to all communication
+ * 
+ * @param comm the communicator to use
+ * @param nBlock the number of block
+ * @param blockSize the block sizes
+ * @param destRank the destination rank of each block
+ * @param count the count array
+ * @param start the start array
+ */
 void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock,int* blockSize[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     const int nf = std::max(_topo_in->nf(),_topo_out->nf());

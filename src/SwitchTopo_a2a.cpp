@@ -130,7 +130,15 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
 }
 
 /**
- * @brief initialize the blocks: compute their index, their number, their size and their source/destination
+ * @brief initialize the communication blocks
+ * 
+ * First, we compute nByBlock[3], the smallest size of unknowns that goes from one proc to another.
+ * This small nByBlock is the same accross each rank.
+ * 
+ * Then, for each of this unit block (of size nByBlock[3]), we compute their destination rank.
+ * 
+ * Afterwards, using the rank of those unit blocks, we try to gather them by destination ranks.
+ * all the kernels blocks that have the same destination will be packed together for the communication.
  * 
  */
 void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* topo_out){
@@ -153,14 +161,6 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     int  oend[3];
     int  nByBlock[3];
 
-    // int  iblockIDStart[3];
-    // int  oblockIDStart[3];
-    // int* inBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    // int* onBlockEachProc     = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    // int* istartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-    // int* ostartBlockEachProc = (int*)flups_malloc(comm_size * 3 * sizeof(int));
-
-
     //-------------------------------------------------------------------------
     /** - Compute intersection ids */
     //-------------------------------------------------------------------------
@@ -174,41 +174,22 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     //-------------------------------------------------------------------------
     _cmpt_nByBlock(istart,iend,ostart,oend,nByBlock);
 
-    // _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv, iblockIDStart, istartBlockEachProc, inBlockEachProc);
-    // _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv, oblockIDStart, ostartBlockEachProc, onBlockEachProc);
     _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv);
     _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv);
-
-    // // allocte the block size
-    // for (int id = 0; id < 3; id++) {
-    //     _iBlockSize[id] = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    //     _oBlockSize[id] = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
-    // }
 
     // allocate the destination ranks
     _i2o_destRank = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
     _o2i_destRank = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
-    // // get the size of the blocks
-    // _cmpt_blockSize(inBlockv, iblockIDStart, nByBlock, istart, iend, _iBlockSize);
-    // _cmpt_blockSize(onBlockv, oblockIDStart, nByBlock, ostart, oend, _oBlockSize);
-
     // get the ranks
     // shift if the root position of the topo_in in the topo_out
     _cmpt_blockDestRank(inBlockv,nByBlock,_shift,istart,topo_in,topo_out,_i2o_destRank);
     _cmpt_blockDestRank(onBlockv,nByBlock,mshift,ostart,topo_out,topo_in,_o2i_destRank);
-    // _cmpt_blockDestRankAndTag(inBlockv, iblockIDStart, topo_out, ostartBlockEachProc, onBlockEachProc, _i2o_destRank, NULL);
-    // _cmpt_blockDestRankAndTag(onBlockv, oblockIDStart, topo_in, istartBlockEachProc, inBlockEachProc, _o2i_destRank,NULL);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
     _gather_blocks(topo_in, nByBlock, istart,iend, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
     _gather_blocks(topo_out, nByBlock, ostart,oend, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
 
-    // free the temp arrays
-    // flups_free(inBlockEachProc);
-    // flups_free(onBlockEachProc);
-    // flups_free(istartBlockEachProc);
-    // flups_free(ostartBlockEachProc);
     END_FUNC;
 }
 
@@ -259,7 +240,8 @@ void SwitchTopo_a2a::setup() {
     int compIn, compOut;
     MPI_Comm_compare(inComm, _inComm, &compIn);
     MPI_Comm_compare(outComm, _outComm, &compOut);
-    if( compIn != MPI_IDENT || compOut != MPI_IDENT){
+    //if the graph communicator has the same numbering as the old commn we will skip the following
+    if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
             FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
         }
@@ -312,6 +294,29 @@ void SwitchTopo_a2a::setup() {
         _is_all2all = _is_all2all && (tmp_size == _o2i_count[ir]);
     }
 
+    //-------------------------------------------------------------------------
+    /** - Check that everybody is in the same communication mode*/
+    //-------------------------------------------------------------------------
+    // determine if every proc is in the all_to_all mode
+    bool global_is_alltoall;
+    MPI_Allreduce(&_is_all2all, &global_is_alltoall, 1, MPI_CXX_BOOL, MPI_LAND, _subcomm);
+    // determine if at least one proc is in the all to all mode
+    bool any_is_alltoall;
+    MPI_Allreduce(&_is_all2all,&any_is_alltoall,1,MPI_CXX_BOOL,MPI_LOR,_subcomm);
+    // generate an error if it is not compatible
+    if (_is_all2all && (!global_is_alltoall)){
+        int rlen;
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_ERROR("communicator %s: at least one process is NOT in the all to all communication scheme",myname,LOCATION);
+    }
+    if((!_is_all2all) && any_is_alltoall){
+        int rlen;
+        char myname[MPI_MAX_OBJECT_NAME];
+        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        FLUPS_ERROR("communicator %s: at least one process is in the all to all communication scheme",myname,LOCATION);
+    }
+    
     // if we are all to all, clean the start array
     if (_is_all2all) {
         if (_i2o_start != NULL) {

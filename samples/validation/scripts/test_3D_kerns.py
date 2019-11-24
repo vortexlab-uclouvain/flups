@@ -8,9 +8,12 @@ BCs = [ ["4","4","4","4","4","4"],
         ["4","1","1","4","4","4"],
         ["4","1","4","4","4","4"],
         ["4","0","1","4","4","4"],
-        ["4","0","1","4","4","1"]]
+        ["4","0","1","4","4","1"],
+        ["3","3","3","3","3","3"],
+        ["4","0","1","4","9","9"],
+        ["3","3","3","3","9","9"]]
 
-Kernels = ['0','2','3','4']
+Kernels = ['0','1','2','3','4']
 
 #Running all combinations of bcs and all kernels
 n_success = 0
@@ -27,9 +30,15 @@ for bcs in BCs :
 
         code = ''.join(bcs)
 
-        # Launching test
-        #+ ["-oversubscribe"]
-        r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["1"] + ["2"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+        # if kernel = LGF, we only do the unbounded, if not, we do everything
+        # if ((kern=='1' and (bcs==["4","4","4","4","4","4"] or bcs==["3","3","3","3","9","9"])) or (kern != '1') ):
+            # Launching test
+            #+ ["-oversubscribe"]
+        if(bcs[4:6] == ["9","9"]):
+            # print("kikouuu from "%i + code)
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["1"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+        else:
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
         
         if r.returncode != 0 :
             print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
@@ -51,7 +60,8 @@ for bcs in BCs :
             print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
             print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n")
             n_failure += 1
-
+        # else:
+        #     print("test %i (BCs : "%i + code + " and k="+ kern+ ") does not apply")
 
 print("%i test succeed out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)

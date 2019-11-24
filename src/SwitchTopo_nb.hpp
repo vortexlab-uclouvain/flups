@@ -40,7 +40,7 @@
 #include "SwitchTopo.hpp"
 
 /**
- * @brief Takes care of the switch between to different topologies
+ * @brief Switch between to different topologies using non-blocking communications
  * 
  * Reorganize the memory between 2 different topologies, also accounting for a
  * "principal axis" which is aligned with the fast rotating index.
@@ -56,8 +56,8 @@
 class SwitchTopo_nb : public SwitchTopo {
    protected:
     int _selfBlockN=0;
-    int* _iselfBlockID = NULL;
-    int* _oselfBlockID = NULL;
+    int* _iselfBlockID = NULL; /**<@brief The list of the block iD that stays on the current rank in the input topology (used while output to input)  */
+    int* _oselfBlockID = NULL; /**<@brief The list of the block iD that stays on the current rank in the output topoloy (used while input to ouput) */
 
     int* _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
     int* _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
