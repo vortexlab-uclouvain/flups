@@ -29,6 +29,7 @@
  * @brief Construct a new Topology
  * 
  * @param nf the number of field (eg: real = 1, complex = 2)
+ * @param lda leading dimension of array=the number of components (eg scalar=1, vector=3)
  * @param axis the dimension of the fastest rotating index (eg: 0, 1 or 2)
  * @param nglob the global size per dim
  * @param nproc the number of proc per dim
@@ -40,10 +41,11 @@
  * If the MPI comm is associated with a MPI_CART topology, axproc is ignored and we use the MPI routines to determine the 3D rank from the global rank (and vice versa).
  * 
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
+Topology::Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
     BEGIN_FUNC;
 
     _comm = comm;
+    _lda  = lda;
 
     int comm_size, rank;
     MPI_Comm_size(_comm,&comm_size);
@@ -99,7 +101,7 @@ void Topology::cmpt_sizes() {
         // we get the max between the nglob and
         _nloc[id] = cmpt_nbyproc(id);
         _nmem[id] = _nloc[id];
-        // if we are in the axis and the last proc, we padd to ensure that every pencil is ok with alignment
+        // if we are in the axis and the last proc, we pad to ensure that every pencil is ok with alignment
         // if (id == _axis && _rankd[id] == (_nproc[id] - 1)) {
         if (id == _axis) {
             // compute by how many we are not aligned: the global size in double = nglob * nf

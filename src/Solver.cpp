@@ -618,7 +618,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
+            topomap[ip] = new Topology(dimID, topo->lda(), size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -689,8 +689,8 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip+1]->dimID(), nproc_hint);
             }
 
-            // create the new topology in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
+            // create the new topology in the output layout (size and isComplex). lda of Green is always 1.
+            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             //switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < _ndim-1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -1201,7 +1201,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
         const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * topo->lda();
         const size_t inmax   = topo->nloc(ax0);
 
         // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
@@ -1381,17 +1381,19 @@ void Solver::dothemagic_rhs_real(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
+        const size_t onmax1  = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
         const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
+        
 
         FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0, onmax1)
         for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1) % onmax1; //lda of Green is only 1
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
             FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
@@ -1422,7 +1424,8 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
+        const size_t onmax1  = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
         const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
 
@@ -1430,9 +1433,9 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0, onmax1)
         for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2);
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2) % onmax1; //lda of Green is only 1
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
             FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);

@@ -51,6 +51,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
+    const int     lda    = 3; //3=vector field
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
@@ -59,8 +60,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                                      myCase.mybc[2][0], myCase.mybc[2][1]};
 
     // create a real topology
-    FLUPS_Topology *topo = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
-    // const Topology *topo    = new Topology(0, nglob, nproc, false, NULL,FLUPS_ALIGNMENT,comm);
+    FLUPS_Topology *topo = flups_topo_new(0, lda, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    // const Topology *topo    = new Topology(0, 1, nglob, nproc, false, NULL,FLUPS_ALIGNMENT,comm);
 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
@@ -102,43 +103,45 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
      * also accounting for various symmetry conditions. CAUTION: the solution for the Gaussian blob does not go to 0 fast enough
      * for `anal` to be used as a reference solution for cases where there is at least 1 symmetric (left AND right) or periodic direction
      */
-    for (int j2 = -1; j2 < 2; j2++) {
-        if (j2 != 0 && mybc[2][(j2 + 1) / 2] == UNB) continue;  //skip unbounded dirs
-        for (int j1 = -1; j1 < 2; j1++) {
-            if (j1 != 0 && mybc[1][(j1 + 1) / 2] == UNB) continue;  //skip unbounded dirs
-            for (int j0 = -1; j0 < 2; j0++) {
-                if (j0 != 0 && mybc[0][(j0 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+    for (int lia = 0; lia < lda; lia++){
+        for (int j2 = -1; j2 < 2; j2++) {
+            if (j2 != 0 && mybc[2][(j2 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+            for (int j1 = -1; j1 < 2; j1++) {
+                if (j1 != 0 && mybc[1][(j1 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+                for (int j0 = -1; j0 < 2; j0++) {
+                    if (j0 != 0 && mybc[0][(j0 + 1) / 2] == UNB) continue;  //skip unbounded dirs
 
-                double sign = 1.0;
-                double centerPos[3];
-                double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  //inner left corner of the current block i'm looking at
+                    double sign = 1.0;
+                    double centerPos[3];
+                    double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  //inner left corner of the current block i'm looking at
 
-                sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[1][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[2][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                    sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                    sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[1][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                    sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[2][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
 
-                centerPos[0] = orig[0] + ((j0 != 0) && (mybc[0][(j0 + 1) / 2] != PER) ? (1.0 - center[0]) * L[0] : (center[0] * L[0]));
-                centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
-                centerPos[2] = orig[2] + ((j2 != 0) && (mybc[2][(j2 + 1) / 2] != PER) ? (1.0 - center[2]) * L[2] : (center[2] * L[2]));
+                    centerPos[0] = orig[0] + ((j0 != 0) && (mybc[0][(j0 + 1) / 2] != PER) ? (1.0 - center[0]) * L[0] : (center[0] * L[0]));
+                    centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
+                    centerPos[2] = orig[2] + ((j2 != 0) && (mybc[2][(j2 + 1) / 2] != PER) ? (1.0 - center[2]) * L[2] : (center[2] * L[2]));
 
-                // printf("CENTER HERE IS: %d,%d,%d -- %lf,%lf,%lf -- %lf,%lf,%lf ++ %lf,%lf,%lf ** %lf\n",j0,j1,j2,orig[0],orig[1],orig[2],centerPos[0],centerPos[1],centerPos[2],\
-                ( (j0!=0)&&(mybc[0][(j0+1)/2]!=PER )) ? (1.0-center[0])*L[0] : (center[0]*L[0]),\
-                ( (j1!=0)&&(mybc[1][(j1+1)/2]!=PER )) ? (1.0-center[1])*L[1] : (center[1]*L[1]),\
-                ( (j2!=0)&&(mybc[2][(j2+1)/2]!=PER )) ? (1.0-center[2])*L[2] : (center[2]*L[2]), sign);
+                    // printf("CENTER HERE IS: %d,%d,%d -- %lf,%lf,%lf -- %lf,%lf,%lf ++ %lf,%lf,%lf ** %lf\n",j0,j1,j2,orig[0],orig[1],orig[2],centerPos[0],centerPos[1],centerPos[2],\
+                    ( (j0!=0)&&(mybc[0][(j0+1)/2]!=PER )) ? (1.0-center[0])*L[0] : (center[0]*L[0]),\
+                    ( (j1!=0)&&(mybc[1][(j1+1)/2]!=PER )) ? (1.0-center[1])*L[1] : (center[1]*L[1]),\
+                    ( (j2!=0)&&(mybc[2][(j2+1)/2]!=PER )) ? (1.0-center[2])*L[2] : (center[2]*L[2]), sign);
 
-                for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-                    for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-                        for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                            double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
-                            double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
-                            double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
-                            double       rho2 = (x * x + y * y + z * z) * oosigma2;
-                            double       rho  = sqrt(rho2);
-                            const size_t id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
+                    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+                        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+                            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                                double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
+                                double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
+                                double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
+                                double       rho2 = (x * x + y * y + z * z) * oosigma2;
+                                double       rho  = sqrt(rho2);
+                                const size_t id    = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
 
-                            // Gaussian
-                            rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
-                            sol[id] += sign * c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
+                                // Gaussian
+                                rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
+                                sol[id] += sign * c_1o4pi * oosigma * 1.0 / rho * erf(rho * c_1osqrt2);
+                            }
                         }
                     }
                 }
@@ -150,27 +153,21 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     double gIs = 0.0;
     double lIs = 0.0;
 
-    for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id    = flups_locID(0, i0, i1, i2, 0, nmem, 2);
-                lIs += sol[id];
-                // lIs = min(sol[id],lIs);
+    for (int lia = 0; lia < lda; lia++){
+        for (int i2 = 0; i2 < topo->nloc(2); i2++) {
+            for (int i1 = 0; i1 < topo->nloc(1); i1++) {
+                for (int i0 = 0; i0 < topo->nloc(0); i0++) {
+                    const size_t id    = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
+                    lIs += sol[id];
+                    // lIs = min(sol[id],lIs);
+                }
             }
         }
     }
     // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, comm);
     MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, comm);
     gIs *= (h[0]*h[1]*h[2]);
-    // const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const size_t id    = localIndex(0, i0, i1, i2, 0, nmem, 2);
-    //             sol[id] -= gIs;
-    //         }
-    //     }
-    // }
+
     printf("Integral sol : %lf\n",gIs);
 #else
     //-------------------------------------------------------------------------
@@ -185,11 +182,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         const int ax1     = (ax0 + 1) % 3;
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
-        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
-            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
-                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
-                    sol[id]         = 1.0;
+        for (int lia = 0; lia < lda; lia++){
+            for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+                for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                        const size_t id = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
+                        sol[id]         = 1.0;
+                    }
                 }
             }
         }
@@ -269,42 +268,44 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
             
-        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
-            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
-                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
-                    const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                            (istart[ax1] + i1 + 0.5) * h[ax1],
-                                            (istart[ax2] + i2 + 0.5) * h[ax2]};
+        for (int lia = 0; lia < lda; lia++){
+            for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+                for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                        const size_t id = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
+                        const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
+                                                (istart[ax1] + i1 + 0.5) * h[ax1],
+                                                (istart[ax2] + i2 + 0.5) * h[ax2]};
 
 
-                    // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
-                    // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
-                    // const double r = sqrt(rsq);
-                    
-                    //CST(z):
-                    // sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
-                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
-                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) ;
+                        // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
+                        // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
+                        // const double r = sqrt(rsq);
+                        
+                        //CST(z):
+                        // sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) ;
 
-                    //SIN(z):
-                    // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
-                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
-                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (sin(2.*M_PI*x[0] /L[0])) ;
-                    // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        //SIN(z):
+                        // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
+                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (sin(2.*M_PI*x[0] /L[0])) ;
+                        // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
 
-                    //CST(z)+sin(z):
-                    // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
-                    // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
-                    //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
-                    // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
-                    
+                        //CST(z)+sin(z):
+                        // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
+                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
+                        // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        
 
-                    for (int dir = 0; dir < 3; dir++) {
-                        const int dir2 = (dir + 1) % 3;
-                        const int dir3 = (dir + 2) % 3;
-                        sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
-                        rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                        for (int dir = 0; dir < 3; dir++) {
+                            const int dir2 = (dir + 1) % 3;
+                            const int dir3 = (dir + 2) % 3;
+                            sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
+                            rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                        }
                     }
                 }
             }
@@ -336,27 +337,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 #endif
     flups_profiler_free(prof);
 
-    // lIs = 1.e10, gIs = 0.0;
-    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
-    //             // lIs += rhs[id];
-    //             lIs = min(rhs[id],lIs);
-    //         }
-    //     }
-    // }
-    // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, comm);
-    // // gIs *= (h[0]*h[1]*h[2]);
-    // for (int i2 = 0; i2 < topo->nloc(2); i2++) {
-    //     for (int i1 = 0; i1 < topo->nloc(1); i1++) {
-    //         for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-    //             const size_t id   = localindex_xyz(i0, i1, i2, topo);
-    //             rhs[id] -= gIs;
-    //         }
-    //     }
-    // }
-
 #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
@@ -374,14 +354,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         const int ax1     = (ax0 + 1) % 3;
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
-        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
-            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
-                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
-                    const double err = sol[id] - field[id];
+        for (int lia = 0; lia < lda; lia++){
+            for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+                for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                        const size_t id = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
+                        const double err = sol[id] - field[id];
 
-                    lerri = max(lerri, fabs(err));
-                    lerr2 += (err * err) * h[0] * h[1] * h[2];
+                        lerri = max(lerri, fabs(err));
+                        lerr2 += (err * err) * h[0] * h[1] * h[2];
+                    }
                 }
             }
         }

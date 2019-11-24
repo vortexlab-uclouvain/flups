@@ -107,12 +107,13 @@ For the detailed specifications of the API, have a look at @ref flups.h .
 To use the solver, you first need to create a topology
 ```cpp
 int  axis      = 0;              // aligned along the first dimension
+int  lda       = 1;              // scalar field
 int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
 int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
 bool isComplex = false;          // real data
 
 // no specific alignement => we put a value of 1
-Topology *topo = new Topology(axis, nglob, nproc, isComplex,NULL,1, MPI_COMM_WORLD);
+Topology *topo = new Topology(axis, lda, nglob, nproc, isComplex,NULL,1, MPI_COMM_WORLD);
 
 // define additional quantities
 double L = {1.0, 2.0, 1.0};

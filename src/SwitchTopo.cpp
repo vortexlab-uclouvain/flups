@@ -473,12 +473,13 @@ void SwitchTopo::_cmpt_commSplit(){
  * - start: the starting position of the data to send to each proc in the buffer
  * 
  * @param nBlock the number of blocks
+ * @param lda leading dimension of array
  * @param BlockSize the size of the blocks
  * @param destRank the destination rank on the world comm. returns the new destination rank in the newcomm
  * @param count the number of information to send to each proc
  * @param start the id in the buffer where the information starts for each proc
  */
-void SwitchTopo::_setup_subComm(const int nBlock,int* blockSize[3], int* destRank, int** count, int** start) {
+void SwitchTopo::_setup_subComm(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the new source & destination ranks    */
@@ -503,7 +504,7 @@ void SwitchTopo::_setup_subComm(const int nBlock,int* blockSize[3], int* destRan
     /** - build the size vector of block to each procs    */
     //-------------------------------------------------------------------------
     if (count != NULL) {
-        _cmpt_start_and_count(_subcomm, nBlock,blockSize, destRank, count, start);
+        _cmpt_start_and_count(_subcomm, nBlock, lda, blockSize, destRank, count, start);
     }
 
     END_FUNC;
@@ -514,12 +515,13 @@ void SwitchTopo::_setup_subComm(const int nBlock,int* blockSize[3], int* destRan
  * 
  * @param comm the communicator to use
  * @param nBlock the number of block
+ * @param lda leading dimension of array
  * @param blockSize the block sizes
  * @param destRank the destination rank of each block
  * @param count the count array
  * @param start the start array
  */
-void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock,int* blockSize[3], int* destRank, int** count, int** start) {
+void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     const int nf = std::max(_topo_in->nf(),_topo_out->nf());
     int size;
@@ -534,7 +536,7 @@ void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock,int* bloc
     for (int ib = 0; ib < nBlock; ib++) {
         // get the size per block
         const int blockMem = get_blockMemSize(ib,nf,blockSize);
-        (*count)[destRank[ib]] += blockMem;
+        (*count)[destRank[ib]] += blockMem * lda;
     }
     // compute the start indexes
     if (start != NULL) {

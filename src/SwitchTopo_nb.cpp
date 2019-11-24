@@ -272,7 +272,7 @@ void SwitchTopo_nb::setup(){
             tmp_nproc[i] = _topo_in->nproc(i);
             tmp_axproc[i] = _topo_in->axproc(i);
         }
-        const Topology* topo_in_tmp = new Topology(_topo_in->axis(),tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,_topo_in->get_comm());
+        const Topology* topo_in_tmp = new Topology(_topo_in->axis(),_topo_in->lda(),tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,_topo_in->get_comm());
 
         //recompute block info
         _init_blockInfo(topo_in_tmp, _topo_out);
@@ -285,8 +285,8 @@ void SwitchTopo_nb::setup(){
     //-------------------------------------------------------------------------
     _cmpt_commSplit();
     // setup the dest rank, counts and starts
-    _setup_subComm(_inBlock,_iBlockSize, _i2o_destRank,NULL,NULL);
-    _setup_subComm(_onBlock,_oBlockSize, _o2i_destRank,NULL,NULL);
+    _setup_subComm(_inBlock,_topo_in->lda() ,_iBlockSize, _i2o_destRank,NULL,NULL);
+    _setup_subComm(_onBlock,_topo_out->lda(),_oBlockSize, _o2i_destRank,NULL,NULL);
 
     //-------------------------------------------------------------------------
     /** - Compute the self blocks in the new comms   */
@@ -398,7 +398,8 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             selfcount++;
         } else {
             // get the send size without padding
-            const size_t sendSize = (size_t)_iBlockSize[0][bid] * (size_t)_iBlockSize[1][bid] * (size_t)_iBlockSize[2][bid] * (size_t)(nf);
+            const size_t sendSize = (size_t)_iBlockSize[0][bid] * (size_t)_iBlockSize[1][bid] * (size_t)_iBlockSize[2][bid] * (size_t)(nf) * _topo_in->lda();
+            FLUPS_WARNING("NOT SURE OF WHAT I AM DOING HERE", LOCATION);
             MPI_Send_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], _subcomm, &(_i2o_sendRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
             MPI_Recv_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], bid, _subcomm, &(_o2i_recvRequest[bid]));
@@ -429,7 +430,8 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             selfcount++;
         } else {
             // get the receive size without padding
-            const size_t recvSize = (size_t)_oBlockSize[0][bid] * (size_t)_oBlockSize[1][bid] * (size_t)_oBlockSize[2][bid] * (size_t)_topo_out->nf();
+            const size_t recvSize = (size_t)_oBlockSize[0][bid] * (size_t)_oBlockSize[1][bid] * (size_t)_oBlockSize[2][bid] * (size_t)_topo_out->nf() * _topo_out->lda();
+            FLUPS_WARNING("NOT SURE OF WHAT I AM DOING HERE", LOCATION);
             // for the reception when doing input 2 output: receive from the rank o2i with tag bid
             MPI_Recv_init(_recvBuf[bid], recvSize, MPI_DOUBLE, _o2i_destRank[bid], bid, _subcomm, &(_i2o_recvRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
@@ -528,6 +530,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     BEGIN_FUNC;
 
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(),"both topologies have to be complex or real", LOCATION);
+    FLUPS_CHECK(_topo_in->lda() == _topo_out->lda(), "both topologies must have the same lda", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
 
     PROF_START("reorder");
@@ -543,6 +546,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     MPI_Request* sendRequest;
     MPI_Request* recvRequest;
 
+    int lda = _topo_in->lda();
     int send_nBlock;
     int recv_nBlock;
 
@@ -688,101 +692,115 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 //possible need to add ```shared(ompi_request_null)``` depending on the compiler version
 #pragma omp parallel proc_bind(close) default(none) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag, iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest)
 #elif defined(__GNUC__)
-#pragma omp parallel proc_bind(close) default(none) shared(ompi_request_null) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag,iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest)
+#pragma omp parallel proc_bind(close) default(none) shared(ompi_request_null) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag,iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
 #endif
     for (int bid = 0; bid < send_nBlock; bid++) {
-        // // get the split index
-        // int ib[3];
-        // localSplit(bid, send_nBlock, 0, ib, 1);
-        // get the buffer data for this block
-        double* data;
-        if(sendRequest[bid] == MPI_REQUEST_NULL){
-            // if we are doing a self block the data is the recv buff
-            // the new block ID is given by destTag[bid]
-            data = recvBuf[destTag[bid]];
-        } else {
-            // else we copy inside the sendbuffer
-            data = sendBuf[bid];
-        }
-        // // get the starting index in the global memory
-        // const int loci0 = istart[iax0] + ib[iax0] * nByBlock[iax0];
-        // const int loci1 = istart[iax1] + ib[iax1] * nByBlock[iax1];
-        // const int loci2 = istart[iax2] + ib[iax2] * nByBlock[iax2];
+        for (int lia = 0; lia < lda ; lia++){
+            // // get the split index
+            // int ib[3];
+            // localSplit(bid, send_nBlock, 0, ib, 1);
 
-        // go inside the block
-        const int id_max = iBlockSize[iax1][bid] * iBlockSize[iax2][bid];
-        const size_t nmax = iBlockSize[iax0][bid] * nf;
+            // total size of a block, 1 component
+            const size_t blockSize = iBlockSize[iax0][bid] * iBlockSize[iax1][bid] * iBlockSize[iax2][bid] * nf;
 
-        // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
-        const bool isBuffAligned = FLUPS_ISALIGNED(data) &&  nmax%FLUPS_ALIGNMENT == 0;
-        // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
-        double*    my_v            = v + localIndex(iax0, iBlockiStart[iax0][bid], iBlockiStart[iax1][bid], iBlockiStart[iax2][bid], iax0, inmem, nf);
-        const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && inmem[iax0] % FLUPS_ALIGNMENT == 0;
-
-        // we choose the best loop depending on the alignement
-        if (isBuffAligned && isVectorAligned) {
-#pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / iBlockSize[iax1][bid];
-                const int i1 = id % iBlockSize[iax1][bid];
-
-                // get the local starting location for the buffer and the field
-                const opt_double_ptr vloc = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf);
-                opt_double_ptr dataloc    = data + id * nmax;
-                FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
-                FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-                // do the copy -> vectorized
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    dataloc[i0] = vloc[i0];
-                }
+            // get the buffer data for this block
+            double* data;
+            if(sendRequest[bid] == MPI_REQUEST_NULL){
+                // if we are doing a self block the data is the recv buff
+                // the new block ID is given by destTag[bid]
+                data = recvBuf[destTag[bid]] + lia * blockSize;
+            } else {
+                // else we copy inside the sendbuffer
+                data = sendBuf[bid] + lia * blockSize;
             }
-        } else if (isBuffAligned && !isVectorAligned) {
-#pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / iBlockSize[iax1][bid];
-                const int i1 = id % iBlockSize[iax1][bid];
+            // // get the starting index in the global memory
+            // const int loci0 = istart[iax0] + ib[iax0] * nByBlock[iax0];
+            // const int loci1 = istart[iax1] + ib[iax1] * nByBlock[iax1];
+            // const int loci2 = istart[iax2] + ib[iax2] * nByBlock[iax2];
 
-                // get the local starting location for the buffer and the field
-                const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf);
-                opt_double_ptr dataloc        = data + id * nmax;
-                FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-                // do the copy -> vectorized
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    dataloc[i0] = vloc[i0];
+            // go inside the block
+            const int id_max = iBlockSize[iax1][bid] * iBlockSize[iax2][bid];
+            const size_t nmax = iBlockSize[iax0][bid] * nf;
+
+            // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
+            const bool isBuffAligned = FLUPS_ISALIGNED(data) &&  nmax%FLUPS_ALIGNMENT == 0;
+            // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
+            double*    my_v            = v + localIndex(iax0, iBlockiStart[iax0][bid], iBlockiStart[iax1][bid], iBlockiStart[iax2][bid], lia, iax0, inmem, nf);
+            const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && inmem[iax0] % FLUPS_ALIGNMENT == 0;
+
+            // we choose the best loop depending on the alignement
+            if (isBuffAligned && isVectorAligned) {
+#pragma omp for schedule(static)
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / iBlockSize[iax1][bid];
+                    const int i1 = id % iBlockSize[iax1][bid];
+
+                    // get the local starting location for the buffer and the field
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    const opt_double_ptr vloc = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    opt_double_ptr dataloc    = data + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+                    // do the copy -> vectorized
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        dataloc[i0] = vloc[i0];
+                    }
                 }
-            }
-        } else if (!isBuffAligned && isVectorAligned) {
+            } else if (isBuffAligned && !isVectorAligned) {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / iBlockSize[iax1][bid];
-                const int i1 = id % iBlockSize[iax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / iBlockSize[iax1][bid];
+                    const int i1 = id % iBlockSize[iax1][bid];
 
-                // get the local starting location for the buffer and the field
-                const opt_double_ptr vloc  = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf);
-                double* __restrict dataloc = data + id * nmax;
-                FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
-                // do the copy -> vectorized
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    dataloc[i0] = vloc[i0];
+                    // get the local starting location for the buffer and the field
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    opt_double_ptr dataloc        = data + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+                    // do the copy -> vectorized
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        dataloc[i0] = vloc[i0];
+                    }
                 }
-            }
-        }else{
+            } else if (!isBuffAligned && isVectorAligned) {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / iBlockSize[iax1][bid];
-                const int i1 = id % iBlockSize[iax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / iBlockSize[iax1][bid];
+                    const int i1 = id % iBlockSize[iax1][bid];
 
-                // get the local starting location for the buffer and the field
-                const double* __restrict vloc  = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf);
-                double* __restrict dataloc = data + id * nmax;
+                    // get the local starting location for the buffer and the field
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    const opt_double_ptr vloc  = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    double* __restrict dataloc = data + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
+                    // do the copy -> vectorized
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        dataloc[i0] = vloc[i0];
+                    }
+                }
+            }else{
+#pragma omp for schedule(static)
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / iBlockSize[iax1][bid];
+                    const int i1 = id % iBlockSize[iax1][bid];
 
-                // do the copy -> vectorized
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    dataloc[i0] = vloc[i0];
+                    // get the local starting location for the buffer and the field
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    const double* __restrict vloc  = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    double* __restrict dataloc = data + id * nmax;
+
+                    // do the copy -> vectorized
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        dataloc[i0] = vloc[i0];
+                    }
                 }
             }
         }
@@ -827,19 +845,30 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     // create the status as a shared variable
     MPI_Status status;
 
-#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(recv_nBlock, oselfBlockID, v, recvBuf, oBlockSize, oBlockiStart, nf, onmem, oax0, oax1, oax2, recvRequest, iswitch, shuffle)
+#pragma omp parallel default(none) proc_bind(close) shared(status) firstprivate(recv_nBlock, oselfBlockID, v, recvBuf, oBlockSize, oBlockiStart, nf, onmem, oax0, oax1, oax2, recvRequest, iswitch, shuffle, lda)
     for (int count = 0; count < recv_nBlock; count++) {
         // only the master receive the call
         int bid = -1;
+
         // if we are doing a self block
         if (count < _selfBlockN) {
             bid = oselfBlockID[count];
+            
+            // total size of a block, 1 component
+            const size_t blockSize = oBlockSize[oax0][bid] * oBlockSize[oax1][bid] * oBlockSize[oax2][bid] * nf;
 #pragma omp master
             {
                 PROF_STARTi("buf2mem",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {
-                    fftw_execute(shuffle[bid]);
+                    for (int lia = 0; lia < lda; lia++){
+                        // fftw_execute(shuffle[bid]);
+                        if( nf == 1){
+                            fftw_execute_r2r(shuffle[bid], recvBuf[bid] + lia * blockSize, recvBuf[bid] + lia * blockSize );
+                        } else {
+                            fftw_execute_dft(shuffle[bid], (opt_complex_ptr) (recvBuf[bid] + lia * blockSize), (opt_complex_ptr) (recvBuf[bid] + lia * blockSize) );
+                        }
+                    }
                 }
             }
 #pragma omp barrier
@@ -854,9 +883,19 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 
                 // bid is set for the master
                 bid = status.MPI_TAG;
+                // total size of a block, 1 component
+                const size_t blockSize = oBlockSize[oax0][bid] * oBlockSize[oax1][bid] * oBlockSize[oax2][bid] * nf;
+
                 // only the master call the fftw_execute which is executed in multithreading                
                 if (shuffle != NULL) {
-                    fftw_execute(shuffle[bid]);
+                    for (int lia = 0; lia < lda; lia++){
+                        // fftw_execute(shuffle[bid]);
+                        if( nf == 1){
+                            fftw_execute_r2r(shuffle[bid], recvBuf[bid] + lia * blockSize, recvBuf[bid] + lia * blockSize );
+                        } else {
+                            fftw_execute_dft(shuffle[bid], (opt_complex_ptr) (recvBuf[bid] + lia * blockSize), (opt_complex_ptr) (recvBuf[bid] + lia * blockSize));
+                        }
+                    }
                 }
             }
             // make sure that the master has received the status before going further
@@ -870,95 +909,108 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         {
 #ifdef PROF            
             if (_prof != NULL) {
-                _prof->addMem("waiting"+to_string(iswitch), get_blockMemSize(bid,nf,oBlockSize)*sizeof(double));
+                _prof->addMem("waiting"+to_string(iswitch), get_blockMemSize(bid,nf,oBlockSize)*lda*sizeof(double));
             }
 #endif
         }
-        
-        // // get the indexing of the block in 012-indexing
-        // int ibv[3];
-        // localSplit(bid, recv_nBlock, 0, ibv, 1);
 
-        // // get the starting index in the global memory using !!nByBlock!!
-        // // since only the last block may have a different size
-        // const int loci0 = ostart[oax0] + ibv[oax0] * nByBlock[oax0];
-        // const int loci1 = ostart[oax1] + ibv[oax1] * nByBlock[oax1];
-        // const int loci2 = ostart[oax2] + ibv[oax2] * nByBlock[oax2];
+        for (int lia = 0; lia < lda; lia++){
+            // total size of a block, 1 component
+            const size_t blockSize = oBlockSize[oax0][bid] * oBlockSize[oax1][bid] * oBlockSize[oax2][bid] * nf;
 
-        // go inside the block
-        const int id_max = oBlockSize[oax1][bid] * oBlockSize[oax2][bid];
-        const size_t nmax = oBlockSize[oax0][bid] * nf;
+            // // get the indexing of the block in 012-indexing
+            // int ibv[3];
+            // localSplit(bid, recv_nBlock, 0, ibv, 1);
 
-        // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
-        const bool isBuffAligned = FLUPS_ISALIGNED(recvBuf[bid]) &&  nmax%FLUPS_ALIGNMENT == 0;
-        // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
-        // double*    my_v            = v + localIndex(oax0, oBlockiStart[0][bid], oBlockiStart[1][bid], oBlockiStart[2][bid], oax0, onmem, nf);
-        double*    my_v            = v + localIndex(oax0, oBlockiStart[oax0][bid], oBlockiStart[oax1][bid], oBlockiStart[oax2][bid], oax0, onmem, nf);
-        const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && onmem[oax0] % FLUPS_ALIGNMENT == 0;
+            // // get the starting index in the global memory using !!nByBlock!!
+            // // since only the last block may have a different size
+            // const int loci0 = ostart[oax0] + ibv[oax0] * nByBlock[oax0];
+            // const int loci1 = ostart[oax1] + ibv[oax1] * nByBlock[oax1];
+            // const int loci2 = ostart[oax2] + ibv[oax2] * nByBlock[oax2];
 
-        //choose the correct loop to improve the efficiency
-        if (isBuffAligned && isVectorAligned) {
+            // go inside the block
+            const int    id_max = oBlockSize[oax1][bid] * oBlockSize[oax2][bid];
+            const size_t nmax   = oBlockSize[oax0][bid] * nf;
+
+            // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
+            const bool isBuffAligned = FLUPS_ISALIGNED(recvBuf[bid] + lia * blockSize) &&  nmax%FLUPS_ALIGNMENT == 0;
+            // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
+            // double*    my_v            = v + localIndex(oax0, oBlockiStart[0][bid], oBlockiStart[1][bid], oBlockiStart[2][bid], oax0, onmem, nf);
+            double*    my_v            = v + localIndex(oax0, oBlockiStart[oax0][bid], oBlockiStart[oax1][bid], oBlockiStart[oax2][bid], lia, oax0, onmem, nf);
+            const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && onmem[oax0] % FLUPS_ALIGNMENT == 0;
+
+            //choose the correct loop to improve the efficiency
+            if (isBuffAligned && isVectorAligned) {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[oax1][bid];
-                const int i1 = id % oBlockSize[oax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / oBlockSize[oax1][bid];
+                    const int i1 = id % oBlockSize[oax1][bid];
 
-                // get the local starting id for the buffer and the data
-                opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
-                const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
-                FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
-                FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-                // do the copy
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    vloc[i0] = dataloc[i0];
+                    // get the local starting id for the buffer and the data
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
+                    FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+                    // do the copy
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        vloc[i0] = dataloc[i0];
+                    }
                 }
-            }
-        } else if (isBuffAligned && !isVectorAligned) {
+            } else if (isBuffAligned && !isVectorAligned) {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[oax1][bid];
-                const int i1 = id % oBlockSize[oax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / oBlockSize[oax1][bid];
+                    const int i1 = id % oBlockSize[oax1][bid];
 
-                // get the local starting id for the buffer and the data
-                double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
-                const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
-                FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-                // do the copy
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    vloc[i0] = dataloc[i0];
+                    // get the local starting id for the buffer and the data
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, 1, oax0, onmem, nf);
+                    const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
+                    // do the copy
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        vloc[i0] = dataloc[i0];
+                    }
                 }
-            }
-        } else if (!isBuffAligned && isVectorAligned) {
+            } else if (!isBuffAligned && isVectorAligned) {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[oax1][bid];
-                const int i1 = id % oBlockSize[oax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / oBlockSize[oax1][bid];
+                    const int i1 = id % oBlockSize[oax1][bid];
 
-                // get the local starting id for the buffer and the data
-                opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
-                const double* __restrict dataloc = recvBuf[bid] + id * nmax;
-                FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
-                // do the copy
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    vloc[i0] = dataloc[i0];
+                    // get the local starting id for the buffer and the data
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    const double* __restrict dataloc = recvBuf[bid] + id * nmax;
+                    FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
+                    // do the copy
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        vloc[i0] = dataloc[i0];
+                    }
                 }
-            }
-        } else {
+            } else {
 #pragma omp for schedule(static)
-            for (int id = 0; id < id_max; id++) {
-                // get the id from a small modulo
-                const int i2 = id / oBlockSize[oax1][bid];
-                const int i1 = id % oBlockSize[oax1][bid];
+                for (int id = 0; id < id_max; id++) {
+                    // get the id from a small modulo
+                    const int i2 = id / oBlockSize[oax1][bid];
+                    const int i1 = id % oBlockSize[oax1][bid];
 
-                // get the local starting id for the buffer and the data
-                double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf);
-                const double* __restrict dataloc = recvBuf[bid] + id * nmax;
-                // do the copy
-                for (size_t i0 = 0; i0 < nmax; i0++) {
-                    vloc[i0] = dataloc[i0];
+                    // get the local starting id for the buffer and the data
+                    //   my_v has already set the address in the right portion of lda, so now,
+                    //   only running over the chunks as if lda=1
+                    double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    const double* __restrict dataloc = recvBuf[bid] + id * nmax;
+                    // do the copy
+                    for (size_t i0 = 0; i0 < nmax; i0++) {
+                        vloc[i0] = dataloc[i0];
+                    }
                 }
             }
         }
@@ -1014,8 +1066,8 @@ void SwitchTopo_nb_test() {
 
     //===========================================================================
     // real numbers
-    Topology* topo    = new Topology(0, nglob, nproc, false,NULL,1, MPI_COMM_WORLD);
-    Topology* topobig = new Topology(0, nglob_big, nproc_big, false,NULL,1, MPI_COMM_WORLD);
+    Topology* topo    = new Topology(0, 1, nglob, nproc, false,NULL,1, MPI_COMM_WORLD);
+    Topology* topobig = new Topology(0, 1, nglob_big, nproc_big, false,NULL,1, MPI_COMM_WORLD);
 
     double* data = (double*)flups_malloc(sizeof(double*) * std::max(topo->memsize(), topobig->memsize()));
 
@@ -1023,7 +1075,7 @@ void SwitchTopo_nb_test() {
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localIndex(0,i0, i1, i2,0,nmem,1);
+                size_t id    = localIndex(0,i0, i1, i2, 0, 0,nmem,1);
                 data[id] = id;
             }
         }
@@ -1063,15 +1115,15 @@ void SwitchTopo_nb_test() {
 
     //===========================================================================
     // complex numbers
-    topo    = new Topology(0, nglob, nproc, true,NULL,1, MPI_COMM_WORLD);
-    topobig = new Topology(2, nglob_big, nproc_big, true,NULL,1, MPI_COMM_WORLD);
+    topo    = new Topology(0, 1, nglob, nproc, true,NULL,1, MPI_COMM_WORLD);
+    topobig = new Topology(2, 1, nglob_big, nproc_big, true,NULL,1, MPI_COMM_WORLD);
 
     data = (double*)flups_malloc(sizeof(double*) * topobig->memsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                size_t id    = localIndex(0,i0, i1, i2,0,nmem,2);
+                size_t id    = localIndex(0,i0, i1, i2,0, 0,nmem, 2);
                 data[id + 0] = 0;
                 data[id + 1] = id;
             }

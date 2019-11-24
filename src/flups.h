@@ -154,15 +154,17 @@ void flups_free(void* data);
     const int ax0     = flups_topo_get_axis(topo);
     // the memory size is given in the 012 order
     const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
-    for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
-        for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
-            for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
-                // the i0, i1 and i2 are given in a 0-indexing
-                // the id is aimed for an array in the ax0-indexing
-                const size_t id = flups_locID(0, i0, i1, i2, ax0, nmem, nf);
-                    
-                data[id+0] = ...;
-                data[id+1] = ...;
+    for (int lia = 0; lia < flups_topo_get_lda(topo); lia++){
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,1); i1++) {
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,0); i0++) {
+                    // the i0, i1 and i2 are given in a 0-indexing
+                    // the id is aimed for an array in the ax0-indexing
+                    const size_t id = flups_locID(0, i0, i1, i2, lia, ax0, nmem, nf);
+                        
+                    data[id+0] = ...;
+                    data[id+1] = ...;
+                }
             }
         }
     }
@@ -177,15 +179,16 @@ void flups_free(void* data);
  * @param nf the number of unknows in one element
  * @return size_t 
  */
-static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int axtrg, const int size[3], const int nf) {
+static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int lia, const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
     const int dax2 = (dax0 + 2) % 3;
     const int ax0  = axtrg;
     const int ax1  = (ax0 + 1) % 3;
+    const int ax2  = (ax0 + 2) % 3;
 
-    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + lia * size[ax2]));
 }
 
 /**
@@ -205,22 +208,24 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
         nmemSpec[i] = flups_topo_get_nmem(topoSpec,i);
     }
         
-    for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
-        for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
-            //local indexes start
-            const size_t id = flups_locID(ax0, 0, i1, i2, ax0, nmemSpec,nf);
-            for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
-                int is[3];
-                // get the symmetrized ID
-                flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
+    for (int lia = 0; lia < flups_topo_get_lda(topoSpec); lia++){
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topoSpec,ax2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topoSpec,ax1); i1++) {
+                //local indexes start
+                const size_t id = flups_locID(ax0, 0, i1, i2, lia, ax0, nmemSpec, nf);
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topoSpec,ax0); i0++) {
+                    int is[3];
+                    // get the symmetrized ID
+                    flups_symID(ax0, i0, i1, i2, istartSpec, symstart, 0, is);
 
-                // the (symmetrized) wave numbers:
-                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
-                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
-                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+                    // the (symmetrized) wave numbers:
+                    const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                    const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                    const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
 
-                data[id + i0 * nf] = ...; //REAL part
-                data[id + i0 * nf + 1] = ...; //COMPLEX part
+                    data[id + i0 * nf] = ...; //REAL part
+                    data[id + i0 * nf + 1] = ...; //COMPLEX part
+                }
             }
         }
     }
@@ -267,6 +272,7 @@ static inline void flups_symID(const int axsrc, const int i0, const int i1, cons
  * This is opposed to the C indexing: when the FRI is 2, the next dimension is 1 and the last one is 0.
  * 
  * @param axis The direction which is aligned with the fastest rotating index
+ * @param lda leading dimension of the array, i.e. the number of components for a vector field
  * @param nglob The global number of points in each direction of the domain
  * @param nproc The number of processors per direction.
  * @param isComplex The state of the topo: real (false) or complex (true)
@@ -274,7 +280,7 @@ static inline void flups_symID(const int axsrc, const int i0, const int i1, cons
  * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default 
  * @return FLUPS_Topology* pointer to the topology
  */
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
+FLUPS_Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
 
 /**
  * @brief Clean and free the topo.
@@ -291,6 +297,14 @@ void flups_topo_free(const FLUPS_Topology* t);
  * @return false if the topo is on real numbers
  */
 bool flups_topo_get_isComplex(const FLUPS_Topology* t);
+
+/**
+ * @brief Determines the leading dimension of arrays, i.e. the number of vector components
+ * 
+ * @param t 
+ * @return int
+ */
+int flups_topo_get_lda(const FLUPS_Topology* t);
 
 /**
  * @brief Determines the physical direction aligned in memory

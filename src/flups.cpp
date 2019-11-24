@@ -46,8 +46,8 @@ void flups_free(void* data){
 //***********************************************************************
 // * TOPOLOGIES
 // **********************************************************************/
-FLUPS_Topology* flups_topo_new(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm){
-    Topology* t = new Topology(axis, nglob, nproc, isComplex, axproc, alignment, comm);
+FLUPS_Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm){
+    Topology* t = new Topology(axis, lda, nglob, nproc, isComplex, axproc, alignment, comm);
     return t;
 }
 

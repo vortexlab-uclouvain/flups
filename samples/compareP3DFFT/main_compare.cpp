@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    Topology *topoIn      = new Topology(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    Topology *topoIn      = new Topology(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
     
@@ -169,11 +169,11 @@ int main(int argc, char *argv[]) {
                 double       z    = (istartGlo[2] + i2 ) * h[2]; //+ 0.5
 
                 size_t id;
-                id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1);
+                id         = localIndex(0, i0, i1, i2, 0, 0, FLUnmemIn, 1);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
                 
                 //p3d does not care of the size you allocate, juste fill the first isize elements
-                id =  localIndex(0, i0, i1, i2, 0, isize, 1);
+                id =  localIndex(0, i0, i1, i2, 0, 0, isize, 1);
                 rhsP3D[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
             }
         }
@@ -343,7 +343,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,2);
+                const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, 2);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0*2]) + std::fabs(A[id+i0*2 + 1]) > 1.25e-4) {
@@ -356,7 +356,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,1);
+                const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, 1);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0]) > 1.25e-4) {
