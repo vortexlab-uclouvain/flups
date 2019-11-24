@@ -35,6 +35,7 @@
  * 
  */
 class FFTW_plan_dim {
+   public:
     /**
      * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
      * 
@@ -47,7 +48,8 @@ class FFTW_plan_dim {
         SYMSYM = 2, /**< type real 2 real (DCT / DST) : EE (0) , EO/OE (1) , OO (2) */
         MIXUNB = 5, /**< type unbounded and a symetry condition: UE/EU (4) , UO/OU (5) */
         PERPER = 6, /**< type periodic - periodic: PERPER (6) */
-        UNBUNB = 8  /**< type fully unbounded UU (8) */
+        UNBUNB = 8, /**< type fully unbounded UU (8) */
+        EMPTY  = 18 /**< type empty, i.e. this direction is not used */
     };
 
    protected:
@@ -55,21 +57,21 @@ class FFTW_plan_dim {
     const int  _dimID;   /**< @brief the dimension of the plan in the field reference */
     const int  _sign;    /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool   _ignoreMode = false; /**< @brief do we have to ignore a mode in the output? k=0 if _shiftgreen=1 or k=end if _shiftgreen = 0*/
-    bool   _isr2c      = false; /**< @brief is this plan the one that changes to complex?*/
-    bool   _imult      = false; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
-    bool   _isSpectral = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    bool   _ignoreMode  = false; /**< @brief do we have to ignore a mode in the output? k=0 if _shiftgreen=1 or k=end if _shiftgreen = 0*/
+    bool   _isr2c       = false; /**< @brief is this plan the one that changes to complex?*/
+    bool   _imult       = false; /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
+    bool   _isSpectral  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
     int    _fftw_stride = 0;
-    int    _howmany         = 0;
-    int    _fieldstart = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
-    int    _n_in       = 0;     /**< @brief the number of element in the transform*/
-    int    _n_out      = 0;     /**< @brief the number of element coming out of the transform*/
-    int    _shiftgreen = 0;     /**< @brief the shift to set in the Green's function when doing the convolution*/
-    double _symstart   = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double _normfact   = 0.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double _volfact    = 0.0;   /**< @brief volume factor*/
-    double _kfact      = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
-    double _koffset    = 0.0;   /**< @brief additive factor to have the correct k numbers*/
+    int    _howmany     = 0;
+    int    _fieldstart  = 0;   /**< @brief the starting index for the field copy in the direction of the plan*/
+    int    _n_in        = 1;   /**< @brief the number of element in the transform*/
+    int    _n_out       = 1;   /**< @brief the number of element coming out of the transform*/
+    int    _shiftgreen  = 0;   /**< @brief the shift to set in the Green's function when doing the convolution*/
+    double _symstart    = 0.0; /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
+    double _normfact    = 1.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact     = 1.0; /**< @brief volume factor*/
+    double _kfact       = 0.0; /**< @brief multiplication factor to have the correct k numbers*/
+    double _koffset     = 0.0; /**< @brief additive factor to have the correct k numbers*/
 
     PlanType     _type;  /**< @brief type of this plan, see #PlanType*/
     BoundaryType _bc[2]; /**< @brief boundary condition [0]=LEFT/MIN - [1]=RIGHT/MAX*/

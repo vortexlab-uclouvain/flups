@@ -80,6 +80,14 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _koffset  = 0.0;
+    } else if (mytype == EMPTY) {
+        _type = EMPTY;
+        // chosen to have no influence
+        _normfact   = 1.0;
+        _volfact    = 1.0;
+        _kfact      = 0.0;
+        _koffset    = 0.0;
+        _isSpectral = false;
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
@@ -128,9 +136,11 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
         _init_mixunbounded(size, isComplex);
     } else if (_type == PERPER) {
         //this is the only transform that could give a R2C on data and being spectral for green
-        _init_periodic(size, isComplex); 
+        _init_periodic(size, isComplex);
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
+    } else if (_type == EMPTY) {
+        FLUPS_INFO_1("No plan required for this direction");
     }
     END_FUNC;
 }
@@ -473,6 +483,8 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
         _plan        = fftw_plan_r2r_1d(_n_in, data, data, _kind, FFTW_FLAG);
 
     } else if (topo->nf() == 2) {
+        // if the topology is complex and I will do a R2R
+        // I do a the FFT only on the real part
         _fftw_stride = memsize[_dimID] * topo->nf();
         _plan        = fftw_plan_many_r2r(1, (int*)(&_n_in), 1,
                                    data, NULL, topo->nf(), memsize[_dimID] * topo->nf(),
@@ -565,6 +577,23 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 
     } else {
         FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo",LOCATION);
+        FLUPS_INFO("------------------------------------------");
+        if (_type == PERPER) {
+            FLUPS_INFO("## C2C plan created for plan periodic-periodic (=%d)", _type);
+        } else if (_type == UNBUNB) {
+            FLUPS_INFO("## C2C plan created for plan unbounded (=%d)", _type);
+        }
+        if (_sign == FLUPS_FORWARD) {
+            FLUPS_INFO("FORWARD transfrom");
+        } else if (_sign == FLUPS_BACKWARD) {
+            FLUPS_INFO("BACKWARD transfrom");
+        }
+        FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
+        FLUPS_INFO("dimID     = %d", _dimID);
+        FLUPS_INFO("howmany   = %d", _howmany);
+        FLUPS_INFO("fftw stride   = %d", _fftw_stride);
+        FLUPS_INFO("size n    = %d", _n_in);
+        FLUPS_INFO("------------------------------------------");
         _plan = fftw_plan_dft_1d(_n_in, (fftw_complex*)data, (fftw_complex*)data, _sign, FFTW_FLAG);
     }
     END_FUNC;
@@ -591,6 +620,9 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         FLUPS_INFO(">> Doing plan periodic-periodic for dim %d", _dimID);
     } else if (_type == UNBUNB) {
         FLUPS_INFO(">> Doing plan unbounded for dim %d", _dimID);
+    } else if (_type == EMPTY) {
+        FLUPS_INFO(">> Doing no plan for dim %d", _dimID);
+        return;
     }
 
     const int howmany = _howmany;
@@ -604,7 +636,16 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
 #ifndef NDEBUG
     for (int id = 0; id < howmany; id++) {
         // get the memory
-        double* mydata = (double*)data + id * fftw_stride;
+        double* mydata;
+        if (_type == SYMSYM || _type == MIXUNB) {
+            mydata = (double*)data + id * fftw_stride;
+        } else if (_type == PERPER || _type == UNBUNB) {
+            if (_isr2c) {
+                mydata = (double*)data + id * fftw_stride;
+            } else {
+                mydata = (double*)data + id * fftw_stride * 2;
+            }
+        }
         // check the alignment
         FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
     }

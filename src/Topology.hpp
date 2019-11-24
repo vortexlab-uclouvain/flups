@@ -90,12 +90,17 @@ class Topology {
     inline int nproc(const int dim) const { return _nproc[dim]; }
     inline int rankd(const int dim) const { return _rankd[dim]; }
     // inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
-    inline int axproc(const int dim) const { return _axproc[dim]; }
-    inline MPI_Comm get_comm() const {return _comm; }
-    
+    inline int      axproc(const int dim) const { return _axproc[dim]; }
+    inline MPI_Comm get_comm() const { return _comm; }
 
-    inline int cmpt_nbyproc(const int id) const{
-        return (_nglob[id]/_nproc[id]) + 1 * ((_nglob[id]%_nproc[id]) > _rankd[id]);
+    /**
+     * @brief compute the number of unknowns on each proc
+     * 
+     * @param id 
+     * @return int 
+     */
+    inline int cmpt_nbyproc(const int id) const {
+        return (_nglob[id] / _nproc[id]) + 1 * ((_nglob[id] % _nproc[id]) > _rankd[id]);
     }
 
     /**
@@ -358,22 +363,6 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
     (*id2) = id / (size0 * size[ax1]);
 }
 
-// /**
-//  * @brief Get the istart in global indexing
-//  * 
-//  * @param istart start index along the ax0 direction (fast rotating index in current topo), ax1 and ax2
-//  * @param topo 
-//  */
-// inline static void get_istart_glob(int istart[3], const Topology *topo) {
-//     const int ax0 = topo->axis();
-//     const int ax1 = (ax0 + 1) % 3;
-//     const int ax2 = (ax0 + 2) % 3;
-
-//     istart[ax0] = topo->cmpt_start_id(ax0);
-//     istart[ax1] = topo->cmpt_start_id(ax1);
-//     istart[ax2] = topo->cmpt_start_id(ax2);
-// }
-
 /**
  * @brief compute the global symmetrized index of a given point.
  * 
@@ -387,6 +376,19 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
  * @param symstart 
  * @param axtrg 
  * @param is 
+ * 
+ * Symmetry computation:
+ * We have to take the symmetry around symstart.
+ * E.g. in X direction:
+ *      `symstart[0] - (ix - symstart[0]) = 2 symstart[0] - ix`
+ * In some cases when we have an R2C transform, it ask for 2 additional doubles.
+ * The value is meaningless but we would like to avoid segfault and nan's.
+ * To do so, we use 2 tricks:
+ * - The `abs` is used to stay on the positivie side and hence avoid negative memory access
+ * - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
+ * 
+ * The final formula is then ( in the X direction):
+ *      `max( abs(2.0 symstart[0] - ix) , 1)`
  */
 inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration

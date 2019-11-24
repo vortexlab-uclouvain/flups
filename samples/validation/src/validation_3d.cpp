@@ -248,6 +248,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             manuRHS[dir] = &d2dx2_fUnbSpietz;
             manuSol[dir] = &fUnbSpietz;
         } else {
+            manuRHS[dir] = &fZero;
+            manuSol[dir] = &fCst;
             // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
@@ -367,6 +369,14 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     double lerr2 = 0.0;
     double lerri = 0.0;
 
+    //determine the volume associated to a mesh
+    double vol = 1.0;
+    for (int id = 0; id < 3; id++) {
+        if (mybc[id][0] != NONE && mybc[id][1] != NONE) {
+            vol *= h[id];
+        }
+    }
+
     {
         const int ax0     = flups_topo_get_axis(topo);
         const int ax1     = (ax0 + 1) % 3;
@@ -379,7 +389,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                     const double err = sol[id] - field[id];
 
                     lerri = max(lerri, fabs(err));
-                    lerr2 += (err * err) * h[0] * h[1] * h[2];
+                    lerr2 += (err * err) * vol;
                 }
             }
         }
