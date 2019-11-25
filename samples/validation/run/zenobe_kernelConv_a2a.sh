@@ -21,8 +21,8 @@ echo "CPU         :  $NCPUS"
 
 module purge
 module load compiler/gcc/7.2.0
-module load compiler/intel/comp_and_lib/2019.3.199
-module load intelmpi/5.1.3.181/64
+module load compiler/intel/comp_and_lib/2017.4.196
+module load intelmpi/2017.3.196/64
 module load devtoolset/8
 
 
