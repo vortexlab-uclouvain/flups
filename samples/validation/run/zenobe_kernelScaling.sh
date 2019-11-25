@@ -25,6 +25,19 @@ module load compiler/intel/comp_and_lib/2017.4.196
 module load intelmpi/2017.3.196/64
 module load devtoolset/8
 
+#IF YOU HAVE TROUBLES WITH LARGE RUNS:
+# export I_MPI_FABRICS=shm:dapl
+# export I_MPI_DAPL_UD=1
+# export I_MPI_DAPL_UD_PROVIDER=ofa-v2-mlx4_0-1u
+# export I_MPI_CHECK_DAPL_PROVIDER_COMPATIBILITY=0
+# export DAPL_UCM_REP_TIME=2000
+# export DAPL_UCM_RTU_TIME=2000
+# export DAPL_UCM_CQ_SIZE=2000
+# export DAPL_UCM_QP_SIZE=2000
+# export DAPL_UCM_DREQ_RETRY=7
+# export DAPL_ACK_RETRY=7
+# export DAPL_ACK_TIMER=20
+
 echo
 echo "----------------- Start computation -------------"
 echo "Starting time : " $(date)

@@ -4,7 +4,7 @@
 export HOME_FLUPS=/home/acad/ucl-tfl/tgillis/flups/samples/validation
 
 ## fixed parameters
-export SIZE_TOT=2048
+export SIZE_TOT=1152
 
 ################################################################################################################
 #           NON-BLOCKING COMMUNICATION
