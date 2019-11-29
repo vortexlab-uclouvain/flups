@@ -3,7 +3,7 @@
 #PBS -N convergence
 #PBS -r y 
 #PBS -W group_list=examples
-#PBS -l walltime=00:20:00 
+#PBS -l walltime=00:30:00 
 
 exec > ${PBS_O_WORKDIR}/${PBS_JOBNAME}_${PBS_JOBID}.log 
 echo "------------------ Work dir --------------------" 
@@ -24,8 +24,6 @@ module load compiler/gcc/7.2.0
 module load compiler/intel/comp_and_lib/2017.4.196
 module load intelmpi/2017.3.196/64
 module load devtoolset/8
-
-
 
 EXEC_FLUPS=flups_validation_a2a
 
