@@ -35,57 +35,6 @@ MY_SIZE_X=$((${MY_SIZE} * ${L_X}/${L_X}))
 MY_SIZE_Y=$((${MY_SIZE} * ${L_Y}/${L_X}))
 MY_SIZE_Z=$((${MY_SIZE} * ${L_Z}/${L_X}))
 
-######################### -bc 4 4 4 4 4 4 ###########################
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 >> stdout_${PBS_JOBID}
-
-
-######################### -bc 0 0 1 0 3 3 ###########################
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}
-#echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}"
-#mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 0 0 1 0 3 3 >> stdout_${PBS_JOBID}
-
-
-######################### -bc 4 0 4 4 1 4 ###########################
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}
-# echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}"
-# mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 4 0 4 4 1 4 >> stdout_${PBS_JOBID}
-
-
-######################### -bc 3 3 4 4 4 4 ###########################
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}
-# echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}"
-# mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 2 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 3 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 4 -bc 3 3 4 4 4 4 >> stdout_${PBS_JOBID}
-
 ###############################################################################################################################################################################################################################################
 #                      2D
 ###############################################################################################################################################################################################################################################
@@ -103,7 +52,7 @@ echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLU
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 4 -bc 4 4 4 4 9 9>> stdout_${PBS_JOBID}
 
 
-######################### -bc 0 0 1 0 3 3 ###########################
+######################### -bc 0 0 1 0 9 9 ###########################
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 0 0 1 0 9 9 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 0 -bc 0 0 1 0 9 9 >> stdout_${PBS_JOBID}
 # echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 0 0 1 0 9 9  >> stdout_${PBS_JOBID}"
@@ -116,7 +65,7 @@ echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLU
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 4 -bc 0 0 1 0 9 9  >> stdout_${PBS_JOBID}
 
 
-######################### -bc 4 0 4 4 1 4 ###########################
+######################### -bc 4 0 4 4 9 9 ###########################
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 4 0 4 4 9 9 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 0 -bc 4 0 4 4 9 9 >> stdout_${PBS_JOBID}
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 4 0 4 4 9 9 >> stdout_${PBS_JOBID}"
@@ -129,7 +78,7 @@ echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLU
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 4 -bc 4 0 4 4 9 9  >> stdout_${PBS_JOBID}
 
 
-######################### -bc 3 3 4 4 4 4 ###########################
+######################### -bc 3 3 4 4 9 9  ###########################
 echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 0 -bc 3 3 4 4 9 9 >> stdout_${PBS_JOBID}"
 mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} 1 -L ${L_X} ${L_Y} 0 -nres 1 -k 0 -bc 3 3 4 4 9 9 >> stdout_${PBS_JOBID}
 # echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -k 1 -bc 3 3 4 4 9 9 >> stdout_${PBS_JOBID}"
