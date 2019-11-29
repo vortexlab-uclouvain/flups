@@ -15,7 +15,8 @@ mkdir -p $SCRATCH/data
 mkdir -p $SCRATCH/prof
 # copy the needed info
 cp $HOME_FLUPS/$EXEC_FLUPS $SCRATCH
-cp $HOME_FLUPS/run/zenobe_kernelConv_a2a.sh $SCRATCH
+cp $HOME_FLUPS/run/zenobe_kernelConv_a2a_2d.sh $SCRATCH
+cp $HOME_FLUPS/run/zenobe_kernelConv_a2a_3d.sh $SCRATCH
 
 cd $SCRATCH
 
