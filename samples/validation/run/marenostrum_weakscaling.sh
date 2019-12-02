@@ -2,10 +2,10 @@
 ## RM the previous validation dir
 
 HOME_FLUPS=/home/pr1ekp00/$(whoami)/flups/samples/validation
-
+SCRATCH_FLDR=/gpfs/scratch/pr1ekp00/$(whoami)
 
 ## fixed parameters
-export SIZE_PER_PROC=128
+export SIZE_PER_PROC=64
 
 export ver=$1
 
@@ -36,7 +36,7 @@ if [ "$ver" = "small" ]; then
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_a2a
 
-SCRATCH=/gpfs/scratch/pr1ekp00/$(whoami)/flups_weak_a2a_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -157,7 +157,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switc
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_nb
 
-SCRATCH=/gpfs/scratch/pr1ekp00/$(whoami)/flups_weak_nb_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -238,7 +238,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switc
 
 #================== 4608 CPU's ================
 #-- requested walltime
-export WT='00:20:00'
+export WT='00:15:00'
 #-- proc domain
 export MY_NX=16
 export MY_NY=24
@@ -286,7 +286,7 @@ elif [ "$ver" = "large" ]; then
 # #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_a2a
 
-SCRATCH=/gpfs/scratch/pr1ekp00/$(whoami)/flups_weak_a2a_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -301,32 +301,32 @@ cp $HOME_FLUPS/run/marenostrum_kernel_valid.sh $SCRATCH
 cd $SCRATCH
 
 
-#================== 9216 CPU's ================
-#-- requested walltime
-export WT='00:20:00'
-#-- proc domain
-export MY_NX=16
-export MY_NY=24
-export MY_NZ=24
-#-- domain length
-export L_X=1.0
-export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
-export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
-#-- global size
-export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
-export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
-export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
-#-- 1 thread
-export MY_NTHREADS=1
-export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
-export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
-echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
+# #================== 9216 CPU's ================
+# #-- requested walltime
+# export WT='00:20:00'
+# #-- proc domain
+# export MY_NX=16
+# export MY_NY=24
+# export MY_NZ=24
+# #-- domain length
+# export L_X=1.0
+# export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
+# export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
+# #-- global size
+# export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
+# export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
+# export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
+# #-- 1 thread
+# export MY_NTHREADS=1
+# export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+# export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
 
 
 #================== 18432 CPU's ================
 #-- requested walltime
-export WT='00:20:00'
+export WT='00:15:00'
 #-- proc domain
 export MY_NX=32
 export MY_NY=24
@@ -354,7 +354,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switc
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_nb
 
-SCRATCH=/gpfs/scratch/pr1ekp00/$(whoami)/flups_weak_nb_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -369,50 +369,50 @@ cp $HOME_FLUPS/run/marenostrum_kernel_valid.sh $SCRATCH
 cd $SCRATCH
 
 
-#================== 9216 CPU's ================
-#-- requested walltime
-export WT='00:20:00'
-#-- proc domain
-export MY_NX=16
-export MY_NY=24
-export MY_NZ=24
-#-- domain length
-export L_X=1.0
-export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
-export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
-#-- global size
-export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
-export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
-export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
-#-- 1 thread
-export MY_NTHREADS=1
-export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
-export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
-echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
+# #================== 9216 CPU's ================
+# #-- requested walltime
+# export WT='00:20:00'
+# #-- proc domain
+# export MY_NX=16
+# export MY_NY=24
+# export MY_NZ=24
+# #-- domain length
+# export L_X=1.0
+# export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
+# export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
+# #-- global size
+# export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
+# export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
+# export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
+# #-- 1 thread
+# export MY_NTHREADS=1
+# export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+# export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
 
 
-#================== 18432 CPU's ================
-#-- requested walltime
-export WT='00:20:00'
-#-- proc domain
-export MY_NX=32
-export MY_NY=24
-export MY_NZ=24
-#-- domain length
-export L_X=1.0
-export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
-export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
-#-- global size
-export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
-export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
-export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
-#-- 1 thread
-export MY_NTHREADS=1
-export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
-export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
-echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
-sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
+# #================== 18432 CPU's ================
+# #-- requested walltime
+# export WT='00:20:00'
+# #-- proc domain
+# export MY_NX=32
+# export MY_NY=24
+# export MY_NZ=24
+# #-- domain length
+# export L_X=1.0
+# export L_Y=$(bc<<< "scale=6 ; $MY_NY / $MY_NX")
+# export L_Z=$(bc<<< "scale=6 ; $MY_NZ / $MY_NX")
+# #-- global size
+# export SIZE_X=$(($SIZE_PER_PROC*$MY_NX))
+# export SIZE_Y=$(($SIZE_PER_PROC*$MY_NY))
+# export SIZE_Z=$(($SIZE_PER_PROC*$MY_NZ))
+# #-- 1 thread
+# export MY_NTHREADS=1
+# export MY_NTASKS=$(bc<<< "scale=0 ; ($MY_NX*$MY_NY*$MY_NZ)/1")
+# export N_SWITCH=$(bc<<< "scale=0 ; $MY_NTASKS / $nPerSwitch") #CAUTION, THIS WORKS ONLY BECAUSE WE ALWAYS HAVE A MULTIPLE OF 24 SWITCHES
+# echo "sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT}  -- ./marenostrum_kernel_valid.sh"
+# sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT} --switches=${N_SWITCH}@${SW_TIMEOUT} ./marenostrum_kernel_valid.sh
 
 
 elif [ "$ver" = "Xlarge" ]; then
