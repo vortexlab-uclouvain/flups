@@ -558,7 +558,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     const Topology* topo_in;
     const Topology* topo_out;
 
-    int lda = topo_in->lda();
+    int lda = _topo_in->lda();
     int send_nBlock;
     int recv_nBlock;
 
