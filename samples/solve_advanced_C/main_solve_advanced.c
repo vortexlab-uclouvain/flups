@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
 
-    FLUPS_Topology *topoIn      = flups_topo_new(0, nglob, nproc, false, NULL, FLUPS_ALIGNMENT,comm);
+    FLUPS_Topology *topoIn      = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT,comm);
     const int             nprocOut[3] = {1, 2, 1};
 
     
