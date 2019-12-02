@@ -346,8 +346,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     /** - compute the error */
     //-------------------------------------------------------------------------
-    double lerr2 = 0.0;
-    double lerri = 0.0;
+    double lerr2[3] = {0.0,0.0,0.0};
+    double lerri[3] = {0.0,0.0,0.0};
 
     {
         const int ax0     = flups_topo_get_axis(topo);
@@ -361,19 +361,21 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                         const size_t id = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
                         const double err = sol[id] - field[id];
 
-                        lerri = max(lerri, fabs(err));
-                        lerr2 += (err * err) * h[0] * h[1] * h[2];
+                        lerri[lia] = max(lerri[lia], fabs(err));
+                        lerr2[lia] += (err * err) * h[0] * h[1] * h[2];
                     }
                 }
             }
         }
     }
-    double erri = 0.0;
-    double err2 = 0.0;
-    MPI_Allreduce(&lerr2, &err2, 1, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(&lerri, &erri, 1, MPI_DOUBLE, MPI_MAX, comm);
+    double erri[3] = {0.0,0.0,0.0};
+    double err2[3] = {0.0,0.0,0.0};
+    MPI_Allreduce(&lerr2, &err2, 3, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(&lerri, &erri, 3, MPI_DOUBLE, MPI_MAX, comm);
 
-    err2 = sqrt(err2);
+    for(int i=0; i<lda;i++){
+        err2[i] = sqrt(err2[i]);
+    }
 
     char filename[512];
     string folder = "./data";
@@ -388,11 +390,20 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
         FILE *myfile = fopen(filename, "a+");
         if (myfile != NULL) {
-            fprintf(myfile, "%d %12.12e %12.12e\n", nglob[0], err2, erri);
+            fprintf(myfile, "%d ", nglob[0]);
+            for(int i=0; i<lda;i++){
+                fprintf(myfile, "%12.12e %12.12e ", err2[i], erri[i]);
+            }
+            fprintf(myfile, "\n");
+            
             fclose(myfile);
         } else {
             printf("unable to open file %s ! Here is what I would have written:", filename);
-            printf("%d %12.12e %12.12e\n", nglob[0], err2, erri);
+            printf("%d ", nglob[0]);
+            for(int i=0; i<lda;i++){
+                printf("%12.12e %12.12e ", err2[i], erri[i]);
+            }
+            printf("\n");
         }
     }
 
