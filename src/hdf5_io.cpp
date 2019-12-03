@@ -118,16 +118,20 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
     //-------------------------------------------------------------------------
     /** - Create the file dataspace and dataset  */
-    //-------------------------------------------------------------------------
-    // the file information is given by the global size
-    hsize_t field_dims[4] = {(hsize_t) topo->lda(),(hsize_t)topo->nglob(ax2),(hsize_t)topo->nglob(ax1),(hsize_t)topo->nglob(ax0)};
+    /** \warning In the dataspace, the last index must be the index of the vector 
+     * component (requirement from xdmf). However, in memory, the index of the
+     * vector component is the first one. We will thus need to fill the file 
+     * with the data, component by component, and using a stride of lda.
+    //-----------------------------------------------------------------------*/
+    // the file information is given by the global size = total size reserved for the file
+    hsize_t field_dims[4] = {(hsize_t)topo->nglob(ax2),(hsize_t)topo->nglob(ax1),(hsize_t)topo->nglob(ax0),(hsize_t) topo->lda()};
 
     // setup the property list = option list
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    hsize_t chk_dim[4] = {1, 8, 8, 8};
+    hsize_t chk_dim[4] = {8, 8, 8, 1};
     H5Pset_chunk(plist_id, 4, chk_dim);
 
-    // create dataset and dataspace
+    // create dataset and dataspace = the whole hard memory reserved for the file
     if (!topo->isComplex()) {
         filespace_real = H5Screate_simple(4, field_dims, NULL);
         fileset_real   = H5Dcreate(file_id, attribute.c_str(), H5T_NATIVE_FLOAT, filespace_real, H5P_DEFAULT, plist_id, H5P_DEFAULT);
@@ -148,31 +152,18 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     /** - select the hyperslab inside the file dataset (=writting location)  */
     //-------------------------------------------------------------------------
     // get the offset from topo
+    // prepare the stide: we will fill the file component by component
     int topo_offset[3];
     topo->get_istart_glob(topo_offset);
     hsize_t count[4]  = {1, 1, 1, 1};                                                                                          // how many blocks to write
-    hsize_t stride[4] = {1, 1, 1, 1};                                                                                          // distance between 2 blocks
-    hsize_t block[4]  = {(hsize_t)topo->lda(), (hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)};  // the block size = the local size
-    hsize_t offset[4] = {0, (hsize_t)topo_offset[ax2], (hsize_t)topo_offset[ax1], (hsize_t)topo_offset[ax0]};                  // offset in the file
-
-    // get the hyperslab within the dataset
-    if (!topo->isComplex()) {
-        filespace_real = H5Dget_space(fileset_real);
-        status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in dataset.", LOCATION);
-    } else {
-        filespace_real = H5Dget_space(fileset_real);
-        status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in dataset.", LOCATION);
-        filespace_imag = H5Dget_space(fileset_imag);
-        status         = H5Sselect_hyperslab(filespace_imag, H5S_SELECT_SET, offset, stride, count, block);
-        FLUPS_CHECK(status >= 0, "Failed to select complex hyperslab in dataset.", LOCATION);
-    }
+    hsize_t stride[4] = {1, 1, 1, (hsize_t)topo->lda()};                                                                                          // distance between 2 blocks
+    hsize_t block[4]  = {(hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)   ,1};  // the block size = the local size
+    hsize_t offset[4] = {(hsize_t)topo_offset[ax2], (hsize_t)topo_offset[ax1], (hsize_t)topo_offset[ax0],0};                  // offset in the file
 
     //-------------------------------------------------------------------------
-    /** - do the writting  */
+    /** - Create the memory dataspace */
     //-------------------------------------------------------------------------
-    // dataspace = data inside the memory that has a full size of nmem
+    // dataspace = volume inside the memory that has a full size of nmem
     hsize_t memsize[4] = {(hsize_t)topo->lda(), (hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
     memspace           = H5Screate_simple(4, memsize, NULL);
 
@@ -180,36 +171,60 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     plist_id = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
 
-    hsize_t memblock[4] = {1, 1, 1, 1};
-    hsize_t memcount[4] = {(hsize_t) topo->lda(), (hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)};
+    //looping over the vector components. 
+    for (int lia = 0; lia<topo->lda();lia++)
+    {
+        offset[3] = lia;
 
-    if (!topo->isComplex()) {
-        hsize_t memoffset[4] = {0, 0, 0, 0};  // offset in memory
-        hsize_t memstride[4] = {1, 1, 1, 1};
-        status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select hyperslab in memmory.", LOCATION);
-        status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write hyperslab to file.", LOCATION);
-    }
+        // get the hyperslab within the dataset of the file
+        if (!topo->isComplex()) {
+            filespace_real = H5Dget_space(fileset_real);
+            status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
+            FLUPS_CHECK(status >= 0, "Failed to select hyperslab in dataset.", LOCATION);
+        } else {
+            filespace_real = H5Dget_space(fileset_real);
+            status         = H5Sselect_hyperslab(filespace_real, H5S_SELECT_SET, offset, stride, count, block);
+            FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in dataset.", LOCATION);
+            filespace_imag = H5Dget_space(fileset_imag);
+            status         = H5Sselect_hyperslab(filespace_imag, H5S_SELECT_SET, offset, stride, count, block);
+            FLUPS_CHECK(status >= 0, "Failed to select complex hyperslab in dataset.", LOCATION);
+        }
 
-    if (topo->isComplex()) {
-        // stride is 2 for complex numbers
-        hsize_t memstride[4] = {1, 1, 1, 2};
-        // real part
-        hsize_t memoffset[4] = {0, 0, 0, 0};
-        status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
-        status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write real part hyperslab to file.", LOCATION);
+        //-------------------------------------------------------------------------
+        /** - do the writting  */
+        //-------------------------------------------------------------------------
 
-        memoffset[3] = 1;  // set an offset on the fastest rotating index
+        hsize_t memblock[4] = {1, 1, 1, 1};
+        hsize_t memcount[4] = {1  , (hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)};
 
-        // imaginary part
+        //each lia component, the dataspace {lia,:,:,:} in memory correspond to the dataspace {:,:,:,lia} in the file
+        if (!topo->isComplex()) {
+            hsize_t memoffset[4] = {lia, 0, 0, 0};  // offset in memory
+            hsize_t memstride[4] = {topo->lda(), 1, 1, 1};
+            status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
+            FLUPS_CHECK(status >= 0, "Failed to select hyperslab in memmory.", LOCATION);
+            status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
+            FLUPS_CHECK(status >= 0, "Failed to write hyperslab to file.", LOCATION);
+        }
 
-        status = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
-        FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.", LOCATION);
-        status = H5Dwrite(fileset_imag, H5T_NATIVE_DOUBLE, memspace, filespace_imag, plist_id, data);
-        FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.", LOCATION);
+        if (topo->isComplex()) {
+            // stride is 2 for complex numbers
+            hsize_t memstride[4] = {topo->lda(), 1, 1, 2};
+            // real part
+            hsize_t memoffset[4] = {lia, 0, 0, 0};
+            status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
+            FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
+            status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
+            FLUPS_CHECK(status >= 0, "Failed to write real part hyperslab to file.", LOCATION);
+
+            memoffset[3] = 1;  // set an offset on the fastest rotating index
+
+            // imaginary part
+            status = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
+            FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.", LOCATION);
+            status = H5Dwrite(fileset_imag, H5T_NATIVE_DOUBLE, memspace, filespace_imag, plist_id, data);
+            FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.", LOCATION);
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -285,7 +300,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
 
         if (!topo->isComplex()) {
                 fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Vector\" Center=\"Cell\">\n", attribute.c_str());
-                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->lda(), topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0));
+                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0), topo->lda());
                 fprintf(xmf, "        %s.h5:/%s\n", filename.c_str(), attribute.c_str());  //<-------------------------------
                 fprintf(xmf, "       </DataItem>\n");
                 fprintf(xmf, "     </Attribute>\n");
@@ -294,14 +309,14 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
                 // real part
                 string realname = attribute + "_real";
                 fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Vector\" Center=\"Cell\">\n", realname.c_str());
-                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->lda(), topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0));
+                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0), topo->lda());
                 fprintf(xmf, "        %s.h5:/%s\n", filename.c_str(), realname.c_str());  //<-------------------------------
                 fprintf(xmf, "       </DataItem>\n");
                 fprintf(xmf, "     </Attribute>\n");
                 // imag part
                 string imagname = attribute + "_imag";
                 fprintf(xmf, "     <Attribute Name=\"%s\" AttributeType=\"Vector\" Center=\"Cell\">\n", imagname.c_str());
-                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->lda(), topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0));
+                fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", topo->nglob(ax2), topo->nglob(ax1), topo->nglob(ax0), topo->lda());
                 fprintf(xmf, "        %s.h5:/%s\n", filename.c_str(), imagname.c_str());  //<-------------------------------
                 fprintf(xmf, "       </DataItem>\n");
                 fprintf(xmf, "     </Attribute>\n");
