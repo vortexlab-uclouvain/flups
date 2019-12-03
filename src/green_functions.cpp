@@ -99,7 +99,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
@@ -229,7 +229,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 // global indexes
@@ -343,7 +343,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
@@ -484,7 +484,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             for (int i0 = is[ax0]; i0 < ie[ax0]; i0++) {
                 int il[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, il);
@@ -499,9 +499,9 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
                 // const double tmp[2] = {ksqr, eps};
-                const double tmp[6] = {ksqr, eps,k0,k1,k2,hgrid};
+                const double tmp[6] = {ksqr, eps, k0, k1, k2, hgrid};
 
-                green[id + i0 * nf] = G(tmp,NULL);
+                green[id + i0 * nf] = G(tmp, NULL);
             }
         }
     }

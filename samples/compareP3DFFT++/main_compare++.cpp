@@ -306,12 +306,12 @@ int main(int argc, char *argv[]) {
                 // double       xF   = (istartGlo[0] + i0 + .5 ) * h[0]; 
 
                 size_t id;
-                id    = localIndex(0, i0, i1, i2, 0, 0, FLUnmemIn, 1);
+                id    = localIndex(0, i0, i1, i2, 0, FLUnmemIn, 1, 0);
                 rhsFLU[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
 
 #ifndef SKIP_P3D                 
                 //p3d does not care of the size you allocate, juste fill the first isize elements
-                id =  localIndex(0, i0, i1, i2, 0, 0, P3DnlocIN, 1);
+                id =  localIndex(0, i0, i1, i2, 0, P3DnlocIN, 1, 0);
                 rhsP3D[id] = sin((c_2pi / L[0] * f) * x) * sin((c_2pi / L[1] * f) * y) * sin((c_2pi / L[2] * f) * z);
 #endif
             }
@@ -462,7 +462,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, 2);
+                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, 2, 0);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0*2]) + std::fabs(A[id+i0*2 + 1]) > 1.25e-4) {
@@ -475,7 +475,7 @@ void print_res(double *A, const Topology* topo) {
         for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
                 //local indexes start
-                const size_t id = localIndex(ax0, 0, i1, i2, 0, ax0, nmem, 1);
+                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, 1, 0);
                 for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                     
                     if (std::fabs(A[id+i0]) > 1.25e-4) {

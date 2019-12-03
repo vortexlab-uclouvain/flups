@@ -717,11 +717,11 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             const size_t nmax = iBlockSize[iax0][bid] * nf;
 
             // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
-            const bool isBuffAligned = FLUPS_ISALIGNED(sendBuf[bid] + lia * blockSize) &&  nmax%FLUPS_ALIGNMENT == 0;
+            const bool isBuffAligned = FLUPS_ISALIGNED(sendBuf[bid] + lia * blockSize) && nmax % FLUPS_ALIGNMENT == 0;
             // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
             FLUPS_INFO_3("block %d: Moving the pointer by %d %d %d elements", bid, iBlockiStart[0][bid], iBlockiStart[1][bid], iBlockiStart[2][bid]);
             FLUPS_INFO_3("block %d: Tackling a block of size %d %d %d", bid, iBlockSize[0][bid], iBlockSize[1][bid], iBlockSize[2][bid]);
-            double*    my_v            = v + localIndex(iax0, iBlockiStart[iax0][bid], iBlockiStart[iax1][bid], iBlockiStart[iax2][bid], lia, iax0, inmem, nf);
+            double* my_v = v + localIndex(iax0, iBlockiStart[iax0][bid], iBlockiStart[iax1][bid], iBlockiStart[iax2][bid], iax0, inmem, nf, lia);
 
             const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && inmem[iax0] % FLUPS_ALIGNMENT == 0;
 
@@ -736,7 +736,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting location for the buffer and the field.
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    const opt_double_ptr vloc = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    const opt_double_ptr vloc = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf, 0);
                     opt_double_ptr dataloc    = sendBuf[bid] + id * nmax + lia * blockSize;
                     // set the alignment
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
@@ -756,7 +756,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting location for the buffer and the field
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf, 0);
                     opt_double_ptr dataloc        = sendBuf[bid] + lia * blockSize + id * nmax ;
                     // set the alignment
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
@@ -775,7 +775,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting location for the buffer and the field
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    const opt_double_ptr vloc  = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    const opt_double_ptr vloc  = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf, 0);
                     double* __restrict dataloc = sendBuf[bid] + lia * blockSize + id * nmax ;
                     // set the alignment
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
@@ -794,7 +794,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting location for the buffer and the field
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, 0, iax0, inmem, nf);
+                    const double* __restrict vloc = my_v + localIndex(iax0, 0, i1, i2, iax0, inmem, nf, 0);
                     double* __restrict dataloc = sendBuf[bid] + lia * blockSize + id * nmax ;
 
                     // do the copy -> vectorized
@@ -909,7 +909,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             // the buffer is aligned if the starting id is aligned and if nmax is a multiple of the alignement
             const bool isBuffAligned = FLUPS_ISALIGNED(recvBuf[bid] + lia * blockSize) &&  nmax%FLUPS_ALIGNMENT == 0;
             // the data is aligned if the starting index is aligned AND if the gap between two entries, inmem[iax0] is a multiple of the alignment
-            double*    my_v            = v + localIndex(oax0, oBlockiStart[oax0][bid], oBlockiStart[oax1][bid], oBlockiStart[oax2][bid], lia, oax0, onmem, nf);
+            double*    my_v            = v + localIndex(oax0, oBlockiStart[oax0][bid], oBlockiStart[oax1][bid], oBlockiStart[oax2][bid], oax0, onmem, nf, lia);
             const bool isVectorAligned = FLUPS_ISALIGNED(my_v) && onmem[oax0] % FLUPS_ALIGNMENT == 0;
 
             //choose the correct loop to improve the efficiency
@@ -922,7 +922,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting id for the buffer and the data
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
                     const opt_double_ptr dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // tell the compiler about alignment
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
@@ -941,7 +941,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting id for the buffer and the data
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
                     const opt_double_ptr dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // tell the compiler about alignment
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
@@ -959,7 +959,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting id for the buffer and the data
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
                     const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // tell the compiler about alignment
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
@@ -977,7 +977,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     // get the local starting id for the buffer and the data
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
-                    double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, 0, oax0, onmem, nf);
+                    double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
                     const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
@@ -1051,7 +1051,7 @@ void SwitchTopo_a2a_test() {
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                    const size_t id = localIndex(0, i0, i1, i2, 0, 0, nmem, 1);
+                    const size_t id = localIndex(0, i0, i1, i2, 0, nmem, 1, 0);
 
                     data[id] = (double)id;
                 }
@@ -1103,7 +1103,7 @@ void SwitchTopo_a2a_test() {
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                    size_t id    = localIndex(0, i0, i1, i2, 0, 0, nmem2, 2);
+                    size_t id    = localIndex(0, i0, i1, i2, 0, nmem2, 2, 0);
                     data[id + 0] = 0;
                     data[id + 1] = id;
                 }
@@ -1226,7 +1226,7 @@ void SwitchTopo_a2a_test2() {
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                    const size_t id = localIndex(0, i0, i1, i2, 0, 0, nmem, 1);
+                    const size_t id = localIndex(0, i0, i1, i2, 0, nmem, 1, 0);
 
                     // data[id] = (double)(i0+istart[0] + i1+istart[1] + i2+istart[2]);
                     // data[id] = (double)((i0+istart[0])/4 + (i1+istart[1])/4 + (i2+istart[2])/4);

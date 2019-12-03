@@ -95,7 +95,7 @@ class Topology {
     inline MPI_Comm get_comm() const { return _comm; }
 
     /**
-     * @brief compute the number of unknowns on each proc
+     * @brief compute the number of unknowns on each proc for one component
      * 
      * @param id 
      * @return int 
@@ -105,12 +105,21 @@ class Topology {
     }
 
     /**
-     * @name Functions to compute the starting index of each topology
+     * @name Functions to compute the starting index of each topology, for one component
+     * 
+     * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
         return (_rankd[id]) * (_nglob[id] / _nproc[id]) + std::min(_rankd[id], _nglob[id] % _nproc[id]);
     }
 
+    /**
+     * @brief compute the rank associated to a global id (for one component)
+     * 
+     * @param global_id 
+     * @param id 
+     * @return int 
+     */
     inline int cmpt_rank_fromid(const int global_id, const int id) const{
         const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
         const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
@@ -134,13 +143,13 @@ class Topology {
      */
     void cmpt_sizes();
     /**
-     * @brief returns the local size of on this proc, including 
+     * @brief returns the local size () of on this proc, including 
      * 
      * @return size_t 
      */
     inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf * _lda); }
     /**
-     * @brief returns the memory size of on this proc
+     * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      * 
      * @return size_t 
      */
@@ -249,8 +258,8 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param lda leading dimension of array, number of vector components
  * @return size_t 
  */
-static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2, const int lia,
-                                const int axtrg, const int size[3], const int nf) {
+static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+                                const int axtrg, const int size[3], const int nf, const int lda) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3; 
@@ -260,19 +269,21 @@ static inline size_t localIndex(const int axsrc, const int i0, const int i1, con
     const int ax2  = (ax0 + 2) % 3;
 
     // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + size[ax2] * lia) );
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + size[ax2] * lda) );
 }
 /**
  * @brief compute the memory local index for a point (i0,id) in axsrc-indexing in a memory in the same indexing
  * 
- * The memory id is computed as the collapsed version of the 2 external loops
+ * The memory id is computed as the collapsed version of the 3 external loops:
+ * - the loop on the lda
+ * - the loop on the ax2 direction
+ * - the loop on the ax1 direction
  * 
  * @param axsrc the FRI for the point (i0,i1,i2)
  * @param i0 the index aligned along the axsrc axis
  * @param id the collapsed id of the outer three loops
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @param lda trailing dimension of array, number of vector components
  * @return size_t 
  */
 static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
@@ -281,7 +292,7 @@ static inline size_t collapsedIndex(const int axsrc, const int i0, const int id,
 }
 
 /**
- * @brief split a global index along the different direction using the FRI axtrg
+ * @brief split a global index along the different direction using the FRI axtrg, for one component
  * 
  * @param id the global id
  * @param size the size in 012-indexing
@@ -309,7 +320,7 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
 }
 
 /**
- * @brief compute the global symmetrized index of a given point.
+ * @brief compute the global symmetrized index of a given point, for one component
  * 
  * The 3 indexes are given along axsrc axis (i0,i1,i2) while the symmetrized output is given along the axtrg axis.
  * 

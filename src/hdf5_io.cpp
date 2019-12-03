@@ -492,7 +492,7 @@ void hdf5_dumptest() {
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id = localIndex(0,i0, i1, i2, 0, 0, nmem,topo->nf());
+                const size_t id = localIndex(0,i0, i1, i2, 0, nmem,topo->nf(), 0);
                 data[id + 0] = id;
             }
         }
@@ -512,7 +512,7 @@ void hdf5_dumptest() {
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                const size_t id = localIndex(0,i0, i1, i2, 0, 0, nmem,topo->nf());
+                const size_t id = localIndex(0,i0, i1, i2, 0, nmem,topo->nf(), 0);
                 data[id + 0] = (double)id;
                 data[id + 1] = 0.0;  //-data[id + 0];
             }
