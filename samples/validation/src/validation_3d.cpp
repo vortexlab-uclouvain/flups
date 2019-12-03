@@ -346,8 +346,15 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     /** - compute the error */
     //-------------------------------------------------------------------------
-    double lerr2[3] = {0.0,0.0,0.0};
-    double lerri[3] = {0.0,0.0,0.0};
+    double* lerr2 = (double*) malloc(lda*sizeof(double));
+    double* lerri = (double*) malloc(lda*sizeof(double));
+    double* err2  = (double*) malloc(lda*sizeof(double));
+    double* erri  = (double*) malloc(lda*sizeof(double));
+
+    std::memset(lerr2, 0, sizeof(double) * lda);
+    std::memset(lerri, 0, sizeof(double) * lda);
+    std::memset(err2 , 0, sizeof(double) * lda);
+    std::memset(erri , 0, sizeof(double) * lda);
 
     {
         const int ax0     = flups_topo_get_axis(topo);
@@ -368,10 +375,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             }
         }
     }
-    double erri[3] = {0.0,0.0,0.0};
-    double err2[3] = {0.0,0.0,0.0};
-    MPI_Allreduce(&lerr2, &err2, 3, MPI_DOUBLE, MPI_SUM, comm);
-    MPI_Allreduce(&lerri, &erri, 3, MPI_DOUBLE, MPI_MAX, comm);
+    MPI_Allreduce(lerr2, err2, lda, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(lerri, erri, lda, MPI_DOUBLE, MPI_MAX, comm);
 
     for(int i=0; i<lda;i++){
         err2[i] = sqrt(err2[i]);
@@ -406,6 +411,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
             printf("\n");
         }
     }
+
+    free(lerr2);
+    free(lerri);
+    free(err2 );
+    free(erri );    
 
     flups_free(sol);
     flups_free(rhs);
