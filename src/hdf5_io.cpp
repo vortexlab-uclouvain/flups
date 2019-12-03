@@ -121,27 +121,26 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     //-------------------------------------------------------------------------
     // the file information is given by the global size
 
-    hsize_t* field_dims  = (hsize_t*) malloc( ((int) (topo->lda()!=1) + 3)*sizeof(hsize_t) );
-    if(topo->lda()==1){
-
-    field_dims[0] = (hsize_t)topo->nglob(ax2);  // field global dimensions
-    field_dims[1] = (hsize_t)topo->nglob(ax1);  // field global dimensions
-    field_dims[2] = (hsize_t)topo->nglob(ax0);  // field global dimensions
-    }else{
-    field_dims[0] = topo->lda();
-    field_dims[1] = (hsize_t)topo->nglob(ax2);  // field global dimensions
-    field_dims[2] = (hsize_t)topo->nglob(ax1);  // field global dimensions
-    field_dims[3] = (hsize_t)topo->nglob(ax0);  // field global dimensions
+    hsize_t *field_dims = (hsize_t *)malloc(((int)(topo->lda() != 1) + 3) * sizeof(hsize_t));
+    if (topo->lda() == 1) {
+        field_dims[0] = (hsize_t)topo->nglob(ax2);  // field global dimensions
+        field_dims[1] = (hsize_t)topo->nglob(ax1);  // field global dimensions
+        field_dims[2] = (hsize_t)topo->nglob(ax0);  // field global dimensions
+    } else {
+        field_dims[0] = topo->lda();
+        field_dims[1] = (hsize_t)topo->nglob(ax2);  // field global dimensions
+        field_dims[2] = (hsize_t)topo->nglob(ax1);  // field global dimensions
+        field_dims[3] = (hsize_t)topo->nglob(ax0);  // field global dimensions
     }
 
     // setup the property list = option list
-    plist_id           = H5Pcreate(H5P_DATASET_CREATE);
-    if(topo->lda()==1){
-    hsize_t chk_dim[3] = {8, 8, 8};
-    H5Pset_chunk(plist_id, 3, chk_dim);
-    }else{
-     hsize_t chk_dim[4] = {8, 8, 8, 8};
-    H5Pset_chunk(plist_id, 4, chk_dim);
+    plist_id = H5Pcreate(H5P_DATASET_CREATE);
+    if (topo->lda() == 1) {
+        hsize_t chk_dim[3] = {8, 8, 8};
+        H5Pset_chunk(plist_id, 3, chk_dim);
+    } else {
+        hsize_t chk_dim[4] = {topo->lda(), 8, 8, 8};
+        H5Pset_chunk(plist_id, 4, chk_dim);
     }
 
     // create dataset and dataspace
@@ -228,13 +227,13 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     /** - do the writting  */
     //-------------------------------------------------------------------------
     // dataspace = data inside the memory that has a full size of nmem
-    if(topo->lda()==1){
-    hsize_t memsize[3] = {(hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
-    memspace           = H5Screate_simple(3, memsize, NULL);
+    if (topo->lda() == 1) {
+        hsize_t memsize[3] = {(hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
+        memspace           = H5Screate_simple(3, memsize, NULL);
     } else {
-    hsize_t memsize[4] = {topo->lda(), (hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
-    memspace           = H5Screate_simple(4, memsize, NULL);
- }
+        hsize_t memsize[4] = {topo->lda(), (hsize_t)topo->nmem(ax2), (hsize_t)topo->nmem(ax1), (hsize_t)(topo->nmem(ax0) * topo->nf())};
+        memspace           = H5Screate_simple(4, memsize, NULL);
+    }
 
     // set the property list
     plist_id = H5Pcreate(H5P_DATASET_XFER);
@@ -244,22 +243,22 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     hsize_t* memblock = (hsize_t*) malloc( ((int) (topo->lda()!=1) + 3)*sizeof(hsize_t) );
 
     // get the data counts that we are going to write -> restricted to nloc instead of nmem
-    if(topo->lda()==1){
-	    memblock[0] = 1;
-	    memblock[1] = 1;
-	    memblock[2] = 1;
-            memcount[0] = (hsize_t)topo->nloc(ax2);
-            memcount[1] = (hsize_t)topo->nloc(ax1);
-            memcount[2] = (hsize_t)topo->nloc(ax0);
-    }else {
-            memblock[0] = 1;
-	    memblock[1] = 1;
-	    memblock[2] = 1;
-	    memblock[3] = 1;
-	    memcount[0] = topo->lda();
-	    memcount[1] = (hsize_t)topo->nloc(ax2);
-	    memcount[2] = (hsize_t)topo->nloc(ax1);
-	    memcount[3] = (hsize_t)topo->nloc(ax0);
+    if (topo->lda() == 1) {
+        memblock[0] = 1;
+        memblock[1] = 1;
+        memblock[2] = 1;
+        memcount[0] = (hsize_t)topo->nloc(ax2);
+        memcount[1] = (hsize_t)topo->nloc(ax1);
+        memcount[2] = (hsize_t)topo->nloc(ax0);
+    } else {
+        memblock[0] = 1;
+        memblock[1] = 1;
+        memblock[2] = 1;
+        memblock[3] = 1;
+        memcount[0] = topo->lda();
+        memcount[1] = (hsize_t)topo->nloc(ax2);
+        memcount[2] = (hsize_t)topo->nloc(ax1);
+        memcount[3] = (hsize_t)topo->nloc(ax0);
     }
 
     if (!topo->isComplex()) {
@@ -282,11 +281,11 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     }
 
     if (topo->isComplex()) {
-        if(topo->lda()==1){
+        if (topo->lda() == 1) {
             // stride is 2 for complex numbers
-            hsize_t memstride[3] = { 1, 1, 2};
+            hsize_t memstride[3] = {1, 1, 2};
             // real part
-            hsize_t memoffset[3] = { 0, 0, 0};
+            hsize_t memoffset[3] = {0, 0, 0};
             status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
             FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
@@ -294,13 +293,12 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
             memoffset[2] = 1;  // set an offset on the fastest rotating index
 
-                status       = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
+            status = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
             FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_imag, H5T_NATIVE_DOUBLE, memspace, filespace_imag, plist_id, data);
             FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.", LOCATION);
 
-    
-        } else{
+        } else {
             // stride is 2 for complex numbers
             hsize_t memstride[4] = {1, 1, 1, 2};
             // real part
@@ -309,20 +307,20 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
             FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
             FLUPS_CHECK(status >= 0, "Failed to write real part hyperslab to file.", LOCATION);
-        
+
             memoffset[3] = 1;  // set an offset on the fastest rotating index
 
             // imaginary part
 
-            status       = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
+            status = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
             FLUPS_CHECK(status >= 0, "Failed to select imag hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_imag, H5T_NATIVE_DOUBLE, memspace, filespace_imag, plist_id, data);
             FLUPS_CHECK(status >= 0, "Failed to write imaginary part hyperslab to file.", LOCATION);
         }
     }
 
-free(memcount);
-free(memblock);
+    free(memcount);
+    free(memblock);
 
     //-------------------------------------------------------------------------
     /** - close everything */
