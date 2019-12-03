@@ -471,6 +471,8 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     _howmany = 1;
     for (int id = 0; id < _dimID; id++) _howmany *= topo->nloc(id);
     for (int id = _dimID + 1; id < 3; id++) _howmany *= topo->nloc(id);
+    // we have to multiply by the number of dimensions:
+    _howmany *= topo->lda();
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
@@ -542,6 +544,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     _howmany = 1;
     for (int id = 0; id < _dimID; id++) _howmany *= topo->nloc(id);
     for (int id = _dimID + 1; id < 3; id++) _howmany *= topo->nloc(id);
+    // we have to multiply the howmany by the number of dimensions:
+    _howmany *= topo->lda();
+    
     // compute the stride
     _fftw_stride = memsize[_dimID];
        

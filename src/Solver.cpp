@@ -1381,19 +1381,18 @@ void Solver::dothemagic_rhs_real(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
-        const size_t onmax1  = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t onmax_f = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
+        const size_t onmax_g = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
         const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
-        
 
         FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0, onmax1)
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 1) % onmax1; //lda of Green is only 1
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax_f, onmax_g, inmax, nmem, mydata, mygreen, normfact, ax0)
+        for (int io = 0; io < onmax_f; io++) {
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io%onmax_g, nmem, 1); //lda of Green is only 1
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
             FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
@@ -1424,8 +1423,8 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
     FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
     {
-        const size_t onmax   = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
-        const size_t onmax1  = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
+        const size_t onmax_f = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
+        const size_t onmax_g = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
         const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
         const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
 
@@ -1433,9 +1432,9 @@ void Solver::dothemagic_rhs_complex_nmult0(double *data) {
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, mydata, mygreen, normfact, ax0, onmax1)
-        for (int io = 0; io < onmax; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, 2) % onmax1; //lda of Green is only 1
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax_f,onmax_g, inmax, nmem, mydata, mygreen, normfact, ax0)
+        for (int io = 0; io < onmax_f; io++) {
+            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io%onmax_g, nmem, 2); //lda of Green is only 1
             opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
             FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
