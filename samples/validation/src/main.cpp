@@ -42,6 +42,8 @@ const static int                 d_nprocs[3] = {1, 1, 1};
 const static double              d_L[3]      = {1., 1., 1.};
 const static FLUPS_GreenType     d_kernel    = CHAT_2;
 const static FLUPS_BoundaryType  d_bcdef     = UNB;
+const static int                 d_lda       = 1;
+const static FLUPS_SolverType    d_stype     = STD;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");
@@ -49,15 +51,16 @@ static void print_help(){
     printf(" --nprocs, -np Ni Nj Nk :       Ni,Nj,Nk is the number of MPI processes in each direction\n");
     printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of cells in each direction \n");
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
+    printf(" --solver_type, -s stype :      0=STD, 1=ROT, 2=DIV, 3=SOLE \n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
-    printf(" --kernel, -k [0-4]:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
+    printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
+    printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
-    printf(" --predefined-test, -pt :       runs a predefined validation test with several combination of UNB BCs and all the Green Kernels (excludes -L, -k and -bc) \n ");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], int *predef, FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], FLUPS_GreenType *kernel, int *lda, FLUPS_SolverType *stype, int *nsample, int **size, int *nsolve){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -71,7 +74,8 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
     *nsolve  = d_nsolve;
     *nsample = d_nsample;
     *kernel  = d_kernel;  
-    *predef  = 0;
+    *lda     = d_lda;  
+    *stype   = d_stype;
 
     // modifying if necessary
     if(argc < 1 || ( argc==1 && (!argv[0][0] || strcmp(argv[0],"flups_validation"))) ){
@@ -157,6 +161,22 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 return 1;
             }  
             i++;
+        } else if ((arg == "-l") || (arg == "--lda")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                *lda = atoi(argv[i+1]); 
+            } else { //Missing argument
+                fprintf(stderr, "missing --lda\n");
+                return 1;
+            }  
+            i++;
+        } else if ((arg == "-s") || (arg == "--solver_type")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                *stype = (FLUPS_SolverType) atoi(argv[i+1]); 
+            } else { //Missing argument
+                fprintf(stderr, "missing --solver_type\n");
+                return 1;
+            }  
+            i++;
         } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
             for (int j = 0; j<6;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
@@ -167,9 +187,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 }  
             }
             i+=6;
-        } else if ((arg == "-pt")|| (arg== "--predefined-test") ) {
-            *predef = 1;
-        }
+        } 
     }
     
     // finilizing allocations
@@ -186,14 +204,15 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
 int main(int argc, char *argv[]) {
 
     // Parsing arguments
-    int nsolve, nsample, predef;
+    int nsolve, nsample, lda;
     int nprocs[3];
     double L[3];
     int *size = NULL;
     FLUPS_GreenType kernel;
+    FLUPS_SolverType solver_type;
     FLUPS_BoundaryType bcdef[3][2];
     
-    int status = parse_args(argc, argv, nprocs, L, bcdef, &predef, &kernel, &nsample, &size, &nsolve);
+    int status = parse_args(argc, argv, nprocs, L, bcdef, &kernel, &lda, &solver_type, &nsample, &size, &nsolve );
 
     if (status) exit(status);
     if (size==NULL){
@@ -215,103 +234,35 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Do the validation
-    if (predef == 0){
-        // Display
-        if (rank == 0) {
-            printf("I will run with:\n");
-            printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
-            printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
-            printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
-            printf("  --kernel: %d\n", kernel);
-            printf("  --nsolve: %d\n", nsolve);
-            for (int i = 0; i < nsample; i++) {
-                printf("   -> sample %d: %d %d %d\n", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
-            }
-        }
 
-        for (int is = 0; is < nsample; is++) {
-            struct DomainDescr valCase;
-
-            for (int ip = 0; ip < 3; ip++) {
-                valCase.L[ip]       = L[ip];
-                valCase.nproc[ip]   = nprocs[ip];
-                valCase.nglob[ip]   = size[is*3+ip];
-                valCase.mybc[ip][0] = bcdef[ip][0];
-                valCase.mybc[ip][1] = bcdef[ip][1];
-            }
-            validation_3d(valCase, SRHS, kernel, nsolve);
-        }
-
-    } else {
-        // Loop over the resolution for convergence study
-        for (int is = 0; is < nsample; is++) {
-            // Display
-            if (rank == 0) {
-                printf("I will run predefined test 1 with:");
-                printf("  --nprocs: %d,%d,%d", nprocs[0], nprocs[1], nprocs[2]);
-                printf("  --nsolve: %d", nsolve);
-                for (int i = 0; i < nsample; i++) {
-                    printf("   -> sample %d: %d", i + 1, size[i]);
-                }
-            }
-
-            struct DomainDescr valCase;
-
-            for (int ip = 0; ip < 3; ip++) {
-                valCase.nproc[ip]   = nprocs[ip];
-                valCase.nglob[ip]   = size[is] * valCase.L[ip];
-            }
-
-            if (rank == 0) printf("\n==============================  FULLY UNBOUNDED TEST ============================================\n");
-            valCase.mybc[0][0] = UNB;
-            valCase.mybc[0][1] = UNB;
-            valCase.mybc[1][0] = UNB;
-            valCase.mybc[1][1] = UNB;
-            valCase.mybc[2][0] = UNB;
-            valCase.mybc[2][1] = UNB;
-
-            if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-            validation_3d(valCase, SRHS, HEJ_2, nsolve);
-            if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-            validation_3d(valCase, SRHS, HEJ_4, nsolve);
-            if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-            validation_3d(valCase, SRHS, HEJ_6, nsolve);
-            if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-            validation_3d(valCase, SRHS, CHAT_2, nsolve);
-
-            if (rank == 0) printf("\n==============================  MIX UNBOUNDED TEST ============================================\n");
-            for (int id = 0; id < 3; id++) {
-                for (int lr = 0; lr < 2; lr++) {
-                    valCase.mybc[0][0] = UNB;
-                    valCase.mybc[0][1] = UNB;
-                    valCase.mybc[1][0] = UNB;
-                    valCase.mybc[1][1] = UNB;
-                    valCase.mybc[2][0] = UNB;
-                    valCase.mybc[2][1] = UNB;
-                    // set to even
-                    valCase.mybc[id][lr] = EVEN;
-                    if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_2);
-                    if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_4);
-                    if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_6);
-                    if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, CHAT_2);
-                    // set to odd
-                    valCase.mybc[id][lr] = ODD;
-                    if (rank == 0) printf("------------------------------  HEJ_2  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_2);
-                    if (rank == 0) printf("------------------------------  HEJ_4  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_4);
-                    if (rank == 0) printf("------------------------------  HEJ_6  -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, HEJ_6);
-                    if (rank == 0) printf("------------------------------  CHAT_2 -----------------------------------------------------------------\n");
-                    validation_3d(valCase, SRHS, CHAT_2);
-                }
-            }
+    // Display
+    if (rank == 0) {
+        printf("I will run with:\n");
+        printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
+        printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
+        printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
+        printf("  --kernel: %d\n", kernel);
+        printf("  --lda: %d\n", lda);
+        printf("  --solver_type: %d\n", solver_type);
+        printf("  --nsolve: %d\n", nsolve);
+        for (int i = 0; i < nsample; i++) {
+            printf("   -> sample %d: %d %d %d\n", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
         }
     }
+
+    for (int is = 0; is < nsample; is++) {
+        struct DomainDescr valCase;
+
+        for (int ip = 0; ip < 3; ip++) {
+            valCase.L[ip]       = L[ip];
+            valCase.nproc[ip]   = nprocs[ip];
+            valCase.nglob[ip]   = size[is*3+ip];
+            valCase.mybc[ip][0] = bcdef[ip][0];
+            valCase.mybc[ip][1] = bcdef[ip][1];
+        }
+        validation_3d(valCase, solver_type, kernel, lda, nsolve);
+    }
+
     free(size);
 
     MPI_Finalize();

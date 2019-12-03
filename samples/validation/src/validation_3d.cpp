@@ -29,7 +29,7 @@
 
 using namespace std;
 
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen) {
+void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda) {
     validation_3d(myCase, type, typeGreen, 1);
 }
 
@@ -39,9 +39,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
  * @param myCase description of the domain and initial condition
  * @param type type of solver
  * @param typeGreen type of Green function
+ * @param lda leading dimension of array = number of vector components
  * @param nSolve number of times we call the same solver (for timing)
  */
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int nSolve) {
+void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda, const int nSolve) {
 // void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -51,7 +52,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
-    const int     lda    = 3; //3=vector field
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
@@ -149,26 +149,33 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
         }
     }
 
-    // double lIs = 1.e10, 
-    double gIs = 0.0;
-    double lIs = 0.0;
+    double* gIs  = (double*) malloc(lda*sizeof(double));
+    double* lIs  = (double*) malloc(lda*sizeof(double));
+
+    std::memset(gIs, 0, sizeof(double) * lda);
+    std::memset(lIs, 0, sizeof(double) * lda);
 
     for (int lia = 0; lia < lda; lia++){
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
             for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                 for (int i0 = 0; i0 < topo->nloc(0); i0++) {
                     const size_t id    = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
-                    lIs += sol[id];
+                    lIs[lia] += sol[id];
                     // lIs = min(sol[id],lIs);
                 }
             }
         }
     }
     // MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_MIN, comm);
-    MPI_Allreduce(&lIs, &gIs, 1, MPI_DOUBLE, MPI_SUM, comm);
-    gIs *= (h[0]*h[1]*h[2]);
+    MPI_Allreduce(lIs, gIs, lda, MPI_DOUBLE, MPI_SUM, comm);
 
-    printf("Integral sol : %lf\n",gIs);
+    printf("Integral sol : ");
+    for (int lia = 0; lia < lda; lia++){
+        gIs[lia] *= (h[0]*h[1]*h[2]);
+        printf("%lf ",gIs[lia]);
+    }
+    printf("\n");
+    
 #else
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
