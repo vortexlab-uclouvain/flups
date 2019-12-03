@@ -150,11 +150,16 @@ class Solver {
      * 
      * @{
      */
-    void dothemagic_rhs_real(double *data);
-    void dothemagic_rhs_complex_nmult0(double *data);
-    void dothemagic_rhs_complex_nmult1(double *data);
-    void dothemagic_rhs_complex_nmult2(double *data);
-    void dothemagic_rhs_complex_nmult3(double *data);
+    void dothemagic_std_real(double *data);
+    void dothemagic_std_complex_p1(double *data);
+    void dothemagic_std_complex_m1(double *data);
+    void dothemagic_std_complex_pi(double *data);
+    void dothemagic_std_complex_mi(double *data);
+
+    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
     /**@} */
 
     /**

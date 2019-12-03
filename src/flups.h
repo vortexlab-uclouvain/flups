@@ -77,10 +77,10 @@ enum FLUPS_GreenType {
  * 
  */
 enum FLUPS_SolverType {
-    SRHS, /**<@brief scalar \f$ \nabla^2 f = rhs \f$ */
-    VRHS, /**<@brief vector \f$ \nabla^2 f = rhs \f$ */
-    ROT,  /**<@brief vector \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    DIV   /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    STD  = 0, /**<@brief scalar or vector \f$ \nabla^2 f = rhs \f$ */
+    ROT  = 1, /**<@brief vector \f$ \nabla^2 f = \nabla \times rhs \f$ */
+    DIV  = 2, /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
+    SOLE = 3  /**<@brief scalar \f$ \nabla^2 a = \nabla \cdot rhs, f = \nabla a \f$ */
 };
 
 /**

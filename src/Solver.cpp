@@ -1321,40 +1321,71 @@ void Solver::do_mult(double *data, const SolverType type){
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
     
+    // - Obtain what's needed to compute k, in case we need a derivative
+    double kfact[3]   = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3] = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double symstart[3] = {0.0, 0.0, 0.0};
+
+    for (int ip = 0; ip < _ndim; ip++) {
+        const int dimID = _plan_forward[ip]->dimID();
+        kfact[dimID]    = _plan_forward[ip]->kfact();
+        koffset[dimID]  = _plan_forward[ip]->koffset() + _plan_forward[ip]->shiftgreen();
+        symstart[dimID] = _plan_forward[ip]->symstart();
+    }
+    
     if (_prof != NULL) _prof->start("domagic");
-    if (type == SRHS) {
-        if (!_topo_hat[_ndim-1]->isComplex()) {
-            //-> there is only the case of 3dirSYM in which we could stay real for the whole process
-            if (_nbr_imult == 0)
-                dothemagic_rhs_real(data);
-            else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
-        } else {
-            if (_nbr_imult == 0)
-                dothemagic_rhs_complex_nmult0(data);
-            // else if(_nbr_imult == 1) dothemagic_rhs_complex_nmult1(data);
-            // else if(_nbr_imult == 2) dothemagic_rhs_complex_nmult2(data);
-            // else if(_nbr_imult == 3) dothemagic_rhs_complex_nmult3(data);
-            else
-                FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
-        }
-    } else {
-        FLUPS_CHECK(false, "type of solver %d not implemented", type, LOCATION);
+    switch(type){
+        case STD:
+            if (!_topo_hat[_ndim-1]->isComplex()) {
+                //-> there is only the case of 3dirSYM in which we could stay real for the whole process
+                if (_nbr_imult == 0)
+                    dothemagic_std_real(data);
+                else
+                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+            } else {
+                if (_nbr_imult == 0)
+                    dothemagic_std_complex_p1(data);
+                else
+                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+            }
+            break;
+        case ROT:
+            FLUPS_CHECK(_topo_hat[2]->lda()==3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
 
-        // - Obtain what's needed to compute k
-        double kfact[3]   = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-        double koffset[3] = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+            if (!_topo_hat[_ndim-1]->isComplex()) {
+                //-> this happens when full DCT/DST... what do we do if we need to change this to complex??
+                // todo: if topo is not complex, need to handle the fact that we will multiply by i*
 
-        for (int ip = 0; ip < _ndim; ip++) {
-            const int dimID = _plan_forward[ip]->dimID();
-            kfact[dimID]    = _plan_forward[ip]->kfact();
-            koffset[dimID]  = _plan_forward[ip]->koffset() + _plan_forward[ip]->shiftgreen();
-        }
-        // todo: if topo is not complex, need to handle the fact that we will multiply by i*
+                FLUPS_ERROR("I dont know what to do", LOCATION);
+            } else {
+                if (_nbr_imult%4 == 0) {
+                    dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
+                } else if (_nbr_imult%4 == 1){
+                    dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
+                } else if (_nbr_imult%4 == 2){
+                    dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
+                } else if (_nbr_imult%4 == 3){
+                    dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
+                } else {
+                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+                }
+            }
+            break;
 
-        // WARNING: need to adapt the LDA of the topology WARNING
+            //use _orderdiff for spectral or fd derivation
 
-        //dothemagic...
+        case DIV:
+            FLUPS_CHECK(_topo_hat[2]->lda()==3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
+
+            FLUPS_ERROR("type of solver DIV not implemented yet", type, LOCATION);
+
+            // WARNING: need to adapt the LDA of the topology WARNING
+
+        case SOLE:
+            FLUPS_ERROR("type of solver SOLE not implemented yet", type, LOCATION);
+
+        default:
+            FLUPS_ERROR("type of solver %d not implemented", type, LOCATION);
     }
     if (_prof != NULL) _prof->stop("domagic");
     END_FUNC;
@@ -1365,7 +1396,7 @@ void Solver::do_mult(double *data, const SolverType type){
  * @brief perform the convolution for real to real cases
  * 
  */
-void Solver::dothemagic_rhs_real(double *data) {
+void Solver::dothemagic_std_real(double *data) {
     BEGIN_FUNC;
     int cdim = _ndim-1; // get current dim
     FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] has to be real", LOCATION);
@@ -1404,82 +1435,76 @@ void Solver::dothemagic_rhs_real(double *data) {
     END_FUNC;
 }
 
+//===========================================================================================
+// STD
+
 /**
- * @brief Do the convolution between complex data and complex Green's function in spectral space
+ * @brief Do the convolution between complex data and complex Green's function in spectral space (*1)
  * 
  */
-void Solver::dothemagic_rhs_complex_nmult0(double *data) {
-    BEGIN_FUNC;
-    int cdim = _ndim-1; // get current dim
-    FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
-    // get the axis
-    const int ax0 = _topo_hat[cdim]->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-    // get the factors
-    const double         normfact = _normfact;
-    opt_double_ptr       mydata   = data;
-    const opt_double_ptr mygreen  = _green;
-    FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
-    FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
-    {
-        const size_t onmax_f = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
-        const size_t onmax_g = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
-        const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
-        const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
-
-        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-
-        // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax_f,onmax_g, inmax, nmem, mydata, mygreen, normfact, ax0)
-        for (int io = 0; io < onmax_f; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io%onmax_g, nmem, 2); //lda of Green is only 1
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 2);
-            FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-            FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                const double a = dataloc[ii * 2 + 0];
-                const double b = dataloc[ii * 2 + 1];
-                const double c = greenloc[ii * 2 + 0];
-                const double d = greenloc[ii * 2 + 1];
-                // update the values
-                dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
-                dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
-            }
-        }
-    }
-    END_FUNC;
-}
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
- * 
- */
-void Solver::dothemagic_rhs_complex_nmult1(double *data) {
-    BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet", LOCATION);
-    END_FUNC;
-}
+#define MULT 0
+#include "Solver_dothemagic_std.hpp"
+#undef MULT
 
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
  * 
  */
-void Solver::dothemagic_rhs_complex_nmult2(double *data) {
-    BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet", LOCATION);
-    END_FUNC;
-}
+#define MULT 1
+#include "Solver_dothemagic_std.hpp"
+#undef MULT
 
 /**
  * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
  * 
  */
-void Solver::dothemagic_rhs_complex_nmult3(double *data) {
-    BEGIN_FUNC;
-    FLUPS_CHECK(false, "not implemented yet", LOCATION);
-    END_FUNC;
-}
+#define MULT 2
+#include "Solver_dothemagic_std.hpp"
+#undef MULT
+
+/**
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
+ * 
+ */
+#define MULT 3
+#include "Solver_dothemagic_std.hpp"
+#undef MULT
+
+//===========================================================================================
+// ROT
+
+/**
+ * @brief Do the convolution between complex data and complex Green's function in spectral space (*1)
+ * 
+ */
+#define MULT 0
+#include "Solver_dothemagic_rot.hpp"
+#undef MULT
+
+/**
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
+ * 
+ */
+#define MULT 1
+#include "Solver_dothemagic_rot.hpp"
+#undef MULT
+
+/**
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
+ * 
+ */
+#define MULT 2
+#include "Solver_dothemagic_rot.hpp"
+#undef MULT
+
+/**
+ * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
+ * 
+ */
+#define MULT 3
+#include "Solver_dothemagic_rot.hpp"
+#undef MULT
+
 
 
 /**
