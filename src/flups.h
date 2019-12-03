@@ -360,14 +360,14 @@ int  flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
 void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 
 /**
- * @brief returns the local size of on this rank, i.e. the number of unknowns in this rank
+ * @brief returns the scalar local size of on this rank, i.e. the number of unknowns in this rank for one dimension
  * 
  * @return long 
  */
 size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 
 /**
- * @brief returns the memory size of on this proc, i.e. the number of bytes in this proc, including padded memory
+ * @brief returns the memory size of on this proc, i.e. the number of bytes in this proc, including padded memory and all the vector components
  * 
  * @return long 
  */

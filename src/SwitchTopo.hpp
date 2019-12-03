@@ -120,28 +120,13 @@ class SwitchTopo {
         // nultiply by the number of blocks
         size_t total = 0;
         for(int ib=0; ib<_inBlock; ib++){
-            total += get_blockMemSize(ib,nf,_iBlockSize) * _topo_in->lda();
+            total += get_blockMemSize(ib,nf,_iBlockSize) * ((size_t)_topo_in->lda());
         }
         for(int ib=0; ib<_onBlock; ib++){
-            total += get_blockMemSize(ib,nf,_oBlockSize) * _topo_in->lda();
+            total += get_blockMemSize(ib,nf,_oBlockSize) * ((size_t)_topo_in->lda());
         }
         // return the total size
         return total;
-    };
-
-    /**
-     * @brief return the stride for a given dimension
-     * 
-     */
-    inline size_t get_blockStride(const int ax, const int idim, const int bSize[3]) const {
-        int    id     = ax;
-        size_t stride = 1;
-        while (id != idim) {
-            stride = stride * ((size_t)bSize[id]);
-            // update the id
-            id = (id + 1) % 3;
-        }
-        return stride;
     };
 
     void add_toGraph(int* sourcesW, int* destsW) const;
