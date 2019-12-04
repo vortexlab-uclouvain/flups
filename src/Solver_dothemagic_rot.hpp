@@ -69,8 +69,8 @@
         FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
 
         // get the memory size between two dimension
-        const size_t memdim = (size_t)nmem[0] * (size_t)nmem[1] * (size_t)nmem[2];
-        int nloc_ax1 = _topo_hat[cdim]->nloc(ax1);
+        const size_t memdim = (size_t)nmem[0] * (size_t)nmem[1] * (size_t)nmem[2] * nf;
+        const int nloc_ax1 = _topo_hat[cdim]->nloc(ax1);
 
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset, istart, symstart, nloc_ax1)
@@ -173,14 +173,7 @@
                 dataloc_2[ii * 2 + 0] = normfact * (rot2r * gc + rot2c * gr);
                 dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gr - rot2c * gc);
 #endif
-                dataloc_0[ii * 2 + 0] = normfact * rot0r ;
-                dataloc_0[ii * 2 + 1] = normfact * rot0c ;
-                dataloc_1[ii * 2 + 0] = 0.0;
-                dataloc_1[ii * 2 + 1] = 0.0;
-                dataloc_2[ii * 2 + 0] = 0.0;
-                dataloc_2[ii * 2 + 1] = 0.0;
 #endif
-
             }
         }
         END_FUNC;
