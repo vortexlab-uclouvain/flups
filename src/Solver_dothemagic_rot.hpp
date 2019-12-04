@@ -89,14 +89,14 @@
 
             for (int ii = 0; ii < inmax; ii++) {
                 int is[3];
-                cmpt_symID(ax0,ii,io % nloc_ax1,io / nloc_ax1,istart,symstart,0,is);
+                cmpt_symID(ax0,ii,io % nloc_ax1,io/nloc_ax1,istart,symstart,0,is);
 
                 // (symmetrized) wave number
-                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
-                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
-                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
 #if (KIND <= 0)
-                // copy the values before the updtes
+                // ki = k in the ith direction and NOT the k aligned in the axis!!
+                const double k0 = (is[0] + koffset[0]) * kfact[0];
+                const double k1 = (is[1] + koffset[1]) * kfact[1];
+                const double k2 = (is[2] + koffset[2]) * kfact[2];
                 const double gr = greenloc[ii];
                 // real part field
                 const double f0r = dataloc_0[ii];
