@@ -75,9 +75,7 @@
         // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset, istart, symstart, nloc_ax1)
         for (int io = 0; io < onmax; io++) {
-            int is[3];
-            cmpt_symID(ax0,io,io % nloc_ax1,io / nloc_ax1,istart,symstart,0,is);
-
+            
             //local indexes start
             opt_double_ptr greenloc  = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);
             opt_double_ptr dataloc_0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
@@ -89,18 +87,14 @@
             FLUPS_ASSUME_ALIGNED(dataloc_1, FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(dataloc_2, FLUPS_ALIGNMENT);
 
-            // compute the k mode
-            // const double k1 = ((io % _topo_hat[cdim]->nloc(ax1)) + koffset[ax1]) * kfact[ax1];
-            // const double k2 = ((io / _topo_hat[cdim]->nloc(ax1)) + koffset[ax2]) * kfact[ax2];
-
-            // (symmetrized) wave number : only 1 kfact is zero
-            // const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
-            const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
-            const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
-
             for (int ii = 0; ii < inmax; ii++) {
-                // const double k0 = (ii + koffset[ax0]) * kfact[ax0];
+                int is[3];
+                cmpt_symID(ax0,ii,io % nloc_ax1,io / nloc_ax1,istart,symstart,0,is);
+
+                // (symmetrized) wave number
                 const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
 #if (KIND <= 0)
                 // copy the values before the updtes
                 const double gr = greenloc[ii];
@@ -179,7 +173,14 @@
                 dataloc_2[ii * 2 + 0] = normfact * (rot2r * gc + rot2c * gr);
                 dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gr - rot2c * gc);
 #endif
+                dataloc_0[ii * 2 + 0] = normfact * rot0r ;
+                dataloc_0[ii * 2 + 1] = normfact * rot0c ;
+                dataloc_1[ii * 2 + 0] = 0.0;
+                dataloc_1[ii * 2 + 1] = 0.0;
+                dataloc_2[ii * 2 + 0] = 0.0;
+                dataloc_2[ii * 2 + 1] = 0.0;
 #endif
+
             }
         }
         END_FUNC;

@@ -357,9 +357,9 @@ inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const
     const int ax1  = (ax0 + 1) % 3;
     const int ax2  = (ax0 + 2) % 3;
     // fill the array in the axtrg configuration
-    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
-    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
-    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
+    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : -std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
+    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : -std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
+    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : -std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
     
 }
 #endif
