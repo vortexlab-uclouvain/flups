@@ -24,23 +24,24 @@
  * 
  */
 
-#if (KIND == 0)
+#if (KIND == 00)
     void Solver::dothemagic_rot_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#elif (KIND == -1)
+#elif (KIND == 01)
     void Solver::dothemagic_rot_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#elif (KIND == 1)
+#elif (KIND == 10)
     void Solver::dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#elif (KIND == 2)
+        FLUPS_INFO("Hello from ROT COMPLEX P1 function");
+#elif (KIND == 11)
     void Solver::dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#elif (KIND == 3)
+#elif (KIND == 12)
     void Solver::dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#elif (KIND == 4)
+#elif (KIND == 13)
     void Solver::dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #endif
 
         BEGIN_FUNC;
         int cdim = _ndim - 1;  // get current dim
-#if (KIND == 0)
+#if (KIND < 9)
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
 #else
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
@@ -92,11 +93,15 @@
                 cmpt_symID(ax0,ii,io % nloc_ax1,io/nloc_ax1,istart,symstart,0,is);
 
                 // (symmetrized) wave number
-#if (KIND <= 0)
                 // ki = k in the ith direction and NOT the k aligned in the axis!!
                 const double k0 = (is[0] + koffset[0]) * kfact[0];
                 const double k1 = (is[1] + koffset[1]) * kfact[1];
                 const double k2 = (is[2] + koffset[2]) * kfact[2];
+#if (KIND < 9)
+                //----------------------------------------------------
+                // REAL
+                //----------------------------------------------------
+                // copy the real values before the updtes
                 const double gr = greenloc[ii];
                 // real part field
                 const double f0r = dataloc_0[ii];
@@ -111,17 +116,20 @@
                 const double rot0r = k1 * f2r - k2 * f1r;
                 const double rot1r = k2 * f0r - k0 * f2r;
                 const double rot2r = k0 * f1r - k1 * f0r;
-#if (KIND == 0)                
+#if (KIND == 00)                
                 dataloc_0[ii]      = normfact * rot0r * gr;
                 dataloc_1[ii]      = normfact * rot1r * gr;
                 dataloc_2[ii]      = normfact * rot2r * gr;
-#else
+#elif (KIND == 01)
                 dataloc_0[ii]      = -normfact * rot0r * gr;
                 dataloc_1[ii]      = -normfact * rot1r * gr;
                 dataloc_2[ii]      = -normfact * rot2r * gr;
 #endif
 
 #else
+                //----------------------------------------------------
+                // COMPLEX
+                //----------------------------------------------------
                 // copy the values before the updtes
                 const double gr = greenloc[ii * 2 + 0];
                 const double gc = greenloc[ii * 2 + 1];
@@ -143,21 +151,27 @@
 
                 // update the values
                 // accounting for the rephasing:
-#if (KIND == 1)
+#if (KIND == 10)
+                // dataloc_0[ii * 2 + 0] =f0r;
+                // dataloc_0[ii * 2 + 1] =f0c;
+                // dataloc_1[ii * 2 + 0] =f1r;
+                // dataloc_1[ii * 2 + 1] =f1c;
+                // dataloc_2[ii * 2 + 0] =f2r;
+                // dataloc_2[ii * 2 + 1] =f2c;
                 dataloc_0[ii * 2 + 0] = normfact * (rot0r * gr - rot0c * gc);
                 dataloc_0[ii * 2 + 1] = normfact * (rot0r * gc + rot0c * gr);
                 dataloc_1[ii * 2 + 0] = normfact * (rot1r * gr - rot1c * gc);
                 dataloc_1[ii * 2 + 1] = normfact * (rot1r * gc + rot1c * gr);
                 dataloc_2[ii * 2 + 0] = normfact * (rot2r * gr - rot2c * gc);
                 dataloc_2[ii * 2 + 1] = normfact * (rot2r * gc + rot2c * gr);
-#elif (KIND == 2)
+#elif (KIND == 11)
                 dataloc_0[ii * 2 + 0] = -normfact * (rot0r * gr - rot0c * gc);
                 dataloc_0[ii * 2 + 1] = -normfact * (rot0r * gc + rot0c * gr);
                 dataloc_1[ii * 2 + 0] = -normfact * (rot1r * gr - rot1c * gc);
                 dataloc_1[ii * 2 + 1] = -normfact * (rot1r * gc + rot1c * gr);
                 dataloc_2[ii * 2 + 0] = -normfact * (rot2r * gr - rot2c * gc);
                 dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gc + rot2c * gr);
-#elif (KIND == 3)
+#elif (KIND == 12)
                 dataloc_0[ii * 2 + 0] = -normfact * (rot0r * gc + rot0c * gr);
                 dataloc_0[ii * 2 + 1] = normfact * (rot0r * gr - rot0c * gc);
                 dataloc_1[ii * 2 + 0] = -normfact * (rot1r * gc + rot1c * gr);
@@ -165,7 +179,7 @@
                 dataloc_2[ii * 2 + 0] = -normfact * (rot2r * gc + rot2c * gr);
                 dataloc_2[ii * 2 + 1] = normfact * (rot2r * gr - rot2c * gc);
 
-#elif (KIND == 4)
+#elif (KIND == 13)
                 dataloc_0[ii * 2 + 0] = normfact * (rot0r * gc + rot0c * gr);
                 dataloc_0[ii * 2 + 1] = -normfact * (rot0r * gr - rot0c * gc);
                 dataloc_1[ii * 2 + 0] = normfact * (rot1r * gc + rot1c * gr);

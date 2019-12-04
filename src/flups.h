@@ -402,7 +402,7 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param bc boundary conditions of the domain
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
- * @param orderdiff order of the derivatives for ROT and DIV solvers (0=spectral, 2=FD order2)
+ * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
  * @return FLUPS_Solver* the new solver
  */
 FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff);

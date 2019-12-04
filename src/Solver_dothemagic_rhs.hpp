@@ -24,31 +24,31 @@
  * 
  */
 
-#if (KIND == 0)
+#if (KIND == 00)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
  */
 void Solver::dothemagic_rhs_real(double *data) {
-#elif (KIND == 1)
+#elif (KIND == 10)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
  */
 void Solver::dothemagic_rhs_complex_p1(double *data) {
-#elif (KIND == 2)
+#elif (KIND == 11)
 /**
  * @brief perform the convolution for complex to complex cases and multiply by (-1)
  * 
  */
 void Solver::dothemagic_rhs_complex_m1(double *data) {
-#elif (KIND == 3)
+#elif (KIND == 12)
 /**
  * @brief perform the convolution for complex to complex cases and multiply by (i)
  * 
  */
 void Solver::dothemagic_rhs_complex_pi(double *data) {
-#elif (KIND == 4)
+#elif (KIND == 13)
 /**
  * @brief perform the convolution for complex to complex cases and multiply by (-i)
  * 
@@ -87,7 +87,7 @@ void Solver::dothemagic_rhs_complex_mi(double *data) {
             FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
             for (size_t ii = 0; ii < inmax; ii++) {
-#if (KIND == 0)
+#if (KIND == 00)
                 dataloc[ii] *= normfact * greenloc[ii];
 #else
                 const double a = dataloc[ii * 2 + 0];
@@ -95,16 +95,16 @@ void Solver::dothemagic_rhs_complex_mi(double *data) {
                 const double c = greenloc[ii * 2 + 0];
                 const double d = greenloc[ii * 2 + 1];
                 // update the values
-#if (KIND == 1)
+#if (KIND == 10)
                 dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
                 dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
-#elif (KIND == 2)
+#elif (KIND == 11)
                 dataloc[ii * 2 + 0] = -normfact * (a * c - b * d);
                 dataloc[ii * 2 + 1] = -normfact * (a * d + b * c);
-#elif (KIND == 3)
+#elif (KIND == 12)
                 dataloc[ii * 2 + 0] = -normfact * (a * d + b * c);
                 dataloc[ii * 2 + 1] = normfact * (a * c - b * d);
-#elif (KIND == 4)
+#elif (KIND == 13)
                 dataloc[ii * 2 + 0] = normfact * (a * d + b * c);
                 dataloc[ii * 2 + 1] = -normfact * (a * c - b * d);
 #endif

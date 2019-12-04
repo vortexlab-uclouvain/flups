@@ -70,11 +70,11 @@ class Solver {
     // even is the dimension is 2, we allocate arrays of dimension 3
 
    protected:
-    int _ndim          = 3; /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int _fftwalignment = 0; /**< @brief alignement assumed by the FFTW Solver  */
-    int _orderdiff     = -1; /**< @brief the order of derivative (spectral = 0)  */
-    int _nbr_imult     = 0; /**< @brief the number of time we have applied a DST transform */
-    int _nbr_spectral  = 0; /** @brief the number of spectral directions involved     */
+    int _ndim          = 3;  /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int _fftwalignment = 0;  /**< @brief alignement assumed by the FFTW Solver  */
+    int _orderdiff     = 0 ; /**< @brief the order of derivative (spectral = 1), second order =2 */
+    int _rephase_fact  = 0;  /**< @brief the total rephase factor is given by (sign(rephase_fact) * i)^(abs(rephase_fact))  */
+    int _nbr_spectral  = 0;  /** @brief the number of spectral directions involved     */
 
     double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */

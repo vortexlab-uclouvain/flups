@@ -32,12 +32,12 @@
  * @param mybc the boundary conditions of the computational domain (for the solution!!), the first index corresponds to the dimension, the second is left (0) or right (1) side
  * @param h the grid spacing
  * @param L the domain size
- * @param orderDiff the differentiation order. If not required, set -1
+ * @param orderDiff the differentiation order. If not required, set 0
  * @param prof the profiler to use for the solve timing
  */
 Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof) {
     BEGIN_FUNC;
-    FLUPS_CHECK(orderDiff==-1 || orderDiff==0 || orderDiff==2, "The differentiation order has to be 0, 2, 4 or 6",LOCATION);
+    FLUPS_CHECK(orderDiff==0 || orderDiff==1 || orderDiff==2, "The differentiation order has to be 0, 1 or 2",LOCATION);
 
     // //-------------------------------------------------------------------------
     // /** - Initialize the OpenMP threads for FFTW */
@@ -102,7 +102,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _orderdiff = orderDiff;
     // change the boundary condition for the source term if needed
     BoundaryType tmpbc[3][2];
-    if (_orderdiff > -1) {
+    if (_orderdiff) {
         for (int id = 0; id < 3; id++) {
             for (int is = 0; is < 2; is++) {
                 if (mybc[id][is] == EVEN) {
@@ -130,7 +130,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
         _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_BACKWARD, false);
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, true);
         // init the forward diff plan if needed
-        if(_orderdiff > -1){
+        if(_orderdiff){
             _plan_forward_diff[id]  = new FFTW_plan_dim(id, h, L, tmpbc[id], FLUPS_FORWARD, false);
         }
     }
@@ -138,7 +138,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _sort_plans(_plan_forward);
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
-    if(_orderdiff > -1){
+    if(_orderdiff){
         _sort_plans(_plan_forward_diff);
     }
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
@@ -161,33 +161,36 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
     // init the plans if needed
-    if(_orderdiff > -1){
+    if(_orderdiff){
         _init_plansAndTopos(topo, NULL, NULL, _plan_forward_diff, false);
     }
 
     //-------------------------------------------------------------------------
-    /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_nbr_imult */
+    /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_rephase_fact */
     //-------------------------------------------------------------------------
     _normfact  = 1.0;
     _volfact   = 1.0;
-    _nbr_imult = 0;
+    _rephase_fact = 0;
     for (int ip = 0; ip < 3; ip++) {
         _normfact *= _plan_forward[ip]->normfact();
         _volfact *= _plan_forward[ip]->volfact();
 
         // if we use order diff, we have to compute the number of DST
+        //The total rephasing factor will be given by (sign(_rephase_fact)*i)^abs(_rephase_fact)
         if (_orderdiff) {
-            //The total rephasing factor will be given by sign(_nbr_imult)*i^abs(_nbr_imult)
+            // while doing a DST forward, we need to rephase by (-i)
             if (_plan_forward_diff[ip]->imult()) {
-                _nbr_imult++;  //we multiply by (-i) implicitly
-                _nbr_imult = -_nbr_imult;
+                // _rephase_fact++;
+                // _rephase_fact = -_rephase_fact;
+                _rephase_fact--;
             }
+            // while doing a DST backward, we need to rephase by (-i)
             if (_plan_backward[ip]->imult()) {
-                _nbr_imult++;  //we multiply by ( i) implicitly
+                _rephase_fact++;
             }
         } else {
             // if not, an equivalent DST/DCT is done during the forward and the backward -> = 0
-            _nbr_imult = 0;
+            _rephase_fact = 0;
         }
     }
 
@@ -431,7 +434,7 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
-    if(_orderdiff > - 1){
+    if(_orderdiff){
         _allocate_plans(_topo_hat, _plan_forward_diff, _data);
     }
     if (_prof != NULL) _prof->stop("alloc_plans");
@@ -1402,55 +1405,57 @@ void Solver::do_mult(double *data, const SolverType type){
         koffset[dimID]  = _plan_forward[ip]->koffset() + _plan_forward[ip]->shiftgreen();
         symstart[dimID] = _plan_forward[ip]->symstart();
     }
-    
+
     if (_prof != NULL) _prof->start("domagic");
-    switch(type){
+    switch (type) {
         case RHS:
             if (!_topo_hat[_ndim - 1]->isComplex()) {
                 //-> there is only the case of 3dirSYM in which we could stay real for the whole process
-                if (_nbr_imult == 0) {
+                if (_rephase_fact == 0) {
                     dothemagic_rhs_real(data);
                 } else {
-                    FLUPS_CHECK(false, "the number of imult = %d has to be 0 for a RHS solver", _nbr_imult, LOCATION);
+                    FLUPS_CHECK(false, "the number of rephasing = %d has to be 0 for a RHS solver", _rephase_fact, LOCATION);
                 }
             } else {
-                if (_nbr_imult == 0) {
+                if (_rephase_fact == 0) {
                     dothemagic_rhs_complex_p1(data);
                 } else {
-                    FLUPS_CHECK(false, "the number of imult = %d has to be 0 for a RHS solver", _nbr_imult, LOCATION);
+                    FLUPS_CHECK(false, "the number of rephasing = %d has to be 0 for a RHS solver", _rephase_fact, LOCATION);
                 }
             }
             break;
         case ROT:
-            FLUPS_CHECK(_topo_hat[2]->lda()==3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
-
-            if (!_topo_hat[_ndim-1]->isComplex()) {
-                if (_nbr_imult== 1 ) {
-                    // rephasing = i, derivative = i, product = -1
+            // check tath the topo is a vector
+            FLUPS_CHECK(_topo_hat[2]->lda() == 3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
+            if (!_topo_hat[_ndim - 1]->isComplex()) {
+                if (_rephase_fact == 0 || _rephase_fact == 2 || _rephase_fact == -2) {
+                    FLUPS_CHECK(false, "the number of rephasing = %d is impossible for the real case", _rephase_fact, LOCATION);
+                } else if (_rephase_fact == (-3) || _rephase_fact == (1)) {
+                    // (-i)^3 * i = (-i)^2 = -1 or i * i = -1
                     dothemagic_rot_real_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult== -1 ) {
-                    // rephasing = -i, derivative = i, product = 1
+                } else if (_rephase_fact == (-1) || _rephase_fact == (3)) {
+                    // (-i) * i = 1 or (i)^3 * i = i^4 = 1
                     dothemagic_rot_real_p1(data, kfact, koffset, symstart, _orderdiff);
                 } else {
-                    FLUPS_CHECK(false, "the number of imult = %d is wrong for real data (must be +1 or -1)", _nbr_imult, LOCATION);
+                    FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
                 }
-                
+
             } else {
                 // REPHASING:
                 // - everytime a DST was used in the FWD transform, the result must be *(-i)
                 // - everytime a DST is  used in the BCKWD transform, the result must be *(i)
                 // The product of all these rephasing factors gives the KIND of the domagic.
-                // The total rephasing factor is: sign(_nbr_imult)*i^abs(_nbr_imult)
-                if (_nbr_imult== 0 || _nbr_imult == (-2)) {
+                // The total rephasing factor is: (sign(_rephase_fact)*i)^abs(_rephase_fact)
+                if (_rephase_fact == 0) {
                     dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult == (-3) || _nbr_imult == (1)){
+                } else if (_rephase_fact == (-3) || _rephase_fact == (1)){
                     dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult == (2) ){
+                } else if (_rephase_fact == (-2) || _rephase_fact == (2)){
                     dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult == (-1) ){
+                } else if (_rephase_fact == (-1) || _rephase_fact == (3)){
                     dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
                 } else {
-                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+                    FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
                 }
             }
             break;
@@ -1474,38 +1479,44 @@ void Solver::do_mult(double *data, const SolverType type){
     END_FUNC;
 }
 
-
-// kind = -1 , real case * -1
-#define KIND -1
-#include "Solver_dothemagic_rot.hpp"
-// #include "Solver_dothemagic_div.hpp"
-#undef KIND
-// kind = 0 , real case * 1
-#define KIND 0
+//---------------------------------
+// kind = 00: real case * +1
+#define KIND 00
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
-// kind = 0 , multiplied by 1
-#define KIND 1
+//---------------------------------
+// kind = 01: real case * -1
+#define KIND 01
+// no rhs case for this one
+#include "Solver_dothemagic_rot.hpp"
+// #include "Solver_dothemagic_div.hpp"
+#undef KIND
+//---------------------------------
+// kind = 10: complex case * +1
+#define KIND 10
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
-// kind = 0 , multiplied by -1
-#define KIND 2
+//---------------------------------
+// kind = 11: complex case * -1
+#define KIND 11
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
-// kind = 0 , multiplied by i
-#define KIND 3
+//---------------------------------
+// kind = 10: complex case * +i
+#define KIND 12
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
-// kind = 0 , multiplied by -i
-#define KIND 4
+//---------------------------------
+// kind = 13: complex case * -i
+#define KIND 13
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
 // #include "Solver_dothemagic_div.hpp"

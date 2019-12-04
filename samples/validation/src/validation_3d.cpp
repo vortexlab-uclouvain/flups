@@ -68,7 +68,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
-    FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L, 0, prof);
+    FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L, 1, prof);
     flups_set_greenType(mysolver,typeGreen);
     flups_setup(mysolver,true);
 
