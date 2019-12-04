@@ -30,7 +30,7 @@
  * 
  */
 void Solver::dothemagic_rhs_real(double *data) {
-#if (KIND == 1)
+#elif (KIND == 1)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
@@ -42,7 +42,7 @@ void Solver::dothemagic_rhs_complex_p1(double *data) {
  * 
  */
 void Solver::dothemagic_rhs_complex_m1(double *data) {
-#elif (KIND == 2)
+#elif (KIND == 3)
 /**
  * @brief perform the convolution for complex to complex cases and multiply by (i)
  * 
@@ -63,6 +63,7 @@ void Solver::dothemagic_rhs_complex_mi(double *data) {
     const int ax0 = _topo_hat[cdim]->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
+    const int nf  = _topo_hat[cdim]->nf();
     // get the factors
     const double         normfact = _normfact;
     opt_double_ptr       mydata   = data;

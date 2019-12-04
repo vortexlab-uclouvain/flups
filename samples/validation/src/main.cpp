@@ -43,7 +43,7 @@ const static double              d_L[3]      = {1., 1., 1.};
 const static FLUPS_GreenType     d_kernel    = CHAT_2;
 const static FLUPS_BoundaryType  d_bcdef     = UNB;
 const static int                 d_lda       = 1;
-const static FLUPS_SolverType    d_stype     = STD;
+const static FLUPS_SolverType    d_stype     = RHS;// STD;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");

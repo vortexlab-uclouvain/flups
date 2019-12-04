@@ -25,8 +25,10 @@
  */
 
 #if (KIND == 0)
-void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#if (KIND == 1)
+    void Solver::dothemagic_rot_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+#elif (KIND == -1)
+    void Solver::dothemagic_rot_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+#elif (KIND == 1)
     void Solver::dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 2)
     void Solver::dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
@@ -68,15 +70,19 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
 
         // get the memory size between two dimension
         const size_t memdim = (size_t)nmem[0] * (size_t)nmem[1] * (size_t)nmem[2];
+        int nloc_ax1 = _topo_hat[cdim]->nloc(ax1);
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset, istart, symstart, nloc_ax1)
         for (int io = 0; io < onmax; io++) {
+            int is[3];
+            cmpt_symID(ax0,io,io % nloc_ax1,io / nloc_ax1,istart,symstart,0,is);
+
             //local indexes start
-            opt_double_ptr greenloc  = mygreen + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_1 = mydata + 1 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_2 = mydata + 2 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
+            opt_double_ptr greenloc  = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_1 = mydata + 1 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_2 = mydata + 2 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
             // check the alignment
             FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(dataloc_0, FLUPS_ALIGNMENT);
@@ -84,12 +90,18 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
             FLUPS_ASSUME_ALIGNED(dataloc_2, FLUPS_ALIGNMENT);
 
             // compute the k mode
-            const double k1 = ((io % _topo_hat[cdim]->nloc(ax1)) + koffset[ax1]) * kfact[ax1];
-            const double k2 = ((io / _topo_hat[cdim]->nloc(ax1)) + koffset[ax2]) * kfact[ax2];
+            // const double k1 = ((io % _topo_hat[cdim]->nloc(ax1)) + koffset[ax1]) * kfact[ax1];
+            // const double k2 = ((io / _topo_hat[cdim]->nloc(ax1)) + koffset[ax2]) * kfact[ax2];
 
-            for (int ii = 0; ii < nloc[ax0]; i0++) {
-                const double k0 = (ii + koffset[ax0]) * kfact[ax0];
-#if (KIND == 0)
+            // (symmetrized) wave number : only 1 kfact is zero
+            // const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+            const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+            const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+
+            for (int ii = 0; ii < inmax; ii++) {
+                // const double k0 = (ii + koffset[ax0]) * kfact[ax0];
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+#if (KIND <= 0)
                 // copy the values before the updtes
                 const double gr = greenloc[ii];
                 // real part field
@@ -97,12 +109,23 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
                 const double f1r = dataloc_1[ii];
                 const double f2r = dataloc_2[ii];
                 // compute the rotational
+                // ...this case only happens when we do 3dirspectral:
+                // combining rephasing (which will always be i or -i) 
+                // and the derivative (which involves i), what we 
+                // actually do is computing (k) x (f)
+                // and then choosing the correct sign
                 const double rot0r = k1 * f2r - k2 * f1r;
                 const double rot1r = k2 * f0r - k0 * f2r;
                 const double rot2r = k0 * f1r - k1 * f0r;
+#if (KIND == 0)                
                 dataloc_0[ii]      = normfact * rot0r * gr;
                 dataloc_1[ii]      = normfact * rot1r * gr;
                 dataloc_2[ii]      = normfact * rot2r * gr;
+#else
+                dataloc_0[ii]      = -normfact * rot0r * gr;
+                dataloc_1[ii]      = -normfact * rot1r * gr;
+                dataloc_2[ii]      = -normfact * rot2r * gr;
+#endif
 
 #else
                 // copy the values before the updtes
@@ -116,15 +139,7 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
                 const double f0c = dataloc_0[ii * 2 + 1];
                 const double f1c = dataloc_1[ii * 2 + 1];
                 const double f2c = dataloc_2[ii * 2 + 1];
-                // // compute the rotational
-                // const double rot0r = k1 * f2r - k2 * f1r;
-                // const double rot1r = k2 * f0r - k0 * f2r;
-                // const double rot2r = k0 * f1r - k1 * f0r;
-                // const double rot0c = k1 * f2c - k2 * f1c;
-                // const double rot1c = k2 * f0c - k0 * f2c;
-                // const double rot2c = k0 * f1c - k1 * f0c;
-
-                // orr???
+                // // compute the rotational:  (ik) x (f)
                 const double rot0r = - k1 * f2c + k2 * f1c;
                 const double rot0c = + k1 * f2r - k2 * f1r;
                 const double rot1r = - k2 * f0c + k0 * f2c;
@@ -133,6 +148,7 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
                 const double rot2c = + k0 * f1r - k1 * f0r;
 
                 // update the values
+                // accounting for the rephasing:
 #if (KIND == 1)
                 dataloc_0[ii * 2 + 0] = normfact * (rot0r * gr - rot0c * gc);
                 dataloc_0[ii * 2 + 1] = normfact * (rot0r * gc + rot0c * gr);
@@ -166,6 +182,5 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
 #endif
             }
         }
+        END_FUNC;
     }
-    END_FUNC;
-}

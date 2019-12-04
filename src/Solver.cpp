@@ -177,19 +177,19 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
 
         // if we use order diff, we have to compute the number of DST
         if (_orderdiff) {
+            //The total rephasing factor will be given by sign(_nbr_imult)*i^abs(_nbr_imult)
             if (_plan_forward_diff[ip]->imult()) {
-                _nbr_imult--;  //we multiply by (-i) implicitly
+                _nbr_imult++;  //we multiply by (-i) implicitly
+                _nbr_imult = -_nbr_imult;
             }
             if (_plan_backward[ip]->imult()) {
-                _nbr_imult++;  //we multiply by (-i) implicitly
+                _nbr_imult++;  //we multiply by ( i) implicitly
             }
         } else {
             // if not, an equivalent DST/DCT is done during the forward and the backward -> = 0
             _nbr_imult = 0;
         }
     }
-    // the number of imult is a positive number:
-    _nbr_imult = std::abs(_nbr_imult);
 
     if (_prof != NULL) _prof->stop("init");
     END_FUNC;
@@ -1199,7 +1199,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
         do_FFT(mydata, FLUPS_FORWARD_DIFF);
     }
     else{
-        FLUPS_ERROR("Type of the solver unknown")
+        FLUPS_ERROR("Unknown type of solver %d", type, LOCATION);
     }
     
 #ifdef DUMP_DBG
@@ -1425,19 +1425,29 @@ void Solver::do_mult(double *data, const SolverType type){
             FLUPS_CHECK(_topo_hat[2]->lda()==3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
 
             if (!_topo_hat[_ndim-1]->isComplex()) {
-                // if we are full real, no special treatment is required for the imult != 0
-                // indeed, let us take the case of a 3D DST, the output is real,
-                // if we take the curl of it, 
-                // todo: if topo is not complex, need to handle the fact that we will multiply by i*
-                FLUPS_ERROR("I dont know what to do", LOCATION);
+                if (_nbr_imult== 1 ) {
+                    // rephasing = i, derivative = i, product = -1
+                    dothemagic_rot_real_m1(data, kfact, koffset, symstart, _orderdiff);
+                } else if (_nbr_imult== -1 ) {
+                    // rephasing = -i, derivative = i, product = 1
+                    dothemagic_rot_real_p1(data, kfact, koffset, symstart, _orderdiff);
+                } else {
+                    FLUPS_CHECK(false, "the number of imult = %d is wrong for real data (must be +1 or -1)", _nbr_imult, LOCATION);
+                }
+                
             } else {
-                if (_nbr_imult== 0) {
+                // REPHASING:
+                // - everytime a DST was used in the FWD transform, the result must be *(-i)
+                // - everytime a DST is  used in the BCKWD transform, the result must be *(i)
+                // The product of all these rephasing factors gives the KIND of the domagic.
+                // The total rephasing factor is: sign(_nbr_imult)*i^abs(_nbr_imult)
+                if (_nbr_imult== 0 || _nbr_imult == (-2)) {
                     dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
                 } else if (_nbr_imult == (-3) || _nbr_imult == (1)){
                     dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult == (-2) || _nbr_imult == (2)){
+                } else if (_nbr_imult == (2) ){
                     dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult == (-1) || _nbr_imult == (3)){
+                } else if (_nbr_imult == (-1) ){
                     dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
                 } else {
                     FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
@@ -1465,35 +1475,40 @@ void Solver::do_mult(double *data, const SolverType type){
 }
 
 
-// kind = 0 , real case
+// kind = -1 , real case * -1
+#define KIND -1
+#include "Solver_dothemagic_rot.hpp"
+// #include "Solver_dothemagic_div.hpp"
+#undef KIND
+// kind = 0 , real case * 1
 #define KIND 0
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#include "Solver_dothemagic_div.hpp"
+// #include "Solver_dothemagic_div.hpp"
 #undef KIND
 // kind = 0 , multiplied by 1
 #define KIND 1
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#include "Solver_dothemagic_div.hpp"
+// #include "Solver_dothemagic_div.hpp"
 #undef KIND
 // kind = 0 , multiplied by -1
 #define KIND 2
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#include "Solver_dothemagic_div.hpp"
+// #include "Solver_dothemagic_div.hpp"
 #undef KIND
 // kind = 0 , multiplied by i
 #define KIND 3
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#include "Solver_dothemagic_div.hpp"
+// #include "Solver_dothemagic_div.hpp"
 #undef KIND
 // kind = 0 , multiplied by -i
 #define KIND 4
 #include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#include "Solver_dothemagic_div.hpp"
+// #include "Solver_dothemagic_div.hpp"
 #undef KIND
 
 

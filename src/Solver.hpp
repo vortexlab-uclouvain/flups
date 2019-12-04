@@ -157,17 +157,19 @@ class Solver {
     void dothemagic_rhs_complex_pi(double *data);
     void dothemagic_rhs_complex_mi(double *data);
 
-    void dothemagic_rot_real(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_rot_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
 
-    void dothemagic_div_real(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], int _orderdiff);
-    void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_div_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_div_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
     /**@} */
 
     /**
@@ -182,7 +184,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
+    Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -190,7 +192,7 @@ class Solver {
     const Topology* get_innerTopo_spectral() ;
 
 
-    void set_OrderDiff(const int order);
+    // void set_OrderDiff(const int order);
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

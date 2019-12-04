@@ -402,15 +402,16 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param bc boundary conditions of the domain
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
+ * @param orderdiff order of the derivatives for ROT and DIV solvers (0=spectral, 2=FD order2)
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3],FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff, FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -495,13 +496,13 @@ void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3],
  */
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 
-/**
- * @brief sets the order of derivative while using divergence or rotational formulation
- * 
- * @param s 
- * @param order 
- */
-void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
+// /**
+//  * @brief sets the order of derivative while using divergence or rotational formulation
+//  * 
+//  * @param s 
+//  * @param order 
+//  */
+// void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
 
 /**
  * @brief returns the physical topology, i.e. the one used for rhs and solution

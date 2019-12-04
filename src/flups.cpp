@@ -100,15 +100,15 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3]){
-    Solver* s = new Solver(t, bc, h, L, NULL);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff){
+    Solver* s = new Solver(t, bc, h, L, orderdiff, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], Profiler* prof) {
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff, Profiler* prof) {
 #ifndef PROF
-    Solver* s = new Solver(t, bc, h, L, NULL);
+    Solver* s = new Solver(t, bc, h, L, orderdiff, NULL);
 #else
-    Solver* s = new Solver(t, bc, h, L, prof);
+    Solver* s = new Solver(t, bc, h, L, orderdiff, prof);
 #endif
     return s;
 }
@@ -147,9 +147,9 @@ void flups_set_alpha(FLUPS_Solver* s, const double alpha){
     s->set_alpha(alpha);   
 }
 
-void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
-    s->set_OrderDiff(order);
-}
+// void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
+//     s->set_OrderDiff(order);
+// }
 
 const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();

@@ -25,8 +25,10 @@
  */
 
 #if (KIND == 0)
-void Solver::dothemagic_div_real(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
-#if (KIND == 1)
+    void Solver::dothemagic_div_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+#elif (KIND == -1)
+    void Solver::dothemagic_div_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+#elif (KIND == 1)
     void Solver::dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 2)
     void Solver::dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
@@ -70,14 +72,14 @@ void Solver::dothemagic_div_real(double *data, double kfact[3], double koffset[3
         const size_t memdim = (size_t)nmem[0] * (size_t)nmem[1] * (size_t)nmem[2];
 
         // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, nmem, memdim, mydata, mygreen, normfact, ax0, ax1, ax2, nf, kfact, koffset)
         for (int io = 0; io < onmax; io++) {
             //local indexes start
-            opt_double_ptr greenloc  = mygreen + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_1 = mydata + 1 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
-            opt_double_ptr dataloc_2 = mydata + 2 * memdim + collapsedIndex(ax0, 0, i0, nmem, nf);
-            // check the alignment
+            opt_double_ptr greenloc  = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_1 = mydata + 1 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+            opt_double_ptr dataloc_2 = mydata + 2 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+            // check the alignmeno
             FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(dataloc_0, FLUPS_ALIGNMENT);
             FLUPS_ASSUME_ALIGNED(dataloc_1, FLUPS_ALIGNMENT);
@@ -87,9 +89,9 @@ void Solver::dothemagic_div_real(double *data, double kfact[3], double koffset[3
             const double k1 = ((io % _topo_hat[cdim]->nloc(ax1)) + koffset[ax1]) * kfact[ax1];
             const double k2 = ((io / _topo_hat[cdim]->nloc(ax1)) + koffset[ax2]) * kfact[ax2];
 
-            for (int ii = 0; ii < nloc[ax0]; i0++) {
+            for (int ii = 0; ii < inmax; i0++) {
                 const double k0 = (ii + koffset[ax0]) * kfact[ax0];
-#if (KIND == 0)
+#if (KIND <= 0)
                 // copy the values before the updtes
                 const double gr = greenloc[ii];
                 // real part field
@@ -98,7 +100,11 @@ void Solver::dothemagic_div_real(double *data, double kfact[3], double koffset[3
                 const double f2r = dataloc_2[ii];
                 // compute the rotational
                 const double divr = k0 * f0r + k1 * f1r + k2 * f2r;
+#if (KIND == 0)
                 dataloc_0[ii]     = normfact * divr * gr;
+#else
+                dataloc_0[ii]     = -normfact * divr * gr;
+#endif
 
 #else
                 // copy the values before the updtes
