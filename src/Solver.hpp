@@ -72,7 +72,7 @@ class Solver {
    protected:
     int _ndim          = 3; /**@brief the dimension of the problem, i.e. 2D or 3D */
     int _fftwalignment = 0; /**< @brief alignement assumed by the FFTW Solver  */
-    int _orderdiff     = 0; /**< @brief the order of derivative (spectral = 0)  */
+    int _orderdiff     = -1; /**< @brief the order of derivative (spectral = 0)  */
     int _nbr_imult     = 0; /**< @brief the number of time we have applied a DST transform */
     int _nbr_spectral  = 0; /** @brief the number of spectral directions involved     */
 
@@ -88,6 +88,7 @@ class Solver {
     /**@{ */
     FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* _plan_forward_diff[3]; /**< @brief map containing the plans for the backward fft transforms for the differential case */
     Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
@@ -150,16 +151,23 @@ class Solver {
      * 
      * @{
      */
-    void dothemagic_std_real(double *data);
-    void dothemagic_std_complex_p1(double *data);
-    void dothemagic_std_complex_m1(double *data);
-    void dothemagic_std_complex_pi(double *data);
-    void dothemagic_std_complex_mi(double *data);
+    void dothemagic_rhs_real(double *data);
+    void dothemagic_rhs_complex_p1(double *data);
+    void dothemagic_rhs_complex_m1(double *data);
+    void dothemagic_rhs_complex_pi(double *data);
+    void dothemagic_rhs_complex_mi(double *data);
 
-    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_real(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], int _orderdiff);
+
+    void dothemagic_div_real(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], int _orderdiff);
+    void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], int _orderdiff);
     /**@} */
 
     /**
@@ -178,9 +186,11 @@ class Solver {
     ~Solver();
 
     double* setup(const bool changeTopoComm);
-    void set_OrderDiff(const int order) { _orderdiff = order; }
     const Topology* get_innerTopo_physical() ;
     const Topology* get_innerTopo_spectral() ;
+
+
+    void set_OrderDiff(const int order);
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

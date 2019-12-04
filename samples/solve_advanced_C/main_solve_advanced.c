@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - Multiplication in spectral space */
     // //-------------------------------------------------------------------------
-    flups_do_mult(mysolver,solFLU,STD);
+    flups_do_mult(mysolver,solFLU,RHS);
 
     // //-------------------------------------------------------------------------
     // /** - Gaussian filtering of the solution */

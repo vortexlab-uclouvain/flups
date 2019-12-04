@@ -51,7 +51,7 @@ static void print_help(){
     printf(" --nprocs, -np Ni Nj Nk :       Ni,Nj,Nk is the number of MPI processes in each direction\n");
     printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of cells in each direction \n");
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
-    printf(" --solver_type, -s stype :      0=STD, 1=ROT, 2=DIV, 3=SOLE \n");
+    printf(" --solver_type, -s stype :      0=RHS, 1=ROT, 2=DIV, 3=SOLE \n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
     printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");

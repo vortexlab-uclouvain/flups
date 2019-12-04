@@ -1,5 +1,5 @@
 /**
- * @file Solver_dothemagic_rot.hpp
+ * @file Solver_dothemagic_div.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief contains the domagic functions for the rotational case
  * @version
@@ -25,15 +25,15 @@
  */
 
 #if (KIND == 0)
-void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+void Solver::dothemagic_div_real(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #if (KIND == 1)
-    void Solver::dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+    void Solver::dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 2)
-    void Solver::dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+    void Solver::dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 3)
-    void Solver::dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+    void Solver::dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 4)
-    void Solver::dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+    void Solver::dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #endif
 
         BEGIN_FUNC;
@@ -97,12 +97,8 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
                 const double f1r = dataloc_1[ii];
                 const double f2r = dataloc_2[ii];
                 // compute the rotational
-                const double rot0r = k1 * f2r - k2 * f1r;
-                const double rot1r = k2 * f0r - k0 * f2r;
-                const double rot2r = k0 * f1r - k1 * f0r;
-                dataloc_0[ii]      = normfact * rot0r * gr;
-                dataloc_1[ii]      = normfact * rot1r * gr;
-                dataloc_2[ii]      = normfact * rot2r * gr;
+                const double divr = k0 * f0r + k1 * f1r + k2 * f2r;
+                dataloc_0[ii]     = normfact * divr * gr;
 
 #else
                 // copy the values before the updtes
@@ -116,52 +112,22 @@ void Solver::dothemagic_rot_real(double *data, double kfact[3], double koffset[3
                 const double f0c = dataloc_0[ii * 2 + 1];
                 const double f1c = dataloc_1[ii * 2 + 1];
                 const double f2c = dataloc_2[ii * 2 + 1];
-                // // compute the rotational
-                // const double rot0r = k1 * f2r - k2 * f1r;
-                // const double rot1r = k2 * f0r - k0 * f2r;
-                // const double rot2r = k0 * f1r - k1 * f0r;
-                // const double rot0c = k1 * f2c - k2 * f1c;
-                // const double rot1c = k2 * f0c - k0 * f2c;
-                // const double rot2c = k0 * f1c - k1 * f0c;
-
-                // orr???
-                const double rot0r = - k1 * f2c + k2 * f1c;
-                const double rot0c = + k1 * f2r - k2 * f1r;
-                const double rot1r = - k2 * f0c + k0 * f2c;
-                const double rot1c = + k2 * f0r - k0 * f2r;
-                const double rot2r = - k0 * f1c + k1 * f0c;
-                const double rot2c = + k0 * f1r - k1 * f0r;
-
+                // compute the rotational
+                const double divr = k0 * f0r + k1 * f1r + k2 * f2r;
+                const double divr = k0 * f0c + k1 * f1c + k2 * f2c;
                 // update the values
 #if (KIND == 1)
-                dataloc_0[ii * 2 + 0] = normfact * (rot0r * gr - rot0c * gc);
-                dataloc_0[ii * 2 + 1] = normfact * (rot0r * gc + rot0c * gr);
-                dataloc_1[ii * 2 + 0] = normfact * (rot1r * gr - rot1c * gc);
-                dataloc_1[ii * 2 + 1] = normfact * (rot1r * gc + rot1c * gr);
-                dataloc_2[ii * 2 + 0] = normfact * (rot2r * gr - rot2c * gc);
-                dataloc_2[ii * 2 + 1] = normfact * (rot2r * gc + rot2c * gr);
+                dataloc_0[ii * 2 + 0] = normfact * (divr * gr - divc * gc);
+                dataloc_0[ii * 2 + 1] = normfact * (divr * gc + divc * gr);
 #elif (KIND == 2)
-                dataloc_0[ii * 2 + 0] = -normfact * (rot0r * gr - rot0c * gc);
-                dataloc_0[ii * 2 + 1] = -normfact * (rot0r * gc + rot0c * gr);
-                dataloc_1[ii * 2 + 0] = -normfact * (rot1r * gr - rot1c * gc);
-                dataloc_1[ii * 2 + 1] = -normfact * (rot1r * gc + rot1c * gr);
-                dataloc_2[ii * 2 + 0] = -normfact * (rot2r * gr - rot2c * gc);
-                dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gc + rot2c * gr);
+                dataloc_0[ii * 2 + 0] = -normfact * (divr * gr - divc * gc);
+                dataloc_0[ii * 2 + 1] = -normfact * (divr * gc + divc * gr);
 #elif (KIND == 3)
-                dataloc_0[ii * 2 + 0] = -normfact * (rot0r * gc + rot0c * gr);
-                dataloc_0[ii * 2 + 1] = normfact * (rot0r * gr - rot0c * gc);
-                dataloc_1[ii * 2 + 0] = -normfact * (rot1r * gc + rot1c * gr);
-                dataloc_1[ii * 2 + 1] = normfact * (rot1r * gr - rot1c * gc);
-                dataloc_2[ii * 2 + 0] = -normfact * (rot2r * gc + rot2c * gr);
-                dataloc_2[ii * 2 + 1] = normfact * (rot2r * gr - rot2c * gc);
-
+                dataloc_0[ii * 2 + 0] = -normfact * (divr * gc + divc * gr);
+                dataloc_0[ii * 2 + 1] = normfact * (divr * gr - divc * gc);
 #elif (KIND == 4)
-                dataloc_0[ii * 2 + 0] = normfact * (rot0r * gc + rot0c * gr);
-                dataloc_0[ii * 2 + 1] = -normfact * (rot0r * gr - rot0c * gc);
-                dataloc_1[ii * 2 + 0] = normfact * (rot1r * gc + rot1c * gr);
-                dataloc_1[ii * 2 + 1] = -normfact * (rot1r * gr - rot1c * gc);
-                dataloc_2[ii * 2 + 0] = normfact * (rot2r * gc + rot2c * gr);
-                dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gr - rot2c * gc);
+                dataloc_0[ii * 2 + 0] = normfact * (divr * gc + divc * gr);
+                dataloc_0[ii * 2 + 1] = -normfact * (divr * gr - divc * gc);
 #endif
 #endif
             }

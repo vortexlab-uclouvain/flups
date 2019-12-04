@@ -133,7 +133,7 @@ mysolver->setup(false);
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-mysolver->solve(rhs, rhs, SRHS);
+mysolver->solve(rhs, rhs, RHS);
 ```
 
 Then, destroy the solver

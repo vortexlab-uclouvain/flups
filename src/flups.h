@@ -77,7 +77,7 @@ enum FLUPS_GreenType {
  * 
  */
 enum FLUPS_SolverType {
-    STD  = 0, /**<@brief scalar or vector \f$ \nabla^2 f = rhs \f$ */
+    RHS  = 0, /**<@brief scalar or vector \f$ \nabla^2 f = rhs \f$ */
     ROT  = 1, /**<@brief vector \f$ \nabla^2 f = \nabla \times rhs \f$ */
     DIV  = 2, /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
     SOLE = 3  /**<@brief scalar \f$ \nabla^2 a = \nabla \cdot rhs, f = \nabla a \f$ */
@@ -88,6 +88,12 @@ enum FLUPS_SolverType {
  * 
  */
 #define FLUPS_FORWARD -1  // equivalent to FFTW_FORWARD
+
+/**
+ * @brief to be used as "sign" for all of the FORWARD tranform where the input contains a divergence of rotational
+ * 
+ */
+#define FLUPS_FORWARD_DIFF 2
 
 /**
  * @brief to be used as "sign" for all of the BACKWARD tranform

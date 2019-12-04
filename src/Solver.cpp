@@ -29,12 +29,15 @@
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
  * @param topo the input topology of the data (in physical space)
- * @param mybc the boundary conditions of the computational domain, the first index corresponds to the dimension, the second is left (0) or right (1) side
+ * @param mybc the boundary conditions of the computational domain (for the solution!!), the first index corresponds to the dimension, the second is left (0) or right (1) side
  * @param h the grid spacing
  * @param L the domain size
+ * @param orderDiff the differentiation order. If not required, set -1
+ * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3], Profiler *prof) {
+Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof) {
     BEGIN_FUNC;
+    FLUPS_CHECK(orderDiff==-1 || orderDiff==0 || orderDiff==2, "The differentiation order has to be 0, 2, 4 or 6",LOCATION);
 
     // //-------------------------------------------------------------------------
     // /** - Initialize the OpenMP threads for FFTW */
@@ -93,6 +96,25 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     if (_prof != NULL) _prof->create("domagic", "solve");
     if (_prof != NULL) _prof->start("init");
 
+    //-------------------------------------------------------------------------
+    /** - if required, store the orderdiff information  */
+    //-------------------------------------------------------------------------
+    _orderdiff = orderDiff;
+    // change the boundary condition for the source term if needed
+    BoundaryType tmpbc[3][2];
+    if (_orderdiff > -1) {
+        for (int id = 0; id < 3; id++) {
+            for (int is = 0; is < 2; is++) {
+                if (mybc[id][is] == EVEN) {
+                    tmpbc[id][is] = ODD;
+                } else if (mybc[id][is] == ODD) {
+                    tmpbc[id][is] = EVEN;
+                } else {
+                    tmpbc[id][is] = mybc[id][is];
+                }
+            }
+        }
+    }
 
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans given the BC and sort them by type */
@@ -107,11 +129,18 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
         _plan_forward[id]  = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, false);
         _plan_backward[id] = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_BACKWARD, false);
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, true);
+        // init the forward diff plan if needed
+        if(_orderdiff > -1){
+            _plan_forward_diff[id]  = new FFTW_plan_dim(id, h, L, tmpbc[id], FLUPS_FORWARD, false);
+        }
     }
 
     _sort_plans(_plan_forward);
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
+    if(_orderdiff > -1){
+        _sort_plans(_plan_forward_diff);
+    }
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
 
     //-------------------------------------------------------------------------
@@ -131,6 +160,10 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
     _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
+    // init the plans if needed
+    if(_orderdiff > -1){
+        _init_plansAndTopos(topo, NULL, NULL, _plan_forward_diff, false);
+    }
 
     //-------------------------------------------------------------------------
     /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_nbr_imult */
@@ -142,15 +175,22 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
         _normfact *= _plan_forward[ip]->normfact();
         _volfact *= _plan_forward[ip]->volfact();
 
-        // _shiftgreen[_plan_forward[ip]->dimID()] = _plan_forward[ip]->shiftgreen();
-
-        if (_plan_forward[ip]->imult())
-            _nbr_imult++;  //we multiply by i
-        if (_plan_backward[ip]->imult())
-            _nbr_imult--;  //we devide by i
-        if (_plan_green[ip]->imult())
-            _nbr_imult++;
+        // if we use order diff, we have to compute the number of DST
+        if (_orderdiff) {
+            if (_plan_forward_diff[ip]->imult()) {
+                _nbr_imult--;  //we multiply by (-i) implicitly
+            }
+            if (_plan_backward[ip]->imult()) {
+                _nbr_imult++;  //we multiply by (-i) implicitly
+            }
+        } else {
+            // if not, an equivalent DST/DCT is done during the forward and the backward -> = 0
+            _nbr_imult = 0;
+        }
     }
+    // the number of imult is a positive number:
+    _nbr_imult = std::abs(_nbr_imult);
+
     if (_prof != NULL) _prof->stop("init");
     END_FUNC;
 }
@@ -386,11 +426,14 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->stop("alloc_data");
 
     //-------------------------------------------------------------------------
-    /** - allocate the plans forward and backward for the field */
+    /** - allocate the plans forward, forward_diff and backward for the field */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
+    if(_orderdiff > - 1){
+        _allocate_plans(_topo_hat, _plan_forward_diff, _data);
+    }
     if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
@@ -417,6 +460,9 @@ Solver::~Solver() {
     // delete the plans
     _delete_plans(_plan_forward);
     _delete_plans(_plan_backward);
+    if(_orderdiff){
+        _delete_plans(_plan_forward_diff);
+    }
     
     // free the sendBuf,recvBuf
     _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
@@ -1145,8 +1191,17 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
-    do_FFT(mydata, FLUPS_FORWARD);
-
+    if (type == RHS) {
+        do_FFT(mydata, FLUPS_FORWARD);
+    }
+    else if (type == ROT || type == DIV)
+    {
+        do_FFT(mydata, FLUPS_FORWARD_DIFF);
+    }
+    else{
+        FLUPS_ERROR("Type of the solver unknown")
+    }
+    
 #ifdef DUMP_DBG
     hdf5_dump(_topo_hat[_ndim-1], "rhs_h", mydata);
 #endif
@@ -1274,7 +1329,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
  * The topo assumed for data is the same as that used at FLUPS init.
  * 
  * @param data pointer to data
- * @param sign FLUPS_FORWARD or FLUPS_BACKWARD
+ * @param sign FLUPS_FORWARD, FLUPS_FORWARD_DIFF or FLUPS_BACKWARD
  */
 void Solver::do_FFT(double *data, const int sign){
     BEGIN_FUNC;
@@ -1295,7 +1350,22 @@ void Solver::do_FFT(double *data, const int sign){
                 _topo_hat[ip]->switch2complex();
             }
         }
-    } else {  //FLUPS_BACKWARD
+    } 
+    else if (sign == FLUPS_FORWARD_DIFF) {
+        for (int ip = 0; ip < _ndim; ip++) {
+            // go to the correct topo
+            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
+            // run the FFT
+            if (_prof != NULL) _prof->start("fftw");
+            _plan_forward_diff[ip]->execute_plan(_topo_hat[ip], mydata);
+            if (_prof != NULL) _prof->stop("fftw");
+            // get if we are now complex
+            if (_plan_forward_diff[ip]->isr2c()) {
+                _topo_hat[ip]->switch2complex();
+            }
+        }
+    } 
+    else {  //FLUPS_BACKWARD
         for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
@@ -1335,36 +1405,39 @@ void Solver::do_mult(double *data, const SolverType type){
     
     if (_prof != NULL) _prof->start("domagic");
     switch(type){
-        case STD:
-            if (!_topo_hat[_ndim-1]->isComplex()) {
+        case RHS:
+            if (!_topo_hat[_ndim - 1]->isComplex()) {
                 //-> there is only the case of 3dirSYM in which we could stay real for the whole process
-                if (_nbr_imult == 0)
-                    dothemagic_std_real(data);
-                else
-                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+                if (_nbr_imult == 0) {
+                    dothemagic_rhs_real(data);
+                } else {
+                    FLUPS_CHECK(false, "the number of imult = %d has to be 0 for a RHS solver", _nbr_imult, LOCATION);
+                }
             } else {
-                if (_nbr_imult == 0)
-                    dothemagic_std_complex_p1(data);
-                else
-                    FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
+                if (_nbr_imult == 0) {
+                    dothemagic_rhs_complex_p1(data);
+                } else {
+                    FLUPS_CHECK(false, "the number of imult = %d has to be 0 for a RHS solver", _nbr_imult, LOCATION);
+                }
             }
             break;
         case ROT:
             FLUPS_CHECK(_topo_hat[2]->lda()==3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
 
             if (!_topo_hat[_ndim-1]->isComplex()) {
-                //-> this happens when full DCT/DST... what do we do if we need to change this to complex??
+                // if we are full real, no special treatment is required for the imult != 0
+                // indeed, let us take the case of a 3D DST, the output is real,
+                // if we take the curl of it, 
                 // todo: if topo is not complex, need to handle the fact that we will multiply by i*
-
                 FLUPS_ERROR("I dont know what to do", LOCATION);
             } else {
-                if (_nbr_imult%4 == 0) {
+                if (_nbr_imult== 0) {
                     dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult%4 == 1){
+                } else if (_nbr_imult == (-3) || _nbr_imult == (1)){
                     dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult%4 == 2){
+                } else if (_nbr_imult == (-2) || _nbr_imult == (2)){
                     dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_nbr_imult%4 == 3){
+                } else if (_nbr_imult == (-1) || _nbr_imult == (3)){
                     dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
                 } else {
                     FLUPS_CHECK(false, "the number of imult = %d is not supported", _nbr_imult, LOCATION);
@@ -1392,119 +1465,36 @@ void Solver::do_mult(double *data, const SolverType type){
 }
 
 
-/**
- * @brief perform the convolution for real to real cases
- * 
- */
-void Solver::dothemagic_std_real(double *data) {
-    BEGIN_FUNC;
-    int cdim = _ndim-1; // get current dim
-    FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] has to be real", LOCATION);
-
-    // get the axis
-    const int ax0 = _topo_hat[cdim]->axis();
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-    // get the factors
-    const double         normfact = _normfact;
-    opt_double_ptr       mydata   = data;
-    const opt_double_ptr mygreen  = _green;
-    FLUPS_ASSUME_ALIGNED(mydata,FLUPS_ALIGNMENT);
-    FLUPS_ASSUME_ALIGNED(mygreen,FLUPS_ALIGNMENT);
-    {
-        const size_t onmax_f = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
-        const size_t onmax_g = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2);
-        const size_t inmax   = _topo_hat[cdim]->nloc(ax0);
-        const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
-
-        FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-        FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-
-        // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax_f, onmax_g, inmax, nmem, mydata, mygreen, normfact, ax0)
-        for (int io = 0; io < onmax_f; io++) {
-            opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io%onmax_g, nmem, 1); //lda of Green is only 1
-            opt_double_ptr dataloc  = mydata + collapsedIndex(ax0, 0, io, nmem, 1);
-            FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
-            FLUPS_ASSUME_ALIGNED(greenloc,FLUPS_ALIGNMENT);
-            for (size_t ii = 0; ii < inmax; ii++) {
-                dataloc[ii] *= normfact * greenloc[ii];
-            }
-        }
-    }
-    END_FUNC;
-}
-
-//===========================================================================================
-// STD
-
-/**
- * @brief Do the convolution between complex data and complex Green's function in spectral space (*1)
- * 
- */
-#define MULT 0
-#include "Solver_dothemagic_std.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
- * 
- */
-#define MULT 1
-#include "Solver_dothemagic_std.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
- * 
- */
-#define MULT 2
-#include "Solver_dothemagic_std.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
- * 
- */
-#define MULT 3
-#include "Solver_dothemagic_std.hpp"
-#undef MULT
-
-//===========================================================================================
-// ROT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function in spectral space (*1)
- * 
- */
-#define MULT 0
+// kind = 0 , real case
+#define KIND 0
+#include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (-1)
- * 
- */
-#define MULT 1
+#include "Solver_dothemagic_div.hpp"
+#undef KIND
+// kind = 0 , multiplied by 1
+#define KIND 1
+#include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (i)
- * 
- */
-#define MULT 2
+#include "Solver_dothemagic_div.hpp"
+#undef KIND
+// kind = 0 , multiplied by -1
+#define KIND 2
+#include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#undef MULT
-
-/**
- * @brief Do the convolution between complex data and complex Green's function and multiply by (-i)
- * 
- */
-#define MULT 3
+#include "Solver_dothemagic_div.hpp"
+#undef KIND
+// kind = 0 , multiplied by i
+#define KIND 3
+#include "Solver_dothemagic_rhs.hpp"
 #include "Solver_dothemagic_rot.hpp"
-#undef MULT
-
+#include "Solver_dothemagic_div.hpp"
+#undef KIND
+// kind = 0 , multiplied by -i
+#define KIND 4
+#include "Solver_dothemagic_rhs.hpp"
+#include "Solver_dothemagic_rot.hpp"
+#include "Solver_dothemagic_div.hpp"
+#undef KIND
 
 
 /**
