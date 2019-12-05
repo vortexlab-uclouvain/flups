@@ -29,7 +29,7 @@
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
  * @param topo the input topology of the data (in physical space)
- * @param mybc the boundary conditions of the computational domain (for the solution!!), the first index corresponds to the dimension, the second is left (0) or right (1) side
+ * @param mybc the boundary conditions of the computational domain (for the right hand side!!), the first index corresponds to the dimension, the second is left (0) or right (1) side
  * @param h the grid spacing
  * @param L the domain size
  * @param orderDiff the differentiation order. If not required, set 0
@@ -37,6 +37,7 @@
  */
 Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof) {
     BEGIN_FUNC;
+    FLUPS_CHECK(orderDiff==0 || orderDiff==1 || orderDiff==2, "The differentiation order has to be 0",LOCATION);
     FLUPS_CHECK(orderDiff==0 || orderDiff==1 || orderDiff==2, "The differentiation order has to be 0, 1 or 2",LOCATION);
 
     // //-------------------------------------------------------------------------
@@ -131,7 +132,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
         _plan_green[id]    = new FFTW_plan_dim(id, h, L, mybc[id], FLUPS_FORWARD, true);
         // init the forward diff plan if needed
         if(_orderdiff){
-            _plan_forward_diff[id]  = new FFTW_plan_dim(id, h, L, tmpbc[id], FLUPS_FORWARD, false);
+            _plan_backward_diff[id]  = new FFTW_plan_dim(id, h, L, tmpbc[id], FLUPS_BACKWARD, false);
         }
     }
 
@@ -139,7 +140,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
     if(_orderdiff){
-        _sort_plans(_plan_forward_diff);
+        _sort_plans(_plan_backward_diff);
     }
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
 
@@ -162,7 +163,7 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
     // init the plans if needed
     if(_orderdiff){
-        _init_plansAndTopos(topo, NULL, NULL, _plan_forward_diff, false);
+        _init_plansAndTopos(topo, NULL, NULL, _plan_backward_diff, false);
     }
 
     //-------------------------------------------------------------------------
@@ -179,18 +180,15 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
         //The total rephasing factor will be given by (sign(_rephase_fact)*i)^abs(_rephase_fact)
         if (_orderdiff) {
             // while doing a DST forward, we need to rephase by (-i)
-            if (_plan_forward_diff[ip]->imult()) {
+            if (_plan_forward[ip]->imult()) {
                 // _rephase_fact++;
                 // _rephase_fact = -_rephase_fact;
                 _rephase_fact--;
             }
             // while doing a DST backward, we need to rephase by (-i)
-            if (_plan_backward[ip]->imult()) {
+            if (_plan_backward_diff[ip]->imult()) {
                 _rephase_fact++;
             }
-        } else {
-            // if not, an equivalent DST/DCT is done during the forward and the backward -> = 0
-            _rephase_fact = 0;
         }
     }
 
@@ -435,7 +433,7 @@ double* Solver::setup(const bool changeTopoComm) {
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
     if(_orderdiff){
-        _allocate_plans(_topo_hat, _plan_forward_diff, _data);
+        _allocate_plans(_topo_hat, _plan_backward_diff, _data);
     }
     if (_prof != NULL) _prof->stop("alloc_plans");
 
@@ -464,7 +462,7 @@ Solver::~Solver() {
     _delete_plans(_plan_forward);
     _delete_plans(_plan_backward);
     if(_orderdiff){
-        _delete_plans(_plan_forward_diff);
+        _delete_plans(_plan_backward_diff);
     }
     
     // free the sendBuf,recvBuf
@@ -1194,17 +1192,8 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
-    if (type == RHS) {
-        do_FFT(mydata, FLUPS_FORWARD);
-    }
-    else if (type == ROT || type == DIV)
-    {
-        do_FFT(mydata, FLUPS_FORWARD_DIFF);
-    }
-    else{
-        FLUPS_ERROR("Unknown type of solver %d", type, LOCATION);
-    }
-    
+    do_FFT(mydata, FLUPS_FORWARD);
+
 #ifdef DUMP_DBG
     hdf5_dump(_topo_hat[_ndim-1], "rhs_h", mydata);
 #endif
@@ -1220,7 +1209,21 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
-    do_FFT(mydata, FLUPS_BACKWARD);
+    if (type == RHS) {
+        do_FFT(mydata, FLUPS_BACKWARD);
+    }
+    else if (type == ROT || type == DIV)
+    {
+        do_FFT(mydata, FLUPS_BACKWARD_DIFF);
+    }
+    else{
+        FLUPS_ERROR("Unknown type of solver %d", type, LOCATION);
+    }
+
+#ifdef DUMP_DBG
+    // io if needed
+    hdf5_dump(_topo_phys, "sol_r", mydata);
+#endif
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
@@ -1254,72 +1257,71 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         _prof->start("copy");
     }
 
-    {
-        const int    ax0     = topo->axis();
-        const int    ax1     = (ax0 + 1) % 3;
-        const int    ax2     = (ax0 + 2) % 3;
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * topo->lda();
-        const size_t inmax   = topo->nloc(ax0);
+    const int    ax0     = topo->axis();
+    const int    ax1     = (ax0 + 1) % 3;
+    const int    ax2     = (ax0 + 2) % 3;
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * topo->lda();
+    const size_t inmax   = topo->nloc(ax0);
 
-        // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
-        if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
-            // do the loop
-            if (sign == FLUPS_FORWARD) {
-                //Copying from arg to own
+    // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+    if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+        // do the loop
+        if (sign == FLUPS_FORWARD) {
+            //Copying from arg to own
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0)
-                for (int io = 0; io < onmax; io++) {
-                    opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    // set the alignment
-                    FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                    for (size_t ii = 0; ii < inmax; ii++) {
-                        ownloc[ii] = argloc[ii];
-                    }
-                }
-            } else {  //FLUPS_BACKWARD
-                //Copying from own to arg
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0)
-                for (int io = 0; io < onmax; io++) {
-                    opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    // set the alignment
-                    FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                    for (size_t ii = 0; ii < inmax; ii++) {
-                        argloc[ii] = ownloc[ii];
-                    }
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
+                // set the alignment
+                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    ownloc[ii] = argloc[ii];
                 }
             }
-        } else {
-            // do the loop
-            FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
-            if (sign == FLUPS_FORWARD) {
-                //Copying from arg to own
+        } else {  //FLUPS_BACKWARD
+                  //Copying from own to arg
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0)
-                for (int io = 0; io < onmax; io++) {
-                    double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                    for (size_t ii = 0; ii < inmax; ii++) {
-                        ownloc[ii] = argloc[ii];
-                    }
+            for (int io = 0; io < onmax; io++) {
+                opt_double_ptr argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
+                // set the alignment
+                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    argloc[ii] = ownloc[ii];
                 }
-            } else {  //FLUPS_BACKWARD
-                //Copying from own to arg
+            }
+        }
+    } else {
+        // do the loop
+        FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+        if (sign == FLUPS_FORWARD) {
+            //Copying from arg to own
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0)
-                for (int io = 0; io < onmax; io++) {
-                    double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
-                    FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                    for (size_t ii = 0; ii < inmax; ii++) {
-                        argloc[ii] = ownloc[ii];
-                    }
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    ownloc[ii] = argloc[ii];
+                }
+            }
+        } else {  //FLUPS_BACKWARD
+                  //Copying from own to arg
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0)
+            for (int io = 0; io < onmax; io++) {
+                double *__restrict argloc = argdata + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc     = owndata + collapsedIndex(ax0, 0, io, nmem, 1);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    argloc[ii] = ownloc[ii];
                 }
             }
         }
     }
+
     if (_prof != NULL) {
         _prof->stop("copy");
     }
@@ -1332,7 +1334,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
  * The topo assumed for data is the same as that used at FLUPS init.
  * 
  * @param data pointer to data
- * @param sign FLUPS_FORWARD, FLUPS_FORWARD_DIFF or FLUPS_BACKWARD
+ * @param sign FLUPS_FORWARD, FLUPS_BACKWARD_DIFF or FLUPS_BACKWARD
  */
 void Solver::do_FFT(double *data, const int sign){
     BEGIN_FUNC;
@@ -1354,24 +1356,22 @@ void Solver::do_FFT(double *data, const int sign){
             }
         }
     } 
-    else if (sign == FLUPS_FORWARD_DIFF) {
-        for (int ip = 0; ip < _ndim; ip++) {
-            // go to the correct topo
-            _switchtopo[ip]->execute(mydata, FLUPS_FORWARD);
-            // run the FFT
-            if (_prof != NULL) _prof->start("fftw");
-            _plan_forward_diff[ip]->execute_plan(_topo_hat[ip], mydata);
-            if (_prof != NULL) _prof->stop("fftw");
-            // get if we are now complex
-            if (_plan_forward_diff[ip]->isr2c()) {
-                _topo_hat[ip]->switch2complex();
-            }
-        }
-    } 
-    else {  //FLUPS_BACKWARD
+    else if (FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
+            if (_prof != NULL) _prof->stop("fftw");
+            // get if we are now complex
+            if (_plan_forward[ip]->isr2c()) {
+                _topo_hat[ip]->switch2real();
+            }
+            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
+        }
+    }
+    else if (FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
+        for (int ip = _ndim-1; ip >= 0; ip--) {
+            if (_prof != NULL) _prof->start("fftw");
+            _plan_backward_diff[ip]->execute_plan(_topo_hat[ip], mydata);
             if (_prof != NULL) _prof->stop("fftw");
             // get if we are now complex
             if (_plan_forward[ip]->isr2c()) {
@@ -1441,6 +1441,7 @@ void Solver::do_mult(double *data, const SolverType type){
                 }
 
             } else {
+                FLUPS_INFO("the rephasing = %d",_rephase_fact);
                 // REPHASING:
                 // - everytime a DST was used in the FWD transform, the result must be *(-i)
                 // - everytime a DST is  used in the BCKWD transform, the result must be *(i)

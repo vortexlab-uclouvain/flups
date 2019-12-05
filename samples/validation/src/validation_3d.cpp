@@ -68,7 +68,15 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
-    FLUPS_Solver *mysolver = flups_init_timed(topo, mybc, h, L, 1, prof);
+    FLUPS_Solver *  mysolver;
+    if(type==RHS){
+        mysolver = flups_init_timed(topo, mybc, h, L, 0, prof);
+    }
+    else{
+        mysolver = flups_init_timed(topo, mybc, h, L, 1, prof);
+    }
+    
+
     flups_set_greenType(mysolver,typeGreen);
     flups_setup(mysolver,true);
 
@@ -338,6 +346,24 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
                         // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
 
+                        if (type == ROT) {
+                            const int lia0 = lia;
+                            const int lia1 = (lia0 + 1) % 3;
+                            const int lia2 = (lia0 + 2) % 3;
+                            // we invert the signs because the BC is the other way around
+                            for (int dir = 0; dir < 3; dir++) {
+                                params[dir].sign[0] = -params[dir].sign[0];
+                                params[dir].sign[1] = -params[dir].sign[1];
+                            }
+
+                            sol[id] = manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuDer[lia1](x[lia1], L[lia1], params[lia1]) * manuSol[lia2](x[lia2], L[lia2], params[lia2]) - manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuSol[lia1](x[lia1], L[lia1], params[lia1]) * manuDer[lia2](x[lia2], L[lia2], params[lia2]);
+
+                            // we need to invert the signs of the param for the RHS
+                            for (int dir = 0; dir < 3; dir++) {
+                                params[dir].sign[0] = -params[dir].sign[0];
+                                params[dir].sign[1] = -params[dir].sign[1];
+                            }
+                        }
                         for (int dir = 0; dir < 3; dir++) {
                             const int dir2 = (dir + 1) % 3;
                             const int dir3 = (dir + 2) % 3;
@@ -346,14 +372,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                                 sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
                             }
                             rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
-                        }
-                        if (type == ROT) {
-                            const int lia0 = lia;
-                            const int lia1 = (lia0 + 1) % 3;
-                            const int lia2 = (lia0 + 2) % 3;
-
-                            sol[id] = manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuDer[lia1](x[lia1], L[lia1], params[lia1]) * manuSol[lia2](x[lia2], L[lia2], params[lia2]) \
-                                    - manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuSol[lia1](x[lia1], L[lia1], params[lia1]) * manuDer[lia2](x[lia2], L[lia2], params[lia2]);
                         }
                     }
                 }
@@ -389,7 +407,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
-    flups_hdf5_dump(topo, msg, rhs);
+    flups_hdf5_dump(topo, msg, sol);
 #endif    
 
     //-------------------------------------------------------------------------

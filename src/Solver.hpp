@@ -88,7 +88,7 @@ class Solver {
     /**@{ */
     FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
-    FFTW_plan_dim* _plan_forward_diff[3]; /**< @brief map containing the plans for the backward fft transforms for the differential case */
+    FFTW_plan_dim* _plan_backward_diff[3]; /**< @brief map containing the plans for the backward fft transforms for the differential case */
     Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/

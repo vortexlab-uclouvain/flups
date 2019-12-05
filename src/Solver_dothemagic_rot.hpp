@@ -37,6 +37,7 @@
     void Solver::dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
 #elif (KIND == 13)
     void Solver::dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff) {
+        FLUPS_INFO("Hello from ROT COMPLEX Mi function");
 #endif
 
         BEGIN_FUNC;
@@ -152,12 +153,6 @@
                 // update the values
                 // accounting for the rephasing:
 #if (KIND == 10)
-                // dataloc_0[ii * 2 + 0] =f0r;
-                // dataloc_0[ii * 2 + 1] =f0c;
-                // dataloc_1[ii * 2 + 0] =f1r;
-                // dataloc_1[ii * 2 + 1] =f1c;
-                // dataloc_2[ii * 2 + 0] =f2r;
-                // dataloc_2[ii * 2 + 1] =f2c;
                 dataloc_0[ii * 2 + 0] = normfact * (rot0r * gr - rot0c * gc);
                 dataloc_0[ii * 2 + 1] = normfact * (rot0r * gc + rot0c * gr);
                 dataloc_1[ii * 2 + 0] = normfact * (rot1r * gr - rot1c * gc);
@@ -173,18 +168,18 @@
                 dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gc + rot2c * gr);
 #elif (KIND == 12)
                 dataloc_0[ii * 2 + 0] = -normfact * (rot0r * gc + rot0c * gr);
-                dataloc_0[ii * 2 + 1] = normfact * (rot0r * gr - rot0c * gc);
+                dataloc_0[ii * 2 + 1] = +normfact * (rot0r * gr - rot0c * gc);
                 dataloc_1[ii * 2 + 0] = -normfact * (rot1r * gc + rot1c * gr);
-                dataloc_1[ii * 2 + 1] = normfact * (rot1r * gr - rot1c * gc);
+                dataloc_1[ii * 2 + 1] = +normfact * (rot1r * gr - rot1c * gc);
                 dataloc_2[ii * 2 + 0] = -normfact * (rot2r * gc + rot2c * gr);
-                dataloc_2[ii * 2 + 1] = normfact * (rot2r * gr - rot2c * gc);
+                dataloc_2[ii * 2 + 1] = +normfact * (rot2r * gr - rot2c * gc);
 
 #elif (KIND == 13)
-                dataloc_0[ii * 2 + 0] = normfact * (rot0r * gc + rot0c * gr);
+                dataloc_0[ii * 2 + 0] = +normfact * (rot0r * gc + rot0c * gr);
                 dataloc_0[ii * 2 + 1] = -normfact * (rot0r * gr - rot0c * gc);
-                dataloc_1[ii * 2 + 0] = normfact * (rot1r * gc + rot1c * gr);
+                dataloc_1[ii * 2 + 0] = +normfact * (rot1r * gc + rot1c * gr);
                 dataloc_1[ii * 2 + 1] = -normfact * (rot1r * gr - rot1c * gc);
-                dataloc_2[ii * 2 + 0] = normfact * (rot2r * gc + rot2c * gr);
+                dataloc_2[ii * 2 + 0] = +normfact * (rot2r * gc + rot2c * gr);
                 dataloc_2[ii * 2 + 1] = -normfact * (rot2r * gr - rot2c * gc);
 #endif
 #endif

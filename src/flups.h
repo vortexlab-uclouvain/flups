@@ -90,16 +90,17 @@ enum FLUPS_SolverType {
 #define FLUPS_FORWARD -1  // equivalent to FFTW_FORWARD
 
 /**
- * @brief to be used as "sign" for all of the FORWARD tranform where the input contains a divergence of rotational
- * 
- */
-#define FLUPS_FORWARD_DIFF 2
-
-/**
  * @brief to be used as "sign" for all of the BACKWARD tranform
  * 
  */
 #define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
+
+/**
+ * @brief to be used as "sign" for all of the FORWARD tranform where the input contains a divergence of rotational
+ * 
+ */
+#define FLUPS_BACKWARD_DIFF 2
+
 
 /**
  * @brief Memory alignment in bytes.
@@ -399,7 +400,7 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @brief Creates a solver for the specified domain.
  * 
  * @param t user-determined topology of data in physical space, describing the data that will be provided to the solver
- * @param bc boundary conditions of the domain
+ * @param bc boundary conditions of the domain for the right hand side
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
  * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
