@@ -203,6 +203,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
     manuF manuRHS[3] ;
     manuF manuSol[3] ;
+    manuF manuDer[3] ;
     
     struct manuParams params[3]; 
     params[0].freq = 1;
@@ -211,52 +212,83 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
     // Selecting manufactured solution compatible with the BCs
     for (int dir = 0; dir < 3; dir++) {
-        if (mybc[dir][0] == PER && mybc[dir][1] == PER) {
-            manuRHS[dir] = &d2dx2_fOddOdd;
-            manuSol[dir] = &fOddOdd;
-            if (params[dir].freq < 1) params[dir].freq = 1;
-        } else if (mybc[dir][0] == ODD && mybc[dir][1] == ODD) {
-            manuRHS[dir] = &d2dx2_fOddOdd;
-            manuSol[dir] = &fOddOdd;
-        } else if (mybc[dir][0] == EVEN && mybc[dir][1] == EVEN) {
-            manuRHS[dir] = &d2dx2_fEvenEven;
-            manuSol[dir] = &fEvenEven;
-        }  else if (mybc[dir][0] == ODD && mybc[dir][1] == EVEN) {
-            manuRHS[dir] = &d2dx2_fOddEven;
-            manuSol[dir] = &fOddEven;
-            if (params[dir].freq < 1) params[dir].freq = 1;
-        }  else if (mybc[dir][0] == EVEN && mybc[dir][1] == ODD) {
-            manuRHS[dir] = &d2dx2_fEvenOdd;
-            manuSol[dir] = &fEvenOdd;
-            if (params[dir].freq < 1) params[dir].freq = 1;            
-        } else if (mybc[dir][0] == UNB) {
-            if (mybc[dir][1] == ODD) {
-                params[dir].center  = .7;
-                params[dir].sign[1] = -1.;
-            } else if (mybc[dir][1] == EVEN) {
-                params[dir].center  = .7;
-                params[dir].sign[1] = +1.;
+        if(type == RHS){
+            if (mybc[dir][0] == PER && mybc[dir][1] == PER) {
+                manuRHS[dir] = &d2dx2_fOddOdd;
+                manuSol[dir] = &fOddOdd;
+                if (params[dir].freq < 1) params[dir].freq = 1;
+            } else if (mybc[dir][0] == ODD && mybc[dir][1] == ODD) {
+                manuRHS[dir] = &d2dx2_fOddOdd;
+                manuSol[dir] = &fOddOdd;
+            } else if (mybc[dir][0] == EVEN && mybc[dir][1] == EVEN) {
+                manuRHS[dir] = &d2dx2_fEvenEven;
+                manuSol[dir] = &fEvenEven;
+            } else if (mybc[dir][0] == ODD && mybc[dir][1] == EVEN) {
+                manuRHS[dir] = &d2dx2_fOddEven;
+                manuSol[dir] = &fOddEven;
+                if (params[dir].freq < 1) params[dir].freq = 1;
+            } else if (mybc[dir][0] == EVEN && mybc[dir][1] == ODD) {
+                manuRHS[dir] = &d2dx2_fEvenOdd;
+                manuSol[dir] = &fEvenOdd;
+                if (params[dir].freq < 1) params[dir].freq = 1;
+            } else if (mybc[dir][0] == UNB) {
+                if (mybc[dir][1] == ODD) {
+                    params[dir].center  = .7;
+                    params[dir].sign[1] = -1.;
+                } else if (mybc[dir][1] == EVEN) {
+                    params[dir].center  = .7;
+                    params[dir].sign[1] = +1.;
+                }
+                // manuRHS[dir] = &d2dx2_fUnb;
+                // manuSol[dir] = &fUnb;
+                manuRHS[dir] = &d2dx2_fUnbSpietz;
+                manuSol[dir] = &fUnbSpietz;
+            } else if (mybc[dir][1] == UNB) {
+                if (mybc[dir][0] == ODD) {
+                    params[dir].center  = .3;
+                    params[dir].sign[0] = -1.;
+                } else if (mybc[dir][0] == EVEN) {
+                    params[dir].center  = .3;
+                    params[dir].sign[0] = +1.;
+                }
+                // manuRHS[dir] = &d2dx2_fUnb;
+                // manuSol[dir] = &fUnb;
+                manuRHS[dir] = &d2dx2_fUnbSpietz;
+                manuSol[dir] = &fUnbSpietz;
+            } else {
+                manuRHS[dir] = &fZero;
+                manuSol[dir] = &fCst;
+                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
             }
-            // manuRHS[dir] = &d2dx2_fUnb;
-            // manuSol[dir] = &fUnb;
-            manuRHS[dir] = &d2dx2_fUnbSpietz;
-            manuSol[dir] = &fUnbSpietz;
-        } else if (mybc[dir][1] == UNB) {
-            if (mybc[dir][0] == ODD) {
-                params[dir].center  = .3;
-                params[dir].sign[0] = -1.;
-            } else if (mybc[dir][0] == EVEN) {
-                params[dir].center  = .3;
-                params[dir].sign[0] = +1.;
-            }           
-            // manuRHS[dir] = &d2dx2_fUnb;
-            // manuSol[dir] = &fUnb;
-            manuRHS[dir] = &d2dx2_fUnbSpietz;
-            manuSol[dir] = &fUnbSpietz;
-        } else {
-            manuRHS[dir] = &fZero;
-            manuSol[dir] = &fCst;
-            // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+        } else if (type == ROT) {
+            if (mybc[dir][0] == UNB) {
+                if (mybc[dir][1] == ODD) {
+                    params[dir].center  = .7;
+                    params[dir].sign[1] = -1.;
+                } else if (mybc[dir][1] == EVEN) {
+                    params[dir].center  = .7;
+                    params[dir].sign[1] = +1.;
+                }
+                manuRHS[dir] = &d2dx2_fUnbSpietz;
+                manuDer[dir] = &ddx_fUnbSpietz;
+                manuSol[dir] = &fUnbSpietz;
+            } else if (mybc[dir][1] == UNB) {
+                if (mybc[dir][0] == ODD) {
+                    params[dir].center  = .3;
+                    params[dir].sign[0] = -1.;
+                } else if (mybc[dir][0] == EVEN) {
+                    params[dir].center  = .3;
+                    params[dir].sign[0] = +1.;
+                }
+                manuRHS[dir] = &d2dx2_fUnbSpietz;
+                manuDer[dir] = &ddx_fUnbSpietz;
+                manuSol[dir] = &fUnbSpietz;
+            } else {
+                manuRHS[dir] = &fZero;
+                manuDer[dir] = &fZero;
+                manuSol[dir] = &fCst;
+                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+            }
         }
     }
 
@@ -305,13 +337,23 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                         // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
                         // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
-                        
 
                         for (int dir = 0; dir < 3; dir++) {
                             const int dir2 = (dir + 1) % 3;
                             const int dir3 = (dir + 2) % 3;
-                            sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
+                            // if we do the RHS type, fill the solution now
+                            if (type == RHS) {
+                                sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
+                            }
                             rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
+                        }
+                        if (type == ROT) {
+                            const int lia0 = lia;
+                            const int lia1 = (lia0 + 1) % 3;
+                            const int lia2 = (lia0 + 2) % 3;
+
+                            sol[id] = manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuDer[lia1](x[lia1], L[lia1], params[lia1]) * manuSol[lia2](x[lia2], L[lia2], params[lia2]) \
+                                    - manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuSol[lia1](x[lia1], L[lia1], params[lia1]) * manuDer[lia2](x[lia2], L[lia2], params[lia2]);
                         }
                     }
                 }
