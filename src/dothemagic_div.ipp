@@ -1,5 +1,5 @@
 /**
- * @file Solver_dothemagic_div.hpp
+ * @file dothemagic_div.ipp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief contains the domagic functions for the rotational case
  * @version

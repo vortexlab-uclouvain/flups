@@ -1233,11 +1233,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
         FLUPS_ERROR("Unknown type of solver %d", type, LOCATION);
     }
 
-#ifdef DUMP_DBG
-    // io if needed
-    hdf5_dump(_topo_phys, "sol_r", mydata);
-#endif
-
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
@@ -1496,43 +1491,43 @@ void Solver::do_mult(double *data, const SolverType type){
 //---------------------------------
 // kind = 00: real case * +1
 #define KIND 00
-#include "Solver_dothemagic_rhs.hpp"
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rhs.ipp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 01: real case * -1
 #define KIND 01
 // no rhs case for this one
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 10: complex case * +1
 #define KIND 10
-#include "Solver_dothemagic_rhs.hpp"
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rhs.ipp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 11: complex case * -1
 #define KIND 11
-#include "Solver_dothemagic_rhs.hpp"
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rhs.ipp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 10: complex case * +i
 #define KIND 12
-#include "Solver_dothemagic_rhs.hpp"
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rhs.ipp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 13: complex case * -i
 #define KIND 13
-#include "Solver_dothemagic_rhs.hpp"
-#include "Solver_dothemagic_rot.hpp"
+#include "dothemagic_rhs.ipp"
+#include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 

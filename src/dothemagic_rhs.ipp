@@ -1,5 +1,5 @@
 /**
- * @file Solver_dothemagic_rhs.hpp
+ * @file dothemagic_rhs.ipp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief contains the domagic functions 
  * @version

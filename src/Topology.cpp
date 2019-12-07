@@ -275,8 +275,6 @@ void Topology::memshift(const int sign,const int lia, double* data){
 
     // put the memory in the correct place
     if (sign == FLUPS_FORWARD) {
-        FLUPS_INFO("runing memshift with FLUPS_FORWARD and nf = %d",nf);
-
         if (nf == 1) {
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
             for (int io = sonmax; io < eonmax; io++) {
@@ -291,7 +289,7 @@ void Topology::memshift(const int sign,const int lia, double* data){
                 dataloc[0] = 0.0;
             }
         } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, data, nmem, ax0)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
             for (int io = sonmax; io < eonmax; io++) {
                 opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 2);
                 FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
@@ -305,10 +303,8 @@ void Topology::memshift(const int sign,const int lia, double* data){
             }
         }
     } else if (sign == FLUPS_BACKWARD) {
-        FLUPS_INFO("runing memshift with FLUPS_FORWARD and nf = %d",nf);
-        FLUPS_INFO("nloc = %d %d %d, onmax = %d, inmax = %d",_nloc[ax0],_nloc[ax1],_nloc[ax2],onmax,inmax);
         if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, data, nmem, ax0)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
             for (int io = sonmax; io < eonmax; io++) {
                 opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
@@ -320,7 +316,7 @@ void Topology::memshift(const int sign,const int lia, double* data){
                 dataloc[inmax-1] = 0.0;
             }
         } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, data, nmem, ax0)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
             for (int io = sonmax; io < eonmax; io++) {
                 opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 2);
                 FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
