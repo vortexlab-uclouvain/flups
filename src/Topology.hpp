@@ -192,6 +192,21 @@ class Topology {
         }
     }
 
+    /**
+     * @brief swith the current topo to the scalar case
+     * 
+     */
+    inline void switch2Scalar(){
+        _lda=1;
+    }
+    /**
+     * @brief switch the current topo to the vector state
+     * 
+     */
+    inline void switch2Vector(){
+        _lda=3;
+    }
+
     void disp() const;
     void disp_rank() ;
 };

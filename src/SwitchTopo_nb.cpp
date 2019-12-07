@@ -74,6 +74,7 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     BEGIN_FUNC;
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
+    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda(),LOCATION);
 
     _topo_in  = topo_input;
     _topo_out = topo_output;

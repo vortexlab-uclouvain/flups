@@ -58,7 +58,11 @@ void Solver::dothemagic_rhs_complex_mi(double *data) {
 
     BEGIN_FUNC;
     int cdim = _ndim - 1;  // get current dim
-    FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
+#if (KIND < 9)
+        FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
+#else
+        FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
+#endif
     // get the axis
     const int ax0 = _topo_hat[cdim]->axis();
     const int ax1 = (ax0 + 1) % 3;

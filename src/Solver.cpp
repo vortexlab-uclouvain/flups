@@ -1117,6 +1117,13 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
         int fieldstart[3] = {0};
         fieldstart[dimID] = -planmap[_ndim-1]->shiftgreen();
         // we do the link between topo of Green and the field topo
+
+        // we have to switch the topofield to the scalar to match the scalar topology of the Green's function
+        bool isvector = topo_field->lda() > 1;
+
+        if(isvector){
+            topo_field->switch2Scalar();
+        }
 #if defined(COMM_NONBLOCK)
         SwitchTopo *switchtopo = new SwitchTopo_nb(topo, topo_field, fieldstart, NULL);
 #else
@@ -1132,6 +1139,10 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
         // dallocate everything
         _deallocate_switchTopo(&switchtopo,&temp_send,&temp_recv);
         delete(switchtopo);
+
+        if(isvector){
+            topo_field->switch2Vector();
+        }
     }
     else{
         FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
@@ -1168,6 +1179,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
     FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
+    FLUPS_CHECK(!(type==ROT && _orderdiff==0),"type is ROT and orderDiff=0 => You have to give an orderDiv={1,2} to use the ROT solver type",LOCATION);
 
     opt_double_ptr       mydata  = _data;
     // const opt_double_ptr myrhs   = rhs;
@@ -1209,11 +1221,14 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
+    
     if (type == RHS) {
+        FLUPS_INFO("doing RHS type backward");
         do_FFT(mydata, FLUPS_BACKWARD);
     }
-    else if (type == ROT || type == DIV)
+    else if (type == ROT)
     {
+        FLUPS_INFO("doing ROT type backward");
         do_FFT(mydata, FLUPS_BACKWARD_DIFF);
     }
     else{
@@ -1356,7 +1371,7 @@ void Solver::do_FFT(double *data, const int sign){
             }
         }
     } 
-    else if (FLUPS_BACKWARD) {  //FLUPS_BACKWARD
+    else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
