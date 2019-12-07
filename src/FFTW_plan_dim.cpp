@@ -227,6 +227,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
         if (_bc[1] == ODD) {
             if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
             if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
+            _koffset = 1.0;
         } else if (_bc[1] == EVEN) {
             if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT11;  // DST type IV
             if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT11; // DST type IV
