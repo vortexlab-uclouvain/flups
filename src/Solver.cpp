@@ -1223,12 +1223,10 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     
     if (type == RHS) {
-        FLUPS_INFO("doing RHS type backward");
         do_FFT(mydata, FLUPS_BACKWARD);
     }
     else if (type == ROT)
     {
-        FLUPS_INFO("doing ROT type backward");
         do_FFT(mydata, FLUPS_BACKWARD_DIFF);
     }
     else{
@@ -1383,7 +1381,7 @@ void Solver::do_FFT(double *data, const int sign){
             _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
         }
     }
-    else if (FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
+    else if (sign == FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF - me are in the ROT or SOL case
         for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
             _plan_backward_diff[ip]->execute_plan(_topo_hat[ip], mydata);
@@ -1408,16 +1406,16 @@ void Solver::do_FFT(double *data, const int sign){
 void Solver::do_mult(double *data, const SolverType type){
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
-    
+
     // - Obtain what's needed to compute k, in case we need a derivative
-    double kfact[3]   = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double koffset[3] = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double kfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3]  = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
     double symstart[3] = {0.0, 0.0, 0.0};
 
     for (int ip = 0; ip < _ndim; ip++) {
         const int dimID = _plan_forward[ip]->dimID();
         kfact[dimID]    = _plan_forward[ip]->kfact();
-        koffset[dimID]  = _plan_forward[ip]->koffset() + _plan_forward[ip]->shiftgreen();
+        koffset[dimID]  = _plan_forward[ip]->koffset();  // + _plan_forward[ip]->shiftgreen();
         symstart[dimID] = _plan_forward[ip]->symstart();
     }
 
@@ -1440,6 +1438,7 @@ void Solver::do_mult(double *data, const SolverType type){
             }
             break;
         case ROT:
+            FLUPS_INFO("rephase fact = %d",_rephase_fact);
             // check tath the topo is a vector
             FLUPS_CHECK(_topo_hat[2]->lda() == 3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
             if (!_topo_hat[_ndim - 1]->isComplex()) {
@@ -1456,7 +1455,6 @@ void Solver::do_mult(double *data, const SolverType type){
                 }
 
             } else {
-                FLUPS_INFO("the rephasing = %d",_rephase_fact);
                 // REPHASING:
                 // - everytime a DST was used in the FWD transform, the result must be *(-i)
                 // - everytime a DST is  used in the BCKWD transform, the result must be *(i)

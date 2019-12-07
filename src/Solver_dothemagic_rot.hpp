@@ -95,9 +95,9 @@
 
                 // (symmetrized) wave number
                 // ki = k in the ith direction and NOT the k aligned in the axis!!
-                const double k0 = (is[0] + koffset[0]) * kfact[0];
-                const double k1 = (is[1] + koffset[1]) * kfact[1];
-                const double k2 = (is[2] + koffset[2]) * kfact[2];
+                const double k0 = ((double)is[0] + koffset[0]) * kfact[0];
+                const double k1 = ((double)is[1] + koffset[1]) * kfact[1];
+                const double k2 = ((double)is[2] + koffset[2]) * kfact[2];
 #if (KIND < 9)
                 //----------------------------------------------------
                 // REAL

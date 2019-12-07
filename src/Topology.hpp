@@ -142,6 +142,8 @@ class Topology {
      * @{
      */
     void cmpt_sizes();
+
+    void memshift(const int sign,const int lia, double* data);
     /**
      * @brief returns the scalar local size on this proc, i.e. the number of unknowns for one component
      * 
@@ -164,6 +166,7 @@ class Topology {
         istart[1]   = cmpt_start_id(1);
         istart[2]   = cmpt_start_id(2);
     }
+    /**@} */
 
     /**
      * @brief switch the topology to a complex mode
