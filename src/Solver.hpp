@@ -70,11 +70,12 @@ class Solver {
     // even is the dimension is 2, we allocate arrays of dimension 3
 
    protected:
+   const int _lda ; 
     int _ndim          = 3;  /**@brief the dimension of the problem, i.e. 2D or 3D */
     int _fftwalignment = 0;  /**< @brief alignement assumed by the FFTW Solver  */
     int _orderdiff     = 0 ; /**< @brief the order of derivative (spectral = 1), second order =2 */
-    int _rephase_fact  = 0;  /**< @brief the total rephase factor is given by (sign(rephase_fact) * i)^(abs(rephase_fact))  */
-    int _nbr_spectral  = 0;  /** @brief the number of spectral directions involved     */
+    int _nbr_spectral  = 0;  /**< @brief the number of spectral directions involved */
+    int* _rephase_fact  = NULL;  /**< @brief the total rephase factor is given by (sign(rephase_fact) * i)^(abs(rephase_fact))  */
 
     double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */
@@ -157,19 +158,19 @@ class Solver {
     void dothemagic_rhs_complex_pi(double *data);
     void dothemagic_rhs_complex_mi(double *data);
 
-    void dothemagic_rot_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_rot_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rot_real_p1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
+    void dothemagic_rot_real_m1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
+    void dothemagic_rot_complex_p1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
+    void dothemagic_rot_complex_m1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
+    void dothemagic_rot_complex_pi(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
+    void dothemagic_rot_complex_mi(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
 
-    void dothemagic_div_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_div_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    // void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
     /**@} */
 
     /**
@@ -184,7 +185,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof);
+    Solver(Topology *topo, const BoundaryType* mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -214,12 +215,14 @@ class Solver {
      * @param koffset  add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
      * @param symstart  returns the first index of the symmetry
      */
-    void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
+    void get_spectralInfo(double kfact[3], double* koffset[3], double symstart[3]) {
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = _plan_forward[ip]->dimID();
             kfact[dimID]    = _plan_forward[ip]->kfact();
-            koffset[dimID]  = _plan_forward[ip]->koffset();
             symstart[dimID] = _plan_forward[ip]->symstart();
+            for(int lia=0; lia<_topo_phys->lda(); lia++){
+                koffset[dimID][lia]  = _plan_forward[ip]->koffset(lia);
+            }   
         }
     }
 

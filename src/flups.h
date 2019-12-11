@@ -487,7 +487,7 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
  * @param koffset returns the spectral offeset given the type of boundary condition used
  * @param symstart the first point which is symmetrized, to use with @ref flups_symID
  */
-void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
+void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double* koffset[3], double symstart[3]);
 
 /**
  * @brief while using Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian

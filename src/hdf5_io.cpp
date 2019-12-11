@@ -199,8 +199,8 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
         //each lia component, the dataspace {lia,:,:,:} in memory correspond to the dataspace {:,:,:,lia} in the file
         if (!topo->isComplex()) {
-            hsize_t memoffset[4] = {lia, 0, 0, 0};  // offset in memory
-            hsize_t memstride[4] = {topo->lda(), 1, 1, 1};
+            hsize_t memstride[4] = {(hsize_t) topo->lda(), 1, 1, 1};
+            hsize_t memoffset[4] = {(hsize_t) lia, 0, 0, 0};  // offset in memory
             status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
             FLUPS_CHECK(status >= 0, "Failed to select hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);
@@ -209,9 +209,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
         if (topo->isComplex()) {
             // stride is 2 for complex numbers
-            hsize_t memstride[4] = {topo->lda(), 1, 1, 2};
+            hsize_t memstride[4] = {(hsize_t)topo->lda(), 1, 1, 2};
             // real part
-            hsize_t memoffset[4] = {lia, 0, 0, 0};
+            hsize_t memoffset[4] = {(hsize_t)lia, 0, 0, 0};
             status               = H5Sselect_hyperslab(memspace, H5S_SELECT_SET, memoffset, memstride, memcount, memblock);
             FLUPS_CHECK(status >= 0, "Failed to select real hyperslab in memmory.", LOCATION);
             status = H5Dwrite(fileset_real, H5T_NATIVE_DOUBLE, memspace, filespace_real, plist_id, data);

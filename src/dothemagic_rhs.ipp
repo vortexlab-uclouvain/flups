@@ -36,29 +36,11 @@ void Solver::dothemagic_rhs_real(double *data) {
  * 
  */
 void Solver::dothemagic_rhs_complex_p1(double *data) {
-#elif (KIND == 11)
-/**
- * @brief perform the convolution for complex to complex cases and multiply by (-1)
- * 
- */
-void Solver::dothemagic_rhs_complex_m1(double *data) {
-#elif (KIND == 12)
-/**
- * @brief perform the convolution for complex to complex cases and multiply by (i)
- * 
- */
-void Solver::dothemagic_rhs_complex_pi(double *data) {
-#elif (KIND == 13)
-/**
- * @brief perform the convolution for complex to complex cases and multiply by (-i)
- * 
- */
-void Solver::dothemagic_rhs_complex_mi(double *data) {
 #endif
 
     BEGIN_FUNC;
     int cdim = _ndim - 1;  // get current dim
-#if (KIND < 9)
+ 9)
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
 #else
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
@@ -93,25 +75,14 @@ void Solver::dothemagic_rhs_complex_mi(double *data) {
             for (size_t ii = 0; ii < inmax; ii++) {
 #if (KIND == 00)
                 dataloc[ii] *= normfact * greenloc[ii];
-#else
+#elif (KIND == 10)
                 const double a = dataloc[ii * 2 + 0];
                 const double b = dataloc[ii * 2 + 1];
                 const double c = greenloc[ii * 2 + 0];
                 const double d = greenloc[ii * 2 + 1];
                 // update the values
-#if (KIND == 10)
                 dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
                 dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
-#elif (KIND == 11)
-                dataloc[ii * 2 + 0] = -normfact * (a * c - b * d);
-                dataloc[ii * 2 + 1] = -normfact * (a * d + b * c);
-#elif (KIND == 12)
-                dataloc[ii * 2 + 0] = -normfact * (a * d + b * c);
-                dataloc[ii * 2 + 1] = normfact * (a * c - b * d);
-#elif (KIND == 13)
-                dataloc[ii * 2 + 0] = normfact * (a * d + b * c);
-                dataloc[ii * 2 + 1] = -normfact * (a * c - b * d);
-#endif
 #endif
             }
         }

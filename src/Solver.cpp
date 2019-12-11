@@ -29,15 +29,14 @@
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
  * @param topo the input topology of the data (in physical space)
- * @param mybc the boundary conditions of the computational domain (for the right hand side!!), the first index corresponds to the dimension, the second is left (0) or right (1) side
+ * @param mybc the boundary conditions of the computational domain (for the right hand side!!), the first index corresponds to the dimension, the second is left (0) or right (1) side and the last one to the component
  * @param h the grid spacing
  * @param L the domain size
  * @param orderDiff the differentiation order. If not required, set 0
  * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof) {
+Solver::Solver(Topology *topo, const BoundaryType* mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof) :_lda(topo->lda()){
     BEGIN_FUNC;
-    FLUPS_CHECK(orderDiff==0 || orderDiff==1 || orderDiff==2, "The differentiation order has to be 0",LOCATION);
     FLUPS_CHECK(orderDiff==0 || orderDiff==1 || orderDiff==2, "The differentiation order has to be 0, 1 or 2",LOCATION);
 
     // //-------------------------------------------------------------------------
@@ -102,16 +101,19 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     //-------------------------------------------------------------------------
     _orderdiff = orderDiff;
     // change the boundary condition for the source term if needed
-    BoundaryType tmpbc[3][2];
+    // (we assume lda = 3, no big deal if not)
+    BoundaryType tmpbc[3][2][3];
     if (_orderdiff) {
-        for (int id = 0; id < 3; id++) {
-            for (int is = 0; is < 2; is++) {
-                if (mybc[id][is] == EVEN) {
-                    tmpbc[id][is] = ODD;
-                } else if (mybc[id][is] == ODD) {
-                    tmpbc[id][is] = EVEN;
-                } else {
-                    tmpbc[id][is] = mybc[id][is];
+        for (int lia = 0; lia < _lda; lia++) {
+            for (int id = 0; id < 3; id++) {
+                for (int is = 0; is < 2; is++) {
+                    if (mybc[id][is][lia] == EVEN) {
+                        tmpbc[id][is][lia] = ODD;
+                    } else if (mybc[id][is][lia] == ODD) {
+                        tmpbc[id][is][lia] = EVEN;
+                    } else {
+                        tmpbc[id][is][lia] = mybc[id][is];
+                    }
                 }
             }
         }
@@ -169,25 +171,36 @@ Solver::Solver(Topology *topo, const BoundaryType mybc[3][2], const double h[3],
     //-------------------------------------------------------------------------
     /** - Get the factors #_normfact, #_volfact, #_shiftgreen and #_rephase_fact */
     //-------------------------------------------------------------------------
+    // setup the rephase factor
+    _rephase_fact = (int *)flups_malloc(sizeof(int) * _lda);
+    for (int lia = 0; lia < _lda; lia++) {
+        _rephase_fact[lia] = 0;
+    }
+
+    // init the volumes + norm fact
     _normfact  = 1.0;
     _volfact   = 1.0;
-    _rephase_fact = 0;
+
+    // compute the coefficients
     for (int ip = 0; ip < 3; ip++) {
         _normfact *= _plan_forward[ip]->normfact();
         _volfact *= _plan_forward[ip]->volfact();
 
         // if we use order diff, we have to compute the number of DST
-        //The total rephasing factor will be given by (sign(_rephase_fact)*i)^abs(_rephase_fact)
+        // the total rephasing factor will be given by (sign(_rephase_fact)*i)^abs(_rephase_fact)
         if (_orderdiff) {
+            for(int lia=0; lia<_lda; lia++){
+
             // while doing a DST forward, we need to rephase by (-i)
-            if (_plan_forward[ip]->imult()) {
+            if (_plan_forward[ip]->imult(lia)) {
                 // _rephase_fact++;
                 // _rephase_fact = -_rephase_fact;
-                _rephase_fact--;
+                _rephase_fact[lia]--;
             }
             // while doing a DST backward, we need to rephase by (-i)
-            if (_plan_backward_diff[ip]->imult()) {
-                _rephase_fact++;
+            if (_plan_backward_diff[ip]->imult(lia)) {
+                _rephase_fact[lia]++;
+            }
             }
         }
     }
@@ -456,6 +469,8 @@ double* Solver::setup(const bool changeTopoComm) {
  */
 Solver::~Solver() {
     BEGIN_FUNC;
+
+    if(_rephase_fact!= NULL) flups_free(_rephase_fact);
     // for Green
     if (_green != NULL) flups_free(_green);
     // delete the plans
@@ -665,7 +680,7 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, topo->lda(), size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
+            topomap[ip] = new Topology(dimID, _lda, size_tmp, nproc, isComplex, dimOrder, _fftwalignment, _topo_phys->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -946,7 +961,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         if (isSpectral[dimID]) {
             hfact[dimID]   = 0.0;
             kfact[dimID]   = planmap[ip]->kfact();
-            koffset[dimID] = planmap[ip]->koffset();
+            koffset[dimID] = planmap[ip]->koffset(0); // GF has a lda of 1
         }
         if (planmap[ip]->type() == FFTW_plan_dim::EMPTY) {
             // kill the hfact to have no influence in the green's functions
@@ -1119,9 +1134,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
         // we do the link between topo of Green and the field topo
 
         // we have to switch the topofield to the scalar to match the scalar topology of the Green's function
-        bool isvector = topo_field->lda() > 1;
-
-        if(isvector){
+        if(_lda > 1){
             topo_field->switch2Scalar();
         }
 #if defined(COMM_NONBLOCK)
@@ -1140,7 +1153,8 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
         _deallocate_switchTopo(&switchtopo,&temp_send,&temp_recv);
         delete(switchtopo);
 
-        if(isvector){
+        // we switch the field back to the vector state
+        if(_lda > 1){
             topo_field->switch2Vector();
         }
     }
@@ -1182,7 +1196,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     FLUPS_CHECK(!(type==ROT && _orderdiff==0),"type is ROT and orderDiff=0 => You have to give an orderDiv={1,2} to use the ROT solver type",LOCATION);
 
     opt_double_ptr       mydata  = _data;
-    // const opt_double_ptr myrhs   = rhs;
 
     if (_prof != NULL) _prof->start("solve");
 
@@ -1256,7 +1269,8 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
  */
 void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     BEGIN_FUNC;
-    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
+    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION)
+    FLUPS_CHECK(_lda == topo->lda(),"the solver lda = %d must match the topology one = %d",_lda,topo->lda(),LOCATION);
 
     double* owndata = _data; 
     double* argdata = data;  
@@ -1269,7 +1283,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     const int    ax1     = (ax0 + 1) % 3;
     const int    ax2     = (ax0 + 2) % 3;
     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * topo->lda();
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * _lda;
     const size_t inmax   = topo->nloc(ax0);
 
     // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
@@ -1402,21 +1416,23 @@ void Solver::do_mult(double *data, const SolverType type){
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
 
-    // - Obtain what's needed to compute k, in case we need a derivative
-    double kfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double koffset[3]  = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double symstart[3] = {0.0, 0.0, 0.0};
+    //-------------------------------------------------------------------------
+    /** - Init kfacct, koffset and symstart */
+    //-------------------------------------------------------------------------
 
-    for (int ip = 0; ip < _ndim; ip++) {
-        const int dimID = _plan_forward[ip]->dimID();
-        kfact[dimID]    = _plan_forward[ip]->kfact();
-        koffset[dimID]  = _plan_forward[ip]->koffset();  // + _plan_forward[ip]->shiftgreen();
-        symstart[dimID] = _plan_forward[ip]->symstart();
-    }
+    // obtain what's needed to compute k, in case we need a derivative
+    double  kfact[3]    = {0.0, 0.0, 0.0};     // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double *koffset[3]  = {NULL, NULL, NULL};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double  symstart[3] = {0.0, 0.0, 0.0};
+    // get the spectral info
+    get_spectralInfo(kfact,koffset,symstart);
 
     if (_prof != NULL) _prof->start("domagic");
+
+
     switch (type) {
         case RHS:
+            // every lda is done at once inside the dothemagic functions
             if (!_topo_hat[_ndim - 1]->isComplex()) {
                 //-> there is only the case of 3dirSYM in which we could stay real for the whole process
                 if (_rephase_fact == 0) {
@@ -1433,38 +1449,43 @@ void Solver::do_mult(double *data, const SolverType type){
             }
             break;
         case ROT:
-            FLUPS_INFO("rephase fact = %d",_rephase_fact);
-            // check tath the topo is a vector
+            // check that the topo is a vector
             FLUPS_CHECK(_topo_hat[2]->lda() == 3, "the topology must be vector-enabled (lda=3) for using ROT solver", LOCATION);
-            if (!_topo_hat[_ndim - 1]->isComplex()) {
-                if (_rephase_fact == 0 || _rephase_fact == 2 || _rephase_fact == -2) {
-                    FLUPS_CHECK(false, "the number of rephasing = %d is impossible for the real case", _rephase_fact, LOCATION);
-                } else if (_rephase_fact == (-3) || _rephase_fact == (1)) {
-                    // (-i)^3 * i = (-i)^2 = -1 or i * i = -1
-                    dothemagic_rot_real_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_rephase_fact == (-1) || _rephase_fact == (3)) {
-                    // (-i) * i = 1 or (i)^3 * i = i^4 = 1
-                    dothemagic_rot_real_p1(data, kfact, koffset, symstart, _orderdiff);
-                } else {
-                    FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
-                }
 
-            } else {
-                // REPHASING:
-                // - everytime a DST was used in the FWD transform, the result must be *(-i)
-                // - everytime a DST is  used in the BCKWD transform, the result must be *(i)
-                // The product of all these rephasing factors gives the KIND of the domagic.
-                // The total rephasing factor is: (sign(_rephase_fact)*i)^abs(_rephase_fact)
-                if (_rephase_fact == 0) {
-                    dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_rephase_fact == (-3) || _rephase_fact == (1)){
-                    dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_rephase_fact == (-2) || _rephase_fact == (2)){
-                    dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
-                } else if (_rephase_fact == (-1) || _rephase_fact == (3)){
-                    dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
+            // we go through every component of the SOURCE field and we build the solution iteratively:
+            for (int lia = 0; lia < _lda; lia++) {
+                if (!_topo_hat[_ndim - 1]->isComplex()) {
+                    // if the topology is real
+                    if (_rephase_fact[lia] == 0 || _rephase_fact[lia] == 2 || _rephase_fact[lia] == -2) {
+                        FLUPS_CHECK(false, "the number of rephasing = %d is impossible for the real case", _rephase_fact, LOCATION);
+                    } else if (_rephase_fact[lia] == (-3) || _rephase_fact[lia] == (1)) {
+                        // (-i)^3 * i = (-i)^2 = -1 or i * i = -1
+                        dothemagic_rot_real_m1(data, kfact, koffset, symstart, _orderdiff);
+                    } else if (_rephase_fact[lia] == (-1) || _rephase_fact[lia] == (3)) {
+                        // (-i) * i = 1 or (i)^3 * i = i^4 = 1
+                        dothemagic_rot_real_p1(data, kfact, koffset, symstart, _orderdiff);
+                    } else {
+                        FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
+                    }
+                
                 } else {
-                    FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
+                    // if the topology is complex
+                    // REPHASING:
+                    // - everytime a DST was used in the FWD transform, the result must be *(-i)
+                    // - everytime a DST is  used in the BCKWD transform, the result must be *(i)
+                    // The product of all these rephasing factors gives the KIND of the domagic.
+                    // The total rephasing factor is: (sign(_rephase_fact)*i)^abs(_rephase_fact)
+                    if (_rephase_fact[lia] == 0) {
+                        dothemagic_rot_complex_p1(data, kfact, koffset, symstart, _orderdiff);
+                    } else if (_rephase_fact[lia] == (-3) || _rephase_fact[lia] == (1)) {
+                        dothemagic_rot_complex_pi(data, kfact, koffset, symstart, _orderdiff);
+                    } else if (_rephase_fact[lia] == (-2) || _rephase_fact[lia] == (2)) {
+                        dothemagic_rot_complex_m1(data, kfact, koffset, symstart, _orderdiff);
+                    } else if (_rephase_fact[lia] == (-1) || _rephase_fact[lia] == (3)) {
+                        dothemagic_rot_complex_mi(data, kfact, koffset, symstart, _orderdiff);
+                    } else {
+                        FLUPS_CHECK(false, "the number of rephasing = %d is not supported", _rephase_fact, LOCATION);
+                    }
                 }
             }
             break;
@@ -1484,6 +1505,12 @@ void Solver::do_mult(double *data, const SolverType type){
         default:
             FLUPS_ERROR("type of solver %d not implemented", type, LOCATION);
     }
+
+    // free the allocated memory
+    for (int ip = 0; ip < _ndim; ip++) {
+        flups_free(koffset[ip]);
+    }
+
     if (_prof != NULL) _prof->stop("domagic");
     END_FUNC;
 }
@@ -1512,25 +1539,21 @@ void Solver::do_mult(double *data, const SolverType type){
 //---------------------------------
 // kind = 11: complex case * -1
 #define KIND 11
-#include "dothemagic_rhs.ipp"
 #include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 10: complex case * +i
 #define KIND 12
-#include "dothemagic_rhs.ipp"
 #include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
 //---------------------------------
 // kind = 13: complex case * -i
 #define KIND 13
-#include "dothemagic_rhs.ipp"
 #include "dothemagic_rot.ipp"
 // #include "Solver_dothemagic_div.hpp"
 #undef KIND
-
 
 /**
  * @brief reorder the MPI-ranks using metis

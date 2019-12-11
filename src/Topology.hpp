@@ -150,6 +150,13 @@ class Topology {
      * @return size_t 
      */
     inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
+
+    /**
+     * @brief returns the memory size of on this proc for one component
+     * 
+     * @return size_t 
+     */
+    inline size_t memdim() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      * 

@@ -35,9 +35,10 @@
  * @param sign the sign of the plan (FLUPS_FORWARD or FLUPS_BACKWARD)
  * @param isGreen boolean to indicate if the plan is intended for Green's function
  */
-FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[3], const BoundaryType mybc[2], const int sign, const bool isGreen) : _dimID(dimID),
-                                                                                                                                                          _sign(sign),
-                                                                                                                                                          _isGreen(isGreen) {
+FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], const BoundaryType* mybc[2], const int sign, const bool isGreen) : _lda(lda),
+                                                                                                                                                                    _dimID(dimID),
+                                                                                                                                                                    _sign(sign),
+                                                                                                                                                                    _isGreen(isGreen) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // sanity checks
@@ -45,12 +46,21 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
     FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2", LOCATION);
 
     //-------------------------------------------------------------------------
-    // Initialisation of the sizes and types
+    // get the boundary conditions for each dimnension
     //-------------------------------------------------------------------------
-    _bc[0] = mybc[0];
-    _bc[1] = mybc[1];
-    //determine the type of the solver
-    int mytype = _bc[0] + _bc[1];
+    // allocate the bc space
+    _bc[0] =(BoundaryType*) flups_malloc(sizeof(int)*_lda);
+    _bc[1] =(BoundaryType*) flups_malloc(sizeof(int)*_lda);
+
+    // setup the type of solver, given by the first dimension
+    int mytype = _bc[0][0] + _bc[1][0];
+
+    //store the other dimension and check if the type is correct
+    for (int lia = 0; lia < _lda; lia++) {
+        _bc[0][lia] = mybc[0][lia];
+        _bc[1][lia] = mybc[1][lia];
+    }
+
     //-------------------------------------------------------------------------
     // Get type and mult factors
     //-------------------------------------------------------------------------
@@ -59,43 +69,69 @@ FFTW_plan_dim::FFTW_plan_dim(const int dimID, const double h[3], const double L[
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (2.0 * L[_dimID]);
-        _koffset  = 0.0;
         if (_isGreen) _isSpectral = true;
     } else if (mytype <= MIXUNB) {
-        _type     = MIXUNB;
-        _normfact = 1.0;
-        _volfact  = h[_dimID];
-        _kfact    = c_2pi / (4.0 * L[_dimID]);
-        _koffset  = 0.0;
+        _type       = MIXUNB;
+        _normfact   = 1.0;
+        _volfact    = h[_dimID];
+        _kfact      = c_2pi / (4.0 * L[_dimID]);
+        _isSpectral = false;
     } else if (mytype == PERPER) {
         _type     = PERPER;
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (L[_dimID]);
-        _koffset  = 0.0;
         if (_isGreen) _isSpectral = true;
     } else if (mytype == UNBUNB) {
         _type     = UNBUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
-        _koffset  = 0.0;
     } else if (mytype == EMPTY) {
         _type = EMPTY;
         // chosen to have no influence
         _normfact   = 1.0;
         _volfact    = 1.0;
         _kfact      = 0.0;
-        _koffset    = 0.0;
         _isSpectral = false;
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
+
+    //-------------------------------------------------------------------------
+    // Get type and mult factors
+    //-------------------------------------------------------------------------
+    for(int lia= 0 ; lia<_lda; lia++){
+        FLUPS_CHECK(_bc[0][lia] + _bc[1][lia] <= _type, "dimension %d's bc = %d %d is not compatible with the plan choosen = %d", lia, _bc[0][lia], _bc[1][lia], _type,LOCATION);
+    }
     END_FUNC;
 }
+
+/**
+ * @brief Destroy the fftw plan
+ * 
+ */
 FFTW_plan_dim::~FFTW_plan_dim() {
     BEGIN_FUNC;
-    if (_plan != NULL) fftw_destroy_plan(_plan);
+
+    if (_type == SYMSYM || _type == MIXUNB) {
+        // if the solver is SYMSYM or MIXUNB, each dimension has its own plan
+        for (int lia = 0; lia < _lda; lia++) {
+            if (_plan[lia] != NULL) fftw_destroy_plan(_plan[lia]);
+        }
+    } else {
+        // else, the first plan is the same as all the other ones
+        if (_plan[0] != NULL) fftw_destroy_plan(_plan[0]);
+        for (int lia = 1; lia < _lda; lia++) {
+            _plan[lia] = NULL;
+        }
+    }
+    // free the allocated arrays
+    if (_bc[0] != NULL) flups_free(_bc[0]);
+    if (_bc[1] != NULL) flups_free(_bc[1]);
+    if (_koffset != NULL) flups_free(_koffset);
+    if (_imult != NULL) flups_free(_imult);
+    if (_kind != NULL) flups_free(_kind);
     END_FUNC;
 }
 
@@ -140,9 +176,26 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
     } else if (_type == EMPTY) {
+        _init_empty(size, isComplex);
         FLUPS_INFO_1("No plan required for this direction");
     }
     END_FUNC;
+}
+
+/**
+ * @brief Initialize for an empty plan: setup #_imult and #_koffset to default value
+ * 
+ * @param size 
+ * @param isComplex 
+ */
+void FFTW_plan_dim::_init_empty(const int size[3], const bool isComplex) {
+    _imult   = (bool*)flups_malloc(sizeof(bool) * _lda);
+    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+
+    for (int lia = 0; lia < _lda; lia++) {
+        _imult[lia]   = false;
+        _koffset[lia] = 0.0;
+    }
 }
 
 /**
@@ -196,45 +249,55 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     _normfact *= 1.0 / (2.0 * size[_dimID]);
 
     //-------------------------------------------------------------------------
-    /** - Get the #_kind of Fourier transforms and #_imult */
+    /** - Get the #_kind of Fourier transforms, the #_koffset and  #_imult for each dimension */
     //-------------------------------------------------------------------------
-    if (_isGreen) {
-        // if we are doing odd-even we have to use shifted FFTW plans
-        if (_bc[0] != _bc[1]) {
-            _koffset = 0.5;
-        }
-        if (_bc[0] == ODD && _bc[1] == ODD) {
-            // if we do a ODD ODD, we have to shift the Green's function
-            _shiftgreen = 1;
-        }
-        return;
-    } else if (_bc[0] == EVEN) {  // We have a DCT
+    _imult   = (bool*)flups_malloc(sizeof(bool) * _lda);
+    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _kind    = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
 
-        _imult = false;  // we do NOT have to multiply by i=sqrt(-1)
+    for (int lia = 0; lia < _lda; lia++) {
+        if (_isGreen) {
+            _imult[lia] = false; // always for GF
 
-        if (_bc[1] == EVEN) {
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_REDFT01; // DCT type III
-        } else if (_bc[1] == ODD) {
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_REDFT11;  // DCT type IV
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_REDFT11; // DCT type IV
-            _koffset = 0.5;
+            // if we are doing odd-even we have to use shifted FFTW plans
+            if (_bc[0][lia] != _bc[1][lia]) {
+                _koffset[lia] = 0.5;
+            }
+            if (_bc[0][lia] == ODD && _bc[1][lia] == ODD) {
+                // if we do a ODD ODD, we have to shift the Green's function
+                _shiftgreen = 1; // we will have to shift the GF
+                _koffset[lia] = 0.0; // the first index = mode 0
+            }
+            return;
+        } else if (_bc[0][lia] == EVEN) {  // We have a DCT
+
+            _imult[lia] = false;  // we do NOT have to multiply by i=sqrt(-1)
+
+            if (_bc[1][lia] == EVEN) {
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
+                _koffset[lia] = 0.0;
+            } else if (_bc[1][lia] == ODD) {
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT11;   // DCT type IV
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT11;  // DCT type IV
+                _koffset[lia] = 0.5;
+            }
+        } else if (_bc[0][lia] == ODD) {  // We have a DST
+
+            _imult[lia] = true;  // we DO have to multiply by -i=-sqrt(-1)
+
+            if (_bc[1][lia] == ODD) {
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
+                _koffset[lia] = 1.0;
+            } else if (_bc[1][lia] == EVEN) {
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT11;   // DST type IV
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT11;  // DST type IV
+                _koffset[lia] = 0.5;
+            }
+        } else {
+            FLUPS_ERROR("unable to init the solver required", LOCATION);
         }
-    } else if (_bc[0] == ODD) {  // We have a DST
-
-        _imult = true;  // we DO have to multiply by -i=-sqrt(-1)
-
-        if (_bc[1] == ODD) {
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
-            _koffset = 1.0;
-        } else if (_bc[1] == EVEN) {
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT11;  // DST type IV
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT11; // DST type IV
-            _koffset = 0.5;
-        }
-    } else {
-        FLUPS_ERROR("unable to init the solver required", LOCATION);
     }
     END_FUNC;
 }
@@ -273,43 +336,56 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
 
     if (_isGreen)
         _fieldstart = 0;
-    else if (_bc[0] == UNB)
-        _fieldstart = size[_dimID];  // padding to the left
-    else if (_bc[1] == UNB)
-        _fieldstart = 0;  // padding to the right
+    else if (_bc[0][0] == UNB)
+        _fieldstart = size[_dimID];  // padding to the left - only the first dim is enough
+    else if (_bc[1][0] == UNB)
+        _fieldstart = 0;  // padding to the right - only the first dim is enough
+    
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
     //-------------------------------------------------------------------------
     _symstart = 0;  // if no symmetry is needed, set to 0
+
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0 / (4.0 * size[_dimID]);
+
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms, #_imult and #_shiftgreen */
     //-------------------------------------------------------------------------
-    if (_isGreen) {
-        _imult = false;
-        // set the shiftg Green to 1 if we do ODD-ODD bc
-        if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {
-            _shiftgreen = 1;
-        }
-        // The Green function is ALWAYS EVEN - EVEN
-        if (_sign == FLUPS_FORWARD) _kind = FFTW_REDFT00;  // DCT type I
-        if (_sign == FLUPS_BACKWARD) _kind = FFTW_REDFT00;
+    _imult   = (bool*)flups_malloc(sizeof(bool) * _lda);
+    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _kind    = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
 
-    } else {
-        if ((_bc[0] == EVEN && _bc[1] == UNB) || (_bc[0] == UNB && _bc[1] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
-            _imult      = false;
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_REDFT10;  // DCT type II
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_REDFT01; // DCT type III
-        } else if ((_bc[0] == UNB && _bc[1] == ODD) || (_bc[0] == ODD && _bc[1] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
-            _imult      = true;
-            if (_sign == FLUPS_FORWARD) _kind = FFTW_RODFT10;  // DST type II
-            if (_sign == FLUPS_BACKWARD) _kind = FFTW_RODFT01; // DST type III
+    for (int lia; lia < _lda; lia++) {
+        if (_isGreen) {
+            _imult[lia]   = false;
+            _koffset[lia] = 0.0;
+
+            // set the shiftg Green to 1 if we do ODD-ODD bc
+            if ((_bc[0][lia] == UNB && _bc[1][lia] == ODD) || (_bc[0][lia] == ODD && _bc[1][lia] == UNB)) {
+                _shiftgreen = 1;
+            }
+            // The Green function is ALWAYS EVEN - EVEN
+            if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT00;  // DCT type I
+            if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT00;
+
         } else {
-            FLUPS_ERROR("unable to init the solver required", LOCATION);
+            if ((_bc[0][lia] == EVEN && _bc[1][lia] == UNB) || (_bc[0][lia] == UNB && _bc[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
+                _imult[lia] = false;
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
+                _koffset[lia] = 0.0;
+            } else if ((_bc[0][lia] == UNB && _bc[1][lia] == ODD) || (_bc[0][lia] == ODD && _bc[1][lia] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
+                _imult[lia] = true;
+                if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
+                if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
+                _koffset[lia] = 1.0;
+            } else {
+                FLUPS_ERROR("unable to init the solver required", LOCATION);
+            }
         }
     }
     END_FUNC;
@@ -351,15 +427,21 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     if(isComplex ){
         _symstart = size[_dimID]/2.0;
     }
-    
+
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
     //-------------------------------------------------------------------------
     _normfact *= 1.0 / (size[_dimID]);
+
     //-------------------------------------------------------------------------
-    /** - Get the #_imult factor */
+    /** - Get the #_imult and #_koffset factor */
     //-------------------------------------------------------------------------
-    _imult = false;
+    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _imult   = (bool*)flups_malloc(sizeof(bool) * _lda);
+    for (int lia = 0; lia < _lda; lia++) {
+        _koffset[lia] = 0.0;
+        _imult[lia]   = false;
+    }
     END_FUNC;
 }
 
@@ -400,9 +482,14 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     _normfact *= 1.0 / (2.0 * size[_dimID]);
     //-------------------------------------------------------------------------
-    /** - Get the #_imult */
+    /** - Get the #_imult and #_koffset factor */
     //-------------------------------------------------------------------------
-    _imult = false;
+    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _imult   = (bool*)flups_malloc(sizeof(bool) * _lda);
+    for (int lia = 0; lia < _lda; lia++) {
+        _koffset[lia] = 0.0;
+        _imult[lia]   = false;
+    }
     END_FUNC;
 }
 
@@ -478,18 +565,24 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     // we make sure to use only 1 thread, the multi-threading is used in the solver, not inside a plan
     fftw_plan_with_nthreads(1);
-    // we initiate the plan
-    if (topo->nf() == 1) {
-        _fftw_stride = memsize[_dimID];
-        _plan        = fftw_plan_r2r_1d(_n_in, data, data, _kind, FFTW_FLAG);
 
-    } else if (topo->nf() == 2) {
-        _fftw_stride = memsize[_dimID] * topo->nf();
-        _plan        = fftw_plan_many_r2r(1, (int*)(&_n_in), 1,
-                                   data, NULL, topo->nf(), memsize[_dimID] * topo->nf(),
-                                   data, NULL, topo->nf(), memsize[_dimID] * topo->nf(), &_kind, FFTW_FLAG);
+    // allocate the plan
+    _plan =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * _lda);
+
+    // we initiate the plan
+    for (int lia = 0; lia < _lda; lia++) {
+        if (topo->nf() == 1) {
+            _fftw_stride = memsize[_dimID];
+            _plan[lia]   = fftw_plan_r2r_1d(_n_in, data, data, _kind[lia], FFTW_FLAG);
+
+        } else if (topo->nf() == 2) {
+            _fftw_stride = memsize[_dimID] * topo->nf();
+            _plan[lia]   = fftw_plan_many_r2r(1, (int*)(&_n_in), 1,
+                                            data, NULL, topo->nf(), memsize[_dimID] * topo->nf(),
+                                            data, NULL, topo->nf(), memsize[_dimID] * topo->nf(), _kind + lia, FFTW_FLAG);
+        }
     }
-    
+
     FLUPS_INFO("------------------------------------------");
     if (_type == SYMSYM) {
         FLUPS_INFO("## SYMSYM plan created for plan r2r (=%d)", _type);
@@ -546,6 +639,9 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
     
     // compute the stride
     _fftw_stride = memsize[_dimID];
+
+    // allocate the plan
+    _plan =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * _lda);
        
     if (_isr2c) {
         FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo",LOCATION);
@@ -570,15 +666,40 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (_sign == FLUPS_FORWARD) {
-            _plan = fftw_plan_dft_r2c_1d(_n_in, data, (fftw_complex*)data, FFTW_FLAG);
+            _plan[0] = fftw_plan_dft_r2c_1d(_n_in, data, (fftw_complex*)data, FFTW_FLAG);
         } else {
-            _plan = fftw_plan_dft_c2r_1d(_n_in, (fftw_complex*)data, data, FFTW_FLAG);
+            _plan[0] = fftw_plan_dft_c2r_1d(_n_in, (fftw_complex*)data, data, FFTW_FLAG);
         }
 
     } else {
         FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo",LOCATION);
-        _plan = fftw_plan_dft_1d(_n_in, (fftw_complex*)data, (fftw_complex*)data, _sign, FFTW_FLAG);
+        FLUPS_INFO("------------------------------------------");
+        if (_type == PERPER) {
+            FLUPS_INFO("## C2C plan created for plan periodic-periodic (=%d)", _type);
+        } else if (_type == UNBUNB) {
+            FLUPS_INFO("## C2C plan created for plan unbounded (=%d)", _type);
+        }
+        // FLUPS_INFO("orderedID = %d",_orderID);
+        if (_sign == FLUPS_FORWARD) {
+            FLUPS_INFO("FORWARD transfrom");
+        } else if (_sign == FLUPS_BACKWARD) {
+            FLUPS_INFO("BACKWARD transfrom");
+        }
+        FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
+        FLUPS_INFO("dimID     = %d", _dimID);
+        FLUPS_INFO("howmany   = %d", _howmany);
+        FLUPS_INFO("fftw stride   = %d", _fftw_stride);
+        FLUPS_INFO("size n    = %d", _n_in);
+        FLUPS_INFO("------------------------------------------");
+
+        _plan[0] = fftw_plan_dft_1d(_n_in, (fftw_complex*)data, (fftw_complex*)data, _sign, FFTW_FLAG);
     }
+
+    // the plan is the same in every other direction
+    for(int lia=1; lia<_lda;lia++){
+        _plan[lia] = _plan[lia-1];
+    }
+
     END_FUNC;
 }
 
@@ -608,9 +729,12 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         return;
     }
 
-    const int howmany = _howmany * topo->lda();
-    const int fftw_stride = _fftw_stride;
-    const fftw_plan* plan = &_plan;
+    // copy the variable to avoid issues while compiling using openMP and gcc
+    const size_t howmany     = _howmany;
+    const size_t onmax       = _howmany * _lda;
+    const size_t fftw_stride = (size_t)_fftw_stride;
+    // get the plan pointer
+    const fftw_plan* plan = _plan;
 
     //-------------------------------------------------------------------------
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
@@ -631,44 +755,48 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
     // incomming arrays depends if we are a complex switcher or not
     if (_type == SYMSYM || _type == MIXUNB) {  // R2R
         // we can be complex or real (see allocate_real) but fftw_stride contains the correct info
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
-        for (int id = 0; id < howmany; id++) {
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+        for (size_t id = 0; id < onmax; id++) {
+            size_t lia = id % howmany;
             // get the memory
             double* mydata = (double*)data + id * fftw_stride;
             // execute the plan on it
-            fftw_execute_r2r(*plan, (double*)mydata, (double*)mydata);
+            fftw_execute_r2r(plan[lia], (double*)mydata, (double*)mydata);
         }
     } else if (_type == PERPER || _type == UNBUNB) {
         if (_isr2c) {
             if (_sign == FLUPS_FORWARD) {  // DFT - R2C
-            FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage",LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
-                for (int id = 0; id < howmany; id++) {
+                FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage", LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+                for (size_t id = 0; id < onmax; id++) {
+                    size_t lia = id % howmany;
                     // get the memory
                     double* mydata = (double*)data + id * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_r2c(*plan, (double*)mydata, (fftw_complex*)mydata);
+                    fftw_execute_dft_r2c(plan[lia], (double*)mydata, (fftw_complex*)mydata);
                 }
             } else {  // DFT - C2R
-                FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage",LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
-                for (int id = 0; id < howmany; id++) {
+                FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+                for (size_t id = 0; id < onmax; id++) {
+                    size_t lia = id % howmany;
                     // get the memory
                     // WARNING the stride is given in the input size =  REAL => id * _fftw_stride/2 * nf = id * _fftw_stride
                     double* mydata = (double*)data + id * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_c2r(*plan, (fftw_complex*)mydata, (double*)mydata);
+                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata, (double*)mydata);
                 }
             }
 
         } else {  // DFT
-            FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage",LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, howmany)
-            for (int id = 0; id < howmany; id++) {
+            FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+            for (size_t id = 0; id < onmax; id++) {
+                size_t lia = id % howmany;
                 // get the memory with nf = 2
                 double* mydata = (double*)data + id * fftw_stride * 2;
                 // execute the plan on it
-                fftw_execute_dft(*plan, (fftw_complex*)mydata,(fftw_complex*) mydata);
+                fftw_execute_dft(plan[lia], (fftw_complex*)mydata, (fftw_complex*)mydata);
             }
         }
     }
@@ -692,48 +820,50 @@ void FFTW_plan_dim::disp() {
     } else if (_type == UNBUNB) {
         FLUPS_INFO("- type = unbounded (=%d)", _type);
     }
-    if (_bc[0] == EVEN) {
-        FLUPS_INFO("- bc = { EVEN ,");
-    } else if (_bc[0] == ODD) {
-        FLUPS_INFO("- bc = { ODD  ,");
-    } else if (_bc[0] == UNB) {
-        FLUPS_INFO("- bc = { UNB  ,");
-    } else if (_bc[0] == PER) {
-        FLUPS_INFO("- bc = { PER  ,");
-    }
-    if (_bc[1] == EVEN) {
-        FLUPS_INFO(" EVEN}");
-    } else if (_bc[1] == ODD) {
-        FLUPS_INFO(" ODD}");
-    } else if (_bc[1] == UNB) {
-        FLUPS_INFO(" UNB}");
-    } else if (_bc[1] == PER) {
-        FLUPS_INFO(" PER}");
-    }
-    if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
-        if (_kind == FFTW_REDFT00) {
-            FLUPS_INFO("- kind = REDFT00 = DCT type I");
+    for (int lia = 0; lia < _lda; lia++) {
+        if (_bc[0][lia] == EVEN) {
+            FLUPS_INFO("- bc = { EVEN ,");
+        } else if (_bc[0][lia] == ODD) {
+            FLUPS_INFO("- bc = { ODD  ,");
+        } else if (_bc[0][lia] == UNB) {
+            FLUPS_INFO("- bc = { UNB  ,");
+        } else if (_bc[0][lia] == PER) {
+            FLUPS_INFO("- bc = { PER  ,");
         }
-        if (_kind == FFTW_REDFT10) {
-            FLUPS_INFO("- kind = REDFT10 = DCT type II");
+        if (_bc[1][lia] == EVEN) {
+            FLUPS_INFO(" EVEN}");
+        } else if (_bc[1][lia] == ODD) {
+            FLUPS_INFO(" ODD}");
+        } else if (_bc[1][lia] == UNB) {
+            FLUPS_INFO(" UNB}");
+        } else if (_bc[1][lia] == PER) {
+            FLUPS_INFO(" PER}");
         }
-        if (_kind == FFTW_REDFT01) {
-            FLUPS_INFO("- kind = REDFT01 = DCT type III");
-        }
-        if (_kind == FFTW_REDFT11) {
-            FLUPS_INFO("- kind = REDFT11 = DCT type IV");
-        }
-        if (_kind == FFTW_RODFT00) {
-            FLUPS_INFO("- kind = RODFT00 = DST type I");
-        }
-        if (_kind == FFTW_RODFT10) {
-            FLUPS_INFO("- kind = RODFT10 = DST type II");
-        }
-        if (_kind == FFTW_RODFT01) {
-            FLUPS_INFO("- kind = RODFT01 = DST type III");
-        }
-        if (_kind == FFTW_RODFT11) {
-            FLUPS_INFO("- kind = RODFT11 = DST type IV");
+        if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
+            if (_kind[lia] == FFTW_REDFT00) {
+                FLUPS_INFO("- kind = REDFT00 = DCT type I");
+            }
+            if (_kind[lia] == FFTW_REDFT10) {
+                FLUPS_INFO("- kind = REDFT10 = DCT type II");
+            }
+            if (_kind[lia] == FFTW_REDFT01) {
+                FLUPS_INFO("- kind = REDFT01 = DCT type III");
+            }
+            if (_kind[lia] == FFTW_REDFT11) {
+                FLUPS_INFO("- kind = REDFT11 = DCT type IV");
+            }
+            if (_kind[lia] == FFTW_RODFT00) {
+                FLUPS_INFO("- kind = RODFT00 = DST type I");
+            }
+            if (_kind[lia] == FFTW_RODFT10) {
+                FLUPS_INFO("- kind = RODFT10 = DST type II");
+            }
+            if (_kind[lia] == FFTW_RODFT01) {
+                FLUPS_INFO("- kind = RODFT01 = DST type III");
+            }
+            if (_kind[lia] == FFTW_RODFT11) {
+                FLUPS_INFO("- kind = RODFT11 = DST type IV");
+            }
         }
     }
     FLUPS_INFO("- dimID      = %d", _dimID);
