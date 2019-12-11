@@ -251,6 +251,42 @@ run metis:
     - mpirun --mca btl_vader_single_copy_mechanism none -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
+run vector a2a 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_114111_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run vector a2a 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 4 4 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_334144_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run vector a2a 3:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 4 4 1 4 0 0 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_441400_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
 ################################################################################
 # NON BLOCKING
 ################################################################################
@@ -422,6 +458,41 @@ run comm nb 2:1:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 1 1 
     - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
 
+run vector nb 1:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_114111_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run vector nb 2:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 4 4 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_334144_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
+
+run vector nb 3:1:
+  stage: test
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 4 4 1 4 0 0 -l 3
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_441400_typeGreen=0.txt'))"
+  dependencies: 
+    - compil dbg
 
 ################################################################################
 # VALIDATION
