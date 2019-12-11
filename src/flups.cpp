@@ -100,15 +100,15 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff){
-    Solver* s = new Solver(t, bc, h, L, orderdiff, NULL);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3]){
+    Solver* s = new Solver(t, bc, h, L, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff, Profiler* prof) {
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], Profiler* prof) {
 #ifndef PROF
-    Solver* s = new Solver(t, bc, h, L, orderdiff, NULL);
+    Solver* s = new Solver(t, bc, h, L, NULL);
 #else
-    Solver* s = new Solver(t, bc, h, L, orderdiff, prof);
+    Solver* s = new Solver(t, bc, h, L, prof);
 #endif
     return s;
 }
@@ -128,8 +128,8 @@ double* flups_setup(FLUPS_Solver* s,const bool changeComm){
 }
 
 // solve
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type){
-    s->solve(field, rhs, type);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs){
+    s->solve(field, rhs);
 }
 
 
@@ -167,8 +167,8 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign){
     s->do_FFT(data,sign);
 }
 
-void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type){
-    s->do_mult(data,type);
+void flups_do_mult(FLUPS_Solver* s, double* data){
+    s->do_mult(data);
 }
 
 //**********************************************************************

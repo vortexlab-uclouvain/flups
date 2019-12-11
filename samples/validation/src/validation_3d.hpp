@@ -68,8 +68,8 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda);
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda, const int nSolve);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve);
 /**@} */
 
 

@@ -29,21 +29,19 @@
 
 using namespace std;
 
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda) {
-    validation_3d(myCase, type, typeGreen, 1);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda) {
+    validation_3d(myCase, typeGreen, 1);
 }
 
 /**
  * @brief computes the reference solution and the numerical one, outputs errors in a file
  * 
  * @param myCase description of the domain and initial condition
- * @param type type of solver
  * @param typeGreen type of Green function
  * @param lda leading dimension of array = number of vector components
  * @param nSolve number of times we call the same solver (for timing)
  */
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int lda, const int nSolve) {
-// void validation_3d(const DomainDescr myCase, const SolverType type, const GreenType typeGreen, const int nSolve) {
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
@@ -55,9 +53,15 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const FLUPS_BoundaryType mybc[3][2] = {myCase.mybc[0][0], myCase.mybc[0][1],
-                                     myCase.mybc[1][0], myCase.mybc[1][1],
-                                     myCase.mybc[2][0], myCase.mybc[2][1]};
+    FLUPS_BoundaryType* mybc[3][2];
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] =(FLUPS_BoundaryType*) flups_malloc(sizeof(int)*lda);
+            for(int lia=0; lia<lda; lia++){
+                mybc[id][is][lia] = myCase.mybc[id][is];
+            }
+        }
+    }
 
     // create a real topology
     FLUPS_Topology *topo = flups_topo_new(0, lda, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
@@ -66,19 +70,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string name = "validation_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
-    FLUPS_Profiler* prof = flups_profiler_new_n(name.c_str());
+    std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    if(type==RHS){
-        mysolver = flups_init_timed(topo, mybc, h, L, 0, prof);
-    }
-    else{
-        mysolver = flups_init_timed(topo, mybc, h, L, 1, prof);
-    }
-    
+    mysolver = flups_init_timed(topo, mybc, h, L, prof);
 
-    flups_set_greenType(mysolver,typeGreen);
-    flups_setup(mysolver,true);
+    flups_set_greenType(mysolver, typeGreen);
+    flups_setup(mysolver, true);
 
     // update the comm and the rank
     comm = flups_topo_get_comm(topo);
@@ -220,83 +218,52 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
     // Selecting manufactured solution compatible with the BCs
     for (int dir = 0; dir < 3; dir++) {
-        if(type == RHS){
-            if (mybc[dir][0] == PER && mybc[dir][1] == PER) {
-                manuRHS[dir] = &d2dx2_fOddOdd;
-                manuSol[dir] = &fOddOdd;
-                if (params[dir].freq < 1) params[dir].freq = 1;
-            } else if (mybc[dir][0] == ODD && mybc[dir][1] == ODD) {
-                manuRHS[dir] = &d2dx2_fOddOdd;
-                manuSol[dir] = &fOddOdd;
-            } else if (mybc[dir][0] == EVEN && mybc[dir][1] == EVEN) {
-                manuRHS[dir] = &d2dx2_fEvenEven;
-                manuSol[dir] = &fEvenEven;
-            } else if (mybc[dir][0] == ODD && mybc[dir][1] == EVEN) {
-                manuRHS[dir] = &d2dx2_fOddEven;
-                manuSol[dir] = &fOddEven;
-                if (params[dir].freq < 1) params[dir].freq = 1;
-            } else if (mybc[dir][0] == EVEN && mybc[dir][1] == ODD) {
-                manuRHS[dir] = &d2dx2_fEvenOdd;
-                manuSol[dir] = &fEvenOdd;
-                if (params[dir].freq < 1) params[dir].freq = 1;
-            } else if (mybc[dir][0] == UNB) {
-                if (mybc[dir][1] == ODD) {
-                    params[dir].center  = .7;
-                    params[dir].sign[1] = -1.;
-                } else if (mybc[dir][1] == EVEN) {
-                    params[dir].center  = .7;
-                    params[dir].sign[1] = +1.;
-                }
-                // manuRHS[dir] = &d2dx2_fUnb;
-                // manuSol[dir] = &fUnb;
-                manuRHS[dir] = &d2dx2_fUnbSpietz;
-                manuSol[dir] = &fUnbSpietz;
-            } else if (mybc[dir][1] == UNB) {
-                if (mybc[dir][0] == ODD) {
-                    params[dir].center  = .3;
-                    params[dir].sign[0] = -1.;
-                } else if (mybc[dir][0] == EVEN) {
-                    params[dir].center  = .3;
-                    params[dir].sign[0] = +1.;
-                }
-                // manuRHS[dir] = &d2dx2_fUnb;
-                // manuSol[dir] = &fUnb;
-                manuRHS[dir] = &d2dx2_fUnbSpietz;
-                manuSol[dir] = &fUnbSpietz;
-            } else {
-                manuRHS[dir] = &fZero;
-                manuSol[dir] = &fCst;
-                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+        if (mybc[dir][0][0] == PER && mybc[dir][1][0] == PER) {
+            manuRHS[dir] = &d2dx2_fOddOdd;
+            manuSol[dir] = &fOddOdd;
+            if (params[dir].freq < 1) params[dir].freq = 1;
+        } else if (mybc[dir][0][0] == ODD && mybc[dir][1][0] == ODD) {
+            manuRHS[dir] = &d2dx2_fOddOdd;
+            manuSol[dir] = &fOddOdd;
+        } else if (mybc[dir][0][0] == EVEN && mybc[dir][1][0] == EVEN) {
+            manuRHS[dir] = &d2dx2_fEvenEven;
+            manuSol[dir] = &fEvenEven;
+        } else if (mybc[dir][0][0] == ODD && mybc[dir][1][0] == EVEN) {
+            manuRHS[dir] = &d2dx2_fOddEven;
+            manuSol[dir] = &fOddEven;
+            if (params[dir].freq < 1) params[dir].freq = 1;
+        } else if (mybc[dir][0][0] == EVEN && mybc[dir][1][0] == ODD) {
+            manuRHS[dir] = &d2dx2_fEvenOdd;
+            manuSol[dir] = &fEvenOdd;
+            if (params[dir].freq < 1) params[dir].freq = 1;
+        } else if (mybc[dir][0][0] == UNB) {
+            if (mybc[dir][1][0] == ODD) {
+                params[dir].center  = .7;
+                params[dir].sign[1] = -1.;
+            } else if (mybc[dir][1][0] == EVEN) {
+                params[dir].center  = .7;
+                params[dir].sign[1] = +1.;
             }
-        } else if (type == ROT) {
-            if (mybc[dir][0] == UNB) {
-                if (mybc[dir][1] == ODD) {
-                    params[dir].center  = .7;
-                    params[dir].sign[1] = -1.;
-                } else if (mybc[dir][1] == EVEN) {
-                    params[dir].center  = .7;
-                    params[dir].sign[1] = +1.;
-                }
-                manuRHS[dir] = &d2dx2_fUnbSpietz;
-                manuDer[dir] = &ddx_fUnbSpietz;
-                manuSol[dir] = &fUnbSpietz;
-            } else if (mybc[dir][1] == UNB) {
-                if (mybc[dir][0] == ODD) {
-                    params[dir].center  = .3;
-                    params[dir].sign[0] = -1.;
-                } else if (mybc[dir][0] == EVEN) {
-                    params[dir].center  = .3;
-                    params[dir].sign[0] = +1.;
-                }
-                manuRHS[dir] = &d2dx2_fUnbSpietz;
-                manuDer[dir] = &ddx_fUnbSpietz;
-                manuSol[dir] = &fUnbSpietz;
-            } else {
-                manuRHS[dir] = &fZero;
-                manuDer[dir] = &fZero;
-                manuSol[dir] = &fCst;
-                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+            // manuRHS[dir] = &d2dx2_fUnb;
+            // manuSol[dir] = &fUnb;
+            manuRHS[dir] = &d2dx2_fUnbSpietz;
+            manuSol[dir] = &fUnbSpietz;
+        } else if (mybc[dir][1][0] == UNB) {
+            if (mybc[dir][0][0] == ODD) {
+                params[dir].center  = .3;
+                params[dir].sign[0] = -1.;
+            } else if (mybc[dir][0][0] == EVEN) {
+                params[dir].center  = .3;
+                params[dir].sign[0] = +1.;
             }
+            // manuRHS[dir] = &d2dx2_fUnb;
+            // manuSol[dir] = &fUnb;
+            manuRHS[dir] = &d2dx2_fUnbSpietz;
+            manuSol[dir] = &fUnbSpietz;
+        } else {
+            manuRHS[dir] = &fZero;
+            manuSol[dir] = &fCst;
+            // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
         }
     }
 
@@ -346,31 +313,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
                         // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
 
-                        if (type == ROT) {
-                            const int lia0 = lia;
-                            const int lia1 = (lia0 + 1) % 3;
-                            const int lia2 = (lia0 + 2) % 3;
-                            // we invert the signs because the BC is the other way around
-                            for (int dir = 0; dir < 3; dir++) {
-                                params[dir].sign[0] = -params[dir].sign[0];
-                                params[dir].sign[1] = -params[dir].sign[1];
-                            }
-
-                            sol[id] = manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuDer[lia1](x[lia1], L[lia1], params[lia1]) * manuSol[lia2](x[lia2], L[lia2], params[lia2]) - manuSol[lia0](x[lia0], L[lia0], params[lia0]) * manuSol[lia1](x[lia1], L[lia1], params[lia1]) * manuDer[lia2](x[lia2], L[lia2], params[lia2]);
-
-                            // we need to invert the signs of the param for the RHS
-                            for (int dir = 0; dir < 3; dir++) {
-                                params[dir].sign[0] = -params[dir].sign[0];
-                                params[dir].sign[1] = -params[dir].sign[1];
-                            }
-                        }
                         for (int dir = 0; dir < 3; dir++) {
                             const int dir2 = (dir + 1) % 3;
                             const int dir3 = (dir + 2) % 3;
                             // if we do the RHS type, fill the solution now
-                            if (type == RHS) {
-                                sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
-                            }
+                            sol[id] *= manuSol[dir](x[dir], L[dir], params[dir]);
                             rhs[id] += manuRHS[dir](x[dir], L[dir], params[dir]) * manuSol[dir2](x[dir2], L[dir2], params[dir2]) * manuSol[dir3](x[dir3], L[dir3], params[dir3]);
                         }
                     }
@@ -386,9 +333,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
-    sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
+    sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, rhs);
-    sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
+    sprintf(msg, "anal_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, sol);
 #endif
 
@@ -396,7 +343,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     /** - solve the equations */
     //-------------------------------------------------------------------------
     for(int is=0; is<nSolve; is++){
-        flups_solve(mysolver,field, rhs, type);
+        flups_solve(mysolver,field, rhs);
     }
 
 #ifdef PROF
@@ -406,7 +353,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 #ifdef DUMP_DBG
     // write the source term and the solution
-    sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1], nglob[0], nglob[1], nglob[2]);
+    sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, field);
 #endif    
 
@@ -452,7 +399,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     char filename[512];
     string folder = "./data";
 
-    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt",folder.c_str(),__func__, mybc[0][0], mybc[0][1], mybc[1][0], mybc[1][1], mybc[2][0], mybc[2][1],typeGreen);
+    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt",folder.c_str(),__func__, mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0],typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
@@ -484,10 +431,17 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
     free(err2 );
     free(erri );    
 
+
     flups_free(sol);
     flups_free(rhs);
     flups_free(field);
     flups_cleanup(mysolver);
     flups_topo_free(topo);
+
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            flups_free(mybc[id][is]);
+        }
+    }
 }
 

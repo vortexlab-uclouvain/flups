@@ -74,9 +74,6 @@ class FFTW_plan_dim {
     double  _normfact    = 1.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
     double  _volfact     = 1.0;   /**< @brief volume factor*/
     double  _kfact       = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
-
-    // depends on each direction
-    bool*   _imult       = NULL;  /**< @brief boolean to determine if we have to multiply by (i=sqrt(-1)) or not*/
     double* _koffset     = NULL;  /**< @brief additive factor to have the correct k numbers*/
 
     PlanType      _type;  /**< @brief type of this plan, see #PlanType*/
@@ -86,7 +83,7 @@ class FFTW_plan_dim {
     fftw_plan*     _plan = NULL; /**< @brief the array of FFTW plan*/
 
    public:
-    FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], const BoundaryType* mybc[2], const int sign, const bool isGreen);
+    FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
     ~FFTW_plan_dim();
 
     void init(const int size[3], const bool isComplex);
@@ -104,7 +101,6 @@ class FFTW_plan_dim {
     inline bool   isr2c() const { return _isr2c; }
     inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
-    inline int    imult(const int dim) const { return _imult[dim]; }
     inline int    shiftgreen() const { return _shiftgreen; }
     inline int    type() const { return _type; }
     inline double symstart() const { return _symstart; }
@@ -115,7 +111,6 @@ class FFTW_plan_dim {
     inline void   get_outsize(int* size) const { size[_dimID] = _n_out; };
     inline void   get_fieldstart(int* start) const { start[_dimID] = _fieldstart; };
     inline void   get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || _isr2c; };
-    inline bool   get_shiftderiv(const int lia) const { return (_kind[lia]==FFTW_REDFT10 || _kind[lia]==FFTW_REDFT01 || _kind[lia]==FFTW_RODFT10 || _kind[lia]==FFTW_RODFT01) };
     /**@} */
 
     void disp();

@@ -24,23 +24,23 @@
  * 
  */
 
-#if (KIND == 00)
+#if (KIND == 0)
 /**
- * @brief perform the convolution for complex to complex cases
+ * @brief perform the convolution for real to real cases
  * 
  */
 void Solver::dothemagic_rhs_real(double *data) {
-#elif (KIND == 10)
+#elif (KIND == 1)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
  */
-void Solver::dothemagic_rhs_complex_p1(double *data) {
+void Solver::dothemagic_rhs_complex(double *data) {
 #endif
 
     BEGIN_FUNC;
     int cdim = _ndim - 1;  // get current dim
- 9)
+ #if (KIND==0)
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
 #else
         FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
@@ -75,7 +75,7 @@ void Solver::dothemagic_rhs_complex_p1(double *data) {
             for (size_t ii = 0; ii < inmax; ii++) {
 #if (KIND == 00)
                 dataloc[ii] *= normfact * greenloc[ii];
-#elif (KIND == 10)
+#elif (KIND == 1)
                 const double a = dataloc[ii * 2 + 0];
                 const double b = dataloc[ii * 2 + 1];
                 const double c = greenloc[ii * 2 + 0];

@@ -65,22 +65,16 @@ using namespace std;
  * 
  */
 class Solver {
-    // the memory allocation is assumed to be data[iz][iy][ix]
-    // so the fastest running index is n[0] then n[1] then n[2]
-    // even is the dimension is 2, we allocate arrays of dimension 3
-
    protected:
-   const int _lda ; 
-    int _ndim          = 3;  /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int _fftwalignment = 0;  /**< @brief alignement assumed by the FFTW Solver  */
-    int _orderdiff     = 0 ; /**< @brief the order of derivative (spectral = 1), second order =2 */
-    int _nbr_spectral  = 0;  /**< @brief the number of spectral directions involved */
-    int* _rephase_fact  = NULL;  /**< @brief the total rephase factor is given by (sign(rephase_fact) * i)^(abs(rephase_fact))  */
-
-    double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double  _hgrid[3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double* _data     = NULL;  /**< @brief data pointer to the transposed memory */
+    int     _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
+    int     _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int     _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
+    int     _orderdiff     = 0;     /**< @brief the order of derivative (spectral = 1), second order =2 */
+    int     _nbr_spectral  = 0;     /**< @brief the number of spectral directions involved */
+    double  _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double  _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
+    double  _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
+    double* _data          = NULL;  /**< @brief data pointer to the transposed memory */
 
     /**
      * @name Forward and backward 
@@ -89,7 +83,6 @@ class Solver {
     /**@{ */
     FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
     FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
-    FFTW_plan_dim* _plan_backward_diff[3]; /**< @brief map containing the plans for the backward fft transforms for the differential case */
     Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
@@ -153,24 +146,7 @@ class Solver {
      * @{
      */
     void dothemagic_rhs_real(double *data);
-    void dothemagic_rhs_complex_p1(double *data);
-    void dothemagic_rhs_complex_m1(double *data);
-    void dothemagic_rhs_complex_pi(double *data);
-    void dothemagic_rhs_complex_mi(double *data);
-
-    void dothemagic_rot_real_p1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-    void dothemagic_rot_real_m1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-    void dothemagic_rot_complex_p1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-    void dothemagic_rot_complex_m1(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-    void dothemagic_rot_complex_pi(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-    void dothemagic_rot_complex_mi(const int lia, double *data, const double kfact[3], const double koffset[3], const double symstart[3], const int orderdiff, const bool shift);
-
-    // void dothemagic_div_real_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    // void dothemagic_div_real_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    // void dothemagic_div_complex_p1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    // void dothemagic_div_complex_m1(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    // void dothemagic_div_complex_pi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
-    // void dothemagic_div_complex_mi(double *data, double kfact[3], double koffset[3], double symstart[3], int _orderdiff);
+    void dothemagic_rhs_complex(double *data);
     /**@} */
 
     /**
@@ -185,7 +161,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology *topo, const BoundaryType* mybc[3][2], const double h[3], const double L[3],const int orderDiff, Profiler *prof);
+    Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], const double L[3], Profiler *prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -231,7 +207,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double* field, double* rhs, const SolverType type);
+    void solve(double* field, double* rhs);
     /**@} */
 
     /**
@@ -241,7 +217,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data, const SolverType type);
+    void do_mult(double *data);
     /**@} */
 
     /**

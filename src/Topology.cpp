@@ -194,11 +194,8 @@ void Topology::disp() const {
     FLUPS_INFO(" - nmem = %d %d %d", _nmem[0], _nmem[1], _nmem[2]);
     FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
     FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
-    // FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
     FLUPS_INFO(" - axproc = %d %d %d", _axproc[0], _axproc[1], _axproc[2]);
     FLUPS_INFO(" - isComplex = %d", _nf == 2);
-    // FLUPS_INFO(" - h = %f %f %f",_h[0],_h[1],_h[2]);
-    // FLUPS_INFO(" - L = %f %f %f",_L[0],_L[1],_L[2]);
     FLUPS_INFO("------------------------------------------");
 }
 
@@ -230,105 +227,5 @@ void Topology::disp_rank() {
     }
     flups_free(rankdata);
 #endif
-    END_FUNC;
-}
-
-/**
- * @brief this function shift the current axis by 1 element in the specified component
- * 
- * FLUPS_FORWARD = (-1) shift:
- *      +---+---+---+---+---+---+
- *      | 0 | 1 | 2 | 3 | 4 | 5 |
- *      +---+---+---+---+---+---+
- *  +---+---+---+---+---+---+
- *  | 0 | 1 | 2 | 3 | 4 | 5 |
- *  +---+---+---+---+---+---+
- * 
- * FLUPS_BACKWARD = (+1) shift:
- * +---+---+---+---+---+---+
- * | 0 | 1 | 2 | 3 | 4 | 5 |
- * +---+---+---+---+---+---+
- *     +---+---+---+---+---+---+
- *     | 0 | 1 | 2 | 3 | 4 | 5 |
- *     +---+---+---+---+---+---+
- * 
- * @param sign 
- * @param lia 
- * @param data 
- */
-void Topology::memshift(const int sign,const int lia, double* data){
-    BEGIN_FUNC;
-    FLUPS_CHECK(_nproc[_axis] == 1, "You shouldn't shift the memory in a non continuous direction", LOCATION);
-
-    // get the current axis
-    const int nf  = _nf;
-    const int lda = _lda;
-    const int ax0 = _axis;
-    const int ax1 = (ax0 + 1) % 3;
-    const int ax2 = (ax0 + 2) % 3;
-
-    // compute some of the indexes
-    const int    nmem[3] = {_nmem[0], _nmem[1], _nmem[2]};
-    const size_t sonmax   = _nloc[ax1] * _nloc[ax2] * lia;
-    const size_t eonmax   = _nloc[ax1] * _nloc[ax2] * (lia+1);
-    const size_t inmax   = _nloc[ax0] * nf;
-
-    // put the memory in the correct place
-    if (sign == FLUPS_FORWARD) {
-        if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
-            for (int io = sonmax; io < eonmax; io++) {
-                opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 1);
-                // set the alignment
-                FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-                // if forward we go from nloc-2 to 0 included (sign = -1)
-                for (int ii = (inmax - 2); ii >= 0; ii--) {
-                    // the source id is always the current one
-                    dataloc[ii + 1] = dataloc[ii];
-                }
-                dataloc[0] = 0.0;
-            }
-        } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
-            for (int io = sonmax; io < eonmax; io++) {
-                opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 2);
-                FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-                // if forward we go from nloc-2 to 0 included (sign = -1)
-                for (int ii = (inmax - 3); ii >= 0; ii--) {
-                    // the source id is always the current one
-                    dataloc[ii + 2] = dataloc[ii];
-                }
-                dataloc[0] = 0.0;
-                dataloc[1] = 0.0;
-            }
-        }
-    } else if (sign == FLUPS_BACKWARD) {
-        if (nf == 1) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
-            for (int io = sonmax; io < eonmax; io++) {
-                opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 1);
-                FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-                // if forward we go from nloc-2 to 0 included (sign = -1)
-                for (int ii = 1; ii < inmax; ii++) {
-                    // the source id is always the current one
-                    dataloc[ii - 1] = dataloc[ii];
-                }
-                dataloc[inmax-1] = 0.0;
-            }
-        } else if (nf == 2) {
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(sonmax,eonmax, inmax, data, nmem, ax0)
-            for (int io = sonmax; io < eonmax; io++) {
-                opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, 2);
-                FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-                // if forward we go from nloc-2 to 0 included (sign = -1)
-                for (int ii = 2; ii < inmax; ii++) {
-                    // the source id is always the current one
-                    dataloc[ii - 2] = dataloc[ii];
-                }
-                dataloc[inmax-1] = 0.0;
-                dataloc[inmax-2] = 0.0;
-            }
-        }
-    }
     END_FUNC;
 }

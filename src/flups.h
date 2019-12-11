@@ -73,17 +73,6 @@ enum FLUPS_GreenType {
 };
 
 /**
- * @brief Type of Poisson equation solved
- * 
- */
-enum FLUPS_SolverType {
-    RHS  = 0, /**<@brief scalar or vector \f$ \nabla^2 f = rhs \f$ */
-    ROT  = 1, /**<@brief vector \f$ \nabla^2 f = \nabla \times rhs \f$ */
-    DIV  = 2, /**<@brief scalar \f$ \nabla^2 f = \nabla \cdot rhs \f$ */
-    SOLE = 3  /**<@brief scalar \f$ \nabla^2 a = \nabla \cdot rhs, f = \nabla a \f$ */
-};
-
-/**
  * @brief to be used as "sign" for all of the FORWARD tranform
  * 
  */
@@ -94,13 +83,6 @@ enum FLUPS_SolverType {
  * 
  */
 #define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
-
-/**
- * @brief to be used as "sign" for all of the FORWARD tranform where the input contains a divergence of rotational
- * 
- */
-#define FLUPS_BACKWARD_DIFF 2
-
 
 /**
  * @brief Memory alignment in bytes.
@@ -120,7 +102,6 @@ typedef struct Profiler FLUPS_Profiler;
 
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
-typedef enum FLUPS_SolverType   FLUPS_SolverType;
 
 /**@} */
 
@@ -406,13 +387,13 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3]);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, const FLUPS_BoundaryType bc[3][2], const double h[3], const double L[3], const int orderdiff, FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -452,9 +433,8 @@ double* flups_setup(FLUPS_Solver* s,const bool changeComm);
  * @param s 
  * @param field 
  * @param rhs 
- * @param type 
  */
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs);
 
 /**@} */
 
@@ -544,7 +524,7 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
  * @param data 
  * @param type 
  */
-void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
+void flups_do_mult(FLUPS_Solver* s, double* data);
 
 /**@} */
 

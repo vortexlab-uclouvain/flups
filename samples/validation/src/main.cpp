@@ -43,7 +43,6 @@ const static double              d_L[3]      = {1., 1., 1.};
 const static FLUPS_GreenType     d_kernel    = CHAT_2;
 const static FLUPS_BoundaryType  d_bcdef     = UNB;
 const static int                 d_lda       = 1;
-const static FLUPS_SolverType    d_stype     = RHS;// STD;
 
 static void print_help(){
     printf("This is FLUPS validation code: \n");
@@ -51,7 +50,6 @@ static void print_help(){
     printf(" --nprocs, -np Ni Nj Nk :       Ni,Nj,Nk is the number of MPI processes in each direction\n");
     printf(" --resolution, -res Rx Ry Rz :  Rx,Ry,Rz is the total number of cells in each direction \n");
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
-    printf(" --solver_type, -s stype :      0=RHS, 1=ROT, 2=DIV, 3=SOLE \n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
     printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
@@ -60,7 +58,7 @@ static void print_help(){
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], FLUPS_GreenType *kernel, int *lda, FLUPS_SolverType *stype, int *nsample, int **size, int *nsolve){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], FLUPS_GreenType *kernel, int *lda, int *nsample, int **size, int *nsolve){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -74,8 +72,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
     *nsolve  = d_nsolve;
     *nsample = d_nsample;
     *kernel  = d_kernel;  
-    *lda     = d_lda;  
-    *stype   = d_stype;
+    *lda     = d_lda;
 
     // modifying if necessary
     if(argc < 1 || ( argc==1 && (!argv[0][0] || strcmp(argv[0],"flups_validation"))) ){
@@ -169,14 +166,6 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 return 1;
             }  
             i++;
-        } else if ((arg == "-s") || (arg == "--solver_type")) {
-            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                *stype = (FLUPS_SolverType) atoi(argv[i+1]); 
-            } else { //Missing argument
-                fprintf(stderr, "missing --solver_type\n");
-                return 1;
-            }  
-            i++;
         } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
             for (int j = 0; j<6;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
@@ -209,10 +198,9 @@ int main(int argc, char *argv[]) {
     double L[3];
     int *size = NULL;
     FLUPS_GreenType kernel;
-    FLUPS_SolverType solver_type;
     FLUPS_BoundaryType bcdef[3][2];
     
-    int status = parse_args(argc, argv, nprocs, L, bcdef, &kernel, &lda, &solver_type, &nsample, &size, &nsolve );
+    int status = parse_args(argc, argv, nprocs, L, bcdef, &kernel, &lda, &nsample, &size, &nsolve );
 
     if (status) exit(status);
     if (size==NULL){
@@ -243,7 +231,6 @@ int main(int argc, char *argv[]) {
         printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
         printf("  --kernel: %d\n", kernel);
         printf("  --lda: %d\n", lda);
-        printf("  --solver_type: %d\n", solver_type);
         printf("  --nsolve: %d\n", nsolve);
         for (int i = 0; i < nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
@@ -260,7 +247,7 @@ int main(int argc, char *argv[]) {
             valCase.mybc[ip][0] = bcdef[ip][0];
             valCase.mybc[ip][1] = bcdef[ip][1];
         }
-        validation_3d(valCase, solver_type, kernel, lda, nsolve);
+        validation_3d(valCase, kernel, lda, nsolve);
     }
 
     free(size);
