@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
-    //-----------mak--------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //Definition of the problem
     //-------------------------------------------------------------------------
     const int     nglob[3] = {64, 64, 64};
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const FLUPS_BoundaryType mybc[3][2] = {PER, PER,
+    FLUPS_BoundaryType mybc[3][2] = {PER, PER,
                                             PER, PER,
                                             PER, PER};
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 
     
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L, 1);
+    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L);
     flups_set_greenType(mysolver,CHAT_2);
     double* solFLU = flups_setup(mysolver, true);
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     
     printf("[FLUPS] topo IN glob : %d %d %d \n",flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
-    printf("[FLUPS] topo IN loc : %d*%d*%d = %d (check: %d %d %d)\n",flups_topo_get_nmem(topoIn,0),flups_topo_get_nmem(topoIn,1),flups_topo_get_nmem(topoIn,2),flups_topo_get_memsize(topoIn),flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
+    printf("[FLUPS] topo IN loc : %d*%d*%d = %ld (check: %d %d %d)\n",flups_topo_get_nmem(topoIn,0),flups_topo_get_nmem(topoIn,1),flups_topo_get_nmem(topoIn,2),flups_topo_get_memsize(topoIn),flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
     printf("[FLUPS] topo OUT glob : %d %d %d \n",flups_topo_get_nglob(topoSpec,0),flups_topo_get_nglob(topoSpec,1),flups_topo_get_nglob(topoSpec,2));
     printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d complex?:%d (nloc: %d %d %d)  \n",flups_topo_get_nmem(topoSpec,0),flups_topo_get_nmem(topoSpec,1),flups_topo_get_nmem(topoSpec,2),flups_topo_get_isComplex(topoSpec),flups_topo_get_nloc(topoSpec,0),flups_topo_get_nloc(topoSpec,1),flups_topo_get_nloc(topoSpec,2));
 
@@ -136,14 +136,14 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - Multiplication in spectral space */
     // //-------------------------------------------------------------------------
-    flups_do_mult(mysolver,solFLU,RHS);
+    flups_do_mult(mysolver,solFLU);
 
     // //-------------------------------------------------------------------------
     // /** - Gaussian filtering of the solution */
     // //-------------------------------------------------------------------------
 
     double kfact[3], koffset[3], symstart[3];
-    flups_get_spectralInfo(mysolver,kfact,koffset,symstart);
+    flups_get_spectralInfo(mysolver,kfact,&koffset,symstart);
 
     printf("%lf %lf %lf  %lf %lf %lf  %lf %lf %lf  \n",kfact[0],kfact[1],kfact[2],koffset[0],koffset[1],koffset[2],symstart[0],symstart[1],symstart[2]);
 
