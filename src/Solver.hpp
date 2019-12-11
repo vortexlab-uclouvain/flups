@@ -95,7 +95,6 @@ class Solver {
      * 
      */
     /**@{ */
-    // int       _shiftgreen[3]   = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
     double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
     double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
     GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
@@ -191,14 +190,12 @@ class Solver {
      * @param koffset  add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
      * @param symstart  returns the first index of the symmetry
      */
-    void get_spectralInfo(double kfact[3], double* koffset[3], double symstart[3]) {
+    void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = _plan_forward[ip]->dimID();
             kfact[dimID]    = _plan_forward[ip]->kfact();
             symstart[dimID] = _plan_forward[ip]->symstart();
-            for(int lia=0; lia<_topo_phys->lda(); lia++){
-                koffset[dimID][lia]  = _plan_forward[ip]->koffset(lia);
-            }   
+            koffset[dimID]  = _plan_forward[ip]->koffset();
         }
     }
 

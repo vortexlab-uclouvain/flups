@@ -139,7 +139,7 @@ size_t flups_get_allocSize(FLUPS_Solver* s){
     return(size_t) s->get_allocSize();
 }
 
-void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double* koffset[3], double symstart[3]){
+void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]){
     s->get_spectralInfo(kfact,koffset,symstart);
 }
 

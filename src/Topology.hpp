@@ -142,27 +142,27 @@ class Topology {
      * @{
      */
     void cmpt_sizes();
-
     void memshift(const int sign,const int lia, double* data);
+
     /**
      * @brief returns the scalar local size on this proc, i.e. the number of unknowns for one component
      * 
      * @return size_t 
      */
-    inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
+    inline size_t locsize() const { return (size_t)_nloc[0] * (size_t)_nloc[1] * (size_t)_nloc[2] * (size_t)_nf; }
 
     /**
      * @brief returns the memory size of on this proc for one component
      * 
      * @return size_t 
      */
-    inline size_t memdim() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
+    inline size_t memdim() const { return (size_t)_nmem[0] * (size_t)_nmem[1] *(size_t) _nmem[2] * (size_t)_nf; }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      * 
      * @return size_t 
      */
-    inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf * _lda); }
+    inline size_t memsize() const { return (size_t)_nmem[0] * (size_t)_nmem[1] * (size_t)_nmem[2] * (size_t)_nf * (size_t)_lda; }
 
     /**
      * @brief returns the starting global index on the current proc

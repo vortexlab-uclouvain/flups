@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
 
     double kfact[3], koffset[3], symstart[3];
-    flups_get_spectralInfo(mysolver,kfact,&koffset,symstart);
+    flups_get_spectralInfo(mysolver,kfact,koffset,symstart);
 
     printf("%lf %lf %lf  %lf %lf %lf  %lf %lf %lf  \n",kfact[0],kfact[1],kfact[2],koffset[0],koffset[1],koffset[2],symstart[0],symstart[1],symstart[2]);
 

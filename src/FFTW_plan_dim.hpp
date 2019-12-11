@@ -55,31 +55,43 @@ class FFTW_plan_dim {
         EMPTY  = 18 /**< type empty, i.e. this direction is not used */
     };
 
+    /**
+     * @brief Type of real plan, this will drive the correction step in the execute function
+     * - CORRECTION_NONE: no correction is needed
+     * - CORRECTION_DCT: the correction of a DCT is needed (while going forward, put 0 in the flip-flop mode)
+     * - CORRECTION_DST: the correction of a DST is needed (forward: shift the modes FORWARD and put 0, backward: shift the mode backward)
+     * 
+     */
+    enum PlanCorrectionType{
+        CORRECTION_NONE = 0,
+        CORRECTION_DCT = 1,
+        CORRECTION_DST = 2
+    };
+
    protected:
     const int  _lda;     /**<@brief the dimension of the solver */
     const bool _isGreen; /**< @brief boolean is true if this plan is for a Green's function */
     const int  _dimID;   /**< @brief the dimension of the plan in the field reference */
     const int  _sign;    /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool    _ignoreMode  = false; /**< @brief do we have to ignore a mode in the output? k=0 if _shiftgreen=1 or k=end if _shiftgreen = 0*/
-    bool    _isr2c       = false; /**< @brief is this plan the one that changes to complex?*/
-    bool    _isSpectral  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
-    int     _fftw_stride = 0;     /**<@brief the memory space between two ffts */
-    int     _howmany     = 0;     /**<@brief the number of FFT's to do */
-    int     _fieldstart  = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
-    int     _n_in        = 1;     /**< @brief the number of element in the transform*/
-    int     _n_out       = 1;     /**< @brief the number of element coming out of the transform*/
-    int     _shiftgreen  = 0;     /**< @brief the shift to set in the Green's function when doing the convolution*/
-    double  _symstart    = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double  _normfact    = 1.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double  _volfact     = 1.0;   /**< @brief volume factor*/
-    double  _kfact       = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
-    double* _koffset     = NULL;  /**< @brief additive factor to have the correct k numbers*/
+    bool   _isr2c       = false; /**< @brief is this plan the one that changes to complex?*/
+    bool   _isSpectral  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    int    _fftw_stride = 0;     /**<@brief the memory space between two ffts */
+    int    _howmany     = 0;     /**<@brief the number of FFT's to do */
+    int    _fieldstart  = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
+    int    _n_in        = 1;     /**< @brief the number of element in the transform*/
+    int    _n_out       = 1;     /**< @brief the number of element coming out of the transform*/
+    double _symstart    = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
+    double _normfact    = 1.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double _volfact     = 1.0;   /**< @brief volume factor*/
+    double _kfact       = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
+    double _koffset     = 0.0;   /**< @brief additive factor to have the correct k numbers*/
 
-    PlanType      _type;  /**< @brief type of this plan, see #PlanType*/
-    BoundaryType* _bc[2] = {NULL,NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
+    PlanType            _type;                    /**< @brief type of this plan, see #PlanType*/
+    BoundaryType*       _bc[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
+    PlanCorrectionType* _corrtype = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
 
-    fftw_r2r_kind* _kind = NULL;        /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_r2r_kind* _kind = NULL; /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
     fftw_plan*     _plan = NULL; /**< @brief the array of FFTW plan*/
 
    public:
@@ -89,25 +101,24 @@ class FFTW_plan_dim {
     void init(const int size[3], const bool isComplex);
 
     void allocate_plan(const Topology* topo, double* data);
-    void execute_plan(const Topology *topo, double* data) const;
+    void correct_plan(const Topology*, double* data);
+    void execute_plan(const Topology* topo, double* data) const;
 
     /**
      * @name Getters - return the value
      * 
      */
     /**@{ */
-    inline bool   ignoreMode() const { return _ignoreMode; }
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
     inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
-    inline int    shiftgreen() const { return _shiftgreen; }
     inline int    type() const { return _type; }
     inline double symstart() const { return _symstart; }
     inline double normfact() const { return _normfact; }
     inline double volfact() const { return _volfact; }
     inline double kfact() const { return _kfact; }
-    inline double koffset(const int dim) const { return _koffset[dim]; }
+    inline double koffset() const { return _koffset; }
     inline void   get_outsize(int* size) const { size[_dimID] = _n_out; };
     inline void   get_fieldstart(int* start) const { start[_dimID] = _fieldstart; };
     inline void   get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || _isr2c; };
@@ -116,6 +127,7 @@ class FFTW_plan_dim {
     void disp();
 
    protected:
+    void _check_dataAlign(const Topology* topo, double* data) const;
     /**
      * @name Initialization
      */

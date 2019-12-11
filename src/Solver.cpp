@@ -596,11 +596,6 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
         // determines the fastest rotating index
         int dimID = planmap[ip]->dimID();
 
-        // if we are Green and we have to ignore one mode based on the Green's function
-        if (isGreen && planmap[ip]->ignoreMode()) {
-            size_tmp[dimID] -= 1;
-        }
-
         // we store a new topology BEFORE the plan is executed
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
@@ -623,21 +618,19 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-                // SwitchTopo* tmp = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
 #else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
 #endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
-
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, _prof);
 #else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, _prof);
 #endif
             }
             // #ifdef PERF_VERBOSE
@@ -669,11 +662,6 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             // get the fastest rotating index
             int dimID = planmap[ip]->dimID();  // store the correspondance of the transposition
 
-            // if we had to forget one point for this plan, re-add it
-            if (planmap[ip]->ignoreMode()) {
-                size_tmp[dimID] += 1;
-            }
-
             // get the proc repartition
             if(ip>_ndim-2){
                 //it has to be the same as the field in full spectral
@@ -691,19 +679,8 @@ void Solver::_init_plansAndTopos(const Topology *topo, Topology *topomap[3], Swi
             if (ip < _ndim-1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
                 int fieldstart[3] = {0};
-                // it shouldn't be different from 0 for the moment
+                // it shouldn't be different from 0 for this case since we are doing green, but safety first
                 planmap[ip + 1]->get_fieldstart(fieldstart);
-                // the shift green is taken on the new topo to write to the current_topo
-                const int shift = planmap[ip]->shiftgreen();
-                if (!planmap[ip]->ignoreMode()) {
-                    FLUPS_CHECK(shift == 0, "If no modes are ignored, you cannot ask for a shift!!", LOCATION);
-                } else {
-                    // if we aim at removing a point, we make sure to copy every mode except one
-                    FLUPS_CHECK((topomap[ip]->nglob(dimID) - 1) == current_topo->nglob(dimID) - fieldstart[dimID], "You will copy too much node between the two topos (dimID = %d)", dimID, LOCATION);
-                }
-
-                // store the shift and do the mapping
-                fieldstart[dimID] = -shift;
                 // we do the link between topomap[ip] and the current_topo
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
@@ -895,7 +872,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         if (isSpectral[dimID]) {
             hfact[dimID]   = 0.0;
             kfact[dimID]   = planmap[ip]->kfact();
-            koffset[dimID] = planmap[ip]->koffset(0); // GF has a lda of 1
+            koffset[dimID] = planmap[ip]->koffset(); // GF has a lda of 1
         }
         if (planmap[ip]->type() == FFTW_plan_dim::EMPTY) {
             // kill the hfact to have no influence in the green's functions
@@ -975,10 +952,8 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
 
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = planmap[ip]->dimID();
-
-            istart_cstm[ip]    = isSpectral[ip] ? 1 - planmap[ip]->shiftgreen() : 0;  //avoid rewriting on the part of Green already computed (if there is a shiftgreen, we already skipped that part in the switchTopo)
-            kfact[dimID]       = planmap[ip]->kfact();
-            koffset[dimID]    += planmap[ip]->shiftgreen();  //accounts for shifted modes which affect the value of k
+            istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  //avoid rewriting on the part of Green already computed
+            kfact[dimID]    = planmap[ip]->kfact();
         }
         cmpt_Green_0dirunbounded(topo[2], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
     }
@@ -1036,7 +1011,7 @@ void Solver::_scaleGreenFunction(const Topology *topo, opt_double_ptr data, cons
     END_FUNC;
 }
 
- /**
+/**
  * @brief Finalize the Green function, and make sure it is stored according to the same topo as transformed data in full spectral space.
  * This is done to have the correct shiftgreen for the last plan if required.
  * After this routine, we can delete the green topologies. All we need to know is that now Green is compatible with the last field topo.
@@ -1053,56 +1028,23 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
 
     //simulate that we have done the transforms
     bool isr2c = false;
-    for(int id=0; id<_ndim; id++){
+    for (int id = 0; id < _ndim; id++) {
         isr2c = isr2c || planmap[id]->isr2c();
     }
-    if(isr2c){
+    if (isr2c) {
         topo_field->switch2complex();
     }
 
-    if (planmap[_ndim-1]->ignoreMode()) {
-        const int dimID = planmap[_ndim-1]->dimID();
-        // get the shift
-        int fieldstart[3] = {0};
-        fieldstart[dimID] = -planmap[_ndim-1]->shiftgreen();
-        // we do the link between topo of Green and the field topo
+    FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nloc(0) == topo_field->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nloc(2) == topo_field->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nglob(0) == topo_field->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
 
-        // we have to switch the topofield to the scalar to match the scalar topology of the Green's function
-        if(_lda > 1){
-            topo_field->switch2Scalar();
-        }
-#if defined(COMM_NONBLOCK)
-        SwitchTopo *switchtopo = new SwitchTopo_nb(topo, topo_field, fieldstart, NULL);
-#else
-        SwitchTopo *switchtopo = new SwitchTopo_a2a(topo, topo_field, fieldstart, NULL);
-#endif
-
-        // allocate the topology
-        opt_double_ptr temp_send;
-        opt_double_ptr temp_recv;
-        _allocate_switchTopo(1, &switchtopo, &temp_send, &temp_recv);
-        // execute the switchtopo
-        switchtopo->execute(green, FLUPS_FORWARD);
-        // dallocate everything
-        _deallocate_switchTopo(&switchtopo,&temp_send,&temp_recv);
-        delete(switchtopo);
-
-        // we switch the field back to the vector state
-        if(_lda > 1){
-            topo_field->switch2Vector();
-        }
-    }
-    else{
-        FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nloc(0) == topo_field->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nloc(2) == topo_field->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nglob(0) == topo_field->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
-        FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
-    }
     //coming back (only if the last plan was r2c. No need it if was c2c or r2r...)
-    if(planmap[_ndim-1]->isr2c()){
+    if (planmap[_ndim - 1]->isr2c()) {
         topo_field->switch2real();
     }
     END_FUNC;
@@ -1294,6 +1236,7 @@ void Solver::do_FFT(double *data, const int sign){
             // run the FFT
             if (_prof != NULL) _prof->start("fftw");
             _plan_forward[ip]->execute_plan(_topo_hat[ip], mydata);
+            _plan_forward[ip]->correct_plan(_topo_hat[ip], mydata);
             if (_prof != NULL) _prof->stop("fftw");
             // get if we are now complex
             if (_plan_forward[ip]->isr2c()) {
@@ -1304,6 +1247,7 @@ void Solver::do_FFT(double *data, const int sign){
     else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = _ndim-1; ip >= 0; ip--) {
             if (_prof != NULL) _prof->start("fftw");
+            _plan_backward[ip]->correct_plan(_topo_hat[ip], mydata);
             _plan_backward[ip]->execute_plan(_topo_hat[ip], mydata);
             if (_prof != NULL) _prof->stop("fftw");
             // get if we are now complex
@@ -1327,9 +1271,6 @@ void Solver::do_mult(double *data){
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
 
-    //-------------------------------------------------------------------------
-    /** - Init kfacct, koffset and symstart */
-    //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("domagic");
 
     // every lda is done at once inside the dothemagic functions

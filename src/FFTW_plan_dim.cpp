@@ -117,20 +117,17 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     if (_type == SYMSYM || _type == MIXUNB) {
         // if the solver is SYMSYM or MIXUNB, each dimension has its own plan
         for (int lia = 0; lia < _lda; lia++) {
-            if (_plan[lia] != NULL) fftw_destroy_plan(_plan[lia]);
+            if (_plan != NULL) fftw_destroy_plan(_plan[lia]);
         }
     } else {
         // else, the first plan is the same as all the other ones
-        if (_plan[0] != NULL) fftw_destroy_plan(_plan[0]);
-        for (int lia = 1; lia < _lda; lia++) {
-            _plan[lia] = NULL;
-        }
+        if (_plan != NULL) fftw_destroy_plan(_plan[0]);
     }
     // free the allocated arrays
     if (_bc[0] != NULL) flups_free(_bc[0]);
     if (_bc[1] != NULL) flups_free(_bc[1]);
-    if (_koffset != NULL) flups_free(_koffset);
     if (_kind != NULL) flups_free(_kind);
+    if(_corrtype != NULL) flups_free(_corrtype);
     END_FUNC;
 }
 
@@ -174,24 +171,9 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
     } else if (_type == UNBUNB) {
         _init_unbounded(size, isComplex);
     } else if (_type == EMPTY) {
-        _init_empty(size, isComplex);
         FLUPS_INFO_1("No plan required for this direction");
     }
     END_FUNC;
-}
-
-/**
- * @brief Initialize for an empty plan: setup #_koffset to default value
- * 
- * @param size 
- * @param isComplex 
- */
-void FFTW_plan_dim::_init_empty(const int size[3], const bool isComplex) {
-    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
-
-    for (int lia = 0; lia < _lda; lia++) {
-        _koffset[lia] = 0.0;
-    }
 }
 
 /**
@@ -211,33 +193,25 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart, #_shiftgreen and #__isr2c)  */
+    /** - check that the BC given for the different component are compatible,
+     *    i.e. the size of the transform is the same for every compoment */
     //-------------------------------------------------------------------------
-    if (!_isGreen) {
-        _n_in  = size[_dimID];
-        _n_out = size[_dimID];
-    } else {
-        // if ODD-EVEN or EVEN-ODD the FFT for the Green function would have been DCT Type III
-        // hence on a size of n
-        if (_bc[0] != _bc[1]) {
-            _n_in  = size[_dimID];
-            _n_out = size[_dimID];
-        } else {
-            _n_in       = size[_dimID] + 1;
-            _n_out      = size[_dimID] + 1;
-            _ignoreMode = true;
+    // get if the first dimension asks for a type 4 transform?
+    bool istype4 = _bc[0][0] != _bc[1][0];
+    for(int lia=1; lia<_lda; lia++){
+        // a boundary condition of type4 = left != right has to be the case for EVERY component
+        bool type4 = _bc[0][lia] != _bc[1][lia];
+        if((type4 && !istype4) || (!type4 && istype4) ){
+            FLUPS_ERROR("one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported",LOCATION);
         }
     }
 
+    //-------------------------------------------------------------------------
+    /** - get #_fieldstart, #_isr2c and #_symstart for Green */
+    //-------------------------------------------------------------------------
+    _symstart   = 0;  // if no symmetry is needed, set to 0
     _fieldstart = 0;
-
-    // no switch to complex
     _isr2c      = false;
-
-    //-------------------------------------------------------------------------
-    /** - get the #_symstart if is Green */
-    //-------------------------------------------------------------------------
-    _symstart = 0;  // if no symmetry is needed, set to 0
 
     //-------------------------------------------------------------------------
     /** - update #_normfact factor */
@@ -247,40 +221,76 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms, the #_koffset for each dimension */
     //-------------------------------------------------------------------------
-    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
-    _kind    = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
+    _kind     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
+    _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
 
+    // because of the constrain on the BC, we only the kind argument is linked to the lia
+    // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
+    // yet its easier to read if we set them lda times...
     for (int lia = 0; lia < _lda; lia++) {
         if (_isGreen) {
+            _corrtype[lia] = CORRECTION_NONE;
             // if we are doing odd-even we have to use shifted FFTW plans
-            if (_bc[0][lia] != _bc[1][lia]) {
-                _koffset[lia] = 0.5;
-            }
-            if (_bc[0][lia] == ODD && _bc[1][lia] == ODD) {
-                // if we do a ODD ODD, we have to shift the Green's function
-                _shiftgreen = 1; // we will have to shift the GF
-                _koffset[lia] = 0.0; // the first index = mode 0
+            if ( _bc[0][lia] != _bc[1][lia]) {
+                // we would go for a DCT/DST type III
+                // -> the size of unknows: DST missing first point, DCT missing last one
+                _n_in  = size[_dimID];
+                _n_out = size[_dimID];
+                // -> the modes are shifted by 1/2
+                _koffset = 0.5;
+            } else {
+                // we go for DST/DCT of type I or III
+                // -> we have to add one information because of the vertex-centered
+                _n_in  = size[_dimID] + 1;
+                _n_out = size[_dimID] + 1;
+                // no shift in the mode is required
+                _koffset = 0.0;
             }
             return;
         } else if (_bc[0][lia] == EVEN) {  // We have a DCT
+            // the information coming in does not change
+            _n_in  = size[_dimID];
+
             if (_bc[1][lia] == EVEN) {
+                // -> we add the flip-flop mode by hand
+                _n_out = size[_dimID] + 1;
+                // the correction is the one of the DCT = put 0 in the flip-flop mode
+                 _corrtype[lia] = CORRECTION_DCT;
+                 _koffset = 0.0;
+                // choose the correct type
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
-                _koffset[lia] = 0.0;
             } else if (_bc[1][lia] == ODD) {
+                // no additional mode is required
+                _n_out = size[_dimID];
+                // no correction is needed for the types 4 but an offset of 1/2 in fourier
+                _corrtype[lia] = CORRECTION_NONE;
+                _koffset = 0.5;
+                // always the samed DCT
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT11;   // DCT type IV
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT11;  // DCT type IV
-                _koffset[lia] = 0.5;
             }
         } else if (_bc[0][lia] == ODD) {  // We have a DST
+        // the information coming in does not change
+            _n_in  = size[_dimID];
             if (_bc[1][lia] == ODD) {
+                // -> we add the 0 mode by hand
+                _n_out = size[_dimID] + 1;
+                // the correction is the one of the DST = put 0 in the 0 mode
+                 _corrtype[lia] = CORRECTION_DST;
+                 _koffset = 0.0;
+                 // always the correct DST
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
-                _koffset[lia] = 1.0;
             } else if (_bc[1][lia] == EVEN) {
+                // no additional mode is required
+                _n_out = size[_dimID];
+                // no correction is needed for the types 4 but an offset of 1/2 in fourier
+                _corrtype[lia] = CORRECTION_NONE;
+                _koffset = 0.5;
+                // always the samed DST
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT11;   // DST type IV
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT11;  // DST type IV
-                _koffset[lia] = 0.5;
             }
         } else {
             FLUPS_ERROR("unable to init the solver required", LOCATION);
@@ -306,19 +316,8 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
-    /** - get the memory details (#_n_in, #_n_out, #_fieldstart and #__isr2c)  */
+    /** - get the memory details: #_fieldstart and #_isr2c */
     //-------------------------------------------------------------------------
-    if (!_isGreen) {
-        _n_in  = 2 * size[_dimID];
-        _n_out = 2 * size[_dimID];
-    } else if (_isGreen) {
-        //Different because the Green's function is to be seen as "vertex centered",
-        //as opposed to data which are "cell cenetered".
-        _n_in       = 2 * size[_dimID] + 1;
-        _n_out      = 2 * size[_dimID] + 1;
-        _ignoreMode = true;
-    }
-
     _isr2c = false;
 
     if (_isGreen)
@@ -340,32 +339,44 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     _normfact *= 1.0 / (4.0 * size[_dimID]);
 
     //-------------------------------------------------------------------------
-    /** - Get the #_kind of Fourier transforms and #_shiftgreen */
+    /** - Get the #_kind of Fourier transforms */
     //-------------------------------------------------------------------------
-    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
-    _kind    = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
+    _kind     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
+    _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
 
-    for (int lia=0; lia < _lda; lia++) {
+    for (int lia = 0; lia < _lda; lia++) {
         if (_isGreen) {
-            _koffset[lia] = 0.0;
-
-            // set the shiftg Green to 1 if we do ODD-ODD bc
-            if ((_bc[0][lia] == UNB && _bc[1][lia] == ODD) || (_bc[0][lia] == ODD && _bc[1][lia] == UNB)) {
-                _shiftgreen = 1;
-            }
+            // the sizes have to be augmented by 1 compared to the cell-centered approach
+            _n_in  = 2 * size[_dimID] + 1;
+            _n_out = 2 * size[_dimID] + 1;
+            // since we do a pure DCT/DST, no offset
+            _koffset = 0.0;
+            // no correction is needed
+            _corrtype[lia] = CORRECTION_NONE;
             // The Green function is ALWAYS EVEN - EVEN
             if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT00;  // DCT type I
             if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT00;
 
         } else {
+            // we double the size of the data
+            _n_in = 2 * size[_dimID];
+            // we add a mode for the outgoing dct/dst
+            _n_out = 2 * size[_dimID] + 1;
+            // no offset after the correction
+            _koffset = 0.0;
+
             if ((_bc[0][lia] == EVEN && _bc[1][lia] == UNB) || (_bc[0][lia] == UNB && _bc[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
+                // we need a DCT correction
+                _corrtype[lia] = CORRECTION_DCT;
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
-                _koffset[lia] = 0.0;
+
             } else if ((_bc[0][lia] == UNB && _bc[1][lia] == ODD) || (_bc[0][lia] == ODD && _bc[1][lia] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
+                                                                                                                    // we need a DST correction
+                _corrtype[lia] = CORRECTION_DST;
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
-                _koffset[lia] = 1.0;
+                _koffset = 0.0;
             } else {
                 FLUPS_ERROR("unable to init the solver required", LOCATION);
             }
@@ -401,7 +412,6 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     }
     
     _fieldstart = 0;
-    _shiftgreen = 0;
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -419,9 +429,9 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - Get the #_koffset factor */
     //-------------------------------------------------------------------------
-    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
     for (int lia = 0; lia < _lda; lia++) {
-        _koffset[lia] = 0.0;
+        _corrtype[lia] = CORRECTION_NONE;
     }
     END_FUNC;
 }
@@ -465,9 +475,9 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - Get the #_koffset factor */
     //-------------------------------------------------------------------------
-    _koffset = (double*)flups_malloc(sizeof(double) * _lda);
+    _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
     for (int lia = 0; lia < _lda; lia++) {
-        _koffset[lia] = 0.0;
+        _corrtype[lia] = CORRECTION_NONE;
     }
     END_FUNC;
 }
@@ -548,7 +558,7 @@ void FFTW_plan_dim::_allocate_plan_real(const Topology *topo, double* data) {
     // allocate the plan
     _plan =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * _lda);
 
-    // we initiate the plan
+    // we initiate the plan with the size #_n_in, because this is the real number of data needed
     for (int lia = 0; lia < _lda; lia++) {
         if (topo->nf() == 1) {
             _fftw_stride = memsize[_dimID];
@@ -682,21 +692,128 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
 }
 
 /**
+ * @brief check that every starting pointer in a direction is well-aligned for the FFTW requirement
+ * 
+ * @warning to access the memory, we cannot use #_howmany since it is based on the local size of the topo on the input.
+ * Then, we have to use the memdim() function of the Topology
+ * 
+ * @param topo 
+ * @param data 
+ */
+void FFTW_plan_dim::_check_dataAlign(const Topology* topo, double* data) const {
+#ifndef NDEBUG
+    const size_t howmany = _howmany;
+    const size_t onmax   = _howmany * _lda;
+    const size_t memdim = topo->memdim();
+
+    for (size_t id = 0; id < onmax; id++) {
+        // get the current index
+        size_t io = id%_howmany;
+        size_t lia = id/_howmany;
+        // get the memory
+        double* mydata;
+        if (_type == SYMSYM || _type == MIXUNB) {
+            mydata = data + lia* memdim + io * _fftw_stride;
+        } else if (_type == PERPER || _type == UNBUNB) {
+            if (_isr2c) {
+                mydata = data + lia* memdim + io * _fftw_stride;
+            } else {
+                mydata = data + lia* memdim + io * _fftw_stride * 2;
+            }
+        }
+        // check the alignment
+        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
+    }
+#endif
+}
+
+/**
+ * @brief corrects the plan executed depending on #_corrtype and #_sign.
+ * 
+ * This function resets the correct mode at the correct place in the Topology
+ * If going forward:
+ * - the DST correction sets the 0-mode to 0 and shifts the modes by 1 on the right  (i-> i+1)
+ * - the DCT correction sets the flip-flop mode to 0
+ * 
+ * If going backward:
+ * - the DCT correction is not needed
+ * - the DST correction shifts the mode to the left (i-> i-1)
+ * 
+ * @param data 
+ */
+void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
+    // check the data alignment
+    _check_dataAlign(topo,data);
+
+    const int    nloc        = topo->nloc(topo->axis());
+    const size_t howmany     = _howmany;
+    const size_t memdim      = topo->memdim();
+    const size_t fftw_stride = (size_t)_fftw_stride;
+
+    for (int lia = 0; lia < _lda; lia++) {
+        // get the starting point of the
+        opt_double_ptr mydata = data + lia * memdim;
+
+        // if we need a DCT correction and that we are doing forward (backward doesn't matter)
+        if (_corrtype[lia] == CORRECTION_DCT && _sign == FLUPS_FORWARD) {
+            // we need to enforce the flip-flop mode to be zero and that's it
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(data, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr mydata = (double*)data + io * fftw_stride;
+                // reset the flip-flop mode
+                mydata[nloc - 1]       = 0.0;
+            }
+        }
+        else if(_corrtype[lia] == CORRECTION_DST && _sign == FLUPS_FORWARD){
+            // we need to enforce the the mode 0 + shift everything from i to i+1
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(data, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr mydata = (double*)data + io * fftw_stride;
+                // shift everything i -> i+1
+                for(int ii=nloc-2; ii >= 0; ii--){
+                    mydata[ii+1] = mydata[ii];
+                }
+                mydata[0] = 0.0;
+            }
+
+        }
+        else if(_corrtype[lia] == CORRECTION_DST && _sign == FLUPS_BACKWARD){
+            // we need to enforce the the mode 0 + shift everything from i to i-1
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(data, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr mydata = (double*)data + io * fftw_stride;
+                // shift everything i -> i+1
+                for(int ii=1; ii < nloc; ii++){
+                    mydata[ii-1] = mydata[ii];
+                }
+            }
+
+        }
+    }
+}
+
+/**
  * @brief Executes the plan for a given Topology on a given data
  * 
  * The transform is done in-place on the data array
  * Every transform is done as a 1 thread 1d transform.
  * The multi-threading is used to perfom several FFT's at once
  * 
+ * @warning to access the memory, we cannot use #_howmany since it is based on the local size of the topo on the input.
+ * Then, we have to use the memdim() function of the Topology
+ * 
  */
-void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
+void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!_isSpectral,"Trying to execute a plan for data which is already spectral", LOCATION);
-    FLUPS_CHECK(topo->lda() == _lda,"The given topology's lda does not match with the initialisation one",LOCATION);
+    FLUPS_CHECK(!_isSpectral, "Trying to execute a plan for data which is already spectral", LOCATION);
+    FLUPS_CHECK(topo->lda() == _lda, "The given topology's lda does not match with the initialisation one", LOCATION);
 
     if (_type == SYMSYM) {
-        FLUPS_INFO(">> Doing plan real2real for dim %d with lda = %d", _dimID);
+        FLUPS_INFO(">> Doing plan real2real for dim %d", _dimID);
     } else if (_type == MIXUNB) {
         FLUPS_INFO(">> Doing plan mix for dim %d", _dimID);
     } else if (_type == PERPER) {
@@ -712,42 +829,26 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
     const size_t howmany     = _howmany;
     const size_t onmax       = _howmany * _lda;
     const size_t fftw_stride = (size_t)_fftw_stride;
+    const size_t memdim      = topo->memdim();
     // get the plan pointer
     const fftw_plan* plan = _plan;
 
     //-------------------------------------------------------------------------
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
     //-------------------------------------------------------------------------
-
-#ifndef NDEBUG
-    for (int id = 0; id < howmany; id++) {
-        // get the memory
-        double* mydata;
-        if (_type == SYMSYM || _type == MIXUNB) {
-            mydata = (double*)data + id * fftw_stride;
-        } else if (_type == PERPER || _type == UNBUNB) {
-            if (_isr2c) {
-                mydata = (double*)data + id * fftw_stride;
-            } else {
-                mydata = (double*)data + id * fftw_stride * 2;
-            }
-        }
-        // check the alignment
-        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
-    }
-#endif
+    _check_dataAlign(topo,data);
 
     //-------------------------------------------------------------------------
     /** - run the plan on each FFT  */
     //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (_type == SYMSYM || _type == MIXUNB) {  // R2R
-        // we can be complex or real (see allocate_real) but fftw_stride contains the correct info
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
         for (size_t id = 0; id < onmax; id++) {
             size_t lia = id / howmany;
+            size_t io  = id % howmany;
             // get the memory
-            double* mydata = (double*)data + id * fftw_stride;
+            double* mydata = (double*)data + lia * memdim + io * fftw_stride;
             // execute the plan on it
             fftw_execute_r2r(plan[lia], (double*)mydata, (double*)mydata);
         }
@@ -755,22 +856,23 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
         if (_isr2c) {
             if (_sign == FLUPS_FORWARD) {  // DFT - R2C
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage", LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
+                    size_t io  = id % howmany;
                     // get the memory
-                    double* mydata = (double*)data + id * fftw_stride;
+                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
                     fftw_execute_dft_r2c(plan[lia], (double*)mydata, (fftw_complex*)mydata);
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
-                    // get the memory
+                    size_t io  = id % howmany;
                     // WARNING the stride is given in the input size =  REAL => id * _fftw_stride/2 * nf = id * _fftw_stride
-                    double* mydata = (double*)data + id * fftw_stride;
+                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
                     fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata, (double*)mydata);
                 }
@@ -778,11 +880,12 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
 
         } else {  // DFT
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
             for (size_t id = 0; id < onmax; id++) {
                 size_t lia = id / howmany;
-                // get the memory with nf = 2
-                double* mydata = (double*)data + id * fftw_stride * 2;
+                size_t io  = id % howmany;
+                // we access complex info with a fftw_stride real
+                double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
                 // execute the plan on it
                 fftw_execute_dft(plan[lia], (fftw_complex*)mydata, (fftw_complex*)mydata);
             }
@@ -860,7 +963,6 @@ void FFTW_plan_dim::disp() {
     FLUPS_INFO("- n_in       = %d", _n_in);
     FLUPS_INFO("- n_out      = %d", _n_out);
     FLUPS_INFO("- fieldstart = %d", _fieldstart);
-    FLUPS_INFO("- shiftgreen = %d", _shiftgreen);
     FLUPS_INFO("- isSpectral ? %d", _isSpectral);
     if (_sign == FLUPS_FORWARD) {
         FLUPS_INFO("- FORWARD plan");
