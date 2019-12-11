@@ -658,7 +658,6 @@ void FFTW_plan_dim::_allocate_plan_complex(const Topology *topo, double* data) {
         } else if (_type == UNBUNB) {
             FLUPS_INFO("## C2C plan created for plan unbounded (=%d)", _type);
         }
-        // FLUPS_INFO("orderedID = %d",_orderID);
         if (_sign == FLUPS_FORWARD) {
             FLUPS_INFO("FORWARD transfrom");
         } else if (_sign == FLUPS_BACKWARD) {
@@ -723,7 +722,16 @@ void FFTW_plan_dim::execute_plan(const Topology *topo, double* data) const {
 #ifndef NDEBUG
     for (int id = 0; id < howmany; id++) {
         // get the memory
-        double* mydata = (double*)data + id * fftw_stride;
+        double* mydata;
+        if (_type == SYMSYM || _type == MIXUNB) {
+            mydata = (double*)data + id * fftw_stride;
+        } else if (_type == PERPER || _type == UNBUNB) {
+            if (_isr2c) {
+                mydata = (double*)data + id * fftw_stride;
+            } else {
+                mydata = (double*)data + id * fftw_stride * 2;
+            }
+        }
         // check the alignment
         FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, _fftw_stride, LOCATION);
     }

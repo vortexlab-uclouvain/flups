@@ -14,9 +14,12 @@ export OMP_NUM_THREADS=${MY_NTHREADS}
 
 echo "----------------- Load modules -----------------"
 module purge
-module load intel/2018.4
-module load impi/2018.4
-module load mkl/2018.4
+# module load intel/2018.4
+# module load impi/2018.4
+# module load mkl/2018.4
+module laod intel/2017.4
+module load impi/2017.4
+
 module load hdf5/1.10.5
 module load fftw/3.3.6
 module list

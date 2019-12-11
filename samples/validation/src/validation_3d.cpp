@@ -370,11 +370,20 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::memset(err2 , 0, sizeof(double) * lda);
     std::memset(erri , 0, sizeof(double) * lda);
 
+    //determine the volume associated to a mesh
+    double vol = 1.0;
+    for (int id = 0; id < 3; id++) {
+        if (mybc[id][0] != NONE && mybc[id][1] != NONE) {
+            vol *= h[id];
+        }
+    }
+
     {
         const int ax0     = flups_topo_get_axis(topo);
         const int ax1     = (ax0 + 1) % 3;
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo,0),flups_topo_get_nmem(topo,1), flups_topo_get_nmem(topo,2)};
+<<<<<<< HEAD
         for (int lia = 0; lia < lda; lia++){
             for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
@@ -385,6 +394,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                         lerri[lia] = max(lerri[lia], fabs(err));
                         lerr2[lia] += (err * err) * h[0] * h[1] * h[2];
                     }
+=======
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
+                    const size_t id = flups_locID(ax0, i0, i1, i2, ax0, nmem, 1);
+                    const double err = sol[id] - field[id];
+
+                    lerri = max(lerri, fabs(err));
+                    lerr2 += (err * err) * vol;
+>>>>>>> master
                 }
             }
         }
