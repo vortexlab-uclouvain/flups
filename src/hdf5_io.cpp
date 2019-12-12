@@ -128,7 +128,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
     // setup the property list = option list
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    hsize_t chk_dim[4] = {8, 8, 8, 1};
+    hsize_t chk_dim[4] = {std::min(8,field_dims[0]), std::min(8,field_dims[1]), std::min(8,field_dims[2]), 1};
     H5Pset_chunk(plist_id, 4, chk_dim);
 
     // create dataset and dataspace = the whole hard memory reserved for the file
