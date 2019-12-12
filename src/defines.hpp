@@ -471,7 +471,6 @@ static inline void flups_mem_free(void* data) {
 
 typedef enum FLUPS_BoundaryType BoundaryType;
 typedef enum FLUPS_GreenType    GreenType;
-typedef enum FLUPS_SolverType   SolverType;
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);

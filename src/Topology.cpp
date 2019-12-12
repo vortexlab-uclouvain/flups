@@ -29,6 +29,7 @@
  * @brief Construct a new Topology
  * 
  * @param nf the number of field (eg: real = 1, complex = 2)
+ * @param lda leading dimension of array=the number of components (eg scalar=1, vector=3)
  * @param axis the dimension of the fastest rotating index (eg: 0, 1 or 2)
  * @param nglob the global size per dim
  * @param nproc the number of proc per dim
@@ -40,10 +41,11 @@
  * If the MPI comm is associated with a MPI_CART topology, axproc is ignored and we use the MPI routines to determine the 3D rank from the global rank (and vice versa).
  * 
  */
-Topology::Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
+Topology::Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):_alignment(alignment) {
     BEGIN_FUNC;
 
     _comm = comm;
+    _lda  = lda;
 
     int comm_size, rank;
     MPI_Comm_size(_comm,&comm_size);
@@ -99,7 +101,7 @@ void Topology::cmpt_sizes() {
         // we get the max between the nglob and
         _nloc[id] = cmpt_nbyproc(id);
         _nmem[id] = _nloc[id];
-        // if we are in the axis and the last proc, we padd to ensure that every pencil is ok with alignment
+        // if we are in the axis and the last proc, we pad to ensure that every pencil is ok with alignment
         // if (id == _axis && _rankd[id] == (_nproc[id] - 1)) {
         if (id == _axis) {
             // compute by how many we are not aligned: the global size in double = nglob * nf
@@ -187,16 +189,14 @@ void Topology::disp() const {
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topology created on proc %d/%d", rank, comm_size);
     FLUPS_INFO(" - axis = %d", _axis);
+    FLUPS_INFO(" - lda = %d", _lda);
     FLUPS_INFO(" - nglob = %d %d %d", _nglob[0], _nglob[1], _nglob[2]);
     FLUPS_INFO(" - nloc = %d %d %d", _nloc[0], _nloc[1], _nloc[2]);
     FLUPS_INFO(" - nmem = %d %d %d", _nmem[0], _nmem[1], _nmem[2]);
     FLUPS_INFO(" - nproc = %d %d %d", _nproc[0], _nproc[1], _nproc[2]);
     FLUPS_INFO(" - rankd = %d %d %d", _rankd[0], _rankd[1], _rankd[2]);
-    // FLUPS_INFO(" - nbyproc = %d %d %d", _nbyproc[0], _nbyproc[1], _nbyproc[2]);
     FLUPS_INFO(" - axproc = %d %d %d", _axproc[0], _axproc[1], _axproc[2]);
     FLUPS_INFO(" - isComplex = %d", _nf == 2);
-    // FLUPS_INFO(" - h = %f %f %f",_h[0],_h[1],_h[2]);
-    // FLUPS_INFO(" - L = %f %f %f",_L[0],_L[1],_L[2]);
     FLUPS_INFO("------------------------------------------");
 }
 

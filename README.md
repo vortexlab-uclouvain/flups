@@ -148,12 +148,13 @@ flups_free(data);
 To use the solver, you first need to create a topology
 ```cpp
 int  axis      = 0;              // aligned along the first dimension
+int  lda       = 1;              // scalar field
 int  nglob[3]  = {64, 128, 64};  // global size of 64x64x64
 int  nproc[3]  = {2, 1, 3};      // 6 procs; 2 x 1 x 3
 bool isComplex = false;          // real data
 
 // no specific alignement => we put a value of 1
-FLUPS_Topology *topo = flups_topo_new(axis, nglob, nproc, isComplex, NULL, 1, MPI_COMM_WORLD);
+FLUPS_Topology *topo = flups_topo_new(axis, lda, nglob, nproc, isComplex, NULL, 1, MPI_COMM_WORLD);
 
 // define additional quantities
 double L = {1.0, 2.0, 1.0};
@@ -173,7 +174,7 @@ flups_setup(mysolver,false);
 
 To solve a field `rhs` that has been defined on the topology, use
 ```cpp
-flups_solve(mysolver,rhs, rhs, SRHS);
+flups_solve(mysolver,rhs, rhs);
 ```
 
 Then, destroy the solver and the created topology

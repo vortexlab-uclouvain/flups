@@ -65,21 +65,16 @@ using namespace std;
  * 
  */
 class Solver {
-    // the memory allocation is assumed to be data[iz][iy][ix]
-    // so the fastest running index is n[0] then n[1] then n[2]
-    // even is the dimension is 2, we allocate arrays of dimension 3
-
    protected:
-    int _ndim          = 3; /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int _fftwalignment = 0; /**< @brief alignement assumed by the FFTW Solver  */
-    int _orderdiff     = 0; /**< @brief the order of derivative (spectral = 0)  */
-    int _nbr_imult     = 0; /**< @brief the number of time we have applied a DST transform */
-    int _nbr_spectral  = 0; /** @brief the number of spectral directions involved     */
-
-    double  _normfact = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double  _volfact  = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double  _hgrid[3] = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double* _data     = NULL;  /**< @brief data pointer to the transposed memory */
+    int     _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
+    int     _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int     _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
+    int     _orderdiff     = 0;     /**< @brief the order of derivative (spectral = 1), second order =2 */
+    int     _nbr_spectral  = 0;     /**< @brief the number of spectral directions involved */
+    double  _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double  _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
+    double  _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
+    double* _data          = NULL;  /**< @brief data pointer to the transposed memory */
 
     /**
      * @name Forward and backward 
@@ -100,7 +95,6 @@ class Solver {
      * 
      */
     /**@{ */
-    // int       _shiftgreen[3]   = {0, 0, 0}; /**< @brief the shift in the Green's function which chose to take the flip-flop mode or not */
     double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
     double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
     GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
@@ -151,10 +145,7 @@ class Solver {
      * @{
      */
     void dothemagic_rhs_real(double *data);
-    void dothemagic_rhs_complex_nmult0(double *data);
-    void dothemagic_rhs_complex_nmult1(double *data);
-    void dothemagic_rhs_complex_nmult2(double *data);
-    void dothemagic_rhs_complex_nmult3(double *data);
+    void dothemagic_rhs_complex(double *data);
     /**@} */
 
     /**
@@ -169,13 +160,15 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, const BoundaryType mybc[3][2], const double h[3], const double L[3],Profiler* prof);
+    Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], const double L[3], Profiler *prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
-    void set_OrderDiff(const int order) { _orderdiff = order; }
     const Topology* get_innerTopo_physical() ;
     const Topology* get_innerTopo_spectral() ;
+
+
+    // void set_OrderDiff(const int order);
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)
@@ -201,8 +194,8 @@ class Solver {
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = _plan_forward[ip]->dimID();
             kfact[dimID]    = _plan_forward[ip]->kfact();
-            koffset[dimID]  = _plan_forward[ip]->koffset();
             symstart[dimID] = _plan_forward[ip]->symstart();
+            koffset[dimID]  = _plan_forward[ip]->koffset();
         }
     }
 
@@ -211,7 +204,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double* field, double* rhs, const SolverType type);
+    void solve(double* field, double* rhs);
     /**@} */
 
     /**
@@ -221,7 +214,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data, const SolverType type);
+    void do_mult(double *data);
     /**@} */
 
     /**
