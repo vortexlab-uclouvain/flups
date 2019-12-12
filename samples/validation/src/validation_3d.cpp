@@ -391,7 +391,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                         const double err = sol[id] - field[id];
 
                         lerri[lia] = max(lerri[lia], fabs(err));
-                        lerr2[lia] += (err * err) * h[0] * h[1] * h[2];
+                        lerr2[lia] += (err * err) * vol;
                     }
                 }
             }
