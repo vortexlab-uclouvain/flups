@@ -57,10 +57,6 @@ void Solver::dothemagic_rhs_complex(double *data) {
     // get the adresses
     opt_double_ptr       mydata   = data;
     const opt_double_ptr mygreen  = _green;
-    FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-    FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-    FLUPS_ASSUME_ALIGNED(mydata, FLUPS_ALIGNMENT);
-    FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
 
     // get the number of pencils for the field and green
     const size_t onmax = _topo_hat[cdim]->nloc(ax1) * _topo_hat[cdim]->nloc(ax2) * _topo_hat[cdim]->lda();
@@ -69,6 +65,12 @@ void Solver::dothemagic_rhs_complex(double *data) {
     // get the memory details
     const size_t memdim  = _topo_hat[cdim]->memdim();
     const int    nmem[3] = {_topo_hat[cdim]->nmem(0), _topo_hat[cdim]->nmem(1), _topo_hat[cdim]->nmem(2)};
+
+    // check the alignment
+    FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * _topo_hat[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+    FLUPS_ASSUME_ALIGNED(mydata, FLUPS_ALIGNMENT);
+    FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf)
