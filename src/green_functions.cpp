@@ -206,7 +206,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_CHECK(hfact[3] == 0.0, "This LGF cannot be called in a 3D problem",LOCATION);
+            FLUPS_CHECK(hfact[3] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3],LOCATION);
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
             // read the LGF data and store it
             _lgf_readfile(2,&GN, &Gdata);
