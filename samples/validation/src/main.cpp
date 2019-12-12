@@ -56,9 +56,11 @@ static void print_help(){
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
+    printf(" --boundary-conditionv, -bcv     \n ");
+    printf("     3 x (Bxl Bxr Byl Byr Bzl Bzr) : the boundary conditions in x/y/z on each side l/r, 3 times for each component. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2], FLUPS_GreenType *kernel, int *lda, int *nsample, int **size, int *nsolve){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2],  FLUPS_BoundaryType bcdefv[3][2][3], FLUPS_GreenType *kernel, int *lda, int *nsample, int **size, int *nsolve){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -68,6 +70,13 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
         L[i]        = d_L[i];
         bcdef[i][0] = d_bcdef;
         bcdef[i][1] = d_bcdef;
+
+        bcdefv[i][0][0] = NONE;
+        bcdefv[i][0][1] = NONE;
+        bcdefv[i][0][2] = NONE;
+        bcdefv[i][1][0] = NONE;
+        bcdefv[i][1][1] = NONE;
+        bcdefv[i][1][2] = NONE;
     }
     *nsolve  = d_nsolve;
     *nsample = d_nsample;
@@ -176,6 +185,17 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 }  
             }
             i+=6;
+        }
+         else if ((arg == "-bcv")|| (arg== "--boundary-conditionsv") ) {
+            for (int j = 0; j<18;j++){
+                if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
+                    bcdefv[(j/2)%3][j%2][j/6] = (FLUPS_BoundaryType) atoi(argv[i+j+1]); 
+                } else { //Missing argument
+                    fprintf(stderr, "missing argument in --boundary-conditions\n");
+                    return 1;
+                }  
+            }
+            i+=18;
         } 
     }
     
@@ -199,8 +219,9 @@ int main(int argc, char *argv[]) {
     int *size = NULL;
     FLUPS_GreenType kernel;
     FLUPS_BoundaryType bcdef[3][2];
+    FLUPS_BoundaryType bcdefv[3][2][3];
     
-    int status = parse_args(argc, argv, nprocs, L, bcdef, &kernel, &lda, &nsample, &size, &nsolve );
+    int status = parse_args(argc, argv, nprocs, L, bcdef, bcdefv, &kernel, &lda, &nsample, &size, &nsolve );
 
     if (status) exit(status);
     if (size==NULL){
@@ -222,23 +243,9 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Do the validation
-
-    // Display
-    if (rank == 0) {
-        printf("I will run with:\n");
-        printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
-        printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
-        printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
-        printf("  --kernel: %d\n", kernel);
-        printf("  --lda: %d\n", lda);
-        printf("  --nsolve: %d\n", nsolve);
-        for (int i = 0; i < nsample; i++) {
-            printf("   -> sample %d: %d %d %d\n", i + 1, size[i*3], size[i*3+1], size[i*3+2]);
-        }
-    }
-
+    struct DomainDescr valCase;
     for (int is = 0; is < nsample; is++) {
-        struct DomainDescr valCase;
+        valCase.dovectorbc = (bcdefv[0][0][0] != NONE);
 
         for (int ip = 0; ip < 3; ip++) {
             valCase.L[ip]       = L[ip];
@@ -246,9 +253,38 @@ int main(int argc, char *argv[]) {
             valCase.nglob[ip]   = size[is*3+ip];
             valCase.mybc[ip][0] = bcdef[ip][0];
             valCase.mybc[ip][1] = bcdef[ip][1];
+
+            valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
+            valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
+            valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
+            valCase.mybcv[ip][1][0] = bcdefv[ip][1][0];
+            valCase.mybcv[ip][1][1] = bcdefv[ip][1][1];
+            valCase.mybcv[ip][1][2] = bcdefv[ip][1][2];
         }
-        validation_3d(valCase, kernel, lda, nsolve);
     }
+
+    // Display
+    if (rank == 0) {
+        printf("I will run with:\n");
+        printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
+        printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
+        if (!valCase.dovectorbc) {
+            printf("  -bc: %d,%d ; %d,%d ; %d,%d\n", bcdef[0][0], bcdef[0][1], bcdef[1][0], bcdef[1][1], bcdef[2][0], bcdef[2][1]);
+        } else {
+            printf("  -bcv: [%d,%d ; %d,%d ; %d,%d],[%d,%d ; %d,%d ; %d,%d],[%d,%d ; %d,%d ; %d,%d]\n", bcdefv[0][0][0], bcdefv[0][1][0], bcdefv[1][0][0], bcdefv[1][1][0], bcdefv[2][0][0], bcdefv[2][1][0],
+                   bcdefv[0][0][1], bcdefv[0][1][1], bcdefv[1][0][1], bcdefv[1][1][1], bcdefv[2][0][1], bcdefv[2][1][1],
+                   bcdefv[0][0][2], bcdefv[0][1][2], bcdefv[1][0][2], bcdefv[1][1][2], bcdefv[2][0][2], bcdefv[2][1][2]);
+        }
+        printf("  --kernel: %d\n", kernel);
+        printf("  --lda: %d\n", lda);
+        printf("  --nsolve: %d\n", nsolve);
+        for (int i = 0; i < nsample; i++) {
+            printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
+        }
+    }
+
+    // let's gooo
+    validation_3d(valCase, kernel, lda, nsolve);
 
     free(size);
 

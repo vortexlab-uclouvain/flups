@@ -189,6 +189,7 @@ void Topology::disp() const {
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topology created on proc %d/%d", rank, comm_size);
     FLUPS_INFO(" - axis = %d", _axis);
+    FLUPS_INFO(" - lda = %d", _lda);
     FLUPS_INFO(" - nglob = %d %d %d", _nglob[0], _nglob[1], _nglob[2]);
     FLUPS_INFO(" - nloc = %d %d %d", _nloc[0], _nloc[1], _nloc[2]);
     FLUPS_INFO(" - nmem = %d %d %d", _nmem[0], _nmem[1], _nmem[2]);

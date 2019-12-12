@@ -55,12 +55,13 @@ static const double c_1osqrt2 = 1.0 / M_SQRT2;
 
 static const double c_2pi = 2.0 * M_PI;
 
-
 struct DomainDescr {
-    int          nglob[3]   = {64, 64, 64};
-    int          nproc[3]   = {1, 2, 2};
-    double       L[3]       = {1.0, 1.0, 1.0};
-    FLUPS_BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+    bool               dovectorbc     = false;
+    int                nglob[3]       = {64, 64, 64};
+    int                nproc[3]       = {1, 2, 2};
+    double             L[3]           = {1.0, 1.0, 1.0};
+    FLUPS_BoundaryType mybc[3][2]     = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+    FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
 };
 
 /**

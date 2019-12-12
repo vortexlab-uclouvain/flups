@@ -916,24 +916,35 @@ void FFTW_plan_dim::disp() {
         FLUPS_INFO("- type = unbounded (=%d)", _type);
     }
     for (int lia = 0; lia < _lda; lia++) {
+        char msg[512];
+        sprintf(msg,"- bc = {");
         if (_bc[0][lia] == EVEN) {
-            FLUPS_INFO("- bc = { EVEN ,");
+            // FLUPS_INFO(EVEN ,");
+            sprintf(msg,"%s EVEN",msg);
         } else if (_bc[0][lia] == ODD) {
-            FLUPS_INFO("- bc = { ODD  ,");
+            // FLUPS_INFO("- bc = { ODD  ,");
+            sprintf(msg,"%s ODD",msg);
         } else if (_bc[0][lia] == UNB) {
-            FLUPS_INFO("- bc = { UNB  ,");
+            // FLUPS_INFO("- bc = { UNB  ,");
+            sprintf(msg,"%s UNB",msg);
         } else if (_bc[0][lia] == PER) {
-            FLUPS_INFO("- bc = { PER  ,");
+            // FLUPS_INFO("- bc = { PER  ,");
+            sprintf(msg,"%s PER",msg);
         }
         if (_bc[1][lia] == EVEN) {
-            FLUPS_INFO(" EVEN}");
+            // FLUPS_INFO(" EVEN}");
+            sprintf(msg,"%s , EVEN}",msg);
         } else if (_bc[1][lia] == ODD) {
-            FLUPS_INFO(" ODD}");
+            // FLUPS_INFO(" ODD}");
+            sprintf(msg,"%s , ODD}",msg);
         } else if (_bc[1][lia] == UNB) {
-            FLUPS_INFO(" UNB}");
+            // FLUPS_INFO(" UNB}");
+            sprintf(msg,"%s , UNB}",msg);
         } else if (_bc[1][lia] == PER) {
-            FLUPS_INFO(" PER}");
+            sprintf(msg,"%s , PER}",msg);
+            // FLUPS_INFO(" PER}");
         }
+        FLUPS_INFO(msg);
         if ((_type == SYMSYM && !_isGreen) || _type == MIXUNB) {
             if (_kind[lia] == FFTW_REDFT00) {
                 FLUPS_INFO("- kind = REDFT00 = DCT type I");

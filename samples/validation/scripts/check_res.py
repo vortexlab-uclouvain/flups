@@ -32,6 +32,7 @@ def check_res(i, file):
         vals = dicref.get(buff[0])
         if vals is None:
             print("test %i: skipped res= "%i +buff[0]+", no ref data.\n     curr: "+buff[1]+" , " + buff[2] )
+            n_mistake +=1
             continue
         
         err2   = float('Inf')
