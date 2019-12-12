@@ -83,10 +83,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     _inComm  = _topo_in->get_comm();
     _outComm = _topo_out->get_comm();
 
-    int rank, comm_size;
-    MPI_Comm_rank(_inComm, &rank);
-    MPI_Comm_size(_inComm, &comm_size);
-
 #ifdef PROF    
     _prof     = prof;
     _iswitch = _topo_out->axproc(_topo_out->axis());

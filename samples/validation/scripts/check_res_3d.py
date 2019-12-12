@@ -82,7 +82,7 @@ def check_res_3d(i,file,reffile1,reffile2,reffile3):
         if err2<(3.0*tol) and errInf<(3.0*tol):
             pass
         else:
-            print("test %i: WRONG values for res= "%i +buff[0]+":\n     curr: "+buff[1]+buff[3]+buff[5]+" , " + buff[2]+buff[4]+buff[6]+"\n     ref : %10.12e , %10.12e"%(vals[0],vals[1]))
+            print("test %i: WRONG values for res= "%i +buff[0]+":\n     curr: "+buff[1]+buff[3]+buff[5]+" , " + buff[2]+buff[4]+buff[6]+"\n     ref : %10.12e , %10.12e"%(vals1[0],vals1[1]))
             n_mistake +=1
 
     fcurr.close()

@@ -82,9 +82,6 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     _inComm = _topo_in->get_comm();
     _outComm = _topo_out->get_comm();
 
-    int comm_size;
-    MPI_Comm_size(_inComm, &comm_size);
-
 #ifdef PROF    
     _prof     = prof;
     _iswitch = _topo_out->axproc(_topo_out->axis());
@@ -362,6 +359,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // determine the nf: since topo_in may have change, we take the max to have the correct one
     const int nf = std::max(_topo_in->nf(),_topo_out->nf());
+    const int lda = std::max(_topo_in->lda(),_topo_out->lda());
 
     int newrank;
     MPI_Comm_rank(_subcomm, &newrank);
@@ -954,7 +952,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
                     opt_double_ptr       vloc    = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
-                    const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
+                    const opt_double_ptr dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
                     FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
                     // do the copy
@@ -973,7 +971,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
                     double* __restrict vloc      = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
-                    const opt_double_ptr dataloc = recvBuf[bid] + id * nmax;
+                    const opt_double_ptr dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     FLUPS_ASSUME_ALIGNED(dataloc,FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
@@ -991,7 +989,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
                     opt_double_ptr vloc              = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
-                    const double* __restrict dataloc = recvBuf[bid] + id * nmax;
+                    const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     FLUPS_ASSUME_ALIGNED(vloc,FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
@@ -1009,7 +1007,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                     //   my_v has already set the address in the right portion of lda, so now,
                     //   only running over the chunks as if lda=1
                     double* __restrict vloc          = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
-                    const double* __restrict dataloc = recvBuf[bid] + id * nmax;
+                    const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
                         vloc[i0] = dataloc[i0];
