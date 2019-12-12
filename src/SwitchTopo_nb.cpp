@@ -387,8 +387,12 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     for (int bid = 0; bid < _inBlock; bid++) {
         //associate the pointer to the correct block
         _sendBuf[bid] = sendData;
-        sendData = sendData + get_blockMemSize(bid,nf,_iBlockSize);
-        // for the send when doing input 2 output: send to rank i2o with tag _i2o_destTag[bid]
+        // compute the send size
+        const size_t sendSize = get_blockMemSize(bid, nf, _iBlockSize) * _topo_in->lda();
+        // update the pointer
+        sendData = sendData + sendSize;
+        
+        // if I send to myself, store the info
         if (_i2o_destRank[bid] == newrank) {
             // save the bid to the self block list
             _iselfBlockID[selfcount] = bid;
@@ -399,8 +403,6 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             selfcount++;
         } else {
             // get the send size without padding
-            const size_t sendSize = (size_t)_iBlockSize[0][bid] * (size_t)_iBlockSize[1][bid] * (size_t)_iBlockSize[2][bid] * (size_t)(nf) * _topo_in->lda();
-            FLUPS_WARNING("NOT SURE OF WHAT I AM DOING HERE", LOCATION);
             MPI_Send_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], _i2o_destTag[bid], _subcomm, &(_i2o_sendRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
             MPI_Recv_init(_sendBuf[bid], sendSize, MPI_DOUBLE, _i2o_destRank[bid], bid, _subcomm, &(_o2i_recvRequest[bid]));
@@ -412,14 +414,17 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             _setup_shuffle(tmp_size, _topo_out, _topo_in, _sendBuf[bid], &_o2i_shuffle[bid]);
         }
     }
-    FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
+    FLUPS_CHECK(selfcount == _selfBlockN, "the number of counted block has to match the allocation number: %d vs %d", selfcount, _selfBlockN, LOCATION);
 
     // reset the self count
     selfcount = 0;
     for (int bid = 0; bid < _onBlock; bid++) {
         //associate the pointer with the correct block
         _recvBuf[bid] = recvData;
-        recvData = recvData+ get_blockMemSize(bid,nf,_oBlockSize);
+        //compute the recvsize
+        const size_t recvSize = get_blockMemSize(bid,nf,_oBlockSize) * _topo_out->lda();
+        // update the pointer
+        recvData = recvData + recvSize;
         // create the request if needed
         if (_o2i_destRank[bid] == newrank) {
             // save the bid
@@ -430,9 +435,6 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             // increment the counter
             selfcount++;
         } else {
-            // get the receive size without padding
-            const size_t recvSize = (size_t)_oBlockSize[0][bid] * (size_t)_oBlockSize[1][bid] * (size_t)_oBlockSize[2][bid] * (size_t)_topo_out->nf() * _topo_out->lda();
-            FLUPS_WARNING("NOT SURE OF WHAT I AM DOING HERE", LOCATION);
             // for the reception when doing input 2 output: receive from the rank o2i with tag bid
             MPI_Recv_init(_recvBuf[bid], recvSize, MPI_DOUBLE, _o2i_destRank[bid], bid, _subcomm, &(_i2o_recvRequest[bid]));
             // for the send when doing output 2 input: send to rank o2i with tag o2i
@@ -442,10 +444,10 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
         // setup the suffle plan for the in 2 out transformation
         if (doShuffle) {
             int tmp_size[3] = {_oBlockSize[0][bid], _oBlockSize[1][bid], _oBlockSize[2][bid]};
-            _setup_shuffle(tmp_size,_topo_in,_topo_out, _recvBuf[bid], &_i2o_shuffle[bid]);
+            _setup_shuffle(tmp_size, _topo_in, _topo_out, _recvBuf[bid], &_i2o_shuffle[bid]);
         }
     }
-    FLUPS_CHECK(selfcount == _selfBlockN,"the number of counted block has to match the allocation number: %d vs %d",selfcount,_selfBlockN,LOCATION);
+    FLUPS_CHECK(selfcount == _selfBlockN, "the number of counted block has to match the allocation number: %d vs %d", selfcount, _selfBlockN, LOCATION);
     END_FUNC;
 }
 

@@ -439,6 +439,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
 
     // determine the nf: since topo_in may have change, we take the max to have the correct one
     const int nf = std::max(_topo_in->nf(),_topo_out->nf());
+    const int lda = std::max(_topo_in->lda(),_topo_out->lda());
     
     // store the buffers
     _sendBufG = sendData;
@@ -477,7 +478,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         // place the block given the number of ranks bellow + the number of block already set to my rank
         _sendBuf[ib] = sendData + memblocks + countPerRank[destrank];
         // add the block size to the number of already added blocks
-        countPerRank[destrank] += get_blockMemSize(ib, nf, _iBlockSize);
+        countPerRank[destrank] += get_blockMemSize(ib, nf, _iBlockSize)*lda;
 
         // setup the suffle plan for the out 2 in transformation if needed
         if (doShuffle) {
@@ -498,7 +499,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         // place the block given the number of ranks bellow + the number of block already set to my rank
         _recvBuf[ib] = recvData + memblocks + countPerRank[destrank];
         // add the block size to the number of already added blocks
-        countPerRank[destrank] += get_blockMemSize(ib, nf, _oBlockSize);
+        countPerRank[destrank] += get_blockMemSize(ib, nf, _oBlockSize)*lda;
 
         // setup the suffle plan for the in 2 out transformation
         if (doShuffle) {
