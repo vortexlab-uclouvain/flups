@@ -14,12 +14,16 @@ export OMP_NUM_THREADS=${MY_NTHREADS}
 
 echo "----------------- Load modules -----------------"
 module purge
-module load intel/2018.4
-module load impi/2018.4
-module load mkl/2018.4
+# module load intel/2018.4
+# module load impi/2018.4
+# module load mkl/2018.4
+module load intel/2017.4
+module load impi/2017.4
 module load hdf5/1.10.5
 module load fftw/3.3.6
 module list
+
+ldd ${EXEC_FLUPS}
 
 echo "----------------- launching job -----------------"
 echo "launch command: srun --label ${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${SIZE_X} ${SIZE_Y} ${SIZE_Z} -L ${L_X} ${L_Y} ${L_Z} -nres 1 -ns 20 -k 0"

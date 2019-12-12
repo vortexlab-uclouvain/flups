@@ -55,12 +55,13 @@ static const double c_1osqrt2 = 1.0 / M_SQRT2;
 
 static const double c_2pi = 2.0 * M_PI;
 
-
 struct DomainDescr {
-    int          nglob[3]   = {64, 64, 64};
-    int          nproc[3]   = {1, 2, 2};
-    double       L[3]       = {1.0, 1.0, 1.0};
-    FLUPS_BoundaryType mybc[3][2] = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+    bool               dovectorbc     = false;
+    int                nglob[3]       = {64, 64, 64};
+    int                nproc[3]       = {1, 2, 2};
+    double             L[3]           = {1.0, 1.0, 1.0};
+    FLUPS_BoundaryType mybc[3][2]     = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
+    FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
 };
 
 /**
@@ -68,8 +69,8 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen);
-void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const FLUPS_GreenType typeGreen, const int nSolve);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve);
 /**@} */
 
 
@@ -77,11 +78,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS_SolverType type, const 
 
 
 struct manuParams {
-    double       freq    = 1; //an integer or 0.5
-    double       sign[2] = {0., 0.};
+    int    lia     = 0;
+    double freq    = 1;  //an integer or 0.5
+    double sign[2] = {0., 0.};
+    double center  = 0.5;
+    double sigma   = .5;  //sigma for the compact Gaussian
     // double       sigma   = 0.15; //sigma for the classic Gaussian
-    double       sigma   = .5; //sigma for the compact Gaussian
-    double       center  = 0.5;
 };
 
 typedef double (*manuF)(const double, const double, const manuParams);
@@ -123,6 +125,15 @@ static inline double fUnb(const double x, const double L, const manuParams param
             params.sign[0] * exp(-x1*x1) + \
             params.sign[1] * exp(-x2*x2) ;
 }
+static inline double ddx_fUnb(const double x, const double L, const manuParams params) {
+    const double x0 = (x -       params.center  * L) / params.sigma;
+    const double x1 = (x +       params.center  * L) / params.sigma;
+    const double x2 = (x - (2. - params.center) * L) / params.sigma;
+
+    return                   -2.0/(params.sigma) * exp(-x0*x0) * x0 + \
+            params.sign[0] * -2.0/(params.sigma) * exp(-x1*x1) * x1 + \
+            params.sign[1] * -2.0/(params.sigma) * exp(-x2*x2) * x2;
+}
 static inline double d2dx2_fUnb(const double x, const double L, const manuParams params) {
     const double x0 = (x -       params.center  * L) / params.sigma;
     const double x1 = (x +       params.center  * L) / params.sigma;
@@ -131,7 +142,6 @@ static inline double d2dx2_fUnb(const double x, const double L, const manuParams
             params.sign[0] * -2. / (params.sigma * params.sigma) * exp(-x1*x1 ) * (1. - 2. * ( x1 * x1)) + \
             params.sign[1] * -2. / (params.sigma * params.sigma) * exp(-x2*x2 ) * (1. - 2. * ( x2 * x2)) ;
 }
-
 
 static const double c_C = 10.;
 
@@ -143,6 +153,15 @@ static inline double fUnbSpietz(const double x, const double L, const manuParams
               (fabs(x1)>=1. ? 0.0 : params.sign[0] * exp(c_C * (1. - 1. / (1. - x1 * x1)))) + \
               (fabs(x2)>=1. ? 0.0 : params.sign[1] * exp(c_C * (1. - 1. / (1. - x2 * x2))));
 }
+static inline double ddx_fUnbSpietz(const double x, const double L, const manuParams params) {
+    const double x0 = (x -       params.center  * L) / (params.sigma * L);
+    const double x1 = (x +       params.center  * L) / (params.sigma * L);
+    const double x2 = (x - (2. - params.center) * L) / (params.sigma * L);
+
+    return    (fabs(x0)>=1. ? 0.0 :                  (-2.0) * c_C * x0 * exp(c_C * (1.0 - 1.0 / (1.0 - x0*x0))) / (params.sigma*L * pow((1.0 - x0*x0),2.0))) + \
+              (fabs(x1)>=1. ? 0.0 : params.sign[0] * (-2.0) * c_C * x1 * exp(c_C * (1.0 - 1.0 / (1.0 - x1*x1))) / (params.sigma*L * pow((1.0 - x1*x1),2.0))) + \
+              (fabs(x2)>=1. ? 0.0 : params.sign[1] * (-2.0) * c_C * x2 * exp(c_C * (1.0 - 1.0 / (1.0 - x2*x2))) / (params.sigma*L * pow((1.0 - x2*x2),2.0))) ;
+}
 static inline double d2dx2_fUnbSpietz(const double x, const double L, const manuParams params) {
     const double x0sq = pow((x -       params.center  * L) / (params.sigma * L),2);
     const double x1sq = pow((x +       params.center  * L) / (params.sigma * L),2);
@@ -151,7 +170,6 @@ static inline double d2dx2_fUnbSpietz(const double x, const double L, const manu
               (fabs(x1sq)>=1. ? 0.0 : params.sign[0] * exp(c_C * (1. - 1. / (1. - x1sq))) * (2. * c_C * (2. * (c_C - 1.) * x1sq + 3. * x1sq * x1sq - 1.)) / pow(x1sq - 1., 4) / (params.sigma*L*params.sigma*L)) + \
               (fabs(x2sq)>=1. ? 0.0 : params.sign[1] * exp(c_C * (1. - 1. / (1. - x2sq))) * (2. * c_C * (2. * (c_C - 1.) * x2sq + 3. * x2sq * x2sq - 1.)) / pow(x2sq - 1., 4) / (params.sigma*L*params.sigma*L)) ;
 }
-
 
 static inline double fCst(const double x, const double L, const manuParams params) {
     return 1.0;

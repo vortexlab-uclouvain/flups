@@ -48,11 +48,12 @@ class Topology {
     int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
     int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
     int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int       _nloc[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
-    int       _nmem[3];    /**<@brief real number of unknows perd dim, local (012-indexing)  */
+    int       _nloc[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
+    int       _nmem[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
     int       _axis;       /**<@brief fastest rotating index in the topology  */
     int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
     int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
+    int       _lda;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
     // int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
     const int _alignment;
     MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
@@ -63,8 +64,7 @@ class Topology {
     //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
    public:
-    // Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex);
-    Topology(const int axis, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
+    Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
     ~Topology();
 
     /**
@@ -81,6 +81,7 @@ class Topology {
      * @{
      */
     inline int axis() const { return _axis; }
+    inline int lda() const { return _lda; }
     inline int nf() const { return _nf; }
     inline int isComplex() const { return _nf == 2; }
 
@@ -94,7 +95,7 @@ class Topology {
     inline MPI_Comm get_comm() const { return _comm; }
 
     /**
-     * @brief compute the number of unknowns on each proc
+     * @brief compute the scalar number of unknowns on each proc, i.e. the number of unkowns for one component
      * 
      * @param id 
      * @return int 
@@ -105,11 +106,20 @@ class Topology {
 
     /**
      * @name Functions to compute the starting index of each topology
+     * 
+     * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
         return (_rankd[id]) * (_nglob[id] / _nproc[id]) + std::min(_rankd[id], _nglob[id] % _nproc[id]);
     }
 
+    /**
+     * @brief compute the rank associated to a scalar global id
+     * 
+     * @param global_id the scalar id of the point considered
+     * @param id the direction of interest
+     * @return int 
+     */
     inline int cmpt_rank_fromid(const int global_id, const int id) const{
         const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
         const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
@@ -132,18 +142,27 @@ class Topology {
      * @{
      */
     void cmpt_sizes();
+    void memshift(const int sign,const int lia, double* data);
+
     /**
-     * @brief returns the local size of on this proc
+     * @brief returns the scalar local size on this proc, i.e. the number of unknowns for one component
      * 
      * @return size_t 
      */
-    inline size_t locsize() const { return (size_t)(_nloc[0] * _nloc[1] * _nloc[2] * _nf); }
+    inline size_t locsize() const { return (size_t)_nloc[0] * (size_t)_nloc[1] * (size_t)_nloc[2] * (size_t)_nf; }
+
     /**
-     * @brief returns the memory size of on this proc
+     * @brief returns the memory size of on this proc for one component
      * 
      * @return size_t 
      */
-    inline size_t memsize() const { return (size_t)(_nmem[0] * _nmem[1] * _nmem[2] * _nf); }
+    inline size_t memdim() const { return (size_t)_nmem[0] * (size_t)_nmem[1] *(size_t) _nmem[2] * (size_t)_nf; }
+    /**
+     * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
+     * 
+     * @return size_t 
+     */
+    inline size_t memsize() const { return (size_t)_nmem[0] * (size_t)_nmem[1] * (size_t)_nmem[2] * (size_t)_nf * (size_t)_lda; }
 
     /**
      * @brief returns the starting global index on the current proc
@@ -154,6 +173,7 @@ class Topology {
         istart[1]   = cmpt_start_id(1);
         istart[2]   = cmpt_start_id(2);
     }
+    /**@} */
 
     /**
      * @brief switch the topology to a complex mode
@@ -180,6 +200,21 @@ class Topology {
             _nmem[_axis] *= 2;
             // _nbyproc[_axis] *= 2;
         }
+    }
+
+    /**
+     * @brief swith the current topo to the scalar case
+     * 
+     */
+    inline void switch2Scalar(){
+        _lda=1;
+    }
+    /**
+     * @brief switch the current topo to the vector state
+     * 
+     */
+    inline void switch2Vector(){
+        _lda=3;
     }
 
     void disp() const;
@@ -234,66 +269,6 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
     return rank;
 }
 
-// /**
-//  * @brief return the starting local index for the data (ix,iy,iz) in the order of the dimensions
-//  * 
-//  * @param ix index in the X direction
-//  * @param iy index in the Y direction
-//  * @param iz index in the Z direction
-//  * @param topo 
-//  * @return size_t 
-//  */
-// inline static size_t localindex_xyz(const int ix, const int iy, const int iz, const Topology *topo) {
-//     const int nf = topo->nf();
-
-//     const int i[3] = {ix, iy, iz};
-//     const int ax0  = topo->axis();
-//     const int ax1  = (ax0 + 1) % 3;
-//     const int ax2  = (ax0 + 2) % 3;
-
-//     return i[ax0] * nf + topo->nloc(ax0) * nf * (i[ax1] + topo->nloc(ax1) * i[ax2]);
-// }
-
-// /**
-//  * @brief return the local index in memory for the data (i0,i1,i2) in the order of the axis, and in double indexing
-//  * 
-//  * @param i0 index along the ax0 direction (the fast rotating index in the current topo)
-//  * @param i1 index along the ax1 direction
-//  * @param i2 index along the ax2 direction
-//  * @param topo 
-//  * @return size_t 
-//  */
-// inline static size_t localindex_ao(const int i0, const int i1, const int i2, const Topology *topo) {
-//     const int nf  = topo->nf();
-//     const int ax0 = topo->axis();
-//     const int ax1 = (ax0 + 1) % 3;
-
-//     return i0 * nf + topo->nloc(ax0) * nf * (i1 + topo->nloc(ax1) * i2);
-// }
-// /**
-//  * @brief return the starting local index for the data (i0,i1,i2) in the order of the axis given
-//  *
-//  * @param axis index of the axis corresponding to i0
-//  * @param ix index in the X direction
-//  * @param iy index in the Y direction
-//  * @param iz index in the Z direction
-//  * @param topo 
-//  * @return size_t 
-//  */
-// inline static size_t localindex(const int axis, const int i0, const int i1, const int i2, const Topology *topo) {
-//     const int nf   = topo->nf();
-//     const int i[3] = {i0, i1, i2};
-//     // compute the shift to perform from the axis reference to
-//     const int dax0 = (3 + topo->axis() - axis) % 3;
-//     const int dax1 = (dax0 + 1) % 3;
-//     const int dax2 = (dax0 + 2) % 3;
-
-//     const int ax0 = topo->axis();
-//     const int ax1 = (ax0 + 1) % 3;
-
-//     // return localindex_xyz(i[0], i[1], i[2], topo);
-//     return i[dax0] * nf + topo->nloc(ax0) * nf * (i[dax1] + topo->nloc(ax1) * i[dax2]);
-// }
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
  * 
@@ -301,31 +276,37 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param i0
  * @param i1 
  * @param i2 
+ * @param lia leading index of array
  * @param axtrg the target FRI
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
+ * @param lda leading dimension of array, number of vector components
  * @return size_t 
  */
 static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
-                                const int axtrg, const int size[3], const int nf) {
+                                const int axtrg, const int size[3], const int nf, const int lda) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
-    const int dax1 = (dax0 + 1) % 3;
+    const int dax1 = (dax0 + 1) % 3; 
     const int dax2 = (dax0 + 2) % 3;
     const int ax0  = axtrg;
     const int ax1  = (ax0 + 1) % 3;
+    const int ax2  = (ax0 + 2) % 3;
 
     // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * i[dax2]);
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + size[ax2] * lda) );
 }
 /**
  * @brief compute the memory local index for a point (i0,id) in axsrc-indexing in a memory in the same indexing
  * 
- * The memory id is computed as the collapsed version of the 2 external loops
+ * The memory id is computed as the collapsed version of the 3 external loops:
+ * - the loop on the lda
+ * - the loop on the ax2 direction
+ * - the loop on the ax1 direction
  * 
  * @param axsrc the FRI for the point (i0,i1,i2)
  * @param i0 the index aligned along the axsrc axis
- * @param id the collapsed id of the outer two loops
+ * @param id the collapsed id of the outer three loops
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
  * @return size_t 
@@ -336,7 +317,7 @@ static inline size_t collapsedIndex(const int axsrc, const int i0, const int id,
 }
 
 /**
- * @brief split a global index along the different direction using the FRI axtrg
+ * @brief split a global index along the different direction using the FRI axtrg, for one component
  * 
  * @param id the global id
  * @param size the size in 012-indexing
@@ -353,18 +334,18 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
     idv[ax1] = (id % (size0 * size[ax1])) / size0;
     idv[ax2] = id / (size0 * size[ax1]);
 }
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
-    const int ax0   = axtrg;
-    const int ax1   = (ax0 + 1) % 3;
-    const int size0 = (size[ax0] * nf);
+// static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
+//     const int ax0   = axtrg;
+//     const int ax1   = (ax0 + 1) % 3;
+//     const int size0 = (size[ax0] * nf);
 
-    (*id0) = id % size0;
-    (*id1) = (id % (size0 * size[ax1])) / size0;
-    (*id2) = id / (size0 * size[ax1]);
-}
+//     (*id0) = id % size0;
+//     (*id1) = (id % (size0 * size[ax1])) / size0;
+//     (*id2) = id / (size0 * size[ax1]);
+// }
 
 /**
- * @brief compute the global symmetrized index of a given point.
+ * @brief compute the global symmetrized index of a given point, for one component
  * 
  * The 3 indexes are given along axsrc axis (i0,i1,i2) while the symmetrized output is given along the axtrg axis.
  * 
@@ -401,9 +382,9 @@ inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const
     const int ax1  = (ax0 + 1) % 3;
     const int ax2  = (ax0 + 2) % 3;
     // fill the array in the axtrg configuration
-    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
-    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
-    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
+    is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : -std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
+    is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : -std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
+    is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : -std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
     
 }
 #endif

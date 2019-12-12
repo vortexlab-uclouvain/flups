@@ -99,7 +99,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
@@ -116,7 +116,8 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
 
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
-                const double tmp[9] = {r, eps, 0, 0, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
+                // the symmetrized indexes will be negative!!
+                const double tmp[9] = {r, eps, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
                 green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
@@ -205,6 +206,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
+            FLUPS_CHECK(hfact[3] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3],LOCATION);
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
             // read the LGF data and store it
             _lgf_readfile(2,&GN, &Gdata);
@@ -230,7 +232,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 // global indexes
@@ -249,7 +251,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[9] = {r, k, eps, r_eq2D, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
+                // the symmetrized indexes will be negative!!
+                const double tmp[9] = {r, k, eps, r_eq2D, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
@@ -345,7 +348,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
             for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
                 int is[3];
@@ -358,9 +361,12 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
 
                 //(symmetrized) position : only 1 hfact is non-zero
-                const double x = is[ax0] * hfact[ax0] + is[ax1] * hfact[ax1] + is[ax2] * hfact[ax2];
+                const double x0 = (is[ax0]) * hfact[ax0];
+                const double x1 = (is[ax1]) * hfact[ax1];
+                const double x2 = (is[ax2]) * hfact[ax2];
+                const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[3] = {x, k, eps};
+                const double tmp[3] = {r, k, eps};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
@@ -486,7 +492,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem,nf);
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             for (int i0 = is[ax0]; i0 < ie[ax0]; i0++) {
                 int il[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, il);
@@ -503,7 +509,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 // const double tmp[2] = {ksqr, eps};
                 const double tmp[6] = {ksqr, eps, k0, k1, k2, hgrid};
 
-                green[id + i0 * nf] = G(tmp,NULL);
+                green[id + i0 * nf] = G(tmp, NULL);
             }
         }
     }

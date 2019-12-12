@@ -89,6 +89,7 @@ class SwitchTopo {
     /**
      * @brief Get the memory size of a block padded to ensure alignment
      *
+     * The size the size of one block, for 1 component of lda
      * @warning
      * Since we use gathered blocks, it is NOT STRAIGHTFORWARD to impose a common size for every block on every proc.
      * Therefore, we chose not to do it!!
@@ -109,7 +110,7 @@ class SwitchTopo {
         return total;
     };
     /**
-     * @brief return the buffer size for one proc = number of blocks * blocks memory size
+     * @brief return the buffer size for one proc = number of blocks * blocks memory size * lda component
      * 
      * @return size_t 
      */
@@ -119,28 +120,13 @@ class SwitchTopo {
         // nultiply by the number of blocks
         size_t total = 0;
         for(int ib=0; ib<_inBlock; ib++){
-            total += get_blockMemSize(ib,nf,_iBlockSize);
+            total += get_blockMemSize(ib,nf,_iBlockSize) * ((size_t)_topo_in->lda());
         }
         for(int ib=0; ib<_onBlock; ib++){
-            total += get_blockMemSize(ib,nf,_oBlockSize);
+            total += get_blockMemSize(ib,nf,_oBlockSize) * ((size_t)_topo_in->lda());
         }
         // return the total size
         return total;
-    };
-
-    /**
-     * @brief return the stride for a given dimension
-     * 
-     */
-    inline size_t get_blockStride(const int ax, const int idim, const int bSize[3]) const {
-        int    id     = ax;
-        size_t stride = 1;
-        while (id != idim) {
-            stride = stride * ((size_t)bSize[id]);
-            // update the id
-            id = (id + 1) % 3;
-        }
-        return stride;
     };
 
     void add_toGraph(int* sourcesW, int* destsW) const;
@@ -151,8 +137,8 @@ class SwitchTopo {
     void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]);
 
     void _cmpt_commSplit();
-    void _setup_subComm(const int nBlock, int* blockSize[3], int* destRank, int** count, int** start);
-    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock, int* blockSize[3], int* destRank, int** count, int** start);
+    void _setup_subComm(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
+    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
     void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
     void _gather_blocks(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank);
     void _gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag);

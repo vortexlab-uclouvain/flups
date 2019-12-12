@@ -2,6 +2,8 @@
 
 HOME_FLUPS=/p/project/prpa79/flups/samples/validation
 KERNEL=juwels_kernel_valid.sh
+SCRATCH_FLDR=/p/scratch/prpa79/$(whoami)_impi19.6
+
 
 ## fixed parameters
 export SIZE_PER_PROC=64
@@ -35,7 +37,7 @@ export PARTITION=batch
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_a2a
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -131,7 +133,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --part
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_nb
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_nb_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_nb_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -238,7 +240,7 @@ export PARTITION=batch
 # #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_a2a
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -310,7 +312,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --part
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_nb
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_nb_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_nb_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -384,14 +386,14 @@ elif [ "$ver" = "Xlarge" ]; then
 ############################################################
 ############################################################
 ############################################################
-export PARTITION=large
+export PARTITION=batch
 
 # ############################################################
 # # ALL TO ALL
 # #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_a2a
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_a2a_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
@@ -463,7 +465,7 @@ sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} --time=${WT}  --part
 #-----------------------------------------------------------
 export EXEC_FLUPS=flups_validation_nb
 
-SCRATCH=/p/scratch/prpa79/$(whoami)/flups_weak_nb_${SIZE_PER_PROC}_${ver}
+SCRATCH=${SCRATCH_FLDR}/flups_weak_nb_${SIZE_PER_PROC}_${ver}
 
 # clean the validation dir
 # rm -rf ${SCRATCH}
