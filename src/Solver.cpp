@@ -955,11 +955,11 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  //avoid rewriting on the part of Green already computed
             kfact[dimID]    = planmap[ip]->kfact();
         }
-        cmpt_Green_0dirunbounded(topo[2], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
+        cmpt_Green_0dirunbounded(topo[_ndim-1], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
     }
 
 #ifdef DUMP_DBG
-    hdf5_dump(topo[2], "green_h", green);
+    hdf5_dump(topo[_ndim-1], "green_h", green);
 #endif
     END_FUNC;
 }
