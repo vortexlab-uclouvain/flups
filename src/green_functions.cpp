@@ -358,9 +358,12 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
 
                 //(symmetrized) position : only 1 hfact is non-zero
-                const double x = is[ax0] * hfact[ax0] + is[ax1] * hfact[ax1] + is[ax2] * hfact[ax2];
+                const double x0 = (is[ax0]) * hfact[ax0];
+                const double x1 = (is[ax1]) * hfact[ax1];
+                const double x2 = (is[ax2]) * hfact[ax2];
+                const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[3] = {x, k, eps};
+                const double tmp[3] = {r, k, eps};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
