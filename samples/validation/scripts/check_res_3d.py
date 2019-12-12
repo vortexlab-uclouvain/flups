@@ -36,15 +36,17 @@ def check_res_3d(i,file,reffile1,reffile2,reffile3):
         fref2.close()
         fref3.close()
     except FileNotFoundError:
-        dicref = {}
+        dicref1 = {}
+        dicref2 = {}
+        dicref3 = {}
 
     #comparing current results with reference
     for line in csv.reader(fcurr,delimiter=' '):
         buff = list(line)  
 
-        vals1 = dicref.get(buff[0])
-        vals2 = dicref.get(buff[0])
-        vals3 = dicref.get(buff[0])
+        vals1 = dicref1.get(buff[0])
+        vals2 = dicref2.get(buff[0])
+        vals3 = dicref3.get(buff[0])
         if vals1 is None:
             n_mistake +=1
             print("test %i: skipped res= "%i +buff[0]+", no ref data.\n     curr: "+buff[1]+" , " + buff[2] )
