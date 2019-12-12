@@ -116,7 +116,8 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
 
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
-                const double tmp[9] = {r, eps, 0, 0, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
+                // the symmetrized indexes will be negative!!
+                const double tmp[9] = {r, eps, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
                 green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
@@ -249,7 +250,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[9] = {r, k, eps, r_eq2D, is[ax0], is[ax1], is[ax2], GN, hfact[ax0]};
+                // the symmetrized indexes will be negative!!
+                const double tmp[9] = {r, k, eps, r_eq2D, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
