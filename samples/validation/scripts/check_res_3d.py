@@ -4,7 +4,7 @@ import os
 #read and compare the 'file' located in ./data and ./data_ref. 
 #return the number of mistakes
 #i is just an index for display
-def check_res(i, file):
+def check_res_3d(i, file):
 
     tol = 1e-10 #relative error does not exceed tol
 
