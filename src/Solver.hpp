@@ -69,8 +69,7 @@ class Solver {
     int     _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
     int     _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
     int     _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    int     _orderdiff     = 0;     /**< @brief the order of derivative (spectral = 1), second order =2 */
-    int     _nbr_spectral  = 0;     /**< @brief the number of spectral directions involved */
+    int     _odiff         = 0;     /**< @brief the order of derivative (spectral = 1, second order = 2) */
     double  _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double  _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
     double  _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
@@ -81,8 +80,10 @@ class Solver {
      * transforms related objects
      */
     /**@{ */
-    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
-    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* _plan_forward[3];       /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim* _plan_backward[3];      /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* _plan_backward_diff[3]; /**< @brief map containing the plans for the backward fft transforms */
+
     Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
@@ -144,8 +145,10 @@ class Solver {
      * 
      * @{
      */
-    void dothemagic_rhs_real(double *data);
-    void dothemagic_rhs_complex(double *data);
+    void dothemagic_std_real(double *data);
+    void dothemagic_std_complex(double *data);
+    void dothemagic_rot_real(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]);
+    void dothemagic_rot_complex(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]);
     /**@} */
 
     /**
@@ -160,7 +163,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], const double L[3], Profiler *prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const int orderDiff, Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -204,7 +207,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double* field, double* rhs);
+    void solve(double *field, double *rhs,const FLUPS_SolverType type);
     /**@} */
 
     /**
@@ -214,7 +217,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data);
+    void do_mult(double *data,const FLUPS_SolverType type);
     /**@} */
 
     /**

@@ -73,6 +73,15 @@ enum FLUPS_GreenType {
 };
 
 /**
+ * @brief The type of possible solvers
+ * 
+ */
+enum FLUPS_SolverType {
+    STD = 0, /**< @brief the standard poisson solver: laplacian(field) = rhs */
+    ROT = 1 /**< @brief the Biosavart poisson solver: laplacian(field) = rot(rhs) */
+};
+
+/**
  * @brief to be used as "sign" for all of the FORWARD tranform
  * 
  */
@@ -83,6 +92,12 @@ enum FLUPS_GreenType {
  * 
  */
 #define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
+
+/**
+ * @brief to be used as "sign" for all of the BACKWARD tranform
+ * 
+ */
+#define FLUPS_BACKWARD_DIFF 2
 
 /**
  * @brief Memory alignment in bytes.
@@ -387,13 +402,13 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff, FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -434,7 +449,7 @@ double* flups_setup(FLUPS_Solver* s,const bool changeComm);
  * @param field 
  * @param rhs 
  */
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
 
 /**@} */
 
@@ -524,7 +539,7 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
  * @param data 
  * @param type 
  */
-void flups_do_mult(FLUPS_Solver* s, double* data);
+void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**@} */
 

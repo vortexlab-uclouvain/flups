@@ -126,6 +126,7 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     // free the allocated arrays
     if (_bc[0] != NULL) flups_free(_bc[0]);
     if (_bc[1] != NULL) flups_free(_bc[1]);
+    if (_imult != NULL) flups_free(_imult);
     if (_kind != NULL) flups_free(_kind);
     if(_corrtype != NULL) flups_free(_corrtype);
     END_FUNC;
@@ -221,6 +222,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms, the #_koffset for each dimension */
     //-------------------------------------------------------------------------
+    _imult    = (bool*)flups_malloc(sizeof(bool) * _lda);
     _kind     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
     _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
 
@@ -230,8 +232,9 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
     for (int lia = 0; lia < _lda; lia++) {
         if (_isGreen) {
             _corrtype[lia] = CORRECTION_NONE;
+            _imult[lia]    = false;
             // if we are doing odd-even we have to use shifted FFTW plans
-            if ( _bc[0][lia] != _bc[1][lia]) {
+            if (_bc[0][lia] != _bc[1][lia]) {
                 // we would go for a DCT/DST type III
                 // -> the size of unknows: DST missing first point, DCT missing last one
                 _n_in  = size[_dimID];
@@ -249,14 +252,15 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
             return;
         } else if (_bc[0][lia] == EVEN) {  // We have a DCT
             // the information coming in does not change
-            _n_in  = size[_dimID];
-
+            _n_in = size[_dimID];
+            // we do a DCT, so no imult
+            _imult[lia] = false;
             if (_bc[1][lia] == EVEN) {
                 // -> we add the flip-flop mode by hand
                 _n_out = size[_dimID] + 1;
                 // the correction is the one of the DCT = put 0 in the flip-flop mode
-                 _corrtype[lia] = CORRECTION_DCT;
-                 _koffset = 0.0;
+                _corrtype[lia] = CORRECTION_DCT;
+                _koffset       = 0.0;
                 // choose the correct type
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
@@ -265,21 +269,23 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
                 _n_out = size[_dimID];
                 // no correction is needed for the types 4 but an offset of 1/2 in fourier
                 _corrtype[lia] = CORRECTION_NONE;
-                _koffset = 0.5;
+                _koffset       = 0.5;
                 // always the samed DCT
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT11;   // DCT type IV
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT11;  // DCT type IV
             }
         } else if (_bc[0][lia] == ODD) {  // We have a DST
-        // the information coming in does not change
-            _n_in  = size[_dimID];
+                                          // the information coming in does not change
+            _n_in = size[_dimID];
+            // we do a DST, so no imult
+            _imult[lia] = true;
             if (_bc[1][lia] == ODD) {
                 // -> we add the 0 mode by hand
                 _n_out = size[_dimID] + 1;
                 // the correction is the one of the DST = put 0 in the 0 mode
-                 _corrtype[lia] = CORRECTION_DST;
-                 _koffset = 0.0;
-                 // always the correct DST
+                _corrtype[lia] = CORRECTION_DST;
+                _koffset       = 0.0;
+                // always the correct DST
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
             } else if (_bc[1][lia] == EVEN) {
@@ -287,7 +293,7 @@ void FFTW_plan_dim::_init_real2real(const int size[3], const bool isComplex) {
                 _n_out = size[_dimID];
                 // no correction is needed for the types 4 but an offset of 1/2 in fourier
                 _corrtype[lia] = CORRECTION_NONE;
-                _koffset = 0.5;
+                _koffset       = 0.5;
                 // always the samed DST
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT11;   // DST type IV
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT11;  // DST type IV
@@ -313,7 +319,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
+    FLUPS_CHECK(isComplex == false, "the data cannot be complex", LOCATION);
 
     //-------------------------------------------------------------------------
     /** - get the memory details: #_fieldstart and #_isr2c */
@@ -326,7 +332,6 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
         _fieldstart = size[_dimID];  // padding to the left - only the first dim is enough
     else if (_bc[1][0] == UNB)
         _fieldstart = 0;  // padding to the right - only the first dim is enough
-    
 
     //-------------------------------------------------------------------------
     /** - get the #_symstart if is Green */
@@ -341,6 +346,7 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
     //-------------------------------------------------------------------------
     /** - Get the #_kind of Fourier transforms */
     //-------------------------------------------------------------------------
+    _imult    = (bool*)flups_malloc(sizeof(bool) * _lda);
     _kind     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * _lda);
     _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
 
@@ -353,6 +359,8 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             _koffset = 0.0;
             // no correction is needed
             _corrtype[lia] = CORRECTION_NONE;
+            // we do a DCT, so no imult
+            _imult[lia] = false;
             // The Green function is ALWAYS EVEN - EVEN
             if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT00;  // DCT type I
             if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT00;
@@ -368,12 +376,16 @@ void FFTW_plan_dim::_init_mixunbounded(const int size[3], const bool isComplex) 
             if ((_bc[0][lia] == EVEN && _bc[1][lia] == UNB) || (_bc[0][lia] == UNB && _bc[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
                 // we need a DCT correction
                 _corrtype[lia] = CORRECTION_DCT;
+                // we do a DCT, so no imult
+                _imult[lia] = false;
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_REDFT10;   // DCT type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_REDFT01;  // DCT type III
 
             } else if ((_bc[0][lia] == UNB && _bc[1][lia] == ODD) || (_bc[0][lia] == ODD && _bc[1][lia] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
                                                                                                                     // we need a DST correction
                 _corrtype[lia] = CORRECTION_DST;
+                // we do a DCT, so no imult
+                _imult[lia] = true;
                 if (_sign == FLUPS_FORWARD) _kind[lia] = FFTW_RODFT10;   // DST type II
                 if (_sign == FLUPS_BACKWARD) _kind[lia] = FFTW_RODFT01;  // DST type III
                 _koffset = 0.0;
@@ -430,8 +442,11 @@ void FFTW_plan_dim::_init_periodic(const int size[3], const bool isComplex) {
     /** - Get the #_koffset factor */
     //-------------------------------------------------------------------------
     _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
+    _imult    = (bool*)flups_malloc(sizeof(bool) * _lda);
     for (int lia = 0; lia < _lda; lia++) {
         _corrtype[lia] = CORRECTION_NONE;
+        // we do a DFT, so no imult
+        _imult[lia] = false;
     }
     END_FUNC;
 }
@@ -476,8 +491,11 @@ void FFTW_plan_dim::_init_unbounded(const int size[3], const bool isComplex) {
     /** - Get the #_koffset factor */
     //-------------------------------------------------------------------------
     _corrtype = (PlanCorrectionType*)flups_malloc(sizeof(int) * _lda);
+    _imult    = (bool*)flups_malloc(sizeof(bool) * _lda);
     for (int lia = 0; lia < _lda; lia++) {
         _corrtype[lia] = CORRECTION_NONE;
+        // we do a DFT, so no imult
+        _imult[lia] = false;
     }
     END_FUNC;
 }
@@ -754,9 +772,6 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
     for (int lia = 0; lia < _lda; lia++) {
         // get the starting point of the
         opt_double_ptr mydata = data + lia * memdim;
-
-        FLUPS_INFO("in dim %d, correction = %d",lia,_corrtype[lia]);
-
         // if we need a DCT correction and that we are doing forward (backward doesn't matter)
         if (_corrtype[lia] == CORRECTION_DCT && _sign == FLUPS_FORWARD) {
             // we need to enforce the flip-flop mode to be zero and that's it

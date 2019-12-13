@@ -90,9 +90,9 @@ class FFTW_plan_dim {
     PlanType            _type;                    /**< @brief type of this plan, see #PlanType*/
     BoundaryType*       _bc[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
     PlanCorrectionType* _corrtype = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
-
-    fftw_r2r_kind* _kind = NULL; /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    fftw_plan*     _plan = NULL; /**< @brief the array of FFTW plan*/
+    bool*               _imult    = NULL;        /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
+    fftw_r2r_kind*      _kind     = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan*          _plan     = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -111,6 +111,7 @@ class FFTW_plan_dim {
     /**@{ */
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
+    inline bool   imult(const int lia) const { return _imult[lia]; }
     inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
     inline int    type() const { return _type; }

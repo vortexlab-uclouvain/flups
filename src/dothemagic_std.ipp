@@ -1,5 +1,5 @@
 /**
- * @file dothemagic_rhs.ipp
+ * @file dothemagic_std.ipp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief contains the domagic functions 
  * @version
@@ -29,13 +29,13 @@
  * @brief perform the convolution for real to real cases
  * 
  */
-void Solver::dothemagic_rhs_real(double *data) {
+void Solver::dothemagic_std_real(double *data) {
 #elif (KIND == 1)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
  */
-void Solver::dothemagic_rhs_complex(double *data) {
+void Solver::dothemagic_std_complex(double *data) {
 #endif
 
     BEGIN_FUNC;
