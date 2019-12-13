@@ -244,24 +244,7 @@ int main(int argc, char *argv[]) {
 
     // Do the validation
     struct DomainDescr valCase;
-    for (int is = 0; is < nsample; is++) {
-        valCase.dovectorbc = (bcdefv[0][0][0] != NONE);
-
-        for (int ip = 0; ip < 3; ip++) {
-            valCase.L[ip]       = L[ip];
-            valCase.nproc[ip]   = nprocs[ip];
-            valCase.nglob[ip]   = size[is*3+ip];
-            valCase.mybc[ip][0] = bcdef[ip][0];
-            valCase.mybc[ip][1] = bcdef[ip][1];
-
-            valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
-            valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
-            valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
-            valCase.mybcv[ip][1][0] = bcdefv[ip][1][0];
-            valCase.mybcv[ip][1][1] = bcdefv[ip][1][1];
-            valCase.mybcv[ip][1][2] = bcdefv[ip][1][2];
-        }
-    }
+    valCase.dovectorbc = (bcdefv[0][0][0] != NONE);
 
     // Display
     if (rank == 0) {
@@ -283,8 +266,24 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // let's gooo
-    validation_3d(valCase, kernel, lda, nsolve);
+    for (int is = 0; is < nsample; is++) {
+        for (int ip = 0; ip < 3; ip++) {
+            valCase.L[ip]       = L[ip];
+            valCase.nproc[ip]   = nprocs[ip];
+            valCase.nglob[ip]   = size[is * 3 + ip];
+            valCase.mybc[ip][0] = bcdef[ip][0];
+            valCase.mybc[ip][1] = bcdef[ip][1];
+
+            valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
+            valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
+            valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
+            valCase.mybcv[ip][1][0] = bcdefv[ip][1][0];
+            valCase.mybcv[ip][1][1] = bcdefv[ip][1][1];
+            valCase.mybcv[ip][1][2] = bcdefv[ip][1][2];
+        }
+        // let's gooo
+        validation_3d(valCase, kernel, lda, nsolve);
+    }
 
     free(size);
 
