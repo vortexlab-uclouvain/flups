@@ -117,6 +117,7 @@ typedef struct Profiler FLUPS_Profiler;
 
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
+typedef enum FLUPS_SolverType   FLUPS_SolverType;
 
 /**@} */
 
