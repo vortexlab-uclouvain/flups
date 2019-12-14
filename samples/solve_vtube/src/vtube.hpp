@@ -54,8 +54,10 @@ static const double c_2pi = 2.0 * M_PI;
 struct DomainDescr {
     double             xcntr          = 0.5;
     double             ycntr          = 0.5;
+    double             zcntr          = 0.5;
     double             xsign          = 0.0;
     double             ysign          = 0.0;
+    double             zsign          = 0.0;
     int                nglob[3]       = {64, 64, 64};
     int                nproc[3]       = {1, 2, 2};
     double             L[3]           = {1.0, 1.0, 1.0};
@@ -67,7 +69,7 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve);
+void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type);
 /**@} */
 
 #endif

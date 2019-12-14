@@ -29,13 +29,16 @@
 
 using namespace std;
 
-void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve) {
+void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
     const int lda =3;
+
+    const bool tube = type==0;
+    const bool ring = type==1;
 
     const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
@@ -94,16 +97,17 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma = 0.05;
-        const int ax0     = flups_topo_get_axis(topo);
-        const int ax1     = (ax0 + 1) % 3;
-        const int ax2     = (ax0 + 2) % 3;
-        const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
-        
-        double* rhs0 = rhs + flups_locID(ax0, 0, 0, 0, 0, ax0, nmem, 1);
-        double* rhs1 = rhs + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
-        double* rhs2 = rhs + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
-        double* sol0 = sol + flups_locID(ax0, 0, 0, 0, 0, ax0, nmem, 1);
+        const double sigma   = 0.05;
+        const double rad     = 0.2;
+        const int    ax0     = flups_topo_get_axis(topo);
+        const int    ax1     = (ax0 + 1) % 3;
+        const int    ax2     = (ax0 + 2) % 3;
+        const int    nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
+
+        double *rhs0 = rhs + flups_locID(ax0, 0, 0, 0, 0, ax0, nmem, 1);
+        double *rhs1 = rhs + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
+        double *rhs2 = rhs + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
+        double *sol0 = sol + flups_locID(ax0, 0, 0, 0, 0, ax0, nmem, 1);
         double* sol1 = sol + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
         double* sol2 = sol + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
 
@@ -114,6 +118,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                         const double pos[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
                                                (istart[ax1] + i1 + 0.5) * h[ax1],
                                                (istart[ax2] + i2 + 0.5) * h[ax2]};
+                        if(tube){
                         //---------------------------------------------------------------
                         // main tube
                         {
@@ -169,6 +174,42 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             sol0[id] += -sin(theta) * myCase.ysign * vel;
                             sol1[id] += +cos(theta) * myCase.ysign * vel;
                             sol2[id] += 0.0;
+                        }
+                        }else if (ring){
+
+                            //---------------------------------------------------------------
+                            // main ring
+                            {
+                                const double x     = pos[0] - (myCase.xcntr * L[0]);
+                                const double y     = pos[1] - (myCase.ycntr * L[1]);
+                                const double z     = pos[2] - (myCase.zcntr * L[2]);
+
+                                // get the coordinates in the radial plan
+                                const double xp = sqrt(x * x + y * y);
+                                const double alphap = atan2(y,x);
+
+                                // in the plan, the coordinates are (xp,z)
+                                // get the distance to the 1st vortex
+                                const double r1 = sqrt((xp-rad)*(xp-rad) + z*z);
+                                const double theta1 = std::atan2(z,(xp-rad));  // get the angle in the x-y plane
+                                const double rho1   = r1 / sigma;
+                                const double r2 = sqrt((xp+rad)*(xp+rad) + z*z);
+                                const double theta2 = std::atan2(z,(xp+rad));  // get the angle in the x-y plane
+                                const double rho2   = r2 / sigma;
+
+                                const double vel1  = 1.0 / (c_2pi * r1) * (1.0 - exp(-rho1 * rho1 * 0.5));
+                                const double vel2 = - 1.0 / (c_2pi * r2) * (1.0 - exp(-rho2 * rho2 * 0.5));
+                                const double vn = cos(theta1)*vel1+cos(theta2)*vel2;
+                                const double vr = -sin(theta1)*vel1-sin(theta2)*vel2;
+                                const double vort = +1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5) - 1.0 / (c_2pi * sigma * sigma) * exp(-rho2 * rho2 * 0.5);
+
+                                rhs0[id] = +sin(alphap) * (-vort);
+                                rhs1[id] = -cos(alphap) * (-vort);
+                                rhs2[id] = 0.0;
+                                sol0[id] = cos(alphap) * vr;
+                                sol1[id] = sin(alphap) * vr;
+                                sol2[id] = vn;
+                            }
                         }
                     }
                 }
