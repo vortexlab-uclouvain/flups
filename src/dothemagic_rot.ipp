@@ -129,9 +129,9 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             const double rot1r = df0d2r - df2d0r;
             const double rot2r = df1d0r - df0d1r;
             // convolution
-            dataloc0[ii * 2] = normfact * rot0r * gr;
-            dataloc1[ii * 2] = normfact * rot1r * gr;
-            dataloc2[ii * 2] = normfact * rot2r * gr;
+            dataloc0[ii] = normfact * rot0r * gr;
+            dataloc1[ii] = normfact * rot1r * gr;
+            dataloc2[ii] = normfact * rot2r * gr;
 #elif (KIND == 1)
             // data
             const double f0r = dataloc0[ii * 2 + 0];
