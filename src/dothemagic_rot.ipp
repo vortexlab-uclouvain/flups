@@ -24,24 +24,35 @@
  * 
  */
 
-#if (KIND == 0)
+#if (KIND == 01)
 /**
- * @brief perform the convolution for real to real cases
+ * @brief perform the convolution for real to real cases - spectral diff
  * 
  */
-
-void Solver::dothemagic_rot_real(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]){
-#elif (KIND == 1)
+void Solver::dothemagic_rot_real_o1(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]){
+#elif (KIND == 11)
 /**
- * @brief perform the convolution for complex to complex cases
+ * @brief perform the convolution for complex to complex cases - spectral diff
  * 
  */
-void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]){
+void Solver::dothemagic_rot_complex_o1(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]){
+#elif (KIND == 02)
+/**
+ * @brief perform the convolution for real to real cases - spectral diff
+ * 
+ */
+void Solver::dothemagic_rot_real_o2(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3],const double hgrid[3]){
+#elif (KIND == 12)
+/**
+ * @brief perform the convolution for complex to complex cases - spectral diff
+ * 
+ */
+void Solver::dothemagic_rot_complex_o2(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3],const double hgrid[3]){
 #endif
 
     BEGIN_FUNC;
     int cdim = _ndim - 1;  // get current dim
-#if (KIND == 0)
+#if (KIND == 01 || KIND == 02)
     FLUPS_CHECK(_topo_hat[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
 #else
     FLUPS_CHECK(_topo_hat[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
@@ -78,7 +89,11 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
+#if (KIND == 01 || KIND == 11)
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart)
+#elif (KIND == 02 || KIND == 12)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart,hgrid)
+#endif
     for (size_t io = 0; io < ondim; io++) {
         // get the starting pointer
         opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);  //lda of Green is only 1
@@ -96,13 +111,14 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             int is[3];
             cmpt_symID(ax0, ii, io % nloc_ax1, io / nloc_ax1, istart, symstart, 0, is);
 
-#if (KIND == 0)
+#if (KIND == 01 || KIND == 02)
             // data
             const double f0r = dataloc0[ii];
             const double f1r = dataloc1[ii];
             const double f2r = dataloc2[ii];
             // green function
             const double gr = greenloc[ii];
+#if (KIND == 01)
             // derivative in the direction 0 - component 1 and 2
             const double k0c1r = (is[0] + koffset[0]) * (kfact[0][1][0] + kfact[0][1][1]);
             const double k0c2r = (is[0] + koffset[0]) * (kfact[0][2][0] + kfact[0][2][1]);
@@ -112,6 +128,17 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             // derivative in the direction 2 - component 0 and 1
             const double k2c0r = (is[2] + koffset[2]) * (kfact[2][0][0] + kfact[2][0][1]);
             const double k2c1r = (is[2] + koffset[2]) * (kfact[2][1][0] + kfact[2][1][1]);
+#elif (KIND == 02)
+            // derivative in the direction 0 - component 1 and 2
+            const double k0c1r = sin((is[0] + koffset[0]) * (kfact[0][1][0] + kfact[0][1][1]) * hgrid[0]) / hgrid[0];
+            const double k0c2r = sin((is[0] + koffset[0]) * (kfact[0][2][0] + kfact[0][2][1]) * hgrid[0]) / hgrid[0];
+            // derivative in the direction 1 - component 0 and 2
+            const double k1c0r = sin((is[1] + koffset[1]) * (kfact[1][0][0] + kfact[1][0][1]) * hgrid[1]) / hgrid[1];
+            const double k1c2r = sin((is[1] + koffset[1]) * (kfact[1][2][0] + kfact[1][2][1]) * hgrid[1]) / hgrid[1];
+            // derivative in the direction 2 - component 0 and 1
+            const double k2c0r = sin((is[2] + koffset[2]) * (kfact[2][0][0] + kfact[2][0][1]) * hgrid[2]) / hgrid[2];
+            const double k2c1r = sin((is[2] + koffset[2]) * (kfact[2][1][0] + kfact[2][1][1]) * hgrid[2]) / hgrid[2];
+#endif
             // d(f0)/d1
             const double df0d1r = f0r * k1c0r;
             // d(f0)/d2
@@ -132,7 +159,7 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             dataloc0[ii] = normfact * rot0r * gr;
             dataloc1[ii] = normfact * rot1r * gr;
             dataloc2[ii] = normfact * rot2r * gr;
-#elif (KIND == 1)
+#elif (KIND == 11 || KIND == 12)
             // data
             const double f0r = dataloc0[ii * 2 + 0];
             const double f1r = dataloc1[ii * 2 + 0];
@@ -145,6 +172,7 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             const double gc = greenloc[ii * 2 + 1];
             // kicj = derivative in the direction i for the component j
             // derivative in the direction 0 - component 1 and 2
+#if (KIND == 11)
             const double k0c1r = (is[0] + koffset[0]) * kfact[0][1][0];
             const double k0c1c = (is[0] + koffset[0]) * kfact[0][1][1];
             const double k0c2r = (is[0] + koffset[0]) * kfact[0][2][0];
@@ -159,6 +187,22 @@ void Solver::dothemagic_rot_complex(double *data,const double koffset[3],const d
             const double k2c0c = (is[2] + koffset[2]) * kfact[2][0][1];
             const double k2c1r = (is[2] + koffset[2]) * kfact[2][1][0];
             const double k2c1c = (is[2] + koffset[2]) * kfact[2][1][1];
+#elif (KIND == 12)
+            const double k0c1r = sin((is[0] + koffset[0]) * kfact[0][1][0] * hgrid[0]) / hgrid[0];
+            const double k0c1c = sin((is[0] + koffset[0]) * kfact[0][1][1] * hgrid[0]) / hgrid[0];
+            const double k0c2r = sin((is[0] + koffset[0]) * kfact[0][2][0] * hgrid[0]) / hgrid[0];
+            const double k0c2c = sin((is[0] + koffset[0]) * kfact[0][2][1] * hgrid[0]) / hgrid[0];
+            // derivative in the direction 1 - component 0 and 2
+            const double k1c0r = sin((is[1] + koffset[1]) * kfact[1][0][0] * hgrid[1]) / hgrid[1];
+            const double k1c0c = sin((is[1] + koffset[1]) * kfact[1][0][1] * hgrid[1]) / hgrid[1];
+            const double k1c2r = sin((is[1] + koffset[1]) * kfact[1][2][0] * hgrid[1]) / hgrid[1];
+            const double k1c2c = sin((is[1] + koffset[1]) * kfact[1][2][1] * hgrid[1]) / hgrid[1];
+            // derivative in the direction 2 - component 0 and 1
+            const double k2c0r = sin((is[2] + koffset[2]) * kfact[2][0][0] * hgrid[2]) / hgrid[2];
+            const double k2c0c = sin((is[2] + koffset[2]) * kfact[2][0][1] * hgrid[2]) / hgrid[2];
+            const double k2c1r = sin((is[2] + koffset[2]) * kfact[2][1][0] * hgrid[2]) / hgrid[2];
+            const double k2c1c = sin((is[2] + koffset[2]) * kfact[2][1][1] * hgrid[2]) / hgrid[2];
+#endif
             // d(f0)/d1
             const double df0d1r = f0r * k1c0r - f0c * k1c0c;
             const double df0d1c = f0r * k1c0c + f0c * k1c0r;

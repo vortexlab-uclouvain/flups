@@ -1411,9 +1411,17 @@ void Solver::do_mult(double *data, const FLUPS_SolverType type) {
             }
         }
         if (!_topo_hat[_ndim - 1]->isComplex()) {
-            dothemagic_rot_real(data, koffset, kfact, symstart);
+            if (_odiff == 1) {
+                dothemagic_rot_real_o1(data, koffset, kfact, symstart);
+            } else if (_odiff == 2) {
+                dothemagic_rot_real_o2(data, koffset, kfact, symstart,_hgrid);
+            }
         } else {
-            dothemagic_rot_complex(data, koffset, kfact, symstart);
+            if (_odiff == 1) {
+                dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
+            } else if (_odiff == 2) {
+                dothemagic_rot_complex_o2(data, koffset, kfact, symstart,_hgrid);
+            }
         }
     }
 
@@ -1425,12 +1433,26 @@ void Solver::do_mult(double *data, const FLUPS_SolverType type) {
 // kind = 0: real to real case
 #define KIND 0
 #include "dothemagic_std.ipp"
+#undef KIND
+// 01 = real to real, spectral acc
+#define KIND 01
+#include "dothemagic_rot.ipp"
+#undef KIND
+// 02= real to real, 2nd order acc
+#define KIND 02
 #include "dothemagic_rot.ipp"
 #undef KIND
 //---------------------------------
 // kind = 1: complex to complex
 #define KIND 1
 #include "dothemagic_std.ipp"
+#undef KIND
+// kind = 11: complex to complex spectral acc
+#define KIND 11
+#include "dothemagic_rot.ipp"
+#undef KIND
+// kind = 12: complex to complex 2nd order acc
+#define KIND 12
 #include "dothemagic_rot.ipp"
 #undef KIND
 

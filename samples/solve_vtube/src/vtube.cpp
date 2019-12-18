@@ -70,7 +70,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L,1, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L,2, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -173,6 +173,24 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             rhs2[id] += -myCase.ysign * vort;
                             sol0[id] += -sin(theta) * myCase.ysign * vel;
                             sol1[id] += +cos(theta) * myCase.ysign * vel;
+                            sol2[id] += 0.0;
+                        }
+                        //---------------------------------------------------------------
+                        // xy sym tube
+                        {
+                            const double x     = pos[0] + (myCase.xcntr * L[0]);
+                            const double y     = pos[1] + (myCase.ycntr * L[1]);
+                            const double theta = std::atan2(y, x);
+                            const double r     = sqrt(x * x + y * y);
+                            const double rho   = r / sigma;
+                            const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
+                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
+
+                            rhs0[id] += 0.0;
+                            rhs1[id] += 0.0;
+                            rhs2[id] += -myCase.ysign * myCase.xsign * vort;
+                            sol0[id] += -sin(theta) * myCase.ysign * myCase.xsign * vel;
+                            sol1[id] += +cos(theta) * myCase.ysign * myCase.xsign * vel;
                             sol2[id] += 0.0;
                         }
                         }else if (ring){
