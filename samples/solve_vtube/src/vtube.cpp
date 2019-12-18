@@ -29,7 +29,7 @@
 
 using namespace std;
 
-void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type) {
+void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, int order, int vdir) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
@@ -70,7 +70,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L,2, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L,order, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -97,7 +97,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma   = 0.05;
+        const double sigma   = 0.1;
         const double rad     = 0.2;
         const int    ax0     = flups_topo_get_axis(topo);
         const int    ax1     = (ax0 + 1) % 3;
@@ -111,87 +111,158 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         double* sol1 = sol + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
         double* sol2 = sol + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
 
-            for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
-                for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
-                    for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
-                        const size_t id   = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
-                        const double pos[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                               (istart[ax1] + i1 + 0.5) * h[ax1],
-                                               (istart[ax2] + i2 + 0.5) * h[ax2]};
-                        if(tube){
+        int dir0 = (vdir + 1) % 3;
+        int dir1 = (vdir + 2) % 3;
+        int dir2 = vdir;
+
+        printf("center = %f %f - signs = %f %f",myCase.xcntr,myCase.ycntr,myCase.xsign,myCase.ysign);
+
+        for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
+            for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
+                for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
+                    const size_t id     = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
+                    const double pos[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
+                                           (istart[ax1] + i1 + 0.5) * h[ax1],
+                                           (istart[ax2] + i2 + 0.5) * h[ax2]};
+                    if (tube) {
                         //---------------------------------------------------------------
                         // main tube
                         {
-                            const double x     = pos[0] - (myCase.xcntr * L[0]);
-                            const double y     = pos[1] - (myCase.ycntr * L[1]);
+                            
+                            const double x     = pos[dir0] - (myCase.xcntr * L[dir0]);
+                            const double y     = pos[dir1] - (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);  // get the angle in the x-y plane
                             const double r     = sqrt(x * x + y * y);
                             const double rho   = r / sigma;
                             const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
                             const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
 
-                            rhs0[id] = 0.0;
-                            rhs1[id] = 0.0;
-                            rhs2[id] = -vort;
-                            sol0[id] = -sin(theta) * vel;
-                            sol1[id] = +cos(theta) * vel;
-                            sol2[id] = 0.0;
+                            if (dir2 == 0) {
+                                rhs0[id] = -vort;
+                                rhs1[id] = 0.0;
+                                rhs2[id] = 0.0;
+                                sol0[id] = 0.0;
+                                sol1[id] = -sin(theta) * vel;
+                                sol2[id] = +cos(theta) * vel;
+                            } else if (dir2 == 1) {
+                                rhs0[id] = 0.0;
+                                rhs1[id] = -vort;
+                                rhs2[id] = 0.0;
+                                sol0[id] = +cos(theta) * vel;
+                                sol1[id] = 0.0;
+                                sol2[id] = -sin(theta) * vel;
+                            } else if (dir2 == 2) {
+                                rhs0[id] = 0.0;
+                                rhs1[id] = 0.0;
+                                rhs2[id] = -vort;
+                                sol0[id] = -sin(theta) * vel;
+                                sol1[id] = +cos(theta) * vel;
+                                sol2[id] = 0.0;
+                            }
                         }
 
                         //---------------------------------------------------------------
                         // x sym tube
                         {
-                            const double x     = pos[0] + (myCase.xcntr * L[0]);
-                            const double y     = pos[1] - (myCase.ycntr * L[1]);
+                            const double x     = pos[dir0] + (myCase.xcntr * L[dir0]);
+                            const double y     = pos[dir1] - (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
                             const double rho   = r / sigma;
                             const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
                             const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
 
-                            rhs0[id] += 0.0;
-                            rhs1[id] += 0.0;
-                            rhs2[id] += -myCase.xsign * vort;
-                            sol0[id] += -sin(theta) * myCase.xsign * vel;
-                            sol1[id] += +cos(theta) * myCase.xsign * vel;
-                            sol2[id] += 0.0;
+                            if (dir2 == 0) {
+                                rhs0[id] += -vort * myCase.xsign;
+                                rhs1[id] += 0.0 * myCase.xsign;
+                                rhs2[id] += 0.0 * myCase.xsign;
+                                sol0[id] += 0.0 * myCase.xsign;
+                                sol1[id] += -sin(theta) * vel * myCase.xsign;
+                                sol2[id] += +cos(theta) * vel * myCase.xsign;
+                            } else if (dir2 == 1) {
+                                rhs0[id] += 0.0 * myCase.xsign;
+                                rhs1[id] += -vort * myCase.xsign;
+                                rhs2[id] += 0.0 * myCase.xsign;
+                                sol0[id] += +cos(theta) * vel * myCase.xsign;
+                                sol1[id] += 0.0 * myCase.xsign;
+                                sol2[id] += -sin(theta) * vel * myCase.xsign;
+                            } else if (dir2 == 2) {
+                                rhs0[id] += 0.0 * myCase.xsign;
+                                rhs1[id] += 0.0 * myCase.xsign;
+                                rhs2[id] += -vort * myCase.xsign;
+                                sol0[id] += -sin(theta) * vel * myCase.xsign;
+                                sol1[id] += +cos(theta) * vel * myCase.xsign;
+                                sol2[id] += 0.0 * myCase.xsign;
+                            }
                         }
 
                         //---------------------------------------------------------------
                         // y sym tube
                         {
-                            const double x     = pos[0] - (myCase.xcntr * L[0]);
-                            const double y     = pos[1] + (myCase.ycntr * L[1]);
+                            const double x     = pos[dir0] - (myCase.xcntr * L[dir0]);
+                            const double y     = pos[dir1] + (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
                             const double rho   = r / sigma;
                             const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
                             const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
 
-                            rhs0[id] += 0.0;
-                            rhs1[id] += 0.0;
-                            rhs2[id] += -myCase.ysign * vort;
-                            sol0[id] += -sin(theta) * myCase.ysign * vel;
-                            sol1[id] += +cos(theta) * myCase.ysign * vel;
-                            sol2[id] += 0.0;
+                            if (dir2 == 0) {
+                                rhs0[id] += -vort * myCase.ysign;
+                                rhs1[id] += 0.0 * myCase.ysign;
+                                rhs2[id] += 0.0 * myCase.ysign;
+                                sol0[id] += 0.0 * myCase.ysign;
+                                sol1[id] += -sin(theta) * vel * myCase.ysign;
+                                sol2[id] += +cos(theta) * vel * myCase.ysign;
+                            } else if (dir2 == 1) {
+                                rhs0[id] += 0.0 * myCase.ysign;
+                                rhs1[id] += -vort * myCase.ysign;
+                                rhs2[id] += 0.0 * myCase.ysign;
+                                sol0[id] += +cos(theta) * vel * myCase.ysign;
+                                sol1[id] += 0.0 * myCase.ysign;
+                                sol2[id] += -sin(theta) * vel * myCase.ysign;
+                            } else if (dir2 == 2) {
+                                rhs0[id] += 0.0 * myCase.ysign;
+                                rhs1[id] += 0.0 * myCase.ysign;
+                                rhs2[id] += -vort * myCase.ysign;
+                                sol0[id] += -sin(theta) * vel * myCase.ysign;
+                                sol1[id] += +cos(theta) * vel * myCase.ysign;
+                                sol2[id] += 0.0 * myCase.ysign;
+                            }
                         }
                         //---------------------------------------------------------------
                         // xy sym tube
                         {
-                            const double x     = pos[0] + (myCase.xcntr * L[0]);
-                            const double y     = pos[1] + (myCase.ycntr * L[1]);
+                            const double x     = pos[dir0] + (myCase.xcntr * L[dir0]);
+                            const double y     = pos[dir1] + (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
                             const double rho   = r / sigma;
                             const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
                             const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
 
-                            rhs0[id] += 0.0;
-                            rhs1[id] += 0.0;
-                            rhs2[id] += -myCase.ysign * myCase.xsign * vort;
-                            sol0[id] += -sin(theta) * myCase.ysign * myCase.xsign * vel;
-                            sol1[id] += +cos(theta) * myCase.ysign * myCase.xsign * vel;
-                            sol2[id] += 0.0;
+                            if (dir2 == 0) {
+                                rhs0[id] += -vort * myCase.ysign * myCase.xsign;
+                                rhs1[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                rhs2[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                sol0[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                sol1[id] += -sin(theta) * vel * myCase.ysign * myCase.xsign;
+                                sol2[id] += +cos(theta) * vel * myCase.ysign * myCase.xsign;
+                            } else if (dir2 == 1) {
+                                rhs0[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                rhs1[id] += -vort * myCase.ysign * myCase.xsign;
+                                rhs2[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                sol0[id] += +cos(theta) * vel * myCase.ysign * myCase.xsign;
+                                sol1[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                sol2[id] += -sin(theta) * vel * myCase.ysign * myCase.xsign;
+                            } else if (dir2 == 2) {
+                                rhs0[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                rhs1[id] += 0.0 * myCase.ysign * myCase.xsign;
+                                rhs2[id] += -vort * myCase.ysign * myCase.xsign;
+                                sol0[id] += -sin(theta) * vel * myCase.ysign * myCase.xsign;
+                                sol1[id] += +cos(theta) * vel * myCase.ysign * myCase.xsign;
+                                sol2[id] += 0.0 * myCase.ysign * myCase.xsign;
+                            }
                         }
                         }else if (ring){
 

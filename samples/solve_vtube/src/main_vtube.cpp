@@ -54,12 +54,14 @@ static void print_help(){
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
     printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
+    printf(" --dir, -d {1,2,3}:             direction of the vortex tubes\n");
+    printf(" --order, -o {1,2}:             derivation order asked for the velocity field\n");
     printf(" --sym_x, -smx {-1,0,1}:        say if another vortex tube is added in the X direction: -1 = odd symmetry, 0 = none, 1 = even symmetry\n");
     printf(" --sym_y, -smy {-1,0,1}:        say if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry\n");
     
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type, int * vdir, int* order){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -74,6 +76,8 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym
     sym[0]   = 0; // no other tube by def
     sym[1]   = 0; // no other tube by def
     *type = 0; // ring by def
+    *order = 1;
+    *vdir = 2;
 
     // modifying if necessary
     if(argc < 1 || ( argc==1 && (!argv[0][0] || strcmp(argv[0],"flups_validation"))) ){
@@ -167,6 +171,22 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym
                 return 1;
             }  
             i++;
+        } else if ((arg == "-d") || (arg == "--dir")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                *vdir = atoi(argv[i+1]); 
+            } else { //Missing argument
+                fprintf(stderr, "missing --dir\n");
+                return 1;
+            }  
+            i++;
+        } else if ((arg == "-o") || (arg == "--order")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                *order = atoi(argv[i+1]); 
+            } else { //Missing argument
+                fprintf(stderr, "missing --order\n");
+                return 1;
+            }  
+            i++;
         } else if ((arg == "-smx") || (arg == "--sym_x")) {
             if (i + 1 < argc) {  // Make sure we aren't at the end of argv!
                 sym[0] = atoi(argv[i + 1]);
@@ -208,8 +228,10 @@ int main(int argc, char *argv[]) {
     FLUPS_BoundaryType bcdef[3][2][3];
     int sym[2];
     int type;
+    int order;
+    int vdir;
 
-    int status = parse_args(argc, argv, nprocs, L, sym, &kernel, &nsample, &size, &nsolve,&type);
+    int status = parse_args(argc, argv, nprocs, L, sym, &kernel, &nsample, &size, &nsolve,&type,&vdir,&order);
 
     if (status) exit(status);
     if (size==NULL){
@@ -237,6 +259,8 @@ int main(int argc, char *argv[]) {
         printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
         printf("  --kernel: %d\n", kernel);
         printf("  --nsolve: %d\n", nsolve);
+        printf("  --vdir: %d\n", vdir);
+        printf("  --order: %d\n", order);
         for (int i = 0; i < nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
@@ -251,71 +275,75 @@ int main(int argc, char *argv[]) {
             valCase.nglob[ip] = size[is * 3 + ip];
             if (type == 0) {// this is the vortex tube
                 // the BC are imposed in the Z direction
-                if (ip == 2) {
-                    valCase.mybcv[ip][0][0] = ODD;   // w_x on the left
-                    valCase.mybcv[ip][0][1] = ODD;   // w_y on the left
-                    valCase.mybcv[ip][0][2] = EVEN;  // w_z on the left
-                    valCase.mybcv[ip][1][0] = ODD;   // w_x on the right
-                    valCase.mybcv[ip][1][1] = ODD;   // w_y on the right
-                    valCase.mybcv[ip][1][2] = EVEN;  // w_z on the right
-                } else if (ip == 1) {
+                int dir2 = vdir;
+                int dir0 = (vdir+1)%3;
+                int dir1 = (vdir+2)%3;
+
+                if (ip == dir2) {
+                    valCase.mybcv[ip][0][dir0] = ODD;   // w_x on the left
+                    valCase.mybcv[ip][0][dir1] = ODD;   // w_y on the left
+                    valCase.mybcv[ip][0][dir2] = EVEN;  // w_z on the left
+                    valCase.mybcv[ip][1][dir0] = ODD;   // w_x on the right
+                    valCase.mybcv[ip][1][dir1] = ODD;   // w_y on the right
+                    valCase.mybcv[ip][1][dir2] = EVEN;  // w_z on the right
+                } else if (ip == dir1) {
                     // the Y bc depends on the symmetry
-                    if (sym[ip] == 1) {
+                    if (sym[1] == 1) {
                         valCase.ycntr           = 0.25;
                         valCase.ysign           = 1.0;
-                        valCase.mybcv[ip][0][0] = EVEN;  // w_x on the left
-                        valCase.mybcv[ip][0][1] = ODD;   // w_y on the left
-                        valCase.mybcv[ip][0][2] = EVEN;  // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;   // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;   // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;   // w_z on the right
-                    } else if (sym[ip] == 0) {
+                        valCase.mybcv[ip][0][dir0] = EVEN;  // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = ODD;   // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = EVEN;  // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;   // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;   // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;   // w_z on the right
+                    } else if (sym[1] == 0) {
                         valCase.ycntr           = 0.5;
                         valCase.ysign           = 0.0;
-                        valCase.mybcv[ip][0][0] = UNB;  // w_x on the left
-                        valCase.mybcv[ip][0][1] = UNB;  // w_y on the left
-                        valCase.mybcv[ip][0][2] = UNB;  // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;  // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;  // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;  // w_z on the right
-                    } else if (sym[ip] == -1) {
+                        valCase.mybcv[ip][0][dir0] = UNB;  // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = UNB;  // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = UNB;  // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;  // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;  // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;  // w_z on the right
+                    } else if (sym[1] == -1) {
                         valCase.ycntr           = 0.25;
                         valCase.ysign           = -1.0;
-                        valCase.mybcv[ip][0][0] = ODD;   // w_x on the left
-                        valCase.mybcv[ip][0][1] = EVEN;  // w_y on the left
-                        valCase.mybcv[ip][0][2] = ODD;   // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;   // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;   // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;   // w_z on the right
+                        valCase.mybcv[ip][0][dir0] = ODD;   // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = EVEN;  // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = ODD;   // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;   // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;   // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;   // w_z on the right
                     }
                 } else {
-                    if (sym[ip] == 1) {
+                    if (sym[0] == 1) {
                         valCase.xcntr           = 0.25;
                         valCase.xsign           = 1.0;
-                        valCase.mybcv[ip][0][0] = ODD;   // w_x on the left
-                        valCase.mybcv[ip][0][1] = EVEN;  // w_y on the left
-                        valCase.mybcv[ip][0][2] = EVEN;  // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;   // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;   // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;   // w_z on the right
-                    } else if (sym[ip] == 0) {
+                        valCase.mybcv[ip][0][dir0] = ODD;   // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = EVEN;  // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = EVEN;  // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;   // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;   // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;   // w_z on the right
+                    } else if (sym[0] == 0) {
                         valCase.xcntr           = 0.5;
                         valCase.xsign           = 0.0;
-                        valCase.mybcv[ip][0][0] = UNB;  // w_x on the left
-                        valCase.mybcv[ip][0][1] = UNB;  // w_y on the left
-                        valCase.mybcv[ip][0][2] = UNB;  // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;  // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;  // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;  // w_z on the right
-                    } else if (sym[ip] == -1) {
+                        valCase.mybcv[ip][0][dir0] = UNB;  // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = UNB;  // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = UNB;  // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;  // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;  // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;  // w_z on the right
+                    } else if (sym[0] == -1) {
                         valCase.xcntr           = 0.25;
                         valCase.xsign           = -1.0;
-                        valCase.mybcv[ip][0][0] = EVEN;  // w_x on the left
-                        valCase.mybcv[ip][0][1] = ODD;   // w_y on the left
-                        valCase.mybcv[ip][0][2] = ODD;   // w_z on the left
-                        valCase.mybcv[ip][1][0] = UNB;   // w_x on the right
-                        valCase.mybcv[ip][1][1] = UNB;   // w_y on the right
-                        valCase.mybcv[ip][1][2] = UNB;   // w_z on the right
+                        valCase.mybcv[ip][0][dir0] = EVEN;  // w_x on the left
+                        valCase.mybcv[ip][0][dir1] = ODD;   // w_y on the left
+                        valCase.mybcv[ip][0][dir2] = ODD;   // w_z on the left
+                        valCase.mybcv[ip][1][dir0] = UNB;   // w_x on the right
+                        valCase.mybcv[ip][1][dir1] = UNB;   // w_y on the right
+                        valCase.mybcv[ip][1][dir2] = UNB;   // w_z on the right
                     }
                 }
             } else if (type == 1) {  // this is the vortex ring
@@ -336,7 +364,7 @@ int main(int argc, char *argv[]) {
             }
         }
         // let's gooo
-        vtube(valCase, kernel, nsolve, type);
+        vtube(valCase, kernel, nsolve, type, order, vdir);
     }
 
     free(size);
