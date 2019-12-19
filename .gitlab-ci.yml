@@ -377,7 +377,7 @@ run vector a2a 5:1:
   script:
     - cd ../../
     - cd samples/solve_vtube
-    - python3.7 ./scripts/test_rot_a2a.py"
+    - python3.7 ./scripts/test_rot_a2a.py
   dependencies: 
     - compil vortex_rot
 
@@ -609,7 +609,7 @@ run vector nb 5:1:
   script:
     - cd ../..
     - cd samples/solve_vtube
-    - python3.7 ./scripts/test_rot_nb.py"
+    - python3.7 ./scripts/test_rot_nb.py
   dependencies: 
     - compil vortex_rot  
 
