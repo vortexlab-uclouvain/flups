@@ -40,19 +40,35 @@ def check_res_3d(i,file):
         errInf = float('Inf')
         if vals[0] < 1e-14: #absolute error because ref is 0
             err2   = abs((vals[0]-float(buff[1])))
-            errInf = abs((vals[1]-float(buff[2])))
-            err2   = err2   + abs((vals[2]-float(buff[3])))
-            errInf = errInf + abs((vals[3]-float(buff[4])))
-            err2   = err2   + abs((vals[4]-float(buff[5])))
-            errInf = errInf + abs((vals[5]-float(buff[6])))
         else:
             err2   = abs((vals[0]-float(buff[1]))/vals[0])
-            errInf = abs((vals[1]-float(buff[2]))/vals[1])
-            err2   = err2   + abs((vals[2]-float(buff[3]))/vals[2])
-            errInf = errInf + abs((vals[3]-float(buff[4]))/vals[3])
-            err2   = err2   + abs((vals[4]-float(buff[5]))/vals[4])
-            errInf = errInf + abs((vals[5]-float(buff[6]))/vals[5])
 
+        if vals[1] < 1e-14: #absolute error because ref is 0
+            errInf = abs((vals[1]-float(buff[2])))
+        else:
+            errInf = abs((vals[1]-float(buff[2]))/vals[1])
+
+        if vals[2] < 1e-14: #absolute error because ref is 0
+            err2   = err2   + abs((vals[2]-float(buff[3])))
+        else:
+            err2   = err2   + abs((vals[2]-float(buff[3]))/vals[2])
+
+        if vals[3] < 1e-14: #absolute error because ref is 0    
+            errInf = errInf + abs((vals[3]-float(buff[4])))
+        else:
+            errInf = errInf + abs((vals[3]-float(buff[4]))/vals[3])
+
+        if vals[4] < 1e-14: #absolute error because ref is 0
+            err2   = err2   + abs((vals[4]-float(buff[5])))
+        else:
+            err2   = err2   + abs((vals[4]-float(buff[5]))/vals[4])
+
+        if vals[5] < 1e-14: #absolute error because ref is 0
+            errInf = errInf + abs((vals[5]-float(buff[6])))
+        else:
+            errInf = errInf + abs((vals[5]-float(buff[6]))/vals[5])
+            
+            
         if err2<(3.0*tol) and errInf<(3.0*tol):
             pass
         else:
