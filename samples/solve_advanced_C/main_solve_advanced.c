@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 
     
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L);
+    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L,0);
     flups_set_greenType(mysolver,CHAT_2);
     double* solFLU = flups_setup(mysolver, true);
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - Multiplication in spectral space */
     // //-------------------------------------------------------------------------
-    flups_do_mult(mysolver,solFLU);
+    flups_do_mult(mysolver,solFLU,STD);
 
     // //-------------------------------------------------------------------------
     // /** - Gaussian filtering of the solution */

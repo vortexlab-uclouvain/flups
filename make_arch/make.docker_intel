@@ -1,0 +1,12 @@
+CXX = mpiicpc
+CXXFLAGS := -g -O3 -std=c++11 -qopenmp -restrict -fargument-noalias -DNDEBUG -DPROF -qopt-report=5 -qopt-report-phase=all
+CC = mpiicc
+CCFLAGS := -g -O3 -std=c++11 -qopenmp -restrict -fargument-noalias -DNDEBUG -DPROF -qopt-report=5 -qopt-report-phase=all
+LDFLAGS += -qopenmp
+
+FFTW_DIR := /soft/fftw-3.3.8-intel_2019.5
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+HDF5_DIR := /soft/hdf5-1.10.5-intel_2019.5
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include

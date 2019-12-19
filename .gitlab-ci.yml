@@ -61,6 +61,25 @@ compil solve_advanced:
     - cd ./samples/solve_advanced_C
     - make 
 
+compil vortex_rot :
+  stage: build
+  only:
+    - /.*$/i@examples/flups
+    - merge_requests
+  artifacts: 
+    paths: 
+      - ./samples/solve_vtube/flups_tube_nb
+      - ./samples/solve_vtube/flups_tube_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - cd ../../
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make install_static -j4
+    - cd ./samples/solve_vtube
+    - make all -j4
+
 
 #checks that the code runs without error in serial dbg
 ################################################################################
@@ -349,6 +368,19 @@ run vector a2a 4:1:
   dependencies: 
     - compil dbg    
 
+run vector a2a 5:1:
+  stage: vector
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../../
+    - cd samples/solve_vtube
+    - python3.7 ./scripts/test_rot_a2a.py
+  dependencies: 
+    - compil vortex_rot
+
 ################################################################################
 # NON BLOCKING
 ################################################################################
@@ -567,6 +599,19 @@ run vector nb 4:1:
     - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_331400_typeGreen=0.txt','validation_3d_331400_typeGreen=0.txt','validation_3d_330400_typeGreen=0.txt','validation_3d_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
+
+run vector nb 5:1:
+  stage: vector
+  only:
+    - master@examples/flups
+    - /^[0-9]-job-failed.*$/i@examples/flups
+    - merge_requests
+  script:
+    - cd ../..
+    - cd samples/solve_vtube
+    - python3.7 ./scripts/test_rot_nb.py
+  dependencies: 
+    - compil vortex_rot  
 
 ################################################################################
 # VALIDATION
