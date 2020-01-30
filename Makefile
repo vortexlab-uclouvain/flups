@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.generic
+ARCH_FILE ?= make_arch/make.vagrant_intel
 
 include $(ARCH_FILE)
 
@@ -40,6 +40,7 @@ TARGET_LIB_NB  := build/lib$(NAME)_nb
 BUILDDIR := ./build
 SRC_DIR := ./src
 OBJ_DIR := ./build
+KERNEL_DIR := ./kernel
 
 ## add the headers to the vpaths
 INC := -I$(SRC_DIR)
@@ -73,7 +74,7 @@ endif
 # by default the LGF kernel data is installed in the include directory
 LGF_PATH=$(abspath $(PREFIX)/include)
 DEF += -DKERNEL_PATH=${LGF_PATH}
-LGF_DATA := $(wildcard $(PREFIX)/kernel/*.ker)
+LGF_DATA := $(wildcard $(KERNEL_DIR)/*.ker)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
