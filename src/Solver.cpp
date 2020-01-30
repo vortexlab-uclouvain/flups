@@ -56,7 +56,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i > alignSize) {
-                FLUPS_ERROR("The FFTW alignement has to be bigger or = to FLUPS, please change accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+                FLUPS_ERROR("The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNEMENT into file flups.h accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
             }
             // else, just stop and advise the user to change
             break;
