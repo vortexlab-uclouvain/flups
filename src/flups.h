@@ -33,6 +33,8 @@
 #include "mpi.h"
 
 #ifdef __cplusplus
+#include <cmath>
+#include <iostream>
 extern "C" {
 #define MAX(a,b) std::max(a,b)
 #else
