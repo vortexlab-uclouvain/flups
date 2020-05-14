@@ -203,7 +203,7 @@ logo:
 	@echo "   |_|      |______|  \____/  |_|      |_____/      "
 	@echo "                                                    "
 	@echo "                                                    "
-	@echo "    	(C) UCLouvain - GPLv3                          "
+	@echo "    	(C) UCLouvain - Appache 2.0                    "
 	@echo "----------------------------------------------------"
 
 -include $(DEP)
