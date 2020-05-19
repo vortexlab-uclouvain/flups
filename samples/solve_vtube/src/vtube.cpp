@@ -382,7 +382,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     char   filename[512];
     string folder = "./data";
 
-    sprintf(filename, "%s/%s_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__,(int) myCase.xsign, (int)myCase.ysign, typeGreen);
+    sprintf(filename, "%s/%s_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
