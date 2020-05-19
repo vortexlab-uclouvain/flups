@@ -128,7 +128,8 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     if (_bc[1] != NULL) flups_free(_bc[1]);
     if (_imult != NULL) flups_free(_imult);
     if (_kind != NULL) flups_free(_kind);
-    if(_corrtype != NULL) flups_free(_corrtype);
+    if (_corrtype != NULL) flups_free(_corrtype);
+    if (_plan != NULL) flups_free(_plan);
     END_FUNC;
 }
 
