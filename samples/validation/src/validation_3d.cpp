@@ -85,8 +85,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
-    FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
+
+    //std::string     name = "prof_bc"+ to_string(mybc[0][0])+to_string(mybc[0][1])+to_string(mybc[1][0])+to_string(mybc[1][1])+to_string(mybc[2][0])+to_string(mybc[2][1]) +"_res" + std::to_string((int) pow(nglob[0]*nglob[1]*nglob[2] / comm_size,.3334)) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    char   name[512];
+    sprintf(name, "prof_bc%d%d%d%d%d%d_res%d_nrank%d_nthread%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], (int) pow(nglob[0]*nglob[1]*nglob[2] / comm_size,.3334),comm_size,omp_get_max_threads());
+
+    FLUPS_Profiler *prof = flups_profiler_new_n(name);
     FLUPS_Solver *  mysolver;
     mysolver = flups_init_timed(topo, mybc, h, L,0, prof);
 

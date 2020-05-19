@@ -37,11 +37,11 @@ using namespace std;
 //default values
 const static int                 d_nsolve    = 1;
 const static int                 d_nsample   = 1;
-const static int                 d_startSize = 16;
+const static int                 d_startSize = 64;
 const static int                 d_nprocs[3] = {1, 1, 1};
 const static double              d_L[3]      = {1., 1., 1.};
 const static FLUPS_GreenType     d_kernel    = CHAT_2;
-const static FLUPS_BoundaryType  d_bcdef     = UNB;
+const static FLUPS_BoundaryType  d_bcdef     = ODD;
 const static int                 d_lda       = 1;
 
 static void print_help(){
