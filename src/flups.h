@@ -39,7 +39,7 @@ extern "C" {
 #define MAX(a,b) std::max(a,b)
 #else
 #include "stdlib.h"
-#define MAX(a,b) a>b?a:b;
+#define MAX(a,b) a>b?a:b
 #endif
 
 //=============================================================================
