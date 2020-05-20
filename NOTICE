@@ -42,7 +42,7 @@ The documentation for this program is under a creative commons attribution share
 
 *************************************************************************
 
-This program has dependencies on other libraries and Website depedencies which are or not under GPL and that are commonly used with this program core libraries.
+This program has dependencies on other libraries and Website depedencies which are or not under Apache license and that are commonly used with this program core libraries.
 
 Dependencies are as follows:
 fftw3.h				2-clause BSD	http://www.fftw.org

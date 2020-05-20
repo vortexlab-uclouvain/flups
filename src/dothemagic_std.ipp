@@ -4,7 +4,7 @@
  * @brief contains the domagic functions 
  * @version
  * 
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  *  
  * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>

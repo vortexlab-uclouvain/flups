@@ -5,7 +5,7 @@
  * @version
  * @date 2019-09-25
  * 
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
