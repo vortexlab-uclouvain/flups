@@ -7,13 +7,13 @@
 ##########################################################
 
 #number of MPI ranks in each direction. The product is equal to the total number of ranks.
-NX=2
-NY=1
-NZ=1
+NX=8
+NY=8
+NZ=8
 NCPUS=$((${NX}*${NY}*${NZ}))
 
-#resolution per MPI rank (recommanded 128)
-res=16
+#resolution per MPI rank (recommanded 128, can be reduced to 64 if not enough memory)
+res=128
 
 #number of repetitions of the solve operation (for more reliable statistics of the execution time)
 NS=100

@@ -4,7 +4,7 @@ import sys
 from os import listdir
 from os.path import isfile, join
 
-#read the files located at path (argument of this script) and check if the error in the file is well equal to the machine epsilon 
+#read the files located at path (argument of this script) and check if the error in the file (only with 000000 or 111111 BCs) is well equal to the machine epsilon 
 #return the number of mistakes
 
 #path 2 your results
@@ -17,7 +17,7 @@ tol = 1e-12
 n_mistake = 0
 
 #list all files in path
-files = [f for f in listdir(path) if (isfile(join(path, f)) and '.txt' in f)]
+files = [f for f in listdir(path) if (isfile(join(path, f)) and ('000000.txt' in f) or ('111111.txt'in f))]
 
 
 for file in files:
