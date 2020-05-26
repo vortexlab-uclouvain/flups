@@ -45,8 +45,6 @@ typedef double (*GreenKernel)(const void*,const double*);
 void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length){
     BEGIN_FUNC;
 
-    FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral", LOCATION);
-
     // // assert that the green spacing is not 0.0 everywhere
     FLUPS_CHECK((hfact[0]*kfact[0]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
     FLUPS_CHECK((hfact[1]*kfact[1]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
@@ -85,7 +83,9 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             G = &_lgf_2_3unb0spe;
             break;
         case VIC_0:
+            FLUPS_INFO("doing vico with length = %f, kfact = %f and nf = %d",length,kfact[0],kfact[1],kfact[2],topo->nf());
             G  = &_vic_0_3unb0spec;
+            G0 = -2.0 * pow(length * 0.5, 2.0);  // lim_{s->0} (sin(a*x)/x)^2 = a^2
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);

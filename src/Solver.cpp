@@ -971,22 +971,23 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     /** - get the expression of Green in the full domain*/
     //-------------------------------------------------------------------------
     int n_unbounded = _ndim - nbr_spectral;
-    if ((n_unbounded) == 3) {
+    if ((n_unbounded) == 3 && _typeGreen != VIC_0) {
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
         cmpt_Green_3dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
-    } else if ((n_unbounded) == 2) {
+    } else if ((n_unbounded) == 2 && _typeGreen != VIC_0) {
         FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
         cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
-    } else if ((n_unbounded) == 1) {
+    } else if ((n_unbounded) == 1 && _typeGreen != VIC_0) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", _typeGreen);
         cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
-    } else if ((n_unbounded) == 0) {
+    } else if ((n_unbounded) == 0 && _typeGreen != VIC_0) {
         FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
         cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength);
-    } else {
-        FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
     }
+    // else {
+    //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
+    // }
 
     // dump the green func
 #ifdef DUMP_DBG
@@ -1014,6 +1015,27 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
         if (_plan_green[ip]->isr2c_doneByFFT()) {
             topo[ip]->switch2complex();
         }
+    }
+
+    // we need this kernel before the scaling of the GF
+    if (_typeGreen == VIC_0) {
+        if ((n_unbounded) == 3) {
+            FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
+            cmpt_Green_3dirunbounded(topo[_ndim - 1], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
+        }
+        // else if ((n_unbounded) == 2) {
+        //     FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
+        //     FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
+        //     cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
+        // } else if ((n_unbounded) == 1) {
+        //     FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", _typeGreen);
+        //     cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
+        // } else if ((n_unbounded) == 0) {
+        //     FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
+        //     cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength);
+        // } else {
+        //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
+        // }
     }
 
     //-------------------------------------------------------------------------
