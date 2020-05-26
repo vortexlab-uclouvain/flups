@@ -28,6 +28,7 @@
 
 #include "defines.hpp"
 #include "expint.hpp"
+#include "si.hpp"
 
 /**
  * @name 3 directions unbounded - 0 direction spectral
@@ -53,14 +54,22 @@ static inline double _hej_6_3unb0spe(const void* params,const double* data) {
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
+static inline double _hej_0_3unb0spe(const void* params,const double* data) {
+    double r       = ((double*)params)[0];
+    double eps     = ((double*)params)[1];
+    double c_1oeps = 1.0 / eps;
+    double rho     = r * c_1oeps;
+    return -c_1o2pi2 * c_1oeps * Si(rho)/rho;
+}
 static inline double _chat_2_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     return -c_1o4pi / r ;
 }
 static inline double _vic_0_3unb0spec(const void* params, const double* data) {
+    double L = ((double*)params)[1];
     double k = ((double*)params)[9];
-    double L = ((double*)params)[10];
-    return -2.0 * pow(sin(L * 0.5 * k) / k, 2.0);
+    double val = sin(L * 0.5 * k) / k;
+    return -2.0 * val*val;
 }
 
 /**

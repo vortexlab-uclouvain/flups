@@ -45,18 +45,14 @@ typedef double (*GreenKernel)(const void*,const double*);
 void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length){
     BEGIN_FUNC;
 
-    // // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK((hfact[0]*kfact[0]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-    FLUPS_CHECK((hfact[1]*kfact[1]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-    FLUPS_CHECK((hfact[2]*kfact[2]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-#ifndef NDEBUG
-    if(typeGreen != VIC_0){
-        // assert that the green spacing is not 0.0 everywhere
-        FLUPS_CHECK(hfact[0] != 0.0, "hfact[0] cannot be 0", LOCATION);
-        FLUPS_CHECK(hfact[1] != 0.0, "hfact[1] cannot be 0", LOCATION);
-        FLUPS_CHECK(hfact[2] != 0.0, "hfact[2] cannot be 0", LOCATION);
-    }
-#endif
+    // assert that the green spacing is not 0.0 everywhere
+    FLUPS_CHECK((hfact[0] * kfact[0]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
+    FLUPS_CHECK((hfact[1] * kfact[1]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
+    FLUPS_CHECK((hfact[2] * kfact[2]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
+    // assert that the green spacing is not 0.0 everywhere, except for the kernel from Vico
+    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[0] == 0.0), "hfact[0] cannot be 0", LOCATION);
+    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[1] == 0.0), "hfact[1] cannot be 0", LOCATION);
+    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[2] == 0.0), "hfact[2] cannot be 0", LOCATION);
 
     FLUPS_INFO("K_OFFSET : %lf,%lf,%lf \n",koffset[0],koffset[1],koffset[2]);
     FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
@@ -81,6 +77,10 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         case HEJ_6:
             G  = &_hej_6_3unb0spe;
             G0 = - 15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
+            break;
+        case HEJ_0:
+            G  = &_hej_0_3unb0spe;
+            G0 = - 1.0/(2.0*M_PI*M_PI*length);
             break;
         case CHAT_2:
             G  = &_chat_2_3unb0spe;
@@ -138,7 +138,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
                 // the symmetrized indexes will be negative!!
-                const double tmp[11] = {r, length, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0],k,length};
+                const double tmp[10] = {r, length, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0],k};
                 green[id + i0 * nf] = G(tmp,Gdata);
             }
         }

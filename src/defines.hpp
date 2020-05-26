@@ -474,6 +474,7 @@ typedef enum FLUPS_GreenType    GreenType;
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
+static const double c_1o2pi2   = 1.0 / (2.0 * M_PI*M_PI);
 static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
 static const double c_1osqrtpi = 1.0 / sqrt(M_PI);
 static const double c_sqrtpi   = sqrt(M_PI);
