@@ -98,6 +98,7 @@ class Solver {
     /**@{ */
     double    _alphaGreen  = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
     double    _lengthGreen = sqrt(3.0); /**< @brief length parameter for VIC_0 Green's functions */
+        //CAUTION: this is only ok for a cubic domain ! need to recompute it dynamically from L
     double*   _green       = NULL;   /**< @brief data pointer to the transposed memory for Green */
     GreenType _typeGreen   = CHAT_2; /**< @brief the type of Green's function */
 

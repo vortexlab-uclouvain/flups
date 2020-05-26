@@ -932,6 +932,7 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     double koffset[3]   = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
     double symstart[3]  = {0.0, 0.0, 0.0};
     double kernelLength = 0.0 + (_typeGreen==VIC_0)? _lengthGreen : _alphaGreen * _hgrid[0];  //the kernel length scale of the HEJ kernels or for VICO
+    //CAUTION: TODO: compute the value of _lengthGreen dynamically using the domain lengths L (should be passed as arguments?)
 
     if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == LGF_2 || _typeGreen == VIC_0) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
         FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
@@ -948,6 +949,8 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
         kfact[dimID]        = 0.0;
         koffset[dimID]      = 0.0;
 
+        //DG: This is no longer needed here as you test for VIC before calling cmpt_Green
+        // but ok, we can leave this here
         if (evalSpectral[dimID]) {
             hfact[dimID]   = 0.0;
             kfact[dimID]   = planmap[ip]->kfact();
@@ -1021,10 +1024,15 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     if (_typeGreen == VIC_0) {
         if ((n_unbounded) == 3) {
             FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
+            //should kfact be updated? Looks like it was already ok: see my comment above.
+            for (int ip = 0; ip < 3; ip++) {
+                const int dimID = planmap[ip]->dimID();
+                kfact[dimID]    = planmap[ip]->kfact();
+                hfact[dimID]    = 0.0;
+            }
             cmpt_Green_3dirunbounded(topo[_ndim - 1], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
         }
         // else if ((n_unbounded) == 2) {
-        //     FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
         //     FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
         //     cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
         // } else if ((n_unbounded) == 1) {
@@ -1127,7 +1135,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
     //-------------------------------------------------------------------------
     /** - If needed, we create a new switchTopo from the current Green topo to the field one */
 
-    //simulate that we have done the transforms
+    //simulate that we have done so far in the transforms
     bool isr2c = false;
     for (int id = 0; id < _ndim; id++) {
         isr2c = isr2c || planmap[id]->isr2c();
