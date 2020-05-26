@@ -96,9 +96,10 @@ class Solver {
      * 
      */
     /**@{ */
-    double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
-    double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
-    GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
+    double    _alphaGreen  = 2.0; /**< @brief regularization parameter for HEJ_* Green's functions */
+    double    _lengthGreen = sqrt(3.0); /**< @brief length parameter for VIC_0 Green's functions */
+    double*   _green       = NULL;   /**< @brief data pointer to the transposed memory for Green */
+    GreenType _typeGreen   = CHAT_2; /**< @brief the type of Green's function */
 
     FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
     Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
@@ -227,8 +228,9 @@ class Solver {
      * 
      * @{
      */
-    void set_GreenType(const GreenType type) { _typeGreen = type; }
+    void set_GreenType(const GreenType type);
     void set_alpha(const double alpha) { _alphaGreen = alpha; }
+    void set_length(const double length) { _lengthGreen = length; }
     /**@} */
 };
 

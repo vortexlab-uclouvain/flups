@@ -76,6 +76,7 @@ class FFTW_plan_dim {
 
     bool   _isr2c       = false; /**< @brief is this plan the one that changes to complex?*/
     bool   _isSpectral  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    bool   _evalSpectral  = false; /**< @brief indicate if the Green's function has to be evaluated in the spectral domain or not (this might be not equal to _isSpectral, e.g. Vico kernels) */
     int    _fftw_stride = 0;     /**<@brief the memory space between two ffts */
     int    _howmany     = 0;     /**<@brief the number of FFT's to do */
     int    _fieldstart  = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
@@ -105,11 +106,20 @@ class FFTW_plan_dim {
     void execute_plan(const Topology* topo, double* data) const;
 
     /**
+     * @name Setters - set a value
+     * 
+     */
+    /**@{ */
+    inline void evalSpectral(const bool evalSpectral) { _evalSpectral = evalSpectral; }
+    /**@} */
+
+    /**
      * @name Getters - return the value
      * 
      */
     /**@{ */
     inline bool   isSpectral() const { return _isSpectral; }
+    inline bool   evalSpectral() const { return _evalSpectral; }
     inline bool   isr2c() const { return _isr2c; }
     inline bool   imult(const int lia) const { return _imult[lia]; }
     inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }

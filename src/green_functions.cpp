@@ -40,17 +40,17 @@ typedef double (*GreenKernel)(const void*,const double*);
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param eps the smoothing length (only used for HEJ kernels)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
  */
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double eps){
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length){
     BEGIN_FUNC;
 
     FLUPS_CHECK(!(topo->isComplex()),"Green topology cannot been complex with 0 dir spectral", LOCATION);
 
-    // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK(hfact[0] != 0.0, "grid spacing cannot be 0", LOCATION);
-    FLUPS_CHECK(hfact[1] != 0.0, "grid spacing cannot be 0", LOCATION);
-    FLUPS_CHECK(hfact[2] != 0.0, "grid spacing cannot be 0", LOCATION);
+    // // assert that the green spacing is not 0.0 everywhere
+    FLUPS_CHECK((hfact[0]*kfact[0]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
+    FLUPS_CHECK((hfact[1]*kfact[1]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
+    FLUPS_CHECK((hfact[2]*kfact[2]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
 
     GreenKernel G;
 
@@ -62,15 +62,15 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     switch (typeGreen) {
         case HEJ_2:
             G  = &_hej_2_3unb0spe;
-            G0 = - M_SQRT2 / (4.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - M_SQRT2 / (4.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
             G  = &_hej_4_3unb0spe;
-            G0 = - 3.0 * M_SQRT2 / (8.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 3.0 * M_SQRT2 / (8.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
             G  = &_hej_6_3unb0spe;
-            G0 = - 15.0 * M_SQRT2 / (32.0 * eps * sqrt(M_PI * M_PI * M_PI));
+            G0 = - 15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case CHAT_2:
             G  = &_chat_2_3unb0spe;
@@ -83,6 +83,9 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             _lgf_readfile(3,&GN, &Gdata);
             // associate the Green's function
             G = &_lgf_2_3unb0spe;
+            break;
+        case VIC_0:
+            G  = &_vic_0_3unb0spec;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -114,10 +117,16 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
 
+                // (symmetrized) wave number
+                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
+                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
+                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
+                const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
+
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
                 // the symmetrized indexes will be negative!!
-                const double tmp[9] = {r, eps, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
+                const double tmp[11] = {r, length, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0],k,length};
                 green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
@@ -148,7 +157,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param eps the smoothing length (only used for HEJ kernels)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
  * 
  * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
             for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
@@ -157,7 +166,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             full spectral part afterwards, while going through Solver::_cmptGreenFunction.
  * 
  */
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
     BEGIN_FUNC;
     
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -252,7 +261,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
                 // the symmetrized indexes will be negative!!
-                const double tmp[9] = {r, k, eps, r_eq2D, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
+                const double tmp[9] = {r, k, length, r_eq2D, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
@@ -292,9 +301,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param eps the smoothing length (only used for HEJ kernels)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
  */
-void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -366,7 +375,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
 
-                const double tmp[3] = {r, k, eps};
+                const double tmp[3] = {r, k, length};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
@@ -401,10 +410,10 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param eps the smoothing length (only used for HEJ kernels)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps) {
-    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, eps, NULL, NULL);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
+    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, length, NULL, NULL);
 }
 
 /**
@@ -421,11 +430,11 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param eps the smoothing length (only used for HEJ kernels)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
  * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
  * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]) {
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3]) {
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
@@ -507,7 +516,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
 
                 // const double tmp[2] = {ksqr, eps};
-                const double tmp[6] = {ksqr, eps, k0, k1, k2, hgrid};
+                const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
 
                 green[id + i0 * nf] = G(tmp, NULL);
             }

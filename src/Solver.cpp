@@ -396,6 +396,7 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - allocate the data for the Green's function */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_data");
+    // allocate to the maximum size needed by all the topologies
     _allocate_data(_topo_green, NULL, &_green);
     if (_prof != NULL) _prof->stop("alloc_data");
 
@@ -420,10 +421,9 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     /** - Clean the Green's function accessories (allocated topo and plans) */
     //-------------------------------------------------------------------------
-    // delete the switchTopos
+    // delete the switchTopos and the plans if we allocated them
     _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
     _delete_switchtopos(_switchtopo_green);
-    // delete the topologies and plans not needed anymore
     _delete_topologies(_topo_green);
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
@@ -828,10 +828,14 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     END_FUNC;
 }
 void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-    flups_free(*send_buff);
-    flups_free(*recv_buff);
-    (*send_buff) = NULL;
-    (*recv_buff) = NULL;
+    if (*send_buff != NULL) {
+        flups_free(*send_buff);
+        (*send_buff) = NULL;
+    }
+    if (*recv_buff != NULL) {
+        flups_free(*recv_buff);
+        (*recv_buff) = NULL;
+    }
 }
 
 /**
@@ -887,6 +891,19 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
     END_FUNC;
 }
 
+void Solver::set_GreenType(const GreenType type){
+    BEGIN_FUNC;
+    // remember the green type
+    _typeGreen = type;
+    // if it's the VICO kernel, all the dimensions will be evaluated spectrally
+    if(type == VIC_0){
+        for (int ip = 0; ip < _ndim; ip++) {
+            _plan_green[ip]->evalSpectral(true);
+        }
+    }
+    END_FUNC;
+}
+
 /**
  * @brief compute the Green's function
  * 
@@ -901,38 +918,40 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
  * -----------------------------------
  * We do the following operations
  */
-void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
+void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
 
     //-------------------------------------------------------------------------
     /** - get the direction where we need to do spectral diff and count them */
     //-------------------------------------------------------------------------
-    bool isSpectral[3] = {false};
+    bool evalSpectral[3] = {false};
+    bool isSpectral[3]   = {false};
 
-    double hfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
-    double kfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double koffset[3]  = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double symstart[3] = {0.0, 0.0, 0.0};
-    double epsilon     = _alphaGreen * _hgrid[0];  //the smoothing length scale of the HEJ kernels
+    double hfact[3]     = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
+    double kfact[3]     = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3]   = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double symstart[3]  = {0.0, 0.0, 0.0};
+    double kernelLength = 0.0 + (_typeGreen==VIC_0)? _lengthGreen : _alphaGreen * _hgrid[0];  //the kernel length scale of the HEJ kernels or for VICO
 
-    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
+    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == LGF_2 || _typeGreen == VIC_0) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
         FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
     }
 
-    // get the infor + determine which green function to use:
+    // get the info + determine which green function to use:
     for (int ip = 0; ip < _ndim; ip++) {
         const int dimID = planmap[ip]->dimID();
         // get usefull datas
-        isSpectral[dimID] = planmap[ip]->isSpectral();
-        symstart[dimID]   = planmap[ip]->symstart();
-        hfact[dimID]      = _hgrid[dimID];
-        kfact[dimID]      = 0.0;
-        koffset[dimID]    = 0.0;
+        isSpectral[dimID]   = planmap[ip]->isSpectral();
+        evalSpectral[dimID] = planmap[ip]->evalSpectral();
+        symstart[dimID]     = planmap[ip]->symstart();
+        hfact[dimID]        = _hgrid[dimID];
+        kfact[dimID]        = 0.0;
+        koffset[dimID]      = 0.0;
 
-        if (isSpectral[dimID]) {
+        if (evalSpectral[dimID]) {
             hfact[dimID]   = 0.0;
             kfact[dimID]   = planmap[ip]->kfact();
-            koffset[dimID] = planmap[ip]->koffset(); // GF has a lda of 1
+            koffset[dimID] = planmap[ip]->koffset();  // GF has a lda of 1
         }
         if (planmap[ip]->type() == FFTW_plan_dim::EMPTY) {
             // kill the hfact to have no influence in the green's functions
@@ -954,17 +973,17 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     int n_unbounded = _ndim - nbr_spectral;
     if ((n_unbounded) == 3) {
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
-        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_3dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 2) {
-        FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1),"You cannot use LGF with one spectral direction!!",LOCATION);
+        FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
-        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 1) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", _typeGreen);
-        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 0) {
         FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
-        cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else {
         FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
     }
@@ -988,7 +1007,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
         }
 
         // execute the plan, if not already spectral
-        if (!isSpectral[dimID]) {
+        if (!evalSpectral[dimID]) {
             _plan_green[ip]->execute_plan(topo[ip], green);
         }
 
@@ -1016,9 +1035,8 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  //avoid rewriting on the part of Green already computed
             kfact[dimID]    = planmap[ip]->kfact();
         }
-        cmpt_Green_0dirunbounded(topo[_ndim-1], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
+        cmpt_Green_0dirunbounded(topo[_ndim-1], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength, istart_cstm, NULL);
     }
-
 #ifdef DUMP_DBG
     hdf5_dump(topo[_ndim-1], "green_h", green);
 #endif
