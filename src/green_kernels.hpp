@@ -65,12 +65,6 @@ static inline double _chat_2_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     return -c_1o4pi / r ;
 }
-static inline double _vic_0_3unb0spec(const void* params, const double* data) {
-    double L = ((double*)params)[1];
-    double k = ((double*)params)[9];
-    double val = sin(L * 0.5 * k) / k;
-    return -2.0 * val*val;
-}
 
 /**
  * @brief LGF 3D

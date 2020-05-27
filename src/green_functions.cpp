@@ -40,23 +40,18 @@ typedef double (*GreenKernel)(const void*,const double*);
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length){
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length){
     BEGIN_FUNC;
-
     // assert that the green spacing is not 0.0 everywhere
-    FLUPS_CHECK((hfact[0] * kfact[0]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-    FLUPS_CHECK((hfact[1] * kfact[1]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-    FLUPS_CHECK((hfact[2] * kfact[2]) == 0.0, "hfact and kfact cannot be non-0 at the same time", LOCATION);
-    // assert that the green spacing is not 0.0 everywhere, except for the kernel from Vico
-    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[0] == 0.0), "hfact[0] cannot be 0", LOCATION);
-    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[1] == 0.0), "hfact[1] cannot be 0", LOCATION);
-    FLUPS_CHECK(!(typeGreen != VIC_0 && hfact[2] == 0.0), "hfact[2] cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[0] != 0.0, "hfact[0] cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[1] != 0.0, "hfact[1] cannot be 0", LOCATION);
+    FLUPS_CHECK(hfact[2] != 0.0, "hfact[2] cannot be 0", LOCATION);
 
-    FLUPS_INFO("K_OFFSET : %lf,%lf,%lf \n",koffset[0],koffset[1],koffset[2]);
-    FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
-    FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
+    // FLUPS_INFO("K_OFFSET : %lf,%lf,%lf \n",koffset[0],koffset[1],koffset[2]);
+    // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
+    // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
     
     GreenKernel G;
 
@@ -94,11 +89,6 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             // associate the Green's function
             G = &_lgf_2_3unb0spe;
             break;
-        case VIC_0:
-            FLUPS_INFO("doing vico with length = %f, kfact = %f %f %f and nf = %d",length,kfact[0],kfact[1],kfact[2],topo->nf());
-            G  = &_vic_0_3unb0spec;
-            G0 = - 2.0 * pow(length * 0.5, 2.0);  // lim_{s->0} (sin(a*x)/x)^2 = a^2
-            break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
     }
@@ -129,16 +119,10 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 const double r2 = x0 * x0 + x1 * x1 + x2 * x2;
                 const double r  = sqrt(r2);
 
-                // (symmetrized) wave number
-                const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
-                const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
-                const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
-                const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
-
                 // the first two arguments are used in standard kernels, the two zeros are for compatibility with the 2dirunbounded function,
                 // and the others 5 ones are aimed for LGFs only
                 // the symmetrized indexes will be negative!!
-                const double tmp[10] = {r, length, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0],k};
+                const double tmp[9] = {r, length, 0, 0, std::abs(is[ax0]), std::abs(is[ax1]), std::abs(is[ax2]), GN, hfact[ax0]};
                 green[id + i0 * nf] = G(tmp,Gdata);
             }
         }
@@ -169,7 +153,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon)
  * 
  * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
             for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
@@ -313,7 +297,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
 void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
     BEGIN_FUNC;
@@ -422,7 +406,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
 void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
     cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, length, NULL, NULL);
@@ -442,7 +426,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
  * @param typeGreen the type of Green function 
- * @param length the characteristic length (only used for HEJ kernels = epsilon or for VIC_0 ones = L)
+ * @param length the characteristic length (only used for HEJ kernels = epsilon)
  * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
  * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
  */

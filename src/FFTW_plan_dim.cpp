@@ -70,28 +70,24 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         if (_isGreen) _isSpectral = true;
-        if (_isGreen) _evalSpectral = true;
     } else if (mytype <= MIXUNB) {
         _type       = MIXUNB;
         _normfact   = 1.0;
         _volfact    = h[_dimID];
         _kfact      = c_2pi / (4.0 * L[_dimID]);
         _isSpectral = false;
-        _evalSpectral = false;
     } else if (mytype == PERPER) {
         _type     = PERPER;
         _normfact = 1.0;
         _volfact  = 1.0;  // no convolution so no multiplication by h
         _kfact    = c_2pi / (L[_dimID]);
         if (_isGreen) _isSpectral = true;
-        if (_isGreen) _evalSpectral = true;
     } else if (mytype == UNBUNB) {
         _type     = UNBUNB;
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
         _isSpectral = false;
-        _evalSpectral = false;
     } else if (mytype == EMPTY) {
         _type = EMPTY;
         // chosen to have no influence
@@ -99,7 +95,6 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
         _volfact    = 1.0;
         _kfact      = 0.0;
         _isSpectral = false;
-        _evalSpectral = false;
     } else {
         FLUPS_ERROR("Invalid combination of BCs", LOCATION);
     }
@@ -834,8 +829,7 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
  */
 void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     BEGIN_FUNC;
-
-    FLUPS_CHECK(!_evalSpectral, "Trying to execute a plan for data which has already been setup spectraly", LOCATION);
+    FLUPS_CHECK(!_isSpectral, "Trying to execute a plan for data which has already been setup spectraly", LOCATION);
     FLUPS_CHECK(topo->lda() == _lda, "The given topology's lda does not match with the initialisation one", LOCATION);
 
     if (_type == SYMSYM) {
@@ -858,10 +852,6 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     const size_t memdim      = topo->memdim();
     // get the plan pointer
     const fftw_plan* plan = _plan;
-    // if no plan to execute, we do not continue
-    // if(plan == NULL){
-    //     return;
-    // }
 
     //-------------------------------------------------------------------------
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
@@ -1005,7 +995,6 @@ void FFTW_plan_dim::disp() {
     FLUPS_INFO("- n_out      = %d", _n_out);
     FLUPS_INFO("- fieldstart = %d", _fieldstart);
     FLUPS_INFO("- isSpectral ? %d", _isSpectral);
-    FLUPS_INFO("- evalSpectral ? %d", _evalSpectral);
     if (_sign == FLUPS_FORWARD) {
         FLUPS_INFO("- FORWARD plan");
     } else if (_sign == FLUPS_BACKWARD) {

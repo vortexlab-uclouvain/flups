@@ -71,8 +71,7 @@ enum FLUPS_GreenType {
     HEJ_2  = 2, /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
     HEJ_4  = 3, /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
     HEJ_6  = 4, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-    HEJ_0  = 5, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-    VIC_0  = 6  /**< @brief spectrally regularized in zero, Vico et al. (2016)*/
+    HEJ_0  = 5, /**< @brief regularized in zero, spectral, Hejlesen et al. (2019)*/
 };
 
 /**
