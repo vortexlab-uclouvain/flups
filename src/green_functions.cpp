@@ -73,6 +73,14 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             G  = &_hej_6_3unb0spe;
             G0 = - 15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
+        case HEJ_8:
+            G  = &_hej_8_3unb0spe;
+            G0 = - 35.0 * M_SQRT2 / (64.0 * length * sqrt(M_PI * M_PI * M_PI));
+            break;
+        case HEJ_10:
+            G  = &_hej_10_3unb0spe;
+            G0 = - 315.0 * M_SQRT2 / (512.0 * length * sqrt(M_PI * M_PI * M_PI));
+            break;
         case HEJ_0:
             G  = &_hej_0_3unb0spe;
             G0 = - 1.0/(2.0*M_PI*M_PI*length);

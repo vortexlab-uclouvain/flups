@@ -486,6 +486,10 @@ static const double c_2o3      = 2. / 3;
 static const double c_1o24     = 1. / 24;
 static const double c_5o16     = 5. / 16.;
 static const double c_1o16     = 1. / 16.;
+static const double c_187o64   = 187. / 64.;
+static const double c_233o192  = 233. / 192.;
+static const double c_29o192   = 29. / 192.;
+static const double c_1o192    = 1. / 192.;
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

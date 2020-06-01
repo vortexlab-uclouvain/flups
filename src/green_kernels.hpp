@@ -54,6 +54,18 @@ static inline double _hej_6_3unb0spe(const void* params,const double* data) {
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
+static inline double _hej_8_3unb0spe(const void* params,const double* data) {
+    double r   = ((double*)params) [0];
+    double eps = ((double*)params) [1];
+    double rho = r / eps;
+    return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_19o8 * rho - c_2o3 * pow(rho, 3) + c_1o24 * pow(rho, 5)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
+}
+static inline double _hej_10_3unb0spe(const void* params,const double* data) {
+    double r   = ((double*)params) [0];
+    double eps = ((double*)params) [1];
+    double rho = r / eps;
+    return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_187o64 * rho - c_233o192 * pow(rho, 3) + c_29o192 * pow(rho, 5) - c_1o192 * pow(rho, 7)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
+}
 static inline double _hej_0_3unb0spe(const void* params,const double* data) {
     double r       = ((double*)params)[0];
     double eps     = ((double*)params)[1];
