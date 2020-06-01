@@ -212,6 +212,18 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gk0 = &_hej_6_2unb1spe_k0;
             Gr0 = &_hej_6_2unb1spe_r0;
             break;
+        case HEJ_8:
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            G   = &_zero;
+            Gk0 = &_hej_8_2unb1spe_k0;
+            Gr0 = &_hej_8_2unb1spe_r0;
+            break;
+        case HEJ_10:
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            G   = &_zero;
+            Gk0 = &_hej_10_2unb1spe_k0;
+            Gr0 = &_hej_10_2unb1spe_r0;
+            break;        
         case CHAT_2:
             G   = &_chat_2_2unb1spe;
             Gk0 = &_chat_2_2unb1spe_k0;
@@ -336,6 +348,14 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             G  = &_hej_6_1unb2spe;
             G0 = &_hej_6_1unb2spe_k0;
             break;
+        case HEJ_8:
+            G  = &_hej_8_1unb2spe;
+            G0 = &_hej_8_1unb2spe_k0;
+            break;
+        case HEJ_10:
+            G  = &_hej_10_1unb2spe;
+            G0 = &_hej_10_1unb2spe_k0;
+            break;        
         case CHAT_2:
             G  = &_chat_2_1unb2spe;
             G0 = &_chat_2_1unb2spe_k0;
@@ -458,6 +478,12 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
         case HEJ_6:
             G = &_hej_6_0unb3spe;
             break;
+        case HEJ_8:
+            G = &_hej_8_0unb3spe;
+            break;
+        case HEJ_10:
+            G = &_hej_10_0unb3spe;
+            break;                        
         case CHAT_2:
             G = &_chat_2_0unb3spe;
             break;

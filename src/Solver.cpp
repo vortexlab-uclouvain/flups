@@ -918,7 +918,7 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     double symstart[3]   = {0.0, 0.0, 0.0};
     double kernelLength  = _alphaGreen * _hgrid[0];  //the kernel length scale of the HEJ kernels
 
-    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == HEJ_0 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
+    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == HEJ_8 || _typeGreen == HEJ_10 || _typeGreen == HEJ_0 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
         FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
     }
 
@@ -1012,7 +1012,7 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
      *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
-    if (_ndim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+    if (_ndim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6||_typeGreen==HEJ_8||_typeGreen==HEJ_10)) {
         int istart_cstm[3] = {0, 0, 0};  //global
 
         for (int ip = 0; ip < 3; ip++) {

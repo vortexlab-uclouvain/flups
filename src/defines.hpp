@@ -483,13 +483,32 @@ static const double c_1o4      = 1.0 / 4.0;
 static const double c_7o4      = 7. / 4.;
 static const double c_19o8     = 19. / 8;
 static const double c_2o3      = 2. / 3;
+static const double c_1o12     = 1. / 12.;
 static const double c_1o24     = 1. / 24;
 static const double c_5o16     = 5. / 16.;
 static const double c_1o16     = 1. / 16.;
 static const double c_187o64   = 187. / 64.;
 static const double c_233o192  = 233. / 192.;
 static const double c_29o192   = 29. / 192.;
+static const double c_13o192   = 13. / 192.;
 static const double c_1o192    = 1. / 192.;
+static const double c_11o12    = 11. / 12.;
+static const double c_7o24     = 7. / 24.;
+static const double c_25o24    = 25. / 24.;
+static const double c_1o48     = 1. / 48.;
+static const double c_23o48    = 23. / 48.;
+static const double c_1o384    = 1. / 384.;
+static const double c_17o384   = 17. / 384.;
+static const double c_11o32    = 11. / 32.;
+static const double c_1o96     = 1. / 96.;
+static const double c_93o256   = 93. / 256.;
+static const double c_47o256   = 47. / 256.;
+static const double c_1o256    = 1. / 256.;
+static const double c_73o768   = 73. / 768.;
+static const double c_11o768   = 11. / 768.;
+static const double c_23o768   = 23. / 768.;
+static const double c_1o768    = 1. / 768.;
+
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 
