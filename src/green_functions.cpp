@@ -483,7 +483,12 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
             break;
         case HEJ_10:
             G = &_hej_10_0unb3spe;
-            break;                        
+            break; 
+        case HEJ_0:
+            //spectral solution is here given by 1/k^2, i.e. same 
+            //as CHAT_2 kernel
+            G = &_chat_2_0unb3spe;
+            break;                           
         case CHAT_2:
             G = &_chat_2_0unb3spe;
             break;
