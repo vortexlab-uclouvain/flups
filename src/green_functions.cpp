@@ -25,6 +25,7 @@
 
 #include "green_functions.hpp"
 #include "green_kernels.hpp"
+#include "ji0.hpp"
 
 /**
  * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
@@ -194,35 +195,42 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             // see warning in the function description
             G   = &_zero;
             Gk0 = &_hej_2_2unb1spe_k0;
             Gr0 = &_hej_2_2unb1spe_r0;
             break;
         case HEJ_4:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_4_2unb1spe_k0;
             Gr0 = &_hej_4_2unb1spe_r0;
             break;
         case HEJ_6:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_6_2unb1spe_k0;
             Gr0 = &_hej_6_2unb1spe_r0;
             break;
         case HEJ_8:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_8_2unb1spe_k0;
             Gr0 = &_hej_8_2unb1spe_r0;
             break;
         case HEJ_10:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation.", LOCATION);
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             G   = &_zero;
             Gk0 = &_hej_10_2unb1spe_k0;
             Gr0 = &_hej_10_2unb1spe_r0;
+            break;        
+        case HEJ_0:
+            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
+            init_Ji0();
+            G   = &_zero;
+            Gk0 = &_hej_0_2unb1spe_k0;
+            Gr0 = &_hej_0_2unb1spe_k0;
             break;        
         case CHAT_2:
             G   = &_chat_2_2unb1spe;

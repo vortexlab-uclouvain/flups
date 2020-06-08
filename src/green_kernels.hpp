@@ -29,6 +29,7 @@
 #include "defines.hpp"
 #include "expint.hpp"
 #include "si.hpp"
+#include "ji0.hpp"
 
 /**
  * @name 3 directions unbounded - 0 direction spectral
@@ -68,10 +69,10 @@ static inline double _hej_10_3unb0spe(const void* params,const double* data) {
 }
 static inline double _hej_0_3unb0spe(const void* params,const double* data) {
     double r       = ((double*)params)[0];
-    double eps     = ((double*)params)[1];
-    double c_1oeps = 1.0 / eps;
-    double rho     = r * c_1oeps;
-    return -c_1o2pi2 * c_1oeps * Si(rho)/rho;
+    double sigma   = ((double*)params)[1];
+    double c_1osig = 1.0 / sigma;
+    double rho     = r * c_1osig;
+    return -c_1o2pi2 * c_1osig * Si(rho)/rho;
 }
 static inline double _chat_2_3unb0spe(const void* params,const double* data) {
     double r   = ((double*)params) [0];
@@ -264,6 +265,17 @@ static inline double _hej_10_2unb1spe_r0(const void* params,const double* data) 
     const double sig = ((double*)params)[2];
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + c_25o24);
+}
+static inline double _hej_0_2unb1spe_k0(const void* params,const double* data) {
+    //works as well for r0
+    const double r       = ((double*)params)[0];
+    const double sigma   = ((double*)params)[2]; // h/pi
+    const double rho     = r / sigma;
+
+    const double tmp = c_1o2pi * (Ji0c(rho) + log(2 * sigma) - c_gamma);
+    const double tmp2 =(rho<30.0) ? tmp : c_1o2pi * log(r); 
+    //printf("r=%f sigma=%f rho=%f \t %lf\n",r,sigma,rho,tmp2);
+    return tmp2;
 }
 
 static inline double _zero(const void* params,const double* data) {   
