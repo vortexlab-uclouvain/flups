@@ -81,8 +81,8 @@ enum FLUPS_GreenType {
  * 
  */
 enum FLUPS_SolverType {
-    STD = 0, /**< @brief the standard poisson solver: laplacian(field) = rhs */
-    ROT = 1 /**< @brief the Biosavart poisson solver: laplacian(field) = rot(rhs) */
+    STD = 0, /**< @brief the standard poisson solver: \f[ \nabla^2(\phi) = (rhs) \f] */
+    ROT = 1 /**< @brief the Biosavart poisson solver: \f[ \nabla^2(\phi) = \nabla \times (rhs) \f] */
 };
 
 /**
@@ -182,6 +182,7 @@ void flups_free(void* data);
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
+ * @param lia the index of the vector component (leading index of array)
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
  * @param size the size of the memory (given in the 012-order)
  * @param nf the number of unknows in one element
@@ -440,7 +441,7 @@ void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
  * 
  * @param s 
- * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only valid if compiled with RORDER_RANKS)
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to inilialize the solver (only valid if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);

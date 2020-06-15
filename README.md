@@ -1,6 +1,6 @@
 # FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
-#### Licensing and authorship
+### Licensing and authorship
 > FLUPS is distributed under Apache 2.0 license, copyright © UCLouvain 2020.
 
 The main authors are (by alphabetical order):
@@ -9,9 +9,8 @@ The main authors are (by alphabetical order):
 
 For the list of all the contributors to the development of FLUPS, description and a complete License: see LICENSE file.
 
-#### Citation information
 If you use FLUPS, please cite it as follows in your publications:
-- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)
+- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2020 (under review).
 
 ### Why should you use FLUPS?
 - You can solve the Poisson on rectangular and uniform distributed 2D/3D grids;
@@ -25,7 +24,7 @@ If you use FLUPS, please cite it as follows in your publications:
 ### Installation
 
 FLUPS is a C++ library, with an API in C.
-The compilation of FLUPS was tested with Intel compilers and GCC.,
+The compilation of FLUPS was tested with Intel compilers and GCC.
 
 #### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
@@ -99,7 +98,7 @@ To build the documentation, go to the `./doc` subfolder and type `doxygen`.
 #### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
-- `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all to all version.
+- `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to bypass various checks inside the library
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
@@ -113,7 +112,11 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 #### Detailed reference
 The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)".
 
-A detailed description of the API is provided in the documentation (@ref flups.h), as well as many implementation details.
+FLUPS solves two types of equations:
+- laplacian(phi) = rhs, with phi and rhs either scalars or vectors 
+- laplacian(phi) = rot(rhs), with phi and rhs vectors (also code Biot-Savart mode)
+
+A detailed description of the API is provided (in the documentation)[doc/documentation.html] (@ref flups.h), as well as many implementation details.
 
 #### Memory layout
 In this project we choose to handle the memory in a **Fortran** way of doing even if we are in C/C++.
@@ -123,7 +126,7 @@ The fastest rotating index is set to be `n[0]` then `n[1]` and finally `n[2]`.
 We have chosen this way of doing to reuse the 3D code in a 2D framework.
 Indeed having the last dimension in the slower rotating index does not penalize the loops writting.
 
-As an example, we here is how we access the memory
+As an example, we here is how we access the memory for a scalar field:
 
 ```cpp
 double* data =(double*) flups_malloc(n[0] * n[1] * n[2] * sizeof(double));
@@ -141,6 +144,9 @@ for(int iz=0; iz<n[2]; iz++){
 
 flups_free(data);
 ```
+
+Vector components are treated using a leading index of arrays (slowest rotating index), and thus corresponds to an additional outer loop.
+
 
 #### FLUPS in a nutshell
 To use the solver, you first need to create a topology
@@ -181,12 +187,35 @@ flups_cleanup(mysolver);
 flups_topo_free(topo);
 ```
 
-#### Advanced usage
+#### Code examples
 Examples of usage of FLUPS in C programs are provided in the `./sample` subfolder.
+This includes: 
+* `validation`: the exe used for validation and scalability analysis (see our reference publication). This also constitutes an example of how to use FLUPS within a C++ client code, for the scalar Poisson equation.
+* `solve_vtube`: another validation test case on a 2-D vortex tube. It may be used as an example on how to use FLUPS to solve the vector Poisson equation and the Biot-Savart mode.
+* `solve_advanced_C`: an example showing how to embed flups in a C code, also showing how to use some advanced features (e.g. performing 3-D FFTs separately).
+
+
+#### Make the most of the parallel implementation
+
+FLUPS features hybrid distributed/shared memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. 
+
+The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per CPU, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
+- We highly recommend the use of distributed memory when possible, even if FLUPS can run in a pure OpenMP mode.
+- Should you use shared memory (`OMP_NUM_THREADS>1`), each thread must be handled by a distinct core (no hyper threading). Computer nodes providing non-uniform memory accesses 
+- The all-to-all implementation should be considered as the default robust option. However, acceleration is possible using the non-blocking version, in particular when:
+    - the number of unknowns per core is high (~128^3)
+    - the total number of core is not too high (~< 10k)
+- The mixed use of OpenMP and MPI is supported, and should only be considered in combination with the non-blocking implementation. However, the related performance is highly dependent on the computer architecture. 
+
+We encourage the user seeking for optimal performance to run short dedicated tests on the targeted architecture. The `validation` executable, when compiled with the `PROF` option, can be used to time the execution. A basic comparison of performance on a typical-size problem should involve at least:
+1. the all-to-all implementation without thread
+2. the non-blocking implementation without thread
+3. the non-blocking implementation with 2 to 4 threads
+
 
 #### Memory footprint
 For the recommanded configuration of 128^3 unknowns per processor in full unbounded, we have measured the memory usage of FLUPS on a 2000 cores run:
-- the all to all version uses ~530Mb (O.253kB/unknown)
+- the all-to-all version uses ~530Mb (O.253kB/unknown)
 - the non-blocking version uses ~560Mb (O.267kB/unknown)
 
 <!--
