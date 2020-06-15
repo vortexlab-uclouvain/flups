@@ -272,10 +272,12 @@ static inline double _hej_0_2unb1spe_k0(const void* params,const double* data) {
     const double sigma   = ((double*)params)[2]; // h/pi
     const double rho     = r / sigma;
 
+    //Switching between the approximate G with sharp cutoff and the
+    // analytical singular solution. 
+    // CAUTION: the switch is done arbitrarily and abruplty, with no
+    //          mathematical reason. Hence, the result is likely inaccurate.
     const double tmp = c_1o2pi * (Ji0c(rho) + log(2 * sigma) - c_gamma);
-    const double tmp2 =(rho<30.0) ? tmp : c_1o2pi * log(r); 
-    //printf("r=%f sigma=%f rho=%f \t %lf\n",r,sigma,rho,tmp2);
-    return tmp2;
+    return (rho<30.0) ? tmp : c_1o2pi * log(r); 
 }
 
 static inline double _zero(const void* params,const double* data) {   
@@ -381,16 +383,16 @@ static inline double _hej_8_1unb2spe(const void* params,const double* data) {
     const double rho2 = rho*rho;
     const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
     return - 0.25 * sig / s * subfun \
-           - sig * M_SQRT2 * c_1osqrtpi * (c_11o32 + c_1o12 * s2 - 0.125 * rho2 - c_1o48 * s2*rho2 + c_1o96 * (s2*s2+rho2*rho2) ) * exp(-.5 * (s * s + rho * rho));
+           - sig * M_SQRT2 * c_1osqrtpi * (c_11o32 + c_1o12 * s2 - 0.125 * rho2 - c_1o48 * s2*rho2 + c_1o96 * (s2*s2+rho2*rho2) ) * exp(-.5 * (s * s + rho2));
 }
 static inline double _hej_8_1unb2spe_k0(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
     const double rho = r/sig;
+    const double rho2 = rho*rho;
     const double rosqrt2 = r*c_1osqrt2;
-    return 0.5 * r * erf(rosqrt2/sig) - (3.-exp(-rho*rho*.5) * (rho*rho+3.) ) *.125*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-    //TODO: WRONG -> to be determined !
+    return 0.5 * r * erf(rosqrt2/sig) - (c_5o16 - exp(-rho*rho*.5) * (-c_1o48 * rho2*rho2 + .25 * rho2 + c_5o16) ) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
 static inline double _hej_10_1unb2spe(const void* params,const double* data) {
@@ -404,16 +406,16 @@ static inline double _hej_10_1unb2spe(const void* params,const double* data) {
     const double rho2 = rho*rho;
     const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
     return - 0.25 * sig / s * subfun \
-           - sig * M_SQRT2 * c_1osqrtpi * (c_93o256 + c_73o768 * s2 - c_47o256 * rho2 - c_17o384 * s2*rho2 + c_11o768 * s2*s2 + c_23o768 * rho2*rho2 + c_1o256 * (s2*rho2*rho2 - s2*s2*rho2) + c_1o768 * (s2*s2*s2 - rho2*rho2*rho2) ) * exp(-.5 * (s * s + rho * rho));
+           - sig * M_SQRT2 * c_1osqrtpi * (c_93o256 + c_73o768 * s2 - c_47o256 * rho2 - c_17o384 * s2*rho2 + c_11o768 * s2*s2 + c_23o768 * rho2*rho2 + c_1o256 * (s2*rho2*rho2 - s2*s2*rho2) + c_1o768 * (s2*s2*s2 - rho2*rho2*rho2) ) * exp(-.5 * (s * s + rho2));
 }
 static inline double _hej_10_1unb2spe_k0(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
     const double rho = r/sig;
+    const double rho2 = rho*rho;
     const double rosqrt2 = r*c_1osqrt2;
-    return 0.5 * r * erf(rosqrt2/sig) - (3.-exp(-rho*rho*.5) * (rho*rho+3.) ) *.125*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
-    //TODO: WRONG -> to be determined !
+    return 0.5 * r * erf(rosqrt2/sig) - (c_35o128 - exp(-rho*rho*.5) * (c_1o384 * rho2*rho2*rho2 - c_23o384 * rho2*rho2 + c_47o128 * rho2 + c_35o128) ) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
 static inline double _chat_2_1unb2spe(const void* params,const double* data) {

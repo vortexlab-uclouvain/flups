@@ -285,8 +285,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         //USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
         // manuRHS[0] = &fZero;
         // manuSol[0] = &fCst;
-        // manuRHS[1] = &d2dx2_fUnbSpietz;
-        // manuSol[1] = &fUnbSpietz;
+        // manuRHS[1] = &fZero;
+        // manuSol[1] = &fCst;
         // manuRHS[2] = &d2dx2_fUnbSpietz;
         // manuSol[2] = &fUnbSpietz;
 

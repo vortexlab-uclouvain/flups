@@ -917,12 +917,12 @@ void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim
     double koffset[3]    = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
     double symstart[3]   = {0.0, 0.0, 0.0};
     double kernelLength  = _alphaGreen * _hgrid[0];  //the kernel length scale of the HEJ kernels (smoothing for regularization or spectral normalization h/pi)
+    if (_typeGreen == HEJ_0) {
+        kernelLength = _hgrid[0]/M_PI;
+    }
 
     if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == HEJ_8 || _typeGreen == HEJ_10 || _typeGreen == HEJ_0 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
         FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
-    }
-    if (_typeGreen == HEJ_0) {
-        kernelLength = _hgrid[0]/M_PI;
     }
 
     // get the info + determine which green function to use:

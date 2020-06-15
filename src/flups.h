@@ -490,10 +490,11 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 /**
- * @brief while using Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * @brief while using regularized Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * Notice: this parameter only affect kernels: HEJ2,HEJ4,HEJ6,HEJ8,HEJ10
  * 
  * @param s 
- * @param alpha 
+ * @param alpha (default value is 2.0)
  */
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 
