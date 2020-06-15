@@ -1,6 +1,6 @@
 #!/bin/bash
 # Submission script for Zenobe 
-#PBS -N convergence
+#PBS -N conv3D
 #PBS -r y 
 #PBS -W group_list=examples
 #PBS -l walltime=00:30:00 

@@ -30,12 +30,15 @@ for bcs in BCs :
 
         code = ''.join(bcs)
 
+        if(kern == '7' and bcs == ["4","0","1","4","9","9"] ) : 
+            print("skip kernel 7 and 2dirunbounded... unsupported error due to inherent approximation.")
+            continue
+
         # if kernel = LGF, we only do the unbounded, if not, we do everything
         # if ((kern=='1' and (bcs==["4","4","4","4","4","4"] or bcs==["3","3","3","3","9","9"])) or (kern != '1') ):
             # Launching test
             #+ ["-oversubscribe"]
         if(bcs[4:6] == ["9","9"]):
-            # print("kikouuu from "%i + code)
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["1"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
         else:
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
@@ -54,7 +57,7 @@ for bcs in BCs :
         n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen='+ kern +'.txt')
 
         if n_mistake==0:
-            print("test %i (BCs : "%i + code + " and k="+ kern+ ") succeed")
+            print("test %i (BCs : "%i + code + " and k="+ kern+ ") succeeded")
             n_success += 1    
         else:
             print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
@@ -63,5 +66,5 @@ for bcs in BCs :
         # else:
         #     print("test %i (BCs : "%i + code + " and k="+ kern+ ") does not apply")
 
-print("%i test succeed out of %i" % (n_success,n_success+n_failure))
+print("%i test succeeded out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)
