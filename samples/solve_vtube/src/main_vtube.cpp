@@ -61,7 +61,7 @@ static void print_help(){
     
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type, int * vdir, int* order){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type, int * vdir, FLUPS_DiffType* order){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -76,7 +76,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym
     sym[0]   = 0; // no other tube by def
     sym[1]   = 0; // no other tube by def
     *type = 0; // ring by def
-    *order = 1;
+    *order = SPE;
     *vdir = 2;
 
     // modifying if necessary
@@ -181,7 +181,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym
             i++;
         } else if ((arg == "-o") || (arg == "--order")) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
-                *order = atoi(argv[i+1]); 
+                *order = (FLUPS_DiffType) atoi(argv[i+1]); 
             } else { //Missing argument
                 fprintf(stderr, "missing --order\n");
                 return 1;
@@ -228,10 +228,10 @@ int main(int argc, char *argv[]) {
     FLUPS_BoundaryType bcdef[3][2][3];
     int sym[2];
     int type;
-    int order;
+    FLUPS_DiffType order;
     int vdir;
 
-    int status = parse_args(argc, argv, nprocs, L, sym, &kernel, &nsample, &size, &nsolve,&type,&vdir,&order);
+    int status = parse_args(argc, argv, nprocs, L, sym, &kernel, &nsample, &size, &nsolve, &type, &vdir, &order);
 
     if (status) exit(status);
     if (size==NULL){

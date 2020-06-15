@@ -68,21 +68,36 @@ enum FLUPS_BoundaryType {
 enum FLUPS_GreenType {
     CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
     LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2, /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3, /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-    HEJ_8  = 5, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-    HEJ_10 = 6, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
-    HEJ_0  = 7, /**< @brief regularized in zero, spectral, Hejlesen et al. (2019)*/
+    HEJ_2  = 2, /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3, /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4, /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
+    HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
+    HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
+    HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
 };
 
 /**
  * @brief The type of possible solvers
  * 
+ * When solving for Biot-Savart, the Green's kernel \f$ G \f$ in Fourier space is adapted so that the Fourier
+ * transform of the solution is obtained as
+ *      \f[ \hat{\phi} = \hat{K} \times \hat{f} \f]
+ * where \f$ \hat{K} \f$ is the spectral equivalent of the gradient of \f$ G \f$. Indeed,
+ * the derivation is performed directly in Fourier space, according to the parameter @ref FLUPS_DiffType.
  */
 enum FLUPS_SolverType {
-    STD = 0, /**< @brief the standard poisson solver: \f[ \nabla^2(\phi) = (rhs) \f] */
-    ROT = 1 /**< @brief the Biosavart poisson solver: \f[ \nabla^2(\phi) = \nabla \times (rhs) \f] */
+    STD = 0, /**< @brief the standard poisson solver: \f$ \nabla^2(\phi) = (rhs) \f$ */
+    ROT = 1 /**< @brief the Bio-Savart poisson solver: \f$ \nabla^2(\phi) = \nabla \times (rhs) \f$ */
+};
+
+/**
+ * @brief The type of derivative to be used with @ref FLUPS_SolverType ROT.
+ *  
+ */
+enum FLUPS_DiffType {
+    NOD = 0, /**< @brief Default parameter to be used with the STD type solve */
+    SPE = 1, /**< @brief Spectral derivation, \f$ \hat{K} = i \, k \, \hat{G} \f$ */
+    FD2 = 2 /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
 };
 
 /**
@@ -122,6 +137,7 @@ typedef struct Profiler FLUPS_Profiler;
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
 typedef enum FLUPS_SolverType   FLUPS_SolverType;
+typedef enum FLUPS_DiffType     FLUPS_DiffType;
 
 /**@} */
 
@@ -405,16 +421,16 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param bc boundary conditions of the domain for the right hand side
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
- * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
+ * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff, FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver

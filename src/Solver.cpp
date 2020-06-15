@@ -35,7 +35,7 @@
  * @param orderDiff the differential order used for the rotational case. If no need of rotational, set 0. (order 1 = spectral, order 2 = finite diff 2nd order)
  * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const int orderDiff, Profiler *prof){
+Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler *prof){
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
@@ -110,7 +110,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     /** - initialize the diff bc */
     //-------------------------------------------------------------------------
     FLUPS_BoundaryType* diffbc[3][2];
-    if(_odiff){
+    if(_odiff != NOD){
         for (int id = 0; id < 3; id++) {
             for(int is=0; is<2; is++){
                 diffbc[id][is] =(FLUPS_BoundaryType*) flups_malloc(sizeof(int)*_lda);
@@ -145,7 +145,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
 
     // create the backward plan in the EXACT same order as the backward one
-    if(_odiff){
+    if(_odiff != NOD){
         for (int id = 0; id < 3; id++) {
             // get the corresponding direction
             const int dimID = _plan_backward[id]->dimID();
@@ -171,7 +171,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
     _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
-    if(_odiff){
+    if(_odiff != NOD){
         _init_plansAndTopos(topo, NULL, NULL, _plan_backward_diff, false);
     }
 
@@ -193,7 +193,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
 
     // free some stuffs
-    if (_odiff) {
+    if (_odiff != NOD) {
         for (int id = 0; id < 3; id++) {
             for (int is = 0; is < 2; is++) {
                 flups_free(diffbc[id][is]);
@@ -441,7 +441,7 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
-    if (_odiff) {
+    if (_odiff != NOD) {
         _allocate_plans(_topo_hat, _plan_backward_diff, _data);
     }
     if (_prof != NULL) _prof->stop("alloc_plans");
@@ -470,7 +470,7 @@ Solver::~Solver() {
     // delete the plans
     _delete_plans(_plan_forward);
     _delete_plans(_plan_backward);
-    if(_odiff){
+    if(_odiff != NOD){
         _delete_plans(_plan_backward_diff);
     }
     
@@ -1131,7 +1131,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
  */
 void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     BEGIN_FUNC;
-    FLUPS_CHECK(!(type == ROT && _odiff == 0),"If calling the ROT solver, you need to initialize it with orderDiff = 1 or orderDiff = 2",LOCATION);
+    FLUPS_CHECK(!(type == ROT && _odiff == NOD),"If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2",LOCATION);
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
@@ -1417,15 +1417,15 @@ void Solver::do_mult(double *data, const FLUPS_SolverType type) {
             }
         }
         if (!_topo_hat[_ndim - 1]->isComplex()) {
-            if (_odiff == 1) {
+            if (_odiff == SPE) {
                 dothemagic_rot_real_o1(data, koffset, kfact, symstart);
-            } else if (_odiff == 2) {
+            } else if (_odiff == FD2) {
                 dothemagic_rot_real_o2(data, koffset, kfact, symstart,_hgrid);
             }
         } else {
-            if (_odiff == 1) {
+            if (_odiff == SPE) {
                 dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
-            } else if (_odiff == 2) {
+            } else if (_odiff == FD2) {
                 dothemagic_rot_complex_o2(data, koffset, kfact, symstart,_hgrid);
             }
         }
