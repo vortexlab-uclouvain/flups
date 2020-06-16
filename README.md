@@ -24,7 +24,7 @@ If you use FLUPS, please cite it as follows in your publications:
 ### Installation
 
 FLUPS is a C++ library, with an API in C.
-The compilation of FLUPS was tested with Intel compilers and GCC.
+The compilation of FLUPS was tested with Intel compilers (v19.1) and GCC (v7.5).
 
 #### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
