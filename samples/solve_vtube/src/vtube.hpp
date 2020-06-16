@@ -69,7 +69,7 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, int order, int vdir);
+void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir);
 /**@} */
 
 #endif

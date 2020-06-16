@@ -68,18 +68,36 @@ enum FLUPS_BoundaryType {
 enum FLUPS_GreenType {
     CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
     LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2, /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3, /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
+    HEJ_2  = 2, /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3, /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4, /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
+    HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
+    HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
+    HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
 };
 
 /**
  * @brief The type of possible solvers
  * 
+ * When solving for Biot-Savart, the Green's kernel \f$ G \f$ in Fourier space is adapted so that the Fourier
+ * transform of the solution is obtained as
+ *      \f[ \hat{\phi} = \hat{K} \times \hat{f} \f]
+ * where \f$ \hat{K} \f$ is the spectral equivalent of the gradient of \f$ G \f$. Indeed,
+ * the derivation is performed directly in Fourier space, according to the parameter @ref FLUPS_DiffType.
  */
 enum FLUPS_SolverType {
-    STD = 0, /**< @brief the standard poisson solver: laplacian(field) = rhs */
-    ROT = 1 /**< @brief the Biosavart poisson solver: laplacian(field) = rot(rhs) */
+    STD = 0, /**< @brief the standard poisson solver: \f$ \nabla^2(\phi) = (rhs) \f$ */
+    ROT = 1 /**< @brief the Bio-Savart poisson solver: \f$ \nabla^2(\phi) = \nabla \times (rhs) \f$ */
+};
+
+/**
+ * @brief The type of derivative to be used with @ref FLUPS_SolverType ROT.
+ *  
+ */
+enum FLUPS_DiffType {
+    NOD = 0, /**< @brief Default parameter to be used with the STD type solve */
+    SPE = 1, /**< @brief Spectral derivation, \f$ \hat{K} = i \, k \, \hat{G} \f$ */
+    FD2 = 2 /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
 };
 
 /**
@@ -119,6 +137,7 @@ typedef struct Profiler FLUPS_Profiler;
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
 typedef enum FLUPS_SolverType   FLUPS_SolverType;
+typedef enum FLUPS_DiffType     FLUPS_DiffType;
 
 /**@} */
 
@@ -179,6 +198,7 @@ void flups_free(void* data);
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
+ * @param lia the index of the vector component (leading index of array)
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
  * @param size the size of the memory (given in the 012-order)
  * @param nf the number of unknows in one element
@@ -401,16 +421,16 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param bc boundary conditions of the domain for the right hand side
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
- * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
+ * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const int orderDiff, FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -437,7 +457,7 @@ void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
  * 
  * @param s 
- * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only valid if compiled with RORDER_RANKS)
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to inilialize the solver (only valid if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);
@@ -487,10 +507,11 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 /**
- * @brief while using Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * @brief while using regularized Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * Notice: this parameter only affect kernels: HEJ2,HEJ4,HEJ6,HEJ8,HEJ10
  * 
  * @param s 
- * @param alpha 
+ * @param alpha (default value is 2.0)
  */
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 

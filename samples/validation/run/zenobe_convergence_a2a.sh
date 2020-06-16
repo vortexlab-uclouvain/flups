@@ -1,12 +1,12 @@
 #!/bin/sh
 ## RM the previous validation dir
 
-#HOME_FLUPS=/home/acad/ucl-tfl/dcaprace/FLUPS/flups_green/samples/validation
-HOME_FLUPS=/home/acad/ucl-tfl/tgillis/flups/samples/validation
+HOME_FLUPS=/home/acad/ucl-tfl/dcaprace/FLUPS/flups_green/samples/validation
+#HOME_FLUPS=/home/acad/ucl-tfl/tgillis/flups/samples/validation
 EXEC_FLUPS=flups_validation_a2a
 
-#SCRATCH=/SCRATCH/acad/examples/dcaprace/flups_convergence_a2a
-SCRATCH=/SCRATCH/acad/examples/tgillis/flups_convergence_a2a
+SCRATCH=/SCRATCH/acad/examples/dcaprace/flups_convergence2_a2a
+#SCRATCH=/SCRATCH/acad/examples/tgillis/flups_convergence_a2a
 
 # clean the validation dir
 rm -rf ${SCRATCH}
@@ -21,6 +21,8 @@ cp $HOME_FLUPS/run/zenobe_kernelConv_a2a_3d.sh $SCRATCH
 cd $SCRATCH
 
 #####################################################################
+
+# NOTE FOR 2D: no matter what you put for L_Z, the kernel script will put 0 anyway.
 
 ## 32
 export MY_RES=32

@@ -29,7 +29,7 @@
 
 using namespace std;
 
-void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, int order, int vdir) {
+void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
@@ -70,7 +70,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L,order, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, order, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
