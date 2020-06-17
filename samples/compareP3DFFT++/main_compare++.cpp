@@ -121,9 +121,13 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const BoundaryType mybc[3][2] = {PER, PER, //or ODD, ODD,
-                                    PER, PER,
-                                    PER, PER};
+    FLUPS_BoundaryType* mybc[3][2];
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            mybc[id][is][0] = PER;
+        }
+    }
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
         FLUPS_ERROR("Invalid number of procs",LOCATION);
@@ -148,7 +152,7 @@ int main(int argc, char *argv[]) {
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
     // solver creation and init
-    Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
+    Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, FLUprof);
     mysolver->set_GreenType(CHAT_2);
     double *solFLU = mysolver->setup(true);
     // update the comm and the rank

@@ -66,14 +66,14 @@ using namespace std;
  */
 class Solver {
    protected:
-    int     _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
-    int     _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int     _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    int     _odiff         = 0;     /**< @brief the order of derivative (spectral = 1, second order = 2) */
-    double  _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double  _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double  _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double* _data          = NULL;  /**< @brief data pointer to the transposed memory */
+    int            _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
+    int            _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int            _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
+    FLUPS_DiffType _odiff         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    double         _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double         _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
+    double         _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
+    double*        _data          = NULL;  /**< @brief data pointer to the transposed memory */
 
     /**
      * @name Forward and backward 
@@ -96,13 +96,13 @@ class Solver {
      * 
      */
     /**@{ */
-    double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
-    double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
-    GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
+    double    _alphaGreen = 2.0;    /**< @brief regularization parameter for HEJ_* Green's functions */
+    double*   _green      = NULL;   /**< @brief data pointer to the transposed memory for Green */
+    GreenType _typeGreen  = CHAT_2; /**< @brief the type of Green's function */
 
-    FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
-    Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
-    SwitchTopo* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+    FFTW_plan_dim* _plan_green[3];                            /**< @brief map containing the plan for the Green's function */
+    Topology*      _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
+    SwitchTopo*    _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
     /**@} */
 
     // time the solve
@@ -165,15 +165,13 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const int orderDiff, Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
     const Topology* get_innerTopo_physical() ;
     const Topology* get_innerTopo_spectral() ;
 
-
-    // void set_OrderDiff(const int order);
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

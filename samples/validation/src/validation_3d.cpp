@@ -88,7 +88,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L,0, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, NOD, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -285,8 +285,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         //USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
         // manuRHS[0] = &fZero;
         // manuSol[0] = &fCst;
-        // manuRHS[1] = &d2dx2_fUnbSpietz;
-        // manuSol[1] = &fUnbSpietz;
+        // manuRHS[1] = &fZero;
+        // manuSol[1] = &fCst;
         // manuRHS[2] = &d2dx2_fUnbSpietz;
         // manuSol[2] = &fUnbSpietz;
 

@@ -541,6 +541,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(), "both topologies have to be complex or real", LOCATION);
     FLUPS_CHECK(_topo_in->lda() == _topo_out->lda(), "both topologies must have the same lda", LOCATION);
     FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
+    FLUPS_CHECK(_sendBuf!=NULL && _recvBuf != NULL, "both buffers have to be non NULL",LOCATION);
 
     int comm_size;
     // MPI_Comm_rank(_subcomm, &rank);

@@ -87,6 +87,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
         _normfact = 1.0;
         _volfact  = h[_dimID];
         _kfact    = c_2pi / (2.0 * L[_dimID]);
+        _isSpectral = false;
     } else if (mytype == EMPTY) {
         _type = EMPTY;
         // chosen to have no influence
@@ -828,8 +829,7 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
  */
 void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     BEGIN_FUNC;
-
-    FLUPS_CHECK(!_isSpectral, "Trying to execute a plan for data which is already spectral", LOCATION);
+    FLUPS_CHECK(!_isSpectral, "Trying to execute a plan for data which has already been setup spectraly", LOCATION);
     FLUPS_CHECK(topo->lda() == _lda, "The given topology's lda does not match with the initialisation one", LOCATION);
 
     if (_type == SYMSYM) {
