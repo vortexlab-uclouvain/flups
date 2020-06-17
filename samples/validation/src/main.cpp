@@ -52,7 +52,7 @@ static void print_help(){
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
-    printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
+    printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6, 5=HEJ8, 6=HEJ10, 7=HEJ0 \n");
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
