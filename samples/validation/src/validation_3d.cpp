@@ -1,25 +1,25 @@
 /**
  * @file validation_3d.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -88,7 +88,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, NOD, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -285,8 +285,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         //USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
         // manuRHS[0] = &fZero;
         // manuSol[0] = &fCst;
-        // manuRHS[1] = &d2dx2_fUnbSpietz;
-        // manuSol[1] = &fUnbSpietz;
+        // manuRHS[1] = &fZero;
+        // manuSol[1] = &fCst;
         // manuRHS[2] = &d2dx2_fUnbSpietz;
         // manuSol[2] = &fUnbSpietz;
 
@@ -356,7 +356,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     /** - solve the equations */
     //-------------------------------------------------------------------------
     for (int is = 0; is < nSolve; is++) {
-        flups_solve(mysolver, field, rhs);
+        flups_solve(mysolver, field, rhs,STD);
     }
 
 #ifdef PROF

@@ -1,25 +1,25 @@
 /**
  * @file main.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -52,7 +52,7 @@ static void print_help(){
     printf(" --nresolution, -nres Nr :      Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])\n");
     printf(" --nsolve, -ns Ns :             Ns is the number of times each validation case will be run (for statistics on the profiler) \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
-    printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
+    printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6, 5=HEJ8, 6=HEJ10, 7=HEJ0 \n");
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
@@ -244,24 +244,7 @@ int main(int argc, char *argv[]) {
 
     // Do the validation
     struct DomainDescr valCase;
-    for (int is = 0; is < nsample; is++) {
-        valCase.dovectorbc = (bcdefv[0][0][0] != NONE);
-
-        for (int ip = 0; ip < 3; ip++) {
-            valCase.L[ip]       = L[ip];
-            valCase.nproc[ip]   = nprocs[ip];
-            valCase.nglob[ip]   = size[is*3+ip];
-            valCase.mybc[ip][0] = bcdef[ip][0];
-            valCase.mybc[ip][1] = bcdef[ip][1];
-
-            valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
-            valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
-            valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
-            valCase.mybcv[ip][1][0] = bcdefv[ip][1][0];
-            valCase.mybcv[ip][1][1] = bcdefv[ip][1][1];
-            valCase.mybcv[ip][1][2] = bcdefv[ip][1][2];
-        }
-    }
+    valCase.dovectorbc = (bcdefv[0][0][0] != NONE);
 
     // Display
     if (rank == 0) {
@@ -283,8 +266,24 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // let's gooo
-    validation_3d(valCase, kernel, lda, nsolve);
+    for (int is = 0; is < nsample; is++) {
+        for (int ip = 0; ip < 3; ip++) {
+            valCase.L[ip]       = L[ip];
+            valCase.nproc[ip]   = nprocs[ip];
+            valCase.nglob[ip]   = size[is * 3 + ip];
+            valCase.mybc[ip][0] = bcdef[ip][0];
+            valCase.mybc[ip][1] = bcdef[ip][1];
+
+            valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
+            valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
+            valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
+            valCase.mybcv[ip][1][0] = bcdefv[ip][1][0];
+            valCase.mybcv[ip][1][1] = bcdefv[ip][1][1];
+            valCase.mybcv[ip][1][2] = bcdefv[ip][1][2];
+        }
+        // let's gooo
+        validation_3d(valCase, kernel, lda, nsolve);
+    }
 
     free(size);
 

@@ -1,25 +1,25 @@
 /**
  * @file green_functions.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -33,11 +33,11 @@
 #define ZSTR(a) #a
 
 
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double eps, const int istart_custom[3], const int iend_custom[3]);
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double length);
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3]);
 
 /**
  * @brief read the LGF file in the KERNEL_PATH folder

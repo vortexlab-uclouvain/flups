@@ -1,25 +1,25 @@
 /**
  * @file defines.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -474,6 +474,7 @@ typedef enum FLUPS_GreenType    GreenType;
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
+static const double c_1o2pi2   = 1.0 / (2.0 * M_PI*M_PI);
 static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
 static const double c_1osqrtpi = 1.0 / sqrt(M_PI);
 static const double c_sqrtpi   = sqrt(M_PI);
@@ -482,9 +483,35 @@ static const double c_1o4      = 1.0 / 4.0;
 static const double c_7o4      = 7. / 4.;
 static const double c_19o8     = 19. / 8;
 static const double c_2o3      = 2. / 3;
+static const double c_1o12     = 1. / 12.;
 static const double c_1o24     = 1. / 24;
 static const double c_5o16     = 5. / 16.;
 static const double c_1o16     = 1. / 16.;
+static const double c_187o64   = 187. / 64.;
+static const double c_233o192  = 233. / 192.;
+static const double c_29o192   = 29. / 192.;
+static const double c_13o192   = 13. / 192.;
+static const double c_1o192    = 1. / 192.;
+static const double c_11o12    = 11. / 12.;
+static const double c_7o24     = 7. / 24.;
+static const double c_25o24    = 25. / 24.;
+static const double c_1o48     = 1. / 48.;
+static const double c_23o48    = 23. / 48.;
+static const double c_1o384    = 1. / 384.;
+static const double c_17o384   = 17. / 384.;
+static const double c_23o384   = 23. / 384.;
+static const double c_11o32    = 11. / 32.;
+static const double c_1o96     = 1. / 96.;
+static const double c_35o128   = 35. / 128.;
+static const double c_47o128   = 47. / 128.;
+static const double c_93o256   = 93. / 256.;
+static const double c_47o256   = 47. / 256.;
+static const double c_1o256    = 1. / 256.;
+static const double c_73o768   = 73. / 768.;
+static const double c_11o768   = 11. / 768.;
+static const double c_23o768   = 23. / 768.;
+static const double c_1o768    = 1. / 768.;
+
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

@@ -3,27 +3,26 @@
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief 
  * @version
- * @date 2019-10-09
  * 
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -100,15 +99,15 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3]){
-    Solver* s = new Solver(t, bc, h, L, NULL);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff) {
+    Solver* s = new Solver(t, bc, h, L, orderDiff, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], Profiler* prof) {
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof) {
 #ifndef PROF
-    Solver* s = new Solver(t, bc, h, L, NULL);
+    Solver* s = new Solver(t, bc, h, L, orderDiff, NULL);
 #else
-    Solver* s = new Solver(t, bc, h, L, prof);
+    Solver* s = new Solver(t, bc, h, L, orderDiff, prof);
 #endif
     return s;
 }
@@ -128,8 +127,8 @@ double* flups_setup(FLUPS_Solver* s,const bool changeComm){
 }
 
 // solve
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs){
-    s->solve(field, rhs);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type) {
+    s->solve(field, rhs, type);
 }
 
 
@@ -147,10 +146,6 @@ void flups_set_alpha(FLUPS_Solver* s, const double alpha){
     s->set_alpha(alpha);   
 }
 
-// void flups_set_OrderDiff(FLUPS_Solver* s, const int order){
-//     s->set_OrderDiff(order);
-// }
-
 const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
     return s->get_innerTopo_physical();
 }
@@ -167,8 +162,8 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign){
     s->do_FFT(data,sign);
 }
 
-void flups_do_mult(FLUPS_Solver* s, double* data){
-    s->do_mult(data);
+void flups_do_mult(FLUPS_Solver* s, double* data,const FLUPS_SolverType type){
+    s->do_mult(data,type);
 }
 
 //**********************************************************************

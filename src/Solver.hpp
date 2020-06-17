@@ -1,25 +1,25 @@
 /**
  * @file Solver.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -66,23 +66,24 @@ using namespace std;
  */
 class Solver {
    protected:
-    int     _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
-    int     _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int     _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    int     _orderdiff     = 0;     /**< @brief the order of derivative (spectral = 1), second order =2 */
-    int     _nbr_spectral  = 0;     /**< @brief the number of spectral directions involved */
-    double  _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double  _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double  _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double* _data          = NULL;  /**< @brief data pointer to the transposed memory */
+    int            _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
+    int            _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int            _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
+    FLUPS_DiffType _odiff         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    double         _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double         _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
+    double         _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
+    double*        _data          = NULL;  /**< @brief data pointer to the transposed memory */
 
     /**
      * @name Forward and backward 
      * transforms related objects
      */
     /**@{ */
-    FFTW_plan_dim* _plan_forward[3];  /**< @brief map containing the plans for the forward fft transforms */
-    FFTW_plan_dim* _plan_backward[3]; /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* _plan_forward[3];       /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim* _plan_backward[3];      /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* _plan_backward_diff[3]; /**< @brief map containing the plans for the backward fft transforms */
+
     Topology*      _topo_phys     = NULL;
     Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
     SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
@@ -95,13 +96,13 @@ class Solver {
      * 
      */
     /**@{ */
-    double    _alphaGreen      = 2.0;       /**< @brief regularization parameter for HEJ_* Green's functions */
-    double*   _green           = NULL;      /**< @brief data pointer to the transposed memory for Green */
-    GreenType _typeGreen       = CHAT_2;    /**< @brief the type of Green's function */
+    double    _alphaGreen = 2.0;    /**< @brief regularization parameter for HEJ_* Green's functions */
+    double*   _green      = NULL;   /**< @brief data pointer to the transposed memory for Green */
+    GreenType _typeGreen  = CHAT_2; /**< @brief the type of Green's function */
 
-    FFTW_plan_dim* _plan_green[3]; /**< @brief map containing the plan for the Green's function */
-    Topology*   _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
-    SwitchTopo* _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+    FFTW_plan_dim* _plan_green[3];                            /**< @brief map containing the plan for the Green's function */
+    Topology*      _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
+    SwitchTopo*    _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
     /**@} */
 
     // time the solve
@@ -144,8 +145,12 @@ class Solver {
      * 
      * @{
      */
-    void dothemagic_rhs_real(double *data);
-    void dothemagic_rhs_complex(double *data);
+    void dothemagic_std_real(double *data);
+    void dothemagic_std_complex(double *data);
+    void dothemagic_rot_real_o1(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]);
+    void dothemagic_rot_complex_o1(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3]);
+    void dothemagic_rot_real_o2(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_rot_complex_o2(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
     /**@} */
 
     /**
@@ -160,15 +165,13 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], const double L[3], Profiler *prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
     const Topology* get_innerTopo_physical() ;
     const Topology* get_innerTopo_spectral() ;
 
-
-    // void set_OrderDiff(const int order);
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)
@@ -204,7 +207,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double* field, double* rhs);
+    void solve(double *field, double *rhs,const FLUPS_SolverType type);
     /**@} */
 
     /**
@@ -214,7 +217,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data);
+    void do_mult(double *data,const FLUPS_SolverType type);
     /**@} */
 
     /**

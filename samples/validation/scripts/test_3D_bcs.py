@@ -45,12 +45,12 @@ for bcx in BC1 :
             n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen=0.txt')
 
             if n_mistake==0:
-                print("test %i (BCs : "%i + code + ") succeed")
+                print("test %i (BCs : "%i + code + ") succeeded")
                 n_success += 1    
             else:
                 print("test %i (BCs : "%i + code + ") failed with wrong values.")
                 print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n" )
                 n_failure += 1
 
-print("%i test succeed out of %i" % (n_success,n_success+n_failure))
+print("%i test succeeded out of %i" % (n_success,n_success+n_failure))
 exit(n_failure)

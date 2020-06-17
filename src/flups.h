@@ -3,27 +3,26 @@
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @brief This is the external API of the FLUPS library
  * @version
- * @date 2019-10-09
  * 
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Université catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -33,11 +32,13 @@
 #include "mpi.h"
 
 #ifdef __cplusplus
+#include <cmath>
+#include <iostream>
 extern "C" {
 #define MAX(a,b) std::max(a,b)
 #else
 #include "stdlib.h"
-#define MAX(a,b) a>b?a:b;
+#define MAX(a,b) a>b?a:b
 #endif
 
 //=============================================================================
@@ -67,9 +68,36 @@ enum FLUPS_BoundaryType {
 enum FLUPS_GreenType {
     CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
     LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2, /**< @brief regularized in zero, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3, /**< @brief regularized in zero, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4, /**< @brief regularized in zero, order 6, Hejlesen et al. (2015)*/
+    HEJ_2  = 2, /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3, /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4, /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
+    HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
+    HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
+    HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
+};
+
+/**
+ * @brief The type of possible solvers
+ * 
+ * When solving for Biot-Savart, the Green's kernel \f$ G \f$ in Fourier space is adapted so that the Fourier
+ * transform of the solution is obtained as
+ *      \f[ \hat{\phi} = \hat{K} \times \hat{f} \f]
+ * where \f$ \hat{K} \f$ is the spectral equivalent of the gradient of \f$ G \f$. Indeed,
+ * the derivation is performed directly in Fourier space, according to the parameter @ref FLUPS_DiffType.
+ */
+enum FLUPS_SolverType {
+    STD = 0, /**< @brief the standard poisson solver: \f$ \nabla^2(\phi) = (rhs) \f$ */
+    ROT = 1 /**< @brief the Bio-Savart poisson solver: \f$ \nabla^2(\phi) = \nabla \times (rhs) \f$ */
+};
+
+/**
+ * @brief The type of derivative to be used with @ref FLUPS_SolverType ROT.
+ *  
+ */
+enum FLUPS_DiffType {
+    NOD = 0, /**< @brief Default parameter to be used with the STD type solve */
+    SPE = 1, /**< @brief Spectral derivation, \f$ \hat{K} = i \, k \, \hat{G} \f$ */
+    FD2 = 2 /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
 };
 
 /**
@@ -83,6 +111,12 @@ enum FLUPS_GreenType {
  * 
  */
 #define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
+
+/**
+ * @brief to be used as "sign" for all of the BACKWARD tranform
+ * 
+ */
+#define FLUPS_BACKWARD_DIFF 2
 
 /**
  * @brief Memory alignment in bytes.
@@ -102,6 +136,8 @@ typedef struct Profiler FLUPS_Profiler;
 
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
+typedef enum FLUPS_SolverType   FLUPS_SolverType;
+typedef enum FLUPS_DiffType     FLUPS_DiffType;
 
 /**@} */
 
@@ -162,6 +198,7 @@ void flups_free(void* data);
  * @param i0 the index in the axsrc direction
  * @param i1 the index in the (axsrc+1)%3 direction
  * @param i2 the index in the (axsrc+2)%3 direction
+ * @param lia the index of the vector component (leading index of array)
  * @param axtrg the topology FRI, i.e. the way the memory is aligned in the current topology
  * @param size the size of the memory (given in the 012-order)
  * @param nf the number of unknows in one element
@@ -384,16 +421,16 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param bc boundary conditions of the domain for the right hand side
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
- * @param orderdiff order of the derivatives for ROT and DIV solvers (0=none, 1=spectral, 2=FD order2)
+ * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3]);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -420,7 +457,7 @@ void    flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
  * 
  * @param s 
- * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to initialize the solver (only valid if compiled with RORDER_RANKS)
+ * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to inilialize the solver (only valid if compiled with RORDER_RANKS)
  * @return double* 
  */
 double* flups_setup(FLUPS_Solver* s,const bool changeComm);
@@ -434,7 +471,7 @@ double* flups_setup(FLUPS_Solver* s,const bool changeComm);
  * @param field 
  * @param rhs 
  */
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs);
+void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type);
 
 /**@} */
 
@@ -470,10 +507,11 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 /**
- * @brief while using Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * @brief while using regularized Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
+ * Notice: this parameter only affect kernels: HEJ2,HEJ4,HEJ6,HEJ8,HEJ10
  * 
  * @param s 
- * @param alpha 
+ * @param alpha (default value is 2.0)
  */
 void flups_set_alpha(FLUPS_Solver* s, const double alpha);   //must be done before setup
 
@@ -524,7 +562,7 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
  * @param data 
  * @param type 
  */
-void flups_do_mult(FLUPS_Solver* s, double* data);
+void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**@} */
 

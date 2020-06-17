@@ -1,25 +1,25 @@
 /**
  * @file FFTW_plan_dim.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -90,9 +90,9 @@ class FFTW_plan_dim {
     PlanType            _type;                    /**< @brief type of this plan, see #PlanType*/
     BoundaryType*       _bc[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
     PlanCorrectionType* _corrtype = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
-
-    fftw_r2r_kind* _kind = NULL; /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    fftw_plan*     _plan = NULL; /**< @brief the array of FFTW plan*/
+    bool*               _imult    = NULL;        /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
+    fftw_r2r_kind*      _kind     = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan*          _plan     = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -111,6 +111,7 @@ class FFTW_plan_dim {
     /**@{ */
     inline bool   isSpectral() const { return _isSpectral; }
     inline bool   isr2c() const { return _isr2c; }
+    inline bool   imult(const int lia) const { return _imult[lia]; }
     inline bool   isr2c_doneByFFT() const { return _isr2c && (!_isSpectral); }
     inline int    dimID() const { return _dimID; }
     inline int    type() const { return _type; }

@@ -1,25 +1,25 @@
 /**
  * @file Solver.cpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2019
+ * @copyright Copyright © UCLouvain 2020
  * 
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
  * 
- * Copyright (C) <2019> <Universite catholique de Louvain (UCLouvain), Belgique>
+ * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
  * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE file.
+ * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
  * 
- * This program (FLUPS) is free software: 
- * you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  * 
- * You should have received a copy of the GNU General Public License
- * along with this program (see COPYING file).  If not, 
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * 
  */
 
@@ -29,12 +29,13 @@
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
  * @param topo the input topology of the data (in physical space)
- * @param mybc the boundary conditions of the computational domain (for the right hand side!!), the first index corresponds to the dimension, the second is left (0) or right (1) side and the last one to the component
+ * @param rhsbc the boundary conditions of the computational domain (for the right hand side!!), the first index corresponds to the dimension, the second is left (0) or right (1) side and the last one to the component
  * @param h the grid spacing
  * @param L the domain size
+ * @param orderDiff the differential order used for the rotational case. If no need of rotational, set 0. (order 1 = spectral, order 2 = finite diff 2nd order)
  * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], const double L[3], Profiler *prof){
+Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler *prof){
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
@@ -55,7 +56,7 @@ Solver::Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], cons
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i > alignSize) {
-                FLUPS_ERROR("The FFTW alignement has to be bigger or = to FLUPS, please change accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
+                FLUPS_ERROR("The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNEMENT into file flups.h accordingly: FFTW=%d vs FLUPS=%d", _fftwalignment, FLUPS_ALIGNMENT, LOCATION);
             }
             // else, just stop and advise the user to change
             break;
@@ -94,27 +95,64 @@ Solver::Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], cons
     if (_prof != NULL) _prof->create("domagic", "solve");
     if (_prof != NULL) _prof->start("init");
 
+    
+
+    //-------------------------------------------------------------------------
+    /** - store the meshsize, the lda and the orderDiff */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
+        _hgrid[id] = h[id];
+    }
+    _lda       = topo->lda();
+    _odiff = orderDiff;
+
+    //-------------------------------------------------------------------------
+    /** - initialize the diff bc */
+    //-------------------------------------------------------------------------
+    FLUPS_BoundaryType* diffbc[3][2];
+    if(_odiff != NOD){
+        for (int id = 0; id < 3; id++) {
+            for(int is=0; is<2; is++){
+                diffbc[id][is] =(FLUPS_BoundaryType*) flups_malloc(sizeof(int)*_lda);
+                for(int lia=0; lia<_lda; lia++){
+                    if(rhsbc[id][is][lia] == EVEN){
+                        diffbc[id][is][lia] = ODD;
+                    } else if (rhsbc[id][is][lia] == ODD){
+                        diffbc[id][is][lia] = EVEN;
+                    } else {
+                        diffbc[id][is][lia] = rhsbc[id][is][lia];
+                    }
+                }
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans given the BC and sort them by type */
     //-------------------------------------------------------------------------
-    for (int id = 0; id < 3; id++){
-        _hgrid[id] = h[id];
-    }
-
-    _lda = topo->lda();
 
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
     for (int id = 0; id < 3; id++) {
-        _plan_forward[id]  = new FFTW_plan_dim(_lda, id, h, L, mybc[id], FLUPS_FORWARD, false);
-        _plan_backward[id] = new FFTW_plan_dim(_lda, id, h, L, mybc[id], FLUPS_BACKWARD, false);
-        _plan_green[id]    = new FFTW_plan_dim(1, id, h, L, mybc[id], FLUPS_FORWARD, true);
+        _plan_forward[id]  = new FFTW_plan_dim(_lda, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
+        _plan_backward[id] = new FFTW_plan_dim(_lda, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
+        _plan_green[id]    = new FFTW_plan_dim(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
     }
 
     _sort_plans(_plan_forward);
     _sort_plans(_plan_backward);
     _sort_plans(_plan_green);
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", _plan_forward[0]->dimID(), _plan_forward[1]->dimID(), _plan_forward[2]->dimID());
+
+    // create the backward plan in the EXACT same order as the backward one
+    if(_odiff != NOD){
+        for (int id = 0; id < 3; id++) {
+            // get the corresponding direction
+            const int dimID = _plan_backward[id]->dimID();
+            // initialize the plan with the BC of the considered direction
+            _plan_backward_diff[id] = new FFTW_plan_dim(_lda, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+        }
+    }
 
     //-------------------------------------------------------------------------
     /** - compute the real problem size using forward plans, i.e. are we 2D or 3D? */
@@ -133,6 +171,9 @@ Solver::Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], cons
     _init_plansAndTopos(topo, _topo_hat, _switchtopo, _plan_forward, false);
     _init_plansAndTopos(topo, NULL, NULL, _plan_backward, false);
     _init_plansAndTopos(topo, _topo_green, _switchtopo_green, _plan_green, true);
+    if(_odiff != NOD){
+        _init_plansAndTopos(topo, NULL, NULL, _plan_backward_diff, false);
+    }
 
     //-------------------------------------------------------------------------
     /** - Get the factors #_normfact, #_volfact, #_shiftgreen */
@@ -141,10 +182,23 @@ Solver::Solver(Topology *topo, BoundaryType* mybc[3][2], const double h[3], cons
     _normfact  = 1.0;
     _volfact   = 1.0;
 
-    // compute the coefficients
+    // compute the coefficients and the phase correction
     for (int ip = 0; ip < 3; ip++) {
         _normfact *= _plan_forward[ip]->normfact();
         _volfact *= _plan_forward[ip]->volfact();
+    }
+
+    //-------------------------------------------------------------------------
+    /** - free temp arrays and stop the timer */
+    //-------------------------------------------------------------------------
+
+    // free some stuffs
+    if (_odiff != NOD) {
+        for (int id = 0; id < 3; id++) {
+            for (int is = 0; is < 2; is++) {
+                flups_free(diffbc[id][is]);
+            }
+        }
     }
 
     if (_prof != NULL) _prof->stop("init");
@@ -342,6 +396,7 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - allocate the data for the Green's function */
     //-------------------------------------------------------------------------
     if (_prof != NULL) _prof->start("alloc_data");
+    // allocate to the maximum size needed by all the topologies
     _allocate_data(_topo_green, NULL, &_green);
     if (_prof != NULL) _prof->stop("alloc_data");
 
@@ -366,10 +421,9 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     /** - Clean the Green's function accessories (allocated topo and plans) */
     //-------------------------------------------------------------------------
-    // delete the switchTopos
+    // delete the switchTopos and the plans if we allocated them
     _deallocate_switchTopo(_switchtopo_green, &_sendBuf, &_recvBuf);
     _delete_switchtopos(_switchtopo_green);
-    // delete the topologies and plans not needed anymore
     _delete_topologies(_topo_green);
     _delete_plans(_plan_green);
     if (_prof != NULL) _prof->stop("green");
@@ -387,6 +441,9 @@ double* Solver::setup(const bool changeTopoComm) {
     if (_prof != NULL) _prof->start("alloc_plans");
     _allocate_plans(_topo_hat, _plan_forward, _data);
     _allocate_plans(_topo_hat, _plan_backward, _data);
+    if (_odiff != NOD) {
+        _allocate_plans(_topo_hat, _plan_backward_diff, _data);
+    }
     if (_prof != NULL) _prof->stop("alloc_plans");
 
     //-------------------------------------------------------------------------
@@ -413,6 +470,9 @@ Solver::~Solver() {
     // delete the plans
     _delete_plans(_plan_forward);
     _delete_plans(_plan_backward);
+    if(_odiff != NOD){
+        _delete_plans(_plan_backward_diff);
+    }
     
     // free the sendBuf,recvBuf
     _deallocate_switchTopo(_switchtopo, &_sendBuf, &_recvBuf);
@@ -768,10 +828,14 @@ void Solver::_allocate_switchTopo(const int ntopo, SwitchTopo **switchtopo, opt_
     END_FUNC;
 }
 void Solver::_deallocate_switchTopo(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-    flups_free(*send_buff);
-    flups_free(*recv_buff);
-    (*send_buff) = NULL;
-    (*recv_buff) = NULL;
+    if (*send_buff != NULL) {
+        flups_free(*send_buff);
+        (*send_buff) = NULL;
+    }
+    if (*recv_buff != NULL) {
+        flups_free(*recv_buff);
+        (*recv_buff) = NULL;
+    }
 }
 
 /**
@@ -841,38 +905,40 @@ void Solver::_allocate_data(const Topology *const topo[3], const Topology *topo_
  * -----------------------------------
  * We do the following operations
  */
-void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
+void Solver:: _cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
 
     //-------------------------------------------------------------------------
     /** - get the direction where we need to do spectral diff and count them */
     //-------------------------------------------------------------------------
-    bool isSpectral[3] = {false};
+    bool   isSpectral[3] = {false};
+    double hfact[3]      = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
+    double kfact[3]      = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double koffset[3]    = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
+    double symstart[3]   = {0.0, 0.0, 0.0};
+    double kernelLength  = _alphaGreen * _hgrid[0];  //the kernel length scale of the HEJ kernels (smoothing for regularization or spectral normalization h/pi)
+    if (_typeGreen == HEJ_0) {
+        kernelLength = _hgrid[0]/M_PI;
+    }
 
-    double hfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the position (1/2/3 corresponds to x/y/z )
-    double kfact[3]    = {0.0, 0.0, 0.0};  // multiply the index by this factor to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double koffset[3]  = {0.0, 0.0, 0.0};  // add this to the index to obtain the wave number (1/2/3 corresponds to x/y/z )
-    double symstart[3] = {0.0, 0.0, 0.0};
-    double epsilon     = _alphaGreen * _hgrid[0];  //the smoothing length scale of the HEJ kernels
-
-    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
+    if ((_typeGreen == HEJ_2 || _typeGreen == HEJ_4 || _typeGreen == HEJ_6 || _typeGreen == HEJ_8 || _typeGreen == HEJ_10 || _typeGreen == HEJ_0 || _typeGreen == LGF_2) && ((_ndim == 3 && (_hgrid[0] != _hgrid[1] || _hgrid[1] != _hgrid[2])) || (_ndim == 2 && _hgrid[0] != _hgrid[1]))) {
         FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
     }
 
-    // get the infor + determine which green function to use:
+    // get the info + determine which green function to use:
     for (int ip = 0; ip < _ndim; ip++) {
         const int dimID = planmap[ip]->dimID();
         // get usefull datas
-        isSpectral[dimID] = planmap[ip]->isSpectral();
-        symstart[dimID]   = planmap[ip]->symstart();
-        hfact[dimID]      = _hgrid[dimID];
-        kfact[dimID]      = 0.0;
-        koffset[dimID]    = 0.0;
+        isSpectral[dimID]   = planmap[ip]->isSpectral();
+        symstart[dimID]     = planmap[ip]->symstart();
+        hfact[dimID]        = _hgrid[dimID];
+        kfact[dimID]        = 0.0;
+        koffset[dimID]      = 0.0;
 
         if (isSpectral[dimID]) {
             hfact[dimID]   = 0.0;
             kfact[dimID]   = planmap[ip]->kfact();
-            koffset[dimID] = planmap[ip]->koffset(); // GF has a lda of 1
+            koffset[dimID] = planmap[ip]->koffset();  // GF has a lda of 1
         }
         if (planmap[ip]->type() == FFTW_plan_dim::EMPTY) {
             // kill the hfact to have no influence in the green's functions
@@ -894,19 +960,21 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     int n_unbounded = _ndim - nbr_spectral;
     if ((n_unbounded) == 3) {
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", _typeGreen);
-        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 2) {
+        FLUPS_CHECK(!(_typeGreen == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", _typeGreen);
-        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 1) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", _typeGreen);
-        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, epsilon);
+        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, _typeGreen, kernelLength);
     } else if ((n_unbounded) == 0) {
         FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", _typeGreen);
-        cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon);
-    } else {
-        FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
+        cmpt_Green_0dirunbounded(topo[0], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength);
     }
+    // else {
+    //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, _ndim, nbr_spectral, LOCATION);
+    // }
 
     // dump the green func
 #ifdef DUMP_DBG
@@ -947,7 +1015,7 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
     /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
      *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
-    if (_ndim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6)) {
+    if (_ndim == 3 && nbr_spectral == 1 && (_typeGreen==HEJ_2||_typeGreen==HEJ_4||_typeGreen==HEJ_6||_typeGreen==HEJ_8||_typeGreen==HEJ_10)) {
         int istart_cstm[3] = {0, 0, 0};  //global
 
         for (int ip = 0; ip < 3; ip++) {
@@ -955,9 +1023,8 @@ void Solver::_cmptGreenFunction(Topology *topo[3], double *green, FFTW_plan_dim 
             istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  //avoid rewriting on the part of Green already computed
             kfact[dimID]    = planmap[ip]->kfact();
         }
-        cmpt_Green_0dirunbounded(topo[_ndim-1], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, epsilon, istart_cstm, NULL);
+        cmpt_Green_0dirunbounded(topo[_ndim-1], _hgrid[0], kfact, koffset, symstart, green, _typeGreen, kernelLength, istart_cstm, NULL);
     }
-
 #ifdef DUMP_DBG
     hdf5_dump(topo[_ndim-1], "green_h", green);
 #endif
@@ -1026,7 +1093,7 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
     //-------------------------------------------------------------------------
     /** - If needed, we create a new switchTopo from the current Green topo to the field one */
 
-    //simulate that we have done the transforms
+    //simulate that we have done so far in the transforms
     bool isr2c = false;
     for (int id = 0; id < _ndim; id++) {
         isr2c = isr2c || planmap[id]->isr2c();
@@ -1062,8 +1129,9 @@ void Solver::_finalizeGreenFunction(Topology *topo_field, double *green, const T
  * -----------------------------------------------
  * We perform the following operations:
  */
-void Solver::solve(double *field, double *rhs) {
+void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     BEGIN_FUNC;
+    FLUPS_CHECK(!(type == ROT && _odiff == NOD),"If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2",LOCATION);
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
@@ -1100,7 +1168,7 @@ void Solver::solve(double *field, double *rhs) {
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
-    do_mult(mydata);
+    do_mult(mydata,type);
 
 #ifdef DUMP_DBG
     // io if needed
@@ -1109,7 +1177,11 @@ void Solver::solve(double *field, double *rhs) {
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
-    do_FFT(mydata, FLUPS_BACKWARD);
+    if (type == STD) {
+        do_FFT(mydata, FLUPS_BACKWARD);
+    } else {
+        do_FFT(mydata, FLUPS_BACKWARD_DIFF);
+    }
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
@@ -1275,6 +1347,19 @@ void Solver::do_FFT(double *data, const int sign){
             _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
         }
     }
+    else if (sign == FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
+        for (int ip = _ndim-1; ip >= 0; ip--) {
+            if (_prof != NULL) _prof->start("fftw");
+            _plan_backward_diff[ip]->correct_plan(_topo_hat[ip], mydata);
+            _plan_backward_diff[ip]->execute_plan(_topo_hat[ip], mydata);
+            if (_prof != NULL) _prof->stop("fftw");
+            // get if we are now complex
+            if (_plan_forward[ip]->isr2c()) {
+                _topo_hat[ip]->switch2real();
+            }
+            _switchtopo[ip]->execute(mydata, FLUPS_BACKWARD);
+        }
+    }
     END_FUNC;
 }
 
@@ -1285,17 +1370,65 @@ void Solver::do_FFT(double *data, const int sign){
  * @param data 
  * @param type 
  */
-void Solver::do_mult(double *data){
+void Solver::do_mult(double *data, const FLUPS_SolverType type) {
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
 
     if (_prof != NULL) _prof->start("domagic");
 
     // every lda is done at once inside the dothemagic functions
-    if (!_topo_hat[_ndim - 1]->isComplex()) {
-        dothemagic_rhs_real(data);
+    if (type == STD) {
+        if (!_topo_hat[_ndim - 1]->isComplex()) {
+            dothemagic_std_real(data);
+        } else {
+            dothemagic_std_complex(data);
+        }
     } else {
-        dothemagic_rhs_complex(data);
+        // compute the coefficients: kfact, koffset and symstart
+        double kabs[3];
+        double koffset[3];
+        double symstart[3];
+        get_spectralInfo(kabs,koffset,symstart);
+
+        // for each dim, comnput the kfact depening on the coordinate
+        double kfact[3][3][2];  // kfact is COMPLEX
+        for (int ip = 0; ip < 3; ip++) {
+            const int dimID = _plan_forward[ip]->dimID();
+            for (int lia = 0; lia < _lda; lia++) {
+                //compute the number of rotation
+                int corrphase = 0;
+                if (_plan_forward[ip]->imult(lia)) {  // while doing a DST forward, we need to nultiplied by (-i)
+                    corrphase--;
+                }
+                if (_plan_backward_diff[ip]->imult(lia)) {  // while doing a DST backward, we need to rephase by (i)
+                    corrphase++;
+                }
+                // make the change if needed
+                if (corrphase == 0) {  // derivative = * (ik)
+                    kfact[dimID][lia][0] = 0.0;
+                    kfact[dimID][lia][1] = kabs[dimID];
+                } else if (corrphase == +1) {  // deriv = * (i k) * (i) = -k
+                    kfact[dimID][lia][0] = -kabs[dimID];
+                    kfact[dimID][lia][1] = 0.0;
+                } else if (corrphase == -1) {  // deriv = * (i k) * (-i) = k
+                    kfact[dimID][lia][0] = kabs[dimID];
+                    kfact[dimID][lia][1] = 0.0;
+                }
+            }
+        }
+        if (!_topo_hat[_ndim - 1]->isComplex()) {
+            if (_odiff == SPE) {
+                dothemagic_rot_real_o1(data, koffset, kfact, symstart);
+            } else if (_odiff == FD2) {
+                dothemagic_rot_real_o2(data, koffset, kfact, symstart,_hgrid);
+            }
+        } else {
+            if (_odiff == SPE) {
+                dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
+            } else if (_odiff == FD2) {
+                dothemagic_rot_complex_o2(data, koffset, kfact, symstart,_hgrid);
+            }
+        }
     }
 
     if (_prof != NULL) _prof->stop("domagic");
@@ -1305,12 +1438,28 @@ void Solver::do_mult(double *data){
 //---------------------------------
 // kind = 0: real to real case
 #define KIND 0
-#include "dothemagic.ipp"
+#include "dothemagic_std.ipp"
+#undef KIND
+// 01 = real to real, spectral acc
+#define KIND 01
+#include "dothemagic_rot.ipp"
+#undef KIND
+// 02= real to real, 2nd order acc
+#define KIND 02
+#include "dothemagic_rot.ipp"
 #undef KIND
 //---------------------------------
 // kind = 1: complex to complex
 #define KIND 1
-#include "dothemagic.ipp"
+#include "dothemagic_std.ipp"
+#undef KIND
+// kind = 11: complex to complex spectral acc
+#define KIND 11
+#include "dothemagic_rot.ipp"
+#undef KIND
+// kind = 12: complex to complex 2nd order acc
+#define KIND 12
+#include "dothemagic_rot.ipp"
 #undef KIND
 
 /**

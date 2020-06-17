@@ -31,13 +31,17 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     const int     nglob[3] = {16, 16, 16};
     const int     nproc[3] = {1, 1, 2}; //nproc[0] has to be 1 //CAUTION FOR THIS: nproc[1]<=nproc[2] !!!
-    const double  L[3]     = {1., 1., 1.};;
+    const double  L[3]     = {1., 1., 1.};
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    const BoundaryType mybc[3][2] = {PER, PER,
-                                            PER, PER,
-                                            PER, PER};
+    FLUPS_BoundaryType* mybc[3][2];
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            mybc[id][is][0] = PER;
+        }
+    }
 
     unsigned char op_f[]="fft", op_b[]="tff";
 
@@ -51,14 +55,14 @@ int main(int argc, char *argv[]) {
 
     // create a real topology
     int FLUnmemIn[3],FLUnmemOUT[3];
-    Topology *topoIn      = new Topology(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Topology *topoIn = new FLUPS_Topology(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
     
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
-    Solver *mysolver = new Solver(topoIn, mybc, h, L, FLUprof);
+    FLUPS_Solver *mysolver = new FLUPS_Solver(topoIn, mybc, h, L, NOD, FLUprof);
 
     mysolver->set_GreenType(CHAT_2);
     double *solFLU = mysolver->setup(true);
