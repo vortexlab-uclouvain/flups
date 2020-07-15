@@ -35,7 +35,7 @@
 #define C_GAMMA 0.5772156649015328606
 #define N_KEPT 50
 
-static long double inv_f_sqr[N_KEPT];
+static long double inv_f_sqr[N_KEPT+1];
 
 
 /**
