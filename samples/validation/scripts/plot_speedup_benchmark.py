@@ -14,7 +14,7 @@ from read_Profile import *
 #
 #########################################################################
 
-#path 2 your results (*time.csv)
+# path to your results folder (i.e. path/*time.csv)
 path = sys.argv[len(sys.argv)-1]
 
 nx_list   = [128] #resolution (should be a 1-entry table)

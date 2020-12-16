@@ -17,7 +17,7 @@ tol = 1e-12
 n_mistake = 0
 
 #list all files in path
-files = [f for f in listdir(path) if (isfile(join(path, f)) and ('000000.txt' in f) or ('111111.txt'in f))]
+files = [f for f in listdir(path) if (isfile(join(path, f)) and ('000000' in f) or ('111111' in f))]
 
 
 for file in files:
