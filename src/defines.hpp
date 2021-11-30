@@ -46,10 +46,10 @@
 //=============================================================================
 static inline void FLUPS_WARNING(std::string a, std::string loc) {
     char tmp[512];
-    sprintf(tmp, a.c_str());
+    sprintf(tmp, "%s", a.c_str());
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1>
@@ -58,7 +58,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, std::string loc) {
     sprintf(tmp, a.c_str(), b);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1,typename T2>
@@ -67,7 +67,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, std::string loc) {
     sprintf(tmp, a.c_str(), b, c);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1,typename T2,typename T3>
@@ -76,7 +76,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, std::string lo
     sprintf(tmp, a.c_str(), b, c, d);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1,typename T2,typename T3,typename T4>
@@ -85,7 +85,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, std::str
     sprintf(tmp, a.c_str(), b, c, d, e);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5>
@@ -94,7 +94,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, st
     sprintf(tmp, a.c_str(), b, c, d, e, f);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
@@ -103,7 +103,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6
     sprintf(tmp, a.c_str(), b, c, d, e, f, g);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
+    printf("%s", msg_error);
     fflush(stdout);
 };
 
@@ -114,7 +114,7 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6
 static inline void FLUPS_INFO_DISP(std::string a) {
     char msg[1024];
     sprintf(msg, "[FLUPS] %s\n", a.c_str());
-    printf(msg);
+    printf("%s", msg);
     fflush(stdout);
 }
 static inline void FLUPS_INFO(std::string a) {
@@ -269,11 +269,11 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
 //=============================================================================
 static inline void FLUPS_ERROR(std::string a, std::string loc) {
     char tmp[512];
-    sprintf(tmp, a.c_str());
+    sprintf(tmp, "%s", a.c_str());
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -284,8 +284,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, std::string loc) {
     sprintf(tmp, a.c_str(), b);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -296,8 +296,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, std::string loc) {
     sprintf(tmp, a.c_str(), b, c);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -308,8 +308,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, std::string loc)
     sprintf(tmp, a.c_str(), b, c, d);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -320,8 +320,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, std::strin
     sprintf(tmp, a.c_str(), b, c, d, e);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -332,8 +332,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, std:
     sprintf(tmp, a.c_str(), b, c, d, e, f);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -344,8 +344,8 @@ static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g
     sprintf(tmp, a.c_str(), b, c, d, e, f, g);
     char msg_error[1024];
     sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
+    printf("%s", msg_error);
+    fprintf(stderr, "%s", msg_error);
     fflush(stderr);
     fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD,1);
