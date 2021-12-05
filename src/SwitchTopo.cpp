@@ -40,11 +40,11 @@
  * @param oend the end indexes on this rank in the output topology
  * @param nByBlock 
  */
-void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3], int nByBlock[3]) {
+void SwitchTopo::cmpt_nByBlock_(int istart[3], int iend[3], int ostart[3], int oend[3], int nByBlock[3]) {
     BEGIN_FUNC;
 
     int comm_size;
-    MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm_size(inComm_, &comm_size);
 
     int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
 
@@ -54,7 +54,7 @@ void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int o
         int osend   = (oend[id] - ostart[id]);
         int npoints = gcd(isend, osend);
         // gather on each proc the gcd
-        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, _inComm);
+        MPI_Allgather(&npoints, 1, MPI_INT, onProc, 1, MPI_INT, inComm_);
         // get the Greatest Common Divider among every process
         int my_gcd = onProc[0];
         for (int ip = 1; ip < comm_size; ip++) {
@@ -76,10 +76,10 @@ void SwitchTopo::_cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int o
  * @param nBlockOnProc the number of block on each proc in the destination topology
  * @param destRank the computed destination rank for each block
  */
-void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],const int shift[3],const int istart[3],const Topology* topo_in, const Topology *topo_out, int *destRank) {
+void SwitchTopo::cmpt_blockDestRank_(const int nBlock[3],const int nByBlock[3],const int shift[3],const int istart[3],const Topology* topo_in, const Topology *topo_out, int *destRank) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm_size(inComm_, &comm_size);
     // go through each block
     for (int ib = 0; ib < nBlock[0] * nBlock[1] * nBlock[2]; ib++) {
         // get the split index
@@ -105,8 +105,8 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
         FLUPS_INFO_4("block %d will go to proc %d",ib,destRank[ib]);
     }
     //if the communicator of topo is not the same as the reference communicator, we need to adapt the destrank
-    //for now, it has been computed in the comm of topo. We thus change for the reference _inComm.
-    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo_out->get_comm(), _inComm);
+    //for now, it has been computed in the comm of topo. We thus change for the reference inComm_.
+    translate_ranks(nBlock[0] * nBlock[1] * nBlock[2], destRank, topo_out->get_comm(), inComm_);
 
     END_FUNC;
 }
@@ -124,7 +124,7 @@ void SwitchTopo::_cmpt_blockDestRank(const int nBlock[3],const int nByBlock[3],c
  * @param [in/out] destRank the destination rank for each block
  * @param [in/out] destTag the destianation tag for each block (may be NULL)
  */
-void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank) {
+void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank) {
     BEGIN_FUNC;
     // get the communicator
     MPI_Comm comm = topo->get_comm();
@@ -280,7 +280,7 @@ void SwitchTopo::_gather_blocks(const Topology* topo, int nByBlock[3], int istar
  * @param i2o_destTag the destination tag for input to output
  * @param o2i_destTag the destination tag for output to input
  */
-void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag) {
+void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag) {
     BEGIN_FUNC;
     // free the memory if it has been allocated
     if((*i2o_destTag) != NULL){
@@ -338,10 +338,10 @@ void SwitchTopo::_gather_tags(MPI_Comm comm, const int inBlock, const int onBloc
  * @param topo the current topology
  * @param nBlock the number of block in this proc
  */
-void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]) {
+void SwitchTopo::cmpt_blockIndexes_(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]) {
     BEGIN_FUNC;
     int comm_size;
-    MPI_Comm_size(_inComm, &comm_size);
+    MPI_Comm_size(inComm_, &comm_size);
     for (int id = 0; id < 3; id++) {
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
@@ -352,19 +352,19 @@ void SwitchTopo::_cmpt_blockIndexes(const int istart[3], const int iend[3], cons
 }
 
 /**
- * @brief split the _inComm communicator into subcomms
+ * @brief split the inComm_ communicator into subcomms
  * 
  * We here find the colors of the comm, i.e. ranks communicating together have the same color.
  * Once the color are known, we divide the current communicator into subcomms.
  * 
  * 
  */
-void SwitchTopo::_cmpt_commSplit(){
+void SwitchTopo::cmpt_commSplit_(){
     BEGIN_FUNC;
     // get my rank and use-it as the initial color
     int comm_size, rank;
-    MPI_Comm_rank(_inComm,&rank);
-    MPI_Comm_size(_inComm,&comm_size);
+    MPI_Comm_rank(inComm_,&rank);
+    MPI_Comm_size(inComm_,&comm_size);
 
     //-------------------------------------------------------------------------
     /** - Set the starting color and determine who I wish to get in my group */
@@ -381,13 +381,13 @@ void SwitchTopo::_cmpt_commSplit(){
 
     // do a first pass and give a color + who is in my group
     int mycolor = rank;
-    for (int ib = 0; ib < _inBlock; ib++) {
-        mycolor                     = std::min(mycolor, _i2o_destRank[ib]);
-        inMyGroup[_i2o_destRank[ib]] = true;
+    for (int ib = 0; ib < inBlock_; ib++) {
+        mycolor                     = std::min(mycolor, i2o_destRank_[ib]);
+        inMyGroup[i2o_destRank_[ib]] = true;
     }
-    for (int ib = 0; ib < _onBlock; ib++) {
-        mycolor                      = std::min(mycolor, _o2i_destRank[ib]);
-        inMyGroup[_o2i_destRank[ib]] = true;
+    for (int ib = 0; ib < onBlock_; ib++) {
+        mycolor                      = std::min(mycolor, o2i_destRank_[ib]);
+        inMyGroup[o2i_destRank_[ib]] = true;
     }
 
     //-------------------------------------------------------------------------
@@ -402,7 +402,7 @@ void SwitchTopo::_cmpt_commSplit(){
         }
     }
     // compute among everybody, if we need to continue
-    MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, _inComm);
+    MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
 
     //-------------------------------------------------------------------------
     /** - Among everybody in group, get the minimum color.
@@ -414,7 +414,7 @@ void SwitchTopo::_cmpt_commSplit(){
     int iter = 0;
     while (n_left > 0 && iter < comm_size) {
         // gather the color info from everyone
-        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, _inComm);
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, inComm_);
         // iterate on the proc
         n_wrongColor = 0;
         for (int ir = 0; ir < comm_size; ir++) {
@@ -430,12 +430,12 @@ void SwitchTopo::_cmpt_commSplit(){
             }
         }
         // compute among everybody, if we need to continue
-        MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, _inComm);
+        MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
         iter++;
     }
     // if we failed to create the subcom, uses the default one
     if (n_left > 0) {
-        _subcomm = _inComm;
+        subcomm_ = inComm_;
         FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete", LOCATION);
     } else {
         //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
@@ -447,13 +447,13 @@ void SwitchTopo::_cmpt_commSplit(){
         // we do not create a new comm if it is not necessary
         if (sumColor == 0) {
             // avoids the creation of a communicator
-            _subcomm = _inComm;
+            subcomm_ = inComm_;
             FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise the initial comm");
         } else {
             // create the communicator and give a name
-            MPI_Comm_split(_inComm, mycolor, rank, &_subcomm);
+            MPI_Comm_split(inComm_, mycolor, rank, &subcomm_);
             std::string commname = "comm-" + std::to_string(mycolor);
-            MPI_Comm_set_name(_subcomm, commname.c_str());
+            MPI_Comm_set_name(subcomm_, commname.c_str());
         }
     }
     // free the vectors
@@ -464,7 +464,7 @@ void SwitchTopo::_cmpt_commSplit(){
 }
 
 /**
- * @brief setup the subcommunicator form the destRank and the _inComm communicator
+ * @brief setup the subcommunicator form the destRank and the inComm_ communicator
  * 
  * We setup the following lists:
  * - destRank: transformed from the values in the world comm to the values in the new comm.
@@ -478,19 +478,19 @@ void SwitchTopo::_cmpt_commSplit(){
  * @param count the number of information to send to each proc
  * @param start the id in the buffer where the information starts for each proc
  */
-void SwitchTopo::_setup_subComm(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
+void SwitchTopo::setup_subComm_(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - get the new source & destination ranks    */
     //-------------------------------------------------------------------------
     int inrank, subrank, worldsize;
-    MPI_Comm_size(_inComm, &worldsize);
-    MPI_Comm_rank(_subcomm, &subrank);
-    MPI_Comm_rank(_inComm, &inrank);
+    MPI_Comm_size(inComm_, &worldsize);
+    MPI_Comm_rank(subcomm_, &subrank);
+    MPI_Comm_rank(inComm_, &inrank);
     
     // get the ranks of everybody in all communicators
     int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
-    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, _inComm);
+    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_);
 
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock; ib++) {
@@ -503,7 +503,7 @@ void SwitchTopo::_setup_subComm(const int nBlock, const int lda, int* blockSize[
     /** - build the size vector of block to each procs    */
     //-------------------------------------------------------------------------
     if (count != NULL) {
-        _cmpt_start_and_count(_subcomm, nBlock, lda, blockSize, destRank, count, start);
+        cmpt_start_and_count_(subcomm_, nBlock, lda, blockSize, destRank, count, start);
     }
 
     END_FUNC;
@@ -520,9 +520,9 @@ void SwitchTopo::_setup_subComm(const int nBlock, const int lda, int* blockSize[
  * @param count the count array
  * @param start the start array
  */
-void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
+void SwitchTopo::cmpt_start_and_count_(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
     BEGIN_FUNC;
-    const int nf = std::max(_topo_in->nf(),_topo_out->nf());
+    const int nf = std::max(topo_in_->nf(),topo_out_->nf());
     int size;
     MPI_Comm_size(comm, &size);
     // count the number of blocks to each process
@@ -567,7 +567,7 @@ void SwitchTopo::_cmpt_start_and_count(MPI_Comm comm, const int nBlock, const in
  * @param data the data on which to apply the transformation
  * @param shuffle the suffle plan
  */
-void SwitchTopo::_setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
+void SwitchTopo::setup_shuffle_(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
     BEGIN_FUNC;
 
     // the nf will always be the max of both topologies !!
@@ -635,15 +635,15 @@ void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
     BEGIN_FUNC;
 
     // count the number of out edges
-    for (int ib = 0; ib < _inBlock; ib++) {
-        destsW[_i2o_destRank[ib]] += _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib];
-        // destsW[_i2o_destRank[ib]] = max(destsW[_i2o_destRank[ib]], _iBlockSize[0][ib]*_iBlockSize[1][ib]*_iBlockSize[2][ib]);
+    for (int ib = 0; ib < inBlock_; ib++) {
+        destsW[i2o_destRank_[ib]] += iBlockSize_[0][ib]*iBlockSize_[1][ib]*iBlockSize_[2][ib];
+        // destsW[i2o_destRank_[ib]] = max(destsW[i2o_destRank_[ib]], iBlockSize_[0][ib]*iBlockSize_[1][ib]*iBlockSize_[2][ib]);
     }
 
     // count the number of in edges
-    for (int ib = 0; ib < _onBlock; ib++) {
-        sourcesW[_o2i_destRank[ib]] += _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib];
-        // sourcesW[_o2i_destRank[ib]] = max(sourcesW[_o2i_destRank[ib]], _oBlockSize[0][ib]*_oBlockSize[1][ib]*_oBlockSize[2][ib]);
+    for (int ib = 0; ib < onBlock_; ib++) {
+        sourcesW[o2i_destRank_[ib]] += oBlockSize_[0][ib]*oBlockSize_[1][ib]*oBlockSize_[2][ib];
+        // sourcesW[o2i_destRank_[ib]] = max(sourcesW[o2i_destRank_[ib]], oBlockSize_[0][ib]*oBlockSize_[1][ib]*oBlockSize_[2][ib]);
     }
 
     // Note: by counting the edges like this on every process, we actually obtain

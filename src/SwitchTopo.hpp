@@ -48,36 +48,36 @@
  */
 class SwitchTopo {
    protected:
-    MPI_Comm _inComm = NULL; /**<@brief the reference input communicator */
-    MPI_Comm _outComm = NULL; /**<@brief the reference output communicator */
-    MPI_Comm _subcomm = NULL; /**<@brief the subcomm for this switchTopo */
-    int _shift[3]; /**<@brief the shift in memory */
+    MPI_Comm inComm_ = NULL; /**<@brief the reference input communicator */
+    MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
+    MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
+    int shift_[3]; /**<@brief the shift in memory */
 
-    int _inBlock; /**<@brief the local number of block in each dim in the input topology */
-    int _onBlock; /**<@brief the local number of block in each dim in the output topology  */
+    int inBlock_; /**<@brief the local number of block in each dim in the input topology */
+    int onBlock_; /**<@brief the local number of block in each dim in the output topology  */
 
-    int* _iBlockiStart[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the input topo  */
-    int* _oBlockiStart[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the output topo  */
+    int* iBlockiStart_[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the input topo  */
+    int* oBlockiStart_[3] = {NULL, NULL, NULL}; /**<@brief the local starting index for a block in the output topo  */
 
-    int* _iBlockSize[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
-    int* _oBlockSize[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* iBlockSize_[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
+    int* oBlockSize_[3] = {NULL, NULL, NULL}; /**<@brief The number of data per blocks in each dim for each block (!same on each process! and 012-indexing)  */
 
-    int* _i2o_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
-    int* _o2i_destRank = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* i2o_destRank_ = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* o2i_destRank_ = NULL; /**<@brief The destination rank in the output topo of each block */
 
-    const Topology *_topo_in  = NULL; /**<@brief input topology  */
-    const Topology *_topo_out = NULL; /**<@brief  output topology */
+    const Topology *topo_in_  = NULL; /**<@brief input topology  */
+    const Topology *topo_out_ = NULL; /**<@brief  output topology */
 
-    opt_double_ptr *_sendBuf = NULL; /**<@brief The send buffer for MPI send */
-    opt_double_ptr *_recvBuf = NULL; /**<@brief The recv buffer for MPI recv */
+    opt_double_ptr *sendBuf_ = NULL; /**<@brief The send buffer for MPI send */
+    opt_double_ptr *recvBuf_ = NULL; /**<@brief The recv buffer for MPI recv */
 
-    fftw_plan* _i2o_shuffle = NULL;
-    fftw_plan* _o2i_shuffle = NULL;
+    fftw_plan* i2o_shuffle_ = NULL;
+    fftw_plan* o2i_shuffle_ = NULL;
 
 #ifdef PROF
-    Profiler* _prof    = NULL;
+    Profiler* prof_    = NULL;
 #endif 
-    int       _iswitch = -1;
+    int       iswitch_ = -1;
 
    public:
     virtual ~SwitchTopo() {};
@@ -116,14 +116,14 @@ class SwitchTopo {
      */
     inline size_t get_bufMemSize() const {
         // the nf is the maximum between in and out
-        const int nf = std::max(_topo_in->nf(),_topo_out->nf());
+        const int nf = std::max(topo_in_->nf(),topo_out_->nf());
         // nultiply by the number of blocks
         size_t total = 0;
-        for(int ib=0; ib<_inBlock; ib++){
-            total += get_blockMemSize(ib,nf,_iBlockSize) * ((size_t)_topo_in->lda());
+        for(int ib=0; ib<inBlock_; ib++){
+            total += get_blockMemSize(ib,nf,iBlockSize_) * ((size_t)topo_in_->lda());
         }
-        for(int ib=0; ib<_onBlock; ib++){
-            total += get_blockMemSize(ib,nf,_oBlockSize) * ((size_t)_topo_in->lda());
+        for(int ib=0; ib<onBlock_; ib++){
+            total += get_blockMemSize(ib,nf,oBlockSize_) * ((size_t)topo_in_->lda());
         }
         // return the total size
         return total;
@@ -132,16 +132,16 @@ class SwitchTopo {
     void add_toGraph(int* sourcesW, int* destsW) const;
 
    protected:
-    void _cmpt_nByBlock(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]);
-    void _cmpt_blockDestRank(const int nBlock[3], const int nByBlock[3], const int shift[3], const int istart[3], const Topology* topo_in, const Topology* topo_out, int* destRank);
-    void _cmpt_blockIndexes(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]);
+    void cmpt_nByBlock_(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]);
+    void cmpt_blockDestRank_(const int nBlock[3], const int nByBlock[3], const int shift[3], const int istart[3], const Topology* topo_in, const Topology* topo_out, int* destRank);
+    void cmpt_blockIndexes_(const int istart[3], const int iend[3], const int nByBlock[3], const Topology *topo,int nBlock[3]);
 
-    void _cmpt_commSplit();
-    void _setup_subComm(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
-    void _cmpt_start_and_count(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
-    void _setup_shuffle(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
-    void _gather_blocks(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank);
-    void _gather_tags(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag);
+    void cmpt_commSplit_();
+    void setup_subComm_(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
+    void cmpt_start_and_count_(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
+    void setup_shuffle_(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
+    void gather_blocks_(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank);
+    void gather_tags_(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag);
 };
 
 static inline int gcd(int a, int b) {

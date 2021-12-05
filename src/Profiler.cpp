@@ -32,7 +32,7 @@
  * @param name the name
  */
 TimerAgent::TimerAgent(string name){
-    _name = name;
+    name_ = name;
 }
 
 /**
@@ -40,8 +40,8 @@ TimerAgent::TimerAgent(string name){
  * 
  */
 void TimerAgent::start() {
-    _count += 1;
-    _t0 = MPI_Wtime();
+    count_ += 1;
+    t0_ = MPI_Wtime();
 }
 
 /**
@@ -50,12 +50,12 @@ void TimerAgent::start() {
  */
 void TimerAgent::stop() {
     // get the time
-    _t1 = MPI_Wtime();
+    t1_ = MPI_Wtime();
     // store it
-    double dt = _t1 - _t0;
-    _timeAcc  = _timeAcc + dt;
-    _timeMax  = max(_timeMax, dt);
-    _timeMin  = min(_timeMax, dt);
+    double dt = t1_ - t0_;
+    timeAcc_  = timeAcc_ + dt;
+    timeMax_  = max(timeMax_, dt);
+    timeMin_  = min(timeMax_, dt);
 }
 
 /**
@@ -63,11 +63,11 @@ void TimerAgent::stop() {
  * 
  */
 void TimerAgent::reset() {
-    _t1      = 0.0;
-    _t0      = 0.0;
-    _timeAcc = 0.0;
-    _timeMax = 0.0;
-    _timeMin = 0.0;
+    t1_      = 0.0;
+    t0_      = 0.0;
+    timeAcc_ = 0.0;
+    timeMax_ = 0.0;
+    timeMin_ = 0.0;
 }
 
 /**
@@ -75,7 +75,7 @@ void TimerAgent::reset() {
  * 
  */
 void TimerAgent::addMem(size_t mem){
-    _memsize += mem;
+    memsize_ += mem;
 }
 
 /**
@@ -85,10 +85,10 @@ void TimerAgent::addMem(size_t mem){
  */
 void TimerAgent::addChild(TimerAgent* child) {
     string childName = child->name();
-    map<string, TimerAgent*>::iterator it = _children.find(childName);
+    map<string, TimerAgent*>::iterator it = children_.find(childName);
     // if it does not already exist
-    if (it == _children.end()) {
-        _children[childName] = child;
+    if (it == children_.end()) {
+        children_[childName] = child;
         child->setDaddy(this);
     }
 }
@@ -98,8 +98,8 @@ void TimerAgent::addChild(TimerAgent* child) {
  * @param daddy 
  */
 void TimerAgent::setDaddy(TimerAgent* daddy) {
-    _daddy  = daddy;
-    _isroot = false;
+    daddy_  = daddy;
+    isroot_ = false;
 }
 
 /**
@@ -108,11 +108,11 @@ void TimerAgent::setDaddy(TimerAgent* daddy) {
  * @return double 
  */
 double TimerAgent::timeAcc() const {
-    if (_count > 0) {
-        return _timeAcc;
+    if (count_ > 0) {
+        return timeAcc_;
     } else {
         double sum = 0.0;
-        for (map<string,TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+        for (map<string,TimerAgent*>::const_iterator it = children_.begin(); it != children_.end(); it++) {
             const TimerAgent* child = it->second;
             sum += child->timeAcc();
         }
@@ -126,11 +126,11 @@ double TimerAgent::timeAcc() const {
  * @return double 
  */
 double TimerAgent::timeMin() const {
-    if (_count > 0) {
-        return _timeMin;
+    if (count_ > 0) {
+        return timeMin_;
     } else {
         double sum = 0.0;
-        for (map<string,TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+        for (map<string,TimerAgent*>::const_iterator it = children_.begin(); it != children_.end(); it++) {
             const TimerAgent* child = it->second;
             sum += child->timeMin();
         }
@@ -144,11 +144,11 @@ double TimerAgent::timeMin() const {
  * @return double 
  */
 double TimerAgent::timeMax() const {
-    if (_count > 0) {
-        return _timeMax;
+    if (count_ > 0) {
+        return timeMax_;
     } else {
         double sum = 0.0;
-        for (map<string,TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+        for (map<string,TimerAgent*>::const_iterator it = children_.begin(); it != children_.end(); it++) {
             const TimerAgent* child = it->second;
             sum += child->timeMax();
         }
@@ -157,15 +157,15 @@ double TimerAgent::timeMax() const {
 }
 
 void TimerAgent::writeParentality(FILE* file, const int level){
-    fprintf(file,"%d;%s",level,_name.c_str());
-    for (map<string, TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+    fprintf(file,"%d;%s",level,name_.c_str());
+    for (map<string, TimerAgent*>::const_iterator it = children_.begin(); it != children_.end(); it++) {
         const TimerAgent* child = it->second;
         string childName = child->name();
         fprintf(file,";%s",childName.c_str());
     }
     fprintf(file,"\n");
 
-    for (map<string, TimerAgent*>::const_iterator it = _children.begin(); it != _children.end(); it++) {
+    for (map<string, TimerAgent*>::const_iterator it = children_.begin(); it != children_.end(); it++) {
         it->second->writeParentality(file,level+1);
     }
 }
@@ -181,7 +181,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
     
     // check if any proc has called the agent
     int totalCount;
-    MPI_Allreduce(&_count,&totalCount,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    MPI_Allreduce(&count_,&totalCount,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     // if someone has every call the agent, display it
     if (totalCount > 0) {
         // get the size and usefull stuffs
@@ -191,7 +191,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double scale = 1.0/commSize;
 
         // compute the counters (mean, max, min)
-        double localCount = _count;
+        double localCount = count_;
         double meanCount, maxCount, minCount;
         MPI_Allreduce(&localCount, &meanCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&localCount, &maxCount, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -199,7 +199,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         meanCount *= scale;
 
         // compute times passed inside + children
-        double localTime = _timeAcc;
+        double localTime = timeAcc_;
         double meanTime, maxTime, minTime;
         MPI_Allreduce(&localTime, &meanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&localTime, &minTime, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
@@ -213,22 +213,22 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 
         // compute the self time  = time passed inside - children
         double sumChild = 0.0;
-        for (map<string,TimerAgent*>::iterator it = _children.begin(); it != _children.end(); it++) {
+        for (map<string,TimerAgent*>::iterator it = children_.begin(); it != children_.end(); it++) {
             TimerAgent* child = it->second;
             sumChild += child->timeAcc();
         }
         double locSelfTime = (this->timeAcc()-sumChild);
         double selfTime;
         double self_percent;
-        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",_name.c_str(), LOCATION);
+        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",name_.c_str(), LOCATION);
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
 
         // comnpute the time passed inside the daddy
         double loc_percent;
-        if (_daddy != NULL) {
-            double dadLocalTime = _daddy->timeAcc();
+        if (daddy_ != NULL) {
+            double dadLocalTime = daddy_->timeAcc();
             double dadMeanTime;
             MPI_Allreduce(&dadLocalTime, &dadMeanTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             dadMeanTime *= scale;
@@ -239,15 +239,15 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         }
 
         // compute the bandwith
-        double localBandTime = _timeAcc;
-        double localBandMemsize = (double) _memsize;
+        double localBandTime = timeAcc_;
+        double localBandMemsize = (double) memsize_;
         double bandMemsize, bandTime, meanBandwidth;
         MPI_Allreduce(&localBandTime, &bandTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&localBandMemsize, &bandMemsize, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         meanBandwidth =(bandMemsize/bandTime)/std::pow(10.0,6.0);
 
         // setup the displayed name
-        string myname = _name;
+        string myname = name_;
         if (level > 1) {
             myname = " " + myname;
         }
@@ -259,12 +259,12 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         if (rank == 0) {
             printf("%-25.25s|  %9.4f\t%9.4f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%9.6f\t%09.1f\t%9.2f\n", myname.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
             if (file != NULL) {
-                fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", _name.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
+                fprintf(file, "%s;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.6f;%09.0f;%09.2f\n", name_.c_str(), glob_percent, loc_percent, meanTime, selfTime, meanTimePerCount, minTimePerCount, maxTimePerCount, meanCount,meanBandwidth);
             }
         }
     }
     // recursive call to the childrens
-    for (map<string,TimerAgent*>::iterator it = _children.begin(); it != _children.end(); it++) {
+    for (map<string,TimerAgent*>::iterator it = children_.begin(); it != children_.end(); it++) {
         TimerAgent* child = it->second;
         child->disp(file,level+1,totalTime);
     }
@@ -275,35 +275,35 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
 //===============================================================================================================================
 
 
-Profiler::Profiler(): _name("default")
+Profiler::Profiler(): name_("default")
 {
-    _createSingle("root");
+    createSingle_("root");
 }
-Profiler::Profiler(const string myname): _name(myname)
+Profiler::Profiler(const string myname): name_(myname)
 {
-    _createSingle("root");
+    createSingle_("root");
 }
 Profiler::~Profiler() {
-    for (map<string, TimerAgent*>::iterator it = _timeMap.begin(); it != _timeMap.end(); it++) {
+    for (map<string, TimerAgent*>::iterator it = timeMap_.begin(); it != timeMap_.end(); it++) {
         TimerAgent* current = it->second;
         delete(current);
     }
 }
 
 /**
- * @brief create a TimerAgent inside the #_timeMap
+ * @brief create a TimerAgent inside the #timeMap_
  * 
  * @param name the key of the entry
  */
-void Profiler::_createSingle(string name) {
-    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
+void Profiler::createSingle_(string name) {
+    map<string, TimerAgent*>::iterator it = timeMap_.find(name);
     // if it does not already exist
-    if (it != _timeMap.end()){
-        _timeMap[name]->reset();
+    if (it != timeMap_.end()){
+        timeMap_[name]->reset();
     }
-    else if (it == _timeMap.end()) {
-        _timeMap[name] = new TimerAgent(name);
-        _timeMap[name]->reset();
+    else if (it == timeMap_.end()) {
+        timeMap_[name] = new TimerAgent(name);
+        timeMap_[name]->reset();
     }
 }
 
@@ -324,13 +324,13 @@ void Profiler::create(string name) {
  */
 void Profiler::create(string child, string daddy) {
     // create a new guy
-    _createSingle(child);
+    createSingle_(child);
     // find the daddy agent in the root
-    map<string, TimerAgent*>::iterator it = _timeMap.find(daddy);
-    if(it == _timeMap.end()){
+    map<string, TimerAgent*>::iterator it = timeMap_.find(daddy);
+    if(it == timeMap_.end()){
         create(daddy);
     }
-    _timeMap[daddy]->addChild(_timeMap[child]);
+    timeMap_[daddy]->addChild(timeMap_[child]);
 }
 
 /**
@@ -340,11 +340,11 @@ void Profiler::create(string child, string daddy) {
  */
 void Profiler::start(string name) {
 #ifdef NDEBUG
-    _timeMap[name]->start();
+    timeMap_[name]->start();
 #else
-    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
-    if (it != _timeMap.end()) {
-        _timeMap[name]->start();
+    map<string, TimerAgent*>::iterator it = timeMap_.find(name);
+    if (it != timeMap_.end()) {
+        timeMap_[name]->start();
     }
     else{
         string msg = "timer "+name+ " not found";
@@ -360,11 +360,11 @@ void Profiler::start(string name) {
  */
 void Profiler::stop(string name) {
 #ifdef NDEBUG
-    _timeMap[name]->stop();
+    timeMap_[name]->stop();
 #else
-    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
-    if (it != _timeMap.end()) {
-        _timeMap[name]->stop();
+    map<string, TimerAgent*>::iterator it = timeMap_.find(name);
+    if (it != timeMap_.end()) {
+        timeMap_[name]->stop();
     }
     else{
         string msg = "timer "+name+ " not found";
@@ -375,11 +375,11 @@ void Profiler::stop(string name) {
 
 void Profiler::addMem(string name,size_t mem) {
 #ifdef NDEBUG
-    _timeMap[name]->addMem(mem);
+    timeMap_[name]->addMem(mem);
 #else
-    map<string, TimerAgent*>::iterator it = _timeMap.find(name);
-    if (it != _timeMap.end()) {
-        _timeMap[name]->addMem(mem);
+    map<string, TimerAgent*>::iterator it = timeMap_.find(name);
+    if (it != timeMap_.end()) {
+        timeMap_[name]->addMem(mem);
     }
     else{
         string msg = "timer "+name+ " not found";
@@ -397,7 +397,7 @@ void Profiler::addMem(string name,size_t mem) {
 double Profiler::get_timeAcc(const std::string ref){
 
     int commSize;
-    double localTotalTime = _timeMap[ref]->timeAcc();
+    double localTotalTime = timeMap_[ref]->timeAcc();
     double totalTime;
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);
 
@@ -437,11 +437,11 @@ void Profiler::disp(const std::string ref) {
                 mkdir(folder.c_str(), 0770);
         }
 
-        string filename = folder + "/" + _name + "_parent.csv";
+        string filename = folder + "/" + name_ + "_parent.csv";
         file            = fopen(filename.c_str(), "w+");
 
         if (file != NULL) {
-            _timeMap["root"]->writeParentality(file,0);
+            timeMap_["root"]->writeParentality(file,0);
             fclose(file);
         } else {
             printf("unable to open file %s !", filename.c_str());
@@ -454,13 +454,13 @@ void Profiler::disp(const std::string ref) {
     //-------------------------------------------------------------------------
     
     if (rank == 0) {
-        string filename = "./prof/" + _name + "_time.csv";
+        string filename = "./prof/" + name_ + "_time.csv";
         file            = fopen(filename.c_str(), "w+");
     }
     // display the header
     if (rank == 0) {
         printf("===================================================================================================================================================\n");
-        printf("        PROFILER %s \n", _name.c_str());
+        printf("        PROFILER %s \n", name_.c_str());
         // printf("\t-NAME-   \t\t\t-%% global-\t-%% local-\t-Total time-\t-Self time-\t-time/call-\t-Min tot time-\t-Max tot time-\t-Mean cnt-\n");
         printf("%25s|  %-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\t%-13s\n","-NAME-    ", "-% global-", "-% local-", "-Total time-", "-Self time-", "-time/call-", "-Min time-", "-Max time-","-Mean cnt-","-(MB/s)-");
     }
@@ -468,7 +468,7 @@ void Profiler::disp(const std::string ref) {
     double totalTime = this->get_timeAcc(ref);
 
     // display root with the total time
-    _timeMap["root"]->disp(file,0,totalTime);
+    timeMap_["root"]->disp(file,0,totalTime);
     // display footer
     if (rank == 0) {
         printf("===================================================================================================================================================\n");

@@ -75,51 +75,51 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
     FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda(),LOCATION);
 
-    _topo_in  = topo_input;
-    _topo_out = topo_output;
+    topo_in_  = topo_input;
+    topo_out_ = topo_output;
 
     // we store the communicators at init
-    _inComm  = _topo_in->get_comm();
-    _outComm = _topo_out->get_comm();
+    inComm_  = topo_in_->get_comm();
+    outComm_ = topo_out_->get_comm();
 
 #ifdef PROF    
-    _prof     = prof;
-    _iswitch = _topo_out->axproc(_topo_out->axis());
+    prof_     = prof;
+    iswitch_ = topo_out_->axproc(topo_out_->axis());
 #endif
     //-------------------------------------------------------------------------
     /** - compute block information: sizes, start ids, ... */
     //-------------------------------------------------------------------------
     // get the blockshift
-    _shift[0] = shift[0];
-    _shift[1] = shift[1];
-    _shift[2] = shift[2];
+    shift_[0] = shift[0];
+    shift_[1] = shift[1];
+    shift_[2] = shift[2];
 
-    _init_blockInfo(_topo_in, _topo_out);
+    init_blockInfo_(topo_in_, topo_out_);
 
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
 #ifdef PROF    
-    if (_prof != NULL) {
-        _prof->create("reorder", "solve");
+    if (prof_ != NULL) {
+        prof_->create("reorder", "solve");
 
-        _prof->create("switch0", "reorder");
-        _prof->create("mem2buf0", "switch0");
-        _prof->create("buf2mem0", "switch0");
-        _prof->create("all_2_all0", "switch0");
-        _prof->create("all_2_all_v0", "switch0");
+        prof_->create("switch0", "reorder");
+        prof_->create("mem2buf0", "switch0");
+        prof_->create("buf2mem0", "switch0");
+        prof_->create("all_2_all0", "switch0");
+        prof_->create("all_2_all_v0", "switch0");
 
-        _prof->create("switch1", "reorder");
-        _prof->create("mem2buf1", "switch1");
-        _prof->create("buf2mem1", "switch1");
-        _prof->create("all_2_all1", "switch1");
-        _prof->create("all_2_all_v1", "switch1");
+        prof_->create("switch1", "reorder");
+        prof_->create("mem2buf1", "switch1");
+        prof_->create("buf2mem1", "switch1");
+        prof_->create("all_2_all1", "switch1");
+        prof_->create("all_2_all_v1", "switch1");
 
-        _prof->create("switch2", "reorder");
-        _prof->create("mem2buf2", "switch2");
-        _prof->create("buf2mem2", "switch2");
-        _prof->create("all_2_all2", "switch2");
-        _prof->create("all_2_all_v2", "switch2");
+        prof_->create("switch2", "reorder");
+        prof_->create("mem2buf2", "switch2");
+        prof_->create("buf2mem2", "switch2");
+        prof_->create("all_2_all2", "switch2");
+        prof_->create("all_2_all_v2", "switch2");
     }
 #endif
     END_FUNC;
@@ -137,12 +137,12 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
  * all the kernels blocks that have the same destination will be packed together for the communication.
  * 
  */
-void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* topo_out){
+void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* topo_out){
     BEGIN_FUNC;
     
     int comm_size,ocomm_size;
-    MPI_Comm_size(_inComm, &comm_size);
-    MPI_Comm_size(_outComm, &ocomm_size);
+    MPI_Comm_size(inComm_, &comm_size);
+    MPI_Comm_size(outComm_, &ocomm_size);
 
     FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
 
@@ -160,31 +160,31 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
     //-------------------------------------------------------------------------
     /** - Compute intersection ids */
     //-------------------------------------------------------------------------
-    //recompute _start and _end
-    topo_in->cmpt_intersect_id(_shift, topo_out, istart, iend);
-    int mshift[3] = {-_shift[0], -_shift[1], -_shift[2]};
+    //recompute start_ and end_
+    topo_in->cmpt_intersect_id(shift_, topo_out, istart, iend);
+    int mshift[3] = {-shift_[0], -shift_[1], -shift_[2]};
     topo_out->cmpt_intersect_id(mshift, topo_in, ostart, oend);
 
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
-    _cmpt_nByBlock(istart,iend,ostart,oend,nByBlock);
+    cmpt_nByBlock_(istart,iend,ostart,oend,nByBlock);
 
-    _cmpt_blockIndexes(istart, iend, nByBlock, topo_in, inBlockv);
-    _cmpt_blockIndexes(ostart, oend, nByBlock, topo_out, onBlockv);
+    cmpt_blockIndexes_(istart, iend, nByBlock, topo_in, inBlockv);
+    cmpt_blockIndexes_(ostart, oend, nByBlock, topo_out, onBlockv);
 
     // allocate the destination ranks
-    _i2o_destRank = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    _o2i_destRank = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    i2o_destRank_ = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    o2i_destRank_ = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
     // get the ranks
     // shift if the root position of the topo_in in the topo_out
-    _cmpt_blockDestRank(inBlockv,nByBlock,_shift,istart,topo_in,topo_out,_i2o_destRank);
-    _cmpt_blockDestRank(onBlockv,nByBlock,mshift,ostart,topo_out,topo_in,_o2i_destRank);
+    cmpt_blockDestRank_(inBlockv,nByBlock,shift_,istart,topo_in,topo_out,i2o_destRank_);
+    cmpt_blockDestRank_(onBlockv,nByBlock,mshift,ostart,topo_out,topo_in,o2i_destRank_);
 
     // try to gather blocks together if possible, rewrittes the sizes, the blockistart, the number of blocks, the ranks and the tags
-    _gather_blocks(topo_in, nByBlock, istart,iend, inBlockv, _iBlockSize, _iBlockiStart, &_inBlock, &_i2o_destRank);
-    _gather_blocks(topo_out, nByBlock, ostart,oend, onBlockv, _oBlockSize, _oBlockiStart, &_onBlock, &_o2i_destRank);
+    gather_blocks_(topo_in, nByBlock, istart,iend, inBlockv, iBlockSize_, iBlockiStart_, &inBlock_, &i2o_destRank_);
+    gather_blocks_(topo_out, nByBlock, ostart,oend, onBlockv, oBlockSize_, oBlockiStart_, &onBlock_, &o2i_destRank_);
 
     END_FUNC;
 }
@@ -193,23 +193,23 @@ void SwitchTopo_a2a::_init_blockInfo(const Topology* topo_in, const Topology* to
  * @brief free the blocks information: their number, their size and their source/destination
  * 
  */
-void SwitchTopo_a2a::_free_blockInfo(){
-    if (_i2o_destRank != NULL) flups_free(_i2o_destRank);
-    if (_o2i_destRank != NULL) flups_free(_o2i_destRank);
+void SwitchTopo_a2a::free_blockInfo_(){
+    if (i2o_destRank_ != NULL) flups_free(i2o_destRank_);
+    if (o2i_destRank_ != NULL) flups_free(o2i_destRank_);
 
-    _i2o_destRank = NULL;
-    _o2i_destRank = NULL;
+    i2o_destRank_ = NULL;
+    o2i_destRank_ = NULL;
 
     for (int id = 0; id < 3; id++) {
-        if (_iBlockSize[id] != NULL) flups_free(_iBlockSize[id]);
-        if (_oBlockSize[id] != NULL) flups_free(_oBlockSize[id]);
-        if (_iBlockiStart[id] != NULL) flups_free(_iBlockiStart[id]);
-        if (_oBlockiStart[id] != NULL) flups_free(_oBlockiStart[id]);
+        if (iBlockSize_[id] != NULL) flups_free(iBlockSize_[id]);
+        if (oBlockSize_[id] != NULL) flups_free(oBlockSize_[id]);
+        if (iBlockiStart_[id] != NULL) flups_free(iBlockiStart_[id]);
+        if (oBlockiStart_[id] != NULL) flups_free(oBlockiStart_[id]);
 
-        _iBlockSize[id] = NULL;
-        _oBlockSize[id] = NULL;
-        _iBlockiStart[id] = NULL;
-        _oBlockiStart[id] = NULL;
+        iBlockSize_[id] = NULL;
+        oBlockSize_[id] = NULL;
+        iBlockiStart_[id] = NULL;
+        oBlockiStart_[id] = NULL;
     }
 }
 
@@ -221,8 +221,8 @@ void SwitchTopo_a2a::setup() {
     BEGIN_FUNC;
 
     int rank, comm_size;
-    MPI_Comm inComm = _topo_in->get_comm();
-    MPI_Comm outComm = _topo_out->get_comm();
+    MPI_Comm inComm = topo_in_->get_comm();
+    MPI_Comm outComm = topo_out_->get_comm();
 
     MPI_Comm_rank(inComm, &rank);
     MPI_Comm_size(inComm, &comm_size);
@@ -234,33 +234,33 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------
     //Ensure that comms have not changed since init. Otherwise recompute the source/destination of blocks.
     int compIn, compOut;
-    MPI_Comm_compare(inComm, _inComm, &compIn);
-    MPI_Comm_compare(outComm, _outComm, &compOut);
+    MPI_Comm_compare(inComm, inComm_, &compIn);
+    MPI_Comm_compare(outComm, outComm_, &compOut);
     //if the graph communicator has the same numbering as the old commn we will skip the following
     if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
             FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
         }
 
-        _inComm = inComm;
-        _outComm = outComm;
+        inComm_ = inComm;
+        outComm_ = outComm;
 
         //reinit the block information
-        _free_blockInfo();
+        free_blockInfo_();
 
         //The input topo may have been reset to real, even if this switchtopo is a complex2complex. 
         //We create a tmp input topo which is complex if needed, for the computation of start and end.
-        bool isC2C = _topo_out->isComplex();
+        bool isC2C = topo_out_->isComplex();
         int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
         for(int i = 0; i<3;i++){
-            tmp_nglob[i] = _topo_in->nglob(i);
-            tmp_nproc[i] = _topo_in->nproc(i);
-            tmp_axproc[i] = _topo_in->axproc(i);
+            tmp_nglob[i] = topo_in_->nglob(i);
+            tmp_nproc[i] = topo_in_->nproc(i);
+            tmp_axproc[i] = topo_in_->axproc(i);
         }
-        const Topology* topo_in_tmp = new Topology(_topo_in->axis(),_topo_in->lda(), tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,_topo_in->get_comm());
+        const Topology* topo_in_tmp = new Topology(topo_in_->axis(),topo_in_->lda(), tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,topo_in_->get_comm());
         
         //recompute block info
-        _init_blockInfo(topo_in_tmp,_topo_out);
+        init_blockInfo_(topo_in_tmp,topo_out_);
 
         // free the temp topo
         delete(topo_in_tmp);
@@ -269,25 +269,25 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------
     /** - Setup subcomm (if possible) */
     //-------------------------------------------------------------------------
-    _cmpt_commSplit();
+    cmpt_commSplit_();
     
     // setup the dest rank, counts and starts
-    _setup_subComm(_inBlock,_topo_in->lda() ,_iBlockSize, _i2o_destRank, &_i2o_count, &_i2o_start);
-    _setup_subComm(_onBlock,_topo_out->lda(),_oBlockSize, _o2i_destRank, &_o2i_count, &_o2i_start);
+    setup_subComm_(inBlock_,topo_in_->lda() ,iBlockSize_, i2o_destRank_, &i2o_count_, &i2o_start_);
+    setup_subComm_(onBlock_,topo_out_->lda(),oBlockSize_, o2i_destRank_, &o2i_count_, &o2i_start_);
     
     //-------------------------------------------------------------------------
     /** - determine if we are all to all */
     //-------------------------------------------------------------------------
     int subsize;
-    MPI_Comm_size(_subcomm, &subsize);
+    MPI_Comm_size(subcomm_, &subsize);
 
-    int tmp_size = _i2o_count[0];
-    _is_all2all  = (tmp_size != 0);
-    _is_all2all  = _is_all2all && (tmp_size == _o2i_count[0]);
+    int tmp_size = i2o_count_[0];
+    is_all2all_  = (tmp_size != 0);
+    is_all2all_  = is_all2all_ && (tmp_size == o2i_count_[0]);
     for (int ir = 1; ir < subsize; ir++) {
         // if the count from and to the rank is the same, we can do an A2A
-        _is_all2all = _is_all2all && (tmp_size == _i2o_count[ir]);
-        _is_all2all = _is_all2all && (tmp_size == _o2i_count[ir]);
+        is_all2all_ = is_all2all_ && (tmp_size == i2o_count_[ir]);
+        is_all2all_ = is_all2all_ && (tmp_size == o2i_count_[ir]);
     }
 
     //-------------------------------------------------------------------------
@@ -295,33 +295,33 @@ void SwitchTopo_a2a::setup() {
     //-------------------------------------------------------------------------
     // determine if every proc is in the all_to_all mode
     bool global_is_alltoall;
-    MPI_Allreduce(&_is_all2all, &global_is_alltoall, 1, MPI_CXX_BOOL, MPI_LAND, _subcomm);
+    MPI_Allreduce(&is_all2all_, &global_is_alltoall, 1, MPI_CXX_BOOL, MPI_LAND, subcomm_);
     // determine if at least one proc is in the all to all mode
     bool any_is_alltoall;
-    MPI_Allreduce(&_is_all2all,&any_is_alltoall,1,MPI_CXX_BOOL,MPI_LOR,_subcomm);
+    MPI_Allreduce(&is_all2all_,&any_is_alltoall,1,MPI_CXX_BOOL,MPI_LOR,subcomm_);
     // generate an error if it is not compatible
-    if (_is_all2all && (!global_is_alltoall)){
+    if (is_all2all_ && (!global_is_alltoall)){
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
-        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        MPI_Comm_get_name(subcomm_, myname, &rlen);
         FLUPS_ERROR("communicator %s: at least one process is NOT in the all to all communication scheme",myname,LOCATION);
     }
-    if((!_is_all2all) && any_is_alltoall){
+    if((!is_all2all_) && any_is_alltoall){
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
-        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        MPI_Comm_get_name(subcomm_, myname, &rlen);
         FLUPS_ERROR("communicator %s: at least one process is in the all to all communication scheme",myname,LOCATION);
     }
     
     // if we are all to all, clean the start array
-    if (_is_all2all) {
-        if (_i2o_start != NULL) {
-            flups_free(_i2o_start);
-            _i2o_start = NULL;
+    if (is_all2all_) {
+        if (i2o_start_ != NULL) {
+            flups_free(i2o_start_);
+            i2o_start_ = NULL;
         }
-        if (_o2i_start != NULL) {
-            flups_free(_o2i_start);
-            _o2i_start = NULL;
+        if (o2i_start_ != NULL) {
+            flups_free(o2i_start_);
+            o2i_start_ = NULL;
         }
     }
 
@@ -332,39 +332,39 @@ void SwitchTopo_a2a::setup() {
     int rankworld;
     MPI_Comm_rank(inComm, &rankworld);
     // we display important information for the performance
-    string name = "./prof/SwitchTopo_" + std::to_string(_topo_in->axis()) + "to" + std::to_string(_topo_out->axis()) + "_rank" + std::to_string(rankworld) + ".txt";
+    string name = "./prof/SwitchTopo_" + std::to_string(topo_in_->axis()) + "to" + std::to_string(topo_out_->axis()) + "rank_" + std::to_string(rankworld) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){
         fprintf(file,"============================================================\n");
-+       fprintf(file,"NX = %d - rank = %d - threads = %d\n",_topo_in->nglob(0),comm_size,omp_get_max_threads());
-        if(_is_all2all) fprintf(file,"- is all to all\n");
-        if(!_is_all2all) fprintf(file,"- is all to all VECTOR\n");
++       fprintf(file,"NX = %d - rank = %d - threads = %d\n",topo_in_->nglob(0),comm_size,omp_get_max_threads());
+        if(is_all2all_) fprintf(file,"- is all to all\n");
+        if(!is_all2all_) fprintf(file,"- is all to all VECTOR\n");
         
         int newrank;
-        MPI_Comm_rank(_subcomm,&newrank);
+        MPI_Comm_rank(subcomm_,&newrank);
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
-        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        MPI_Comm_get_name(subcomm_, myname, &rlen);
         fprintf(file,"- in subcom %s with rank %d/%d\n",myname,newrank,subsize);
-        fprintf(file,"- nglob = %d %d %d to %d %d %d\n",_topo_in->nglob(0),_topo_in->nglob(1),_topo_in->nglob(2),_topo_out->nglob(0),_topo_out->nglob(1),_topo_out->nglob(2));
-        fprintf(file,"- nproc = %d %d %d to %d %d %d\n",_topo_in->nproc(0),_topo_in->nproc(1),_topo_in->nproc(2),_topo_out->nproc(0),_topo_out->nproc(1),_topo_out->nproc(2));
-        // fprintf(file,"- start = %d %d %d to %d %d %d\n",_istart[0],_istart[1],_istart[2],_ostart[0],_ostart[1],_ostart[2]);
-        // fprintf(file,"- end = %d %d %d to %d %d %d\n",_iend[0],_iend[1],_iend[2],_oend[0],_oend[1],_oend[2]);
-        // int totalsize = (_nByBlock[0]+_exSize[0]%2)*(_nByBlock[1]+_exSize[1]%2)*(_nByBlock[2]+_exSize[2]%2);
-        // fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",_nByBlock[0],_nByBlock[1],_nByBlock[2],(_nByBlock[0] == 1)?1:_nByBlock[0]+_exSize[0]%2,(_nByBlock[1] == 1)?1:_nByBlock[1]+_exSize[1]%2,(_nByBlock[2] == 1)?1:_nByBlock[2]+_exSize[2]%2,totalsize,get_blockMemSize());
+        fprintf(file,"- nglob = %d %d %d to %d %d %d\n",topo_in_->nglob(0),topo_in_->nglob(1),topo_in_->nglob(2),topo_out_->nglob(0),topo_out_->nglob(1),topo_out_->nglob(2));
+        fprintf(file,"- nproc = %d %d %d to %d %d %d\n",topo_in_->nproc(0),topo_in_->nproc(1),topo_in_->nproc(2),topo_out_->nproc(0),topo_out_->nproc(1),topo_out_->nproc(2));
+        // fprintf(file,"- start = %d %d %d to %d %d %d\n",istart_[0],istart_[1],istart_[2],ostart_[0],ostart_[1],ostart_[2]);
+        // fprintf(file,"- end = %d %d %d to %d %d %d\n",iend_[0],iend_[1],iend_[2],oend_[0],oend_[1],oend_[2]);
+        // int totalsize = (nByBlock_[0]+exSize_[0]%2)*(nByBlock_[1]+exSize_[1]%2)*(nByBlock_[2]+exSize_[2]%2);
+        // fprintf(file,"- nByBlock = %d %d %d, real size = %d %d %d, alignement padding? %d vs %d\n",nByBlock_[0],nByBlock_[1],nByBlock_[2],(nByBlock_[0] == 1)?1:nByBlock_[0]+exSize_[0]%2,(nByBlock_[1] == 1)?1:nByBlock_[1]+exSize_[1]%2,(nByBlock_[2] == 1)?1:nByBlock_[2]+exSize_[2]%2,totalsize,get_blockMemSize());
 
         fprintf(file,"--------------------------\n");
-        fprintf(file,"%d inblock: %d\n",newrank,_inBlock);
+        fprintf(file,"%d inblock: %d\n",newrank,inBlock_);
         fprintf(file,"%d I2O:\n",newrank);
-        for(int ib=0; ib<_inBlock; ib++){
-            fprintf(file," block[%d]: size= %d %d %d - istart = %d %d %d - destrank = %d \n",ib,_iBlockSize[0][ib],_iBlockSize[1][ib],_iBlockSize[2][ib],_iBlockiStart[0][ib],_iBlockiStart[1][ib],_iBlockiStart[2][ib],_i2o_destRank[ib]);
+        for(int ib=0; ib<inBlock_; ib++){
+            fprintf(file," block[%d]: size= %d %d %d - istart = %d %d %d - destrank = %d \n",ib,iBlockSize_[0][ib],iBlockSize_[1][ib],iBlockSize_[2][ib],iBlockiStart_[0][ib],iBlockiStart_[1][ib],iBlockiStart_[2][ib],i2o_destRank_[ib]);
         }
         fprintf(file,"\n");
         fprintf(file,"--------------------------\n");
-        fprintf(file,"%d onblock: %d \n",newrank,_onBlock);
+        fprintf(file,"%d onblock: %d \n",newrank,onBlock_);
         fprintf(file,"%d O2I:\n",newrank);
-        for(int ib=0; ib<_onBlock; ib++){
-            fprintf(file," block[%d]: size= %d %d %d - istart = %d %d %d - destrank = %d \n",ib,_oBlockSize[0][ib],_oBlockSize[1][ib],_oBlockSize[2][ib],_oBlockiStart[0][ib],_oBlockiStart[1][ib],_oBlockiStart[2][ib],_o2i_destRank[ib]);
+        for(int ib=0; ib<onBlock_; ib++){
+            fprintf(file," block[%d]: size= %d %d %d - istart = %d %d %d - destrank = %d \n",ib,oBlockSize_[0][ib],oBlockSize_[1][ib],oBlockSize_[2][ib],oBlockiStart_[0][ib],oBlockiStart_[1][ib],oBlockiStart_[2][ib],o2i_destRank_[ib]);
         }
         fprintf(file,"\n");
         fclose(file);
@@ -382,37 +382,37 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 
     int  rlen, comp;
     // if the subcom is not equal to the income we need to free it
-    MPI_Comm_compare(_subcomm,_inComm,&comp);
+    MPI_Comm_compare(subcomm_,inComm_,&comp);
     if(comp!=MPI_IDENT){
         char myname[MPI_MAX_OBJECT_NAME];
-        MPI_Comm_get_name(_subcomm, myname, &rlen);
+        MPI_Comm_get_name(subcomm_, myname, &rlen);
         FLUPS_INFO("freeing the comm %s",myname);
-        MPI_Comm_free(&_subcomm);
+        MPI_Comm_free(&subcomm_);
     }
 
     FLUPS_INFO("freeing the arrays");
 
-    if (_i2o_count != NULL) flups_free(_i2o_count);
-    if (_o2i_count != NULL) flups_free(_o2i_count);
-    if (_i2o_start != NULL) flups_free(_i2o_start);
-    if (_o2i_start != NULL) flups_free(_o2i_start);
+    if (i2o_count_ != NULL) flups_free(i2o_count_);
+    if (o2i_count_ != NULL) flups_free(o2i_count_);
+    if (i2o_start_ != NULL) flups_free(i2o_start_);
+    if (o2i_start_ != NULL) flups_free(o2i_start_);
 
-    if (_sendBuf != NULL) flups_free((double*)_sendBuf);
-    if (_recvBuf != NULL) flups_free((double*)_recvBuf);
+    if (sendBuf_ != NULL) flups_free((double*)sendBuf_);
+    if (recvBuf_ != NULL) flups_free((double*)recvBuf_);
 
-    _free_blockInfo();
+    free_blockInfo_();
 
-    if (_i2o_shuffle != NULL) {
-        for (int ib = 0; ib < _onBlock; ib++) {
-            fftw_destroy_plan(_i2o_shuffle[ib]);
+    if (i2o_shuffle_ != NULL) {
+        for (int ib = 0; ib < onBlock_; ib++) {
+            fftw_destroy_plan(i2o_shuffle_[ib]);
         }
-        flups_free(_i2o_shuffle);
+        flups_free(i2o_shuffle_);
     }
-    if (_o2i_shuffle != NULL) {
-        for (int ib = 0; ib < _inBlock; ib++) {
-            fftw_destroy_plan(_o2i_shuffle[ib]);
+    if (o2i_shuffle_ != NULL) {
+        for (int ib = 0; ib < inBlock_; ib++) {
+            fftw_destroy_plan(o2i_shuffle_[ib]);
         }
-        flups_free(_o2i_shuffle);
+        flups_free(o2i_shuffle_);
     }
 
     END_FUNC;
@@ -422,8 +422,8 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 /**
  * @brief Setup the communication buffer for every block
  * 
- * We associate #_sendBuf[i_block] with the correct adress inside the raw buffer.
- * This way, we can use only #_sendBuf and #_recvBuf for each block without any additional computation inside the execute.
+ * We associate #sendBuf_[i_block] with the correct adress inside the raw buffer.
+ * This way, we can use only #sendBuf_ and #recvBuf_ for each block without any additional computation inside the execute.
  * Moreover, asking the user to allocate the data reduces the memory footprint as it can be shared among several SwitchTopo
  * 
  * @param sendData the "raw" communication buffer allocated at least at the size returned by get_bufMemSize 
@@ -433,73 +433,73 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     BEGIN_FUNC;
 
     // determine the nf: since topo_in may have change, we take the max to have the correct one
-    const int nf = std::max(_topo_in->nf(),_topo_out->nf());
-    const int lda = std::max(_topo_in->lda(),_topo_out->lda());
+    const int nf = std::max(topo_in_->nf(),topo_out_->nf());
+    const int lda = std::max(topo_in_->lda(),topo_out_->lda());
     
     // store the buffers
-    _sendBufG = sendData;
-    _recvBufG = recvData;
+    sendBufG_ = sendData;
+    recvBufG_ = recvData;
 
     // conpute the subsizes
     int subsize;  //I can use subsize because, if there is no subcomm, this is mastercomm
-    MPI_Comm_size(_subcomm, &subsize);
+    MPI_Comm_size(subcomm_, &subsize);
 
     // allocate the second layer of buffers
-    _sendBuf = (double**)flups_malloc(_inBlock * sizeof(double*));
-    _recvBuf = (double**)flups_malloc(_onBlock * sizeof(double*));
+    sendBuf_ = (double**)flups_malloc(inBlock_ * sizeof(double*));
+    recvBuf_ = (double**)flups_malloc(onBlock_ * sizeof(double*));
 
     // determine if we have to suffle or not
-    const bool doShuffle=(_topo_in->axis() != _topo_out->axis());
+    const bool doShuffle=(topo_in_->axis() != topo_out_->axis());
     // allocate the plan if we have to suffle
     if (doShuffle) {
-        _i2o_shuffle = (fftw_plan*)flups_malloc(_onBlock * sizeof(fftw_plan));
-        _o2i_shuffle = (fftw_plan*)flups_malloc(_inBlock * sizeof(fftw_plan));
+        i2o_shuffle_ = (fftw_plan*)flups_malloc(onBlock_ * sizeof(fftw_plan));
+        o2i_shuffle_ = (fftw_plan*)flups_malloc(inBlock_ * sizeof(fftw_plan));
     } else {
-        _i2o_shuffle = NULL;
-        _o2i_shuffle = NULL;
+        i2o_shuffle_ = NULL;
+        o2i_shuffle_ = NULL;
     }
     
     // link the buff of every block to the data initialized
     int* countPerRank = (int*)flups_malloc(subsize * sizeof(int));
     std::memset(countPerRank, 0, subsize * sizeof(int));
-    for (int ib = 0; ib < _inBlock; ib++) {
+    for (int ib = 0; ib < inBlock_; ib++) {
         // get the destination rank
-        int destrank = _i2o_destRank[ib];
+        int destrank = i2o_destRank_[ib];
         // we count the number of unkowns in that will be in the buffer in front of me
         size_t memblocks = 0;
         for (int ir = 0; ir < destrank; ir++) {
-            memblocks += (size_t)_i2o_count[ir]; //already accounts for lda
+            memblocks += (size_t)i2o_count_[ir]; //already accounts for lda
         }
         // place the block given the number of ranks bellow + the number of block already set to my rank
-        _sendBuf[ib] = sendData + memblocks + countPerRank[destrank];
+        sendBuf_[ib] = sendData + memblocks + countPerRank[destrank];
         // add the block size to the number of already added blocks
-        countPerRank[destrank] += get_blockMemSize(ib, nf, _iBlockSize)*lda;
+        countPerRank[destrank] += get_blockMemSize(ib, nf, iBlockSize_)*lda;
 
         // setup the suffle plan for the out 2 in transformation if needed
         if (doShuffle) {
-            int tmp_size[3] = {_iBlockSize[0][ib], _iBlockSize[1][ib], _iBlockSize[2][ib]};
-            _setup_shuffle(tmp_size, _topo_out, _topo_in, _sendBuf[ib], &_o2i_shuffle[ib]);
+            int tmp_size[3] = {iBlockSize_[0][ib], iBlockSize_[1][ib], iBlockSize_[2][ib]};
+            setup_shuffle_(tmp_size, topo_out_, topo_in_, sendBuf_[ib], &o2i_shuffle_[ib]);
         }
     }
 
     std::memset(countPerRank, 0, subsize * sizeof(int));
-    for (int ib = 0; ib < _onBlock; ib++) {
+    for (int ib = 0; ib < onBlock_; ib++) {
         // get the destination rank
-        int destrank = _o2i_destRank[ib];
+        int destrank = o2i_destRank_[ib];
         // we count the number of unkowns in that will be in the buffer in front of me
         size_t memblocks = 0;
         for (int ir = 0; ir < destrank; ir++) {
-            memblocks += (size_t)_o2i_count[ir];
+            memblocks += (size_t)o2i_count_[ir];
         }
         // place the block given the number of ranks bellow + the number of block already set to my rank
-        _recvBuf[ib] = recvData + memblocks + countPerRank[destrank];
+        recvBuf_[ib] = recvData + memblocks + countPerRank[destrank];
         // add the block size to the number of already added blocks
-        countPerRank[destrank] += get_blockMemSize(ib, nf, _oBlockSize)*lda;
+        countPerRank[destrank] += get_blockMemSize(ib, nf, oBlockSize_)*lda;
 
         // setup the suffle plan for the in 2 out transformation
         if (doShuffle) {
-            int tmp_size[3] = {_oBlockSize[0][ib], _oBlockSize[1][ib], _oBlockSize[2][ib]};
-            _setup_shuffle(tmp_size,_topo_in,_topo_out, _recvBuf[ib], &_i2o_shuffle[ib]);
+            int tmp_size[3] = {oBlockSize_[0][ib], oBlockSize_[1][ib], oBlockSize_[2][ib]};
+            setup_shuffle_(tmp_size,topo_in_,topo_out_, recvBuf_[ib], &i2o_shuffle_[ib]);
         }
     }
 
@@ -538,14 +538,14 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
 void SwitchTopo_a2a::execute(double* v, const int sign) const {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(_topo_in->isComplex() == _topo_out->isComplex(), "both topologies have to be complex or real", LOCATION);
-    FLUPS_CHECK(_topo_in->lda() == _topo_out->lda(), "both topologies must have the same lda", LOCATION);
-    FLUPS_CHECK(_topo_in->nf() <= 2, "the value of nf is not supported", LOCATION);
-    FLUPS_CHECK(_sendBuf!=NULL && _recvBuf != NULL, "both buffers have to be non NULL",LOCATION);
+    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(), "both topologies have to be complex or real", LOCATION);
+    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda", LOCATION);
+    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported", LOCATION);
+    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL",LOCATION);
 
     int comm_size;
-    // MPI_Comm_rank(_subcomm, &rank);
-    MPI_Comm_size(_subcomm, &comm_size);
+    // MPI_Comm_rank(subcomm_, &rank);
+    MPI_Comm_size(subcomm_, &comm_size);
 
     PROF_START("reorder");
 
@@ -556,7 +556,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     const Topology* topo_in;
     const Topology* topo_out;
 
-    int lda = _topo_in->lda();
+    int lda = topo_in_->lda();
     int send_nBlock;
     int recv_nBlock;
 
@@ -577,7 +577,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     int* send_start;
     int* recv_start;
 
-    // const int nByBlock[3] = {_nByBlock[0], _nByBlock[1], _nByBlock[2]};
+    // const int nByBlock[3] = {nByBlock_[0], nByBlock_[1], nByBlock_[2]};
 
     fftw_plan* shuffle = NULL;
 
@@ -587,65 +587,65 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     opt_double_ptr recvBufG;
 
     if (sign == FLUPS_FORWARD) {
-        topo_in  = _topo_in;
-        topo_out = _topo_out;
-        sendBuf  = _sendBuf;
-        recvBuf  = _recvBuf;
-        sendBufG  = _sendBufG;
-        recvBufG  = _recvBufG;
+        topo_in  = topo_in_;
+        topo_out = topo_out_;
+        sendBuf  = sendBuf_;
+        recvBuf  = recvBuf_;
+        sendBufG  = sendBufG_;
+        recvBufG  = recvBufG_;
 
-        send_count = _i2o_count;
-        recv_count = _o2i_count;
-        send_start = _i2o_start;
-        recv_start = _o2i_start;
+        send_count = i2o_count_;
+        recv_count = o2i_count_;
+        send_start = i2o_start_;
+        recv_start = o2i_start_;
 
-        send_nBlock = _inBlock;
-        recv_nBlock = _onBlock;
+        send_nBlock = inBlock_;
+        recv_nBlock = onBlock_;
 
-        shuffle = _i2o_shuffle;
+        shuffle = i2o_shuffle_;
 
         for (int id = 0; id < 3; id++) {
-            // send_nBlock[id] = _inBlock[id];
-            // recv_nBlock[id] = _onBlock[id];
-            // istart[id]      = _istart[id];
-            // iend[id]        = _iend[id];
-            // ostart[id]      = _ostart[id];
-            // oend[id]        = _oend[id];
-            inmem[id]       = _topo_in->nmem(id);
-            onmem[id]       = _topo_out->nmem(id);
-            iBlockSize[id]  = _iBlockSize[id];
-            oBlockSize[id]  = _oBlockSize[id];
-            iBlockiStart[id]  = _iBlockiStart[id];
-            oBlockiStart[id]  = _oBlockiStart[id];
+            // send_nBlock[id] = inBlock_[id];
+            // recv_nBlock[id] = onBlock_[id];
+            // istart[id]      = istart_[id];
+            // iend[id]        = iend_[id];
+            // ostart[id]      = ostart_[id];
+            // oend[id]        = oend_[id];
+            inmem[id]       = topo_in_->nmem(id);
+            onmem[id]       = topo_out_->nmem(id);
+            iBlockSize[id]  = iBlockSize_[id];
+            oBlockSize[id]  = oBlockSize_[id];
+            iBlockiStart[id]  = iBlockiStart_[id];
+            oBlockiStart[id]  = oBlockiStart_[id];
         }
     } else if (sign == FLUPS_BACKWARD) {
-        topo_in  = _topo_out;
-        topo_out = _topo_in;
-        sendBuf  = _recvBuf;
-        recvBuf  = _sendBuf;
-        sendBufG  = _recvBufG;
-        recvBufG  = _sendBufG;
+        topo_in  = topo_out_;
+        topo_out = topo_in_;
+        sendBuf  = recvBuf_;
+        recvBuf  = sendBuf_;
+        sendBufG  = recvBufG_;
+        recvBufG  = sendBufG_;
 
-        send_count = _o2i_count;
-        recv_count = _i2o_count;
-        send_start = _o2i_start;
-        recv_start = _i2o_start;
+        send_count = o2i_count_;
+        recv_count = i2o_count_;
+        send_start = o2i_start_;
+        recv_start = i2o_start_;
 
-        shuffle     = _o2i_shuffle;
-        send_nBlock = _onBlock;
-        recv_nBlock = _inBlock;
+        shuffle     = o2i_shuffle_;
+        send_nBlock = onBlock_;
+        recv_nBlock = inBlock_;
 
         for (int id = 0; id < 3; id++) {
-            // istart[id]      = _ostart[id];
-            // iend[id]        = _oend[id];
-            // ostart[id]      = _istart[id];
-            // oend[id]        = _iend[id];
-            inmem[id]         = _topo_out->nmem(id);
-            onmem[id]         = _topo_in->nmem(id);
-            iBlockSize[id]    = _oBlockSize[id];
-            oBlockSize[id]    = _iBlockSize[id];
-            iBlockiStart[id]  = _oBlockiStart[id];
-            oBlockiStart[id]  = _iBlockiStart[id];
+            // istart[id]      = ostart_[id];
+            // iend[id]        = oend_[id];
+            // ostart[id]      = istart_[id];
+            // oend[id]        = iend_[id];
+            inmem[id]         = topo_out_->nmem(id);
+            onmem[id]         = topo_in_->nmem(id);
+            iBlockSize[id]    = oBlockSize_[id];
+            oBlockSize[id]    = iBlockSize_[id];
+            iBlockiStart[id]  = oBlockiStart_[id];
+            oBlockiStart[id]  = iBlockiStart_[id];
         }
     } else {
         FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
@@ -658,16 +658,16 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // check if we can return already, because the switchtopo would be useless
     {
         int rank;
-        MPI_Comm_rank(_subcomm, &rank);
+        MPI_Comm_rank(subcomm_, &rank);
 
-        bool cond = (_topo_in->axis() == _topo_out->axis()); //same axis
+        bool cond = (topo_in_->axis() == topo_out_->axis()); //same axis
         cond &= (send_nBlock == 1); //only one block on this proc
         cond &= (recv_nBlock == 1);   
-        cond &= (_i2o_destRank[0] == rank) ; //the only block will stay with me
-        cond &= (_o2i_destRank[0] == rank) ;
+        cond &= (i2o_destRank_[0] == rank) ; //the only block will stay with me
+        cond &= (o2i_destRank_[0] == rank) ;
         for (int i = 0; i < 3; i++) {
-            cond &= (_shift[i] == 0); //no shift in memory
-            cond &= (_topo_in->nloc(i) == _topo_out->nloc(i)); //same size of topology
+            cond &= (shift_[i] == 0); //no shift in memory
+            cond &= (topo_in_->nloc(i) == topo_out_->nloc(i)); //same size of topology
         }
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
@@ -686,8 +686,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     const int oax2 = (oax0 + 2) % 3;
     const int nf   = topo_in->nf();
 
-    PROF_STARTi("switch",_iswitch);
-    PROF_STARTi("mem2buf",_iswitch);
+    PROF_STARTi("switch",iswitch_);
+    PROF_STARTi("mem2buf",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -804,35 +804,35 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
     
-    PROF_STOPi("mem2buf",_iswitch);
+    PROF_STOPi("mem2buf",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - Do the communication */
     //-------------------------------------------------------------------------
-    if (_is_all2all) {
-        PROF_STARTi("all_2_all",_iswitch);
-        MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, _subcomm);
+    if (is_all2all_) {
+        PROF_STARTi("all_2_all",iswitch_);
+        MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, subcomm_);
 #ifdef PROF        
-        if (_prof != NULL) {
-            string profName = "all_2_all"+to_string(_iswitch);
-            _prof->stop(profName);
+        if (prof_ != NULL) {
+            string profName = "all_2_all"+to_string(iswitch_);
+            prof_->stop(profName);
             int loc_mem = send_count[0] * comm_size;
-            _prof->addMem(profName, loc_mem*sizeof(double));
+            prof_->addMem(profName, loc_mem*sizeof(double));
         }
 #endif
 
     } else {
-        PROF_STARTi("all_2_all_v",_iswitch)
-        MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, _subcomm);
+        PROF_STARTi("all_2_all_v",iswitch_)
+        MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, subcomm_);
 #ifdef PROF        
-        if (_prof != NULL) {
-            string profName = "all_2_all_v"+to_string(_iswitch);
-            _prof->stop(profName);
+        if (prof_ != NULL) {
+            string profName = "all_2_all_v"+to_string(iswitch_);
+            prof_->stop(profName);
             int loc_mem = 0;
             for (int ir = 0; ir < comm_size; ir++) {
                 loc_mem += send_count[ir];
             }
-            _prof->addMem(profName, loc_mem*sizeof(double));
+            prof_->addMem(profName, loc_mem*sizeof(double));
         }
 #endif        
     }
@@ -864,7 +864,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // get some counters
     // const int nblocks_recv = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     // for each block
-    PROF_STARTi("buf2mem",_iswitch);
+    PROF_STARTi("buf2mem",iswitch_);
 
     
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, recv_nBlock, v, recvBuf, oBlockSize,oBlockiStart, nf, onmem, oax0, oax1, oax2, lda)
@@ -986,8 +986,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
 
-    PROF_STOPi("buf2mem",_iswitch);
-    PROF_STOPi("switch",_iswitch);
+    PROF_STOPi("buf2mem",iswitch_);
+    PROF_STOPi("switch",iswitch_);
     PROF_STOP("reorder");
     END_FUNC;
 }
@@ -995,24 +995,24 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 void SwitchTopo_a2a::disp() const {
     BEGIN_FUNC;
     FLUPS_INFO("------------------------------------------");
-    if (_is_all2all) FLUPS_INFO("## Topo Swticher All to All !! MPI");
-    if (!_is_all2all) FLUPS_INFO("## Topo Swticher All to All vector MPI");
+    if (is_all2all_) FLUPS_INFO("## Topo Swticher All to All !! MPI");
+    if (!is_all2all_) FLUPS_INFO("## Topo Swticher All to All vector MPI");
     FLUPS_INFO("--- INPUT");
-    FLUPS_INFO("  - input axis = %d", _topo_in->axis());
-    FLUPS_INFO("  - input local = %d %d %d", _topo_in->nloc(0), _topo_in->nloc(1), _topo_in->nloc(2));
-    FLUPS_INFO("  - input global = %d %d %d", _topo_in->nglob(0), _topo_in->nglob(1), _topo_in->nglob(2));
-    // FLUPS_INFO("  - istart = %d %d %d", _istart[0], _istart[1], _istart[2]);
-    // FLUPS_INFO("  - iend = %d %d %d", _iend[0], _iend[1], _iend[2]);
+    FLUPS_INFO("  - input axis = %d", topo_in_->axis());
+    FLUPS_INFO("  - input local = %d %d %d", topo_in_->nloc(0), topo_in_->nloc(1), topo_in_->nloc(2));
+    FLUPS_INFO("  - input global = %d %d %d", topo_in_->nglob(0), topo_in_->nglob(1), topo_in_->nglob(2));
+    // FLUPS_INFO("  - istart = %d %d %d", istart_[0], istart_[1], istart_[2]);
+    // FLUPS_INFO("  - iend = %d %d %d", iend_[0], iend_[1], iend_[2]);
     FLUPS_INFO("--- OUTPUT");
-    FLUPS_INFO("  - output axis = %d", _topo_out->axis());
-    FLUPS_INFO("  - output local = %d %d %d", _topo_out->nloc(0), _topo_out->nloc(1), _topo_out->nloc(2));
-    FLUPS_INFO("  - output global = %d %d %d", _topo_out->nglob(0), _topo_out->nglob(1), _topo_out->nglob(2));
-    // FLUPS_INFO("  - ostart = %d %d %d", _ostart[0], _ostart[1], _ostart[2]);
-    // FLUPS_INFO("  - oend = %d %d %d", _oend[0], _oend[1], _oend[2]);
+    FLUPS_INFO("  - output axis = %d", topo_out_->axis());
+    FLUPS_INFO("  - output local = %d %d %d", topo_out_->nloc(0), topo_out_->nloc(1), topo_out_->nloc(2));
+    FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
+    // FLUPS_INFO("  - ostart = %d %d %d", ostart_[0], ostart_[1], ostart_[2]);
+    // FLUPS_INFO("  - oend = %d %d %d", oend_[0], oend_[1], oend_[2]);
     FLUPS_INFO("--- BLOCKS");
-    // FLUPS_INFO("  - nByBlock  = %d %d %d", _nByBlock[0], _nByBlock[1], _nByBlock[2]);
-    FLUPS_INFO("  - inBlock = %d", _inBlock);
-    FLUPS_INFO("  - onBlock = %d", _onBlock);
+    // FLUPS_INFO("  - nByBlock  = %d %d %d", nByBlock_[0], nByBlock_[1], nByBlock_[2]);
+    FLUPS_INFO("  - inBlock = %d", inBlock_);
+    FLUPS_INFO("  - onBlock = %d", onBlock_);
     FLUPS_INFO("------------------------------------------");
 }
 

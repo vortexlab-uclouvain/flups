@@ -46,7 +46,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
  * @param [out] data the data where we store the 
  */
-static void _lgf_readfile(const int greendim, int* N, double** data) {
+static void lgf_readfile_(const int greendim, int* N, double** data) {
     BEGIN_FUNC;
 
     // some defined parameters:

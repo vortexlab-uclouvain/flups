@@ -54,26 +54,26 @@
  */
 class SwitchTopo_nb : public SwitchTopo {
    protected:
-    int _selfBlockN=0;
-    int* _iselfBlockID = NULL; /**<@brief The list of the block iD that stays on the current rank in the input topology (used while output to input)  */
-    int* _oselfBlockID = NULL; /**<@brief The list of the block iD that stays on the current rank in the output topoloy (used while input to ouput) */
+    int selfBlockN_=0;
+    int* iselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the input topology (used while output to input)  */
+    int* oselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the output topoloy (used while input to ouput) */
 
-    int* _i2o_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
-    int* _o2i_destTag = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* i2o_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
+    int* o2i_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
 
-    MPI_Request *_i2o_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    MPI_Request *_i2o_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
-    MPI_Request *_o2i_sendRequest = NULL; /**<@brief The MPI Request generated on the send */
-    MPI_Request *_o2i_recvRequest = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *i2o_sendRequest_ = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *i2o_recvRequest_ = NULL; /**<@brief The MPI Request generated on the recv */
+    MPI_Request *o2i_sendRequest_ = NULL; /**<@brief The MPI Request generated on the send */
+    MPI_Request *o2i_recvRequest_ = NULL; /**<@brief The MPI Request generated on the recv */
 
-    void _init_blockInfo(const Topology* topo_in, const Topology* topo_out);
-    void _free_blockInfo();
+    void init_blockInfo_(const Topology* topo_in, const Topology* topo_out);
+    void free_blockInfo_();
 
    public:
     SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
     ~SwitchTopo_nb();
 
-    void setup_buffers(opt_double_ptr _sendBuf,opt_double_ptr _recvBuf);
+    void setup_buffers(opt_double_ptr sendBuf_,opt_double_ptr recvBuf_);
     void execute(double* v, const int sign) const;
     void setup() ;
     void disp() const;

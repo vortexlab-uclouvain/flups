@@ -63,40 +63,40 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     //==========================    3D  =================================
     switch (typeGreen) {
         case HEJ_2:
-            G  = &_hej_2_3unb0spe;
+            G  = &hej_2_3unb0spe_;
             G0 = - M_SQRT2 / (4.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
-            G  = &_hej_4_3unb0spe;
+            G  = &hej_4_3unb0spe_;
             G0 = - 3.0 * M_SQRT2 / (8.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
-            G  = &_hej_6_3unb0spe;
+            G  = &hej_6_3unb0spe_;
             G0 = - 15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_8:
-            G  = &_hej_8_3unb0spe;
+            G  = &hej_8_3unb0spe_;
             G0 = - 35.0 * M_SQRT2 / (64.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_10:
-            G  = &_hej_10_3unb0spe;
+            G  = &hej_10_3unb0spe_;
             G0 = - 315.0 * M_SQRT2 / (512.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_0:
-            G  = &_hej_0_3unb0spe;
+            G  = &hej_0_3unb0spe_;
             G0 = - 1.0/(2.0*M_PI*M_PI*length);
             break;
         case CHAT_2:
-            G  = &_chat_2_3unb0spe;
+            G  = &chat_2_3unb0spe_;
             G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
             break;
         case LGF_2:
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
             FLUPS_CHECK(hfact[1] == hfact[2], "the grid has to be isotropic to use the LGFs", LOCATION);
             // read the LGF data and store it
-            _lgf_readfile(3,&GN, &Gdata);
+            lgf_readfile_(3,&GN, &Gdata);
             // associate the Green's function
-            G = &_lgf_2_3unb0spe;
+            G = &lgf_2_3unb0spe_;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -167,8 +167,8 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
             for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
             We here fill with zero most part of Green data. Indeed, we are interested only in doing the FFT
-            of _hej_*_2unb1spe_k0 in the 2 remaining spatial directions. We will complete the Green function with the
-            full spectral part afterwards, while going through Solver::_cmptGreenFunction.
+            of hej__*2unb1spe_k0_ in the 2 remaining spatial directions. We will complete the Green function with the
+            full spectral part afterwards, while going through Solver::cmptGreenFunction_.
  * 
  */
 void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
@@ -197,56 +197,56 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         case HEJ_2:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
             // see warning in the function description
-            G   = &_zero;
-            Gk0 = &_hej_2_2unb1spe_k0;
-            Gr0 = &_hej_2_2unb1spe_r0;
+            G   = &zero_;
+            Gk0 = &hej_2_2unb1spe_k0_;
+            Gr0 = &hej_2_2unb1spe_r0_;
             break;
         case HEJ_4:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
-            G   = &_zero;
-            Gk0 = &_hej_4_2unb1spe_k0;
-            Gr0 = &_hej_4_2unb1spe_r0;
+            G   = &zero_;
+            Gk0 = &hej_4_2unb1spe_k0_;
+            Gr0 = &hej_4_2unb1spe_r0_;
             break;
         case HEJ_6:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
-            G   = &_zero;
-            Gk0 = &_hej_6_2unb1spe_k0;
-            Gr0 = &_hej_6_2unb1spe_r0;
+            G   = &zero_;
+            Gk0 = &hej_6_2unb1spe_k0_;
+            Gr0 = &hej_6_2unb1spe_r0_;
             break;
         case HEJ_8:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
-            G   = &_zero;
-            Gk0 = &_hej_8_2unb1spe_k0;
-            Gr0 = &_hej_8_2unb1spe_r0;
+            G   = &zero_;
+            Gk0 = &hej_8_2unb1spe_k0_;
+            Gr0 = &hej_8_2unb1spe_r0_;
             break;
         case HEJ_10:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.", LOCATION);
-            G   = &_zero;
-            Gk0 = &_hej_10_2unb1spe_k0;
-            Gr0 = &_hej_10_2unb1spe_r0;
+            G   = &zero_;
+            Gk0 = &hej_10_2unb1spe_k0_;
+            Gr0 = &hej_10_2unb1spe_r0_;
             break;        
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.", LOCATION);
             init_Ji0();
-            G   = &_zero;
-            Gk0 = &_hej_0_2unb1spe_k0;
-            Gr0 = &_hej_0_2unb1spe_k0;
+            G   = &zero_;
+            Gk0 = &hej_0_2unb1spe_k0_;
+            Gr0 = &hej_0_2unb1spe_k0_;
             break;        
         case CHAT_2:
-            G   = &_chat_2_2unb1spe;
-            Gk0 = &_chat_2_2unb1spe_k0;
-            Gr0 = &_chat_2_2unb1spe_r0;
+            G   = &chat_2_2unb1spe_;
+            Gk0 = &chat_2_2unb1spe_k0_;
+            Gr0 = &chat_2_2unb1spe_r0_;
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
             FLUPS_CHECK(hfact[3] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3],LOCATION);
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs", LOCATION);
             // read the LGF data and store it
-            _lgf_readfile(2,&GN, &Gdata);
+            lgf_readfile_(2,&GN, &Gdata);
             // associate the Green's function
-            G   = &_zero;
-            Gk0 = &_lgf_2_2unb0spe;
-            Gr0 = &_lgf_2_2unb0spe;
+            G   = &zero_;
+            Gk0 = &lgf_2_2unb0spe_;
+            Gr0 = &lgf_2_2unb0spe_;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);
@@ -345,31 +345,31 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            G  = &_hej_2_1unb2spe;
-            G0 = &_hej_2_1unb2spe_k0;
+            G  = &hej_2_1unb2spe_;
+            G0 = &hej_2_1unb2spe_k0_;
             break;
         case HEJ_4:
-            G  = &_hej_4_1unb2spe;
-            G0 = &_hej_4_1unb2spe_k0;
+            G  = &hej_4_1unb2spe_;
+            G0 = &hej_4_1unb2spe_k0_;
             break;
         case HEJ_6:
-            G  = &_hej_6_1unb2spe;
-            G0 = &_hej_6_1unb2spe_k0;
+            G  = &hej_6_1unb2spe_;
+            G0 = &hej_6_1unb2spe_k0_;
             break;
         case HEJ_8:
-            G  = &_hej_8_1unb2spe;
-            G0 = &_hej_8_1unb2spe_k0;
+            G  = &hej_8_1unb2spe_;
+            G0 = &hej_8_1unb2spe_k0_;
             break;
         case HEJ_10:
-            G  = &_hej_10_1unb2spe;
-            G0 = &_hej_10_1unb2spe_k0;
+            G  = &hej_10_1unb2spe_;
+            G0 = &hej_10_1unb2spe_k0_;
             break;        
         case HEJ_0:
             FLUPS_ERROR("HEJ0 kernel not available for 1D unbounded problems.", LOCATION);
             break;        
         case CHAT_2:
-            G  = &_chat_2_1unb2spe;
-            G0 = &_chat_2_1unb2spe_k0;
+            G  = &chat_2_1unb2spe_;
+            G0 = &chat_2_1unb2spe_k0_;
             break;
         case LGF_2:
             FLUPS_ERROR("Lattice Green Function not implemented yet.", LOCATION);
@@ -430,7 +430,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
 /**
  * @brief Compute the Green function for 3dirspectral (in the whole spectral domain)
  * 
- * __Note on performance__: obviously, the Green function in full spectral
+ * _Note_ on performance__: obviously, the Green function in full spectral
  * is \f$\-frac{1}{k^2}\f$ (at least for CHAT_2). We could perform that operation directly in the
  * loop of `dothemagic`. We here choose to still precompute and store it.
  * We burn more memory, but we should fasten `dothemagic` as we replace a
@@ -481,30 +481,30 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
 
     switch (typeGreen) {
         case HEJ_2:
-            G = &_hej_2_0unb3spe;
+            G = &hej_2_0unb3spe_;
             break;
         case HEJ_4:
-            G = &_hej_4_0unb3spe;
+            G = &hej_4_0unb3spe_;
             break;
         case HEJ_6:
-            G = &_hej_6_0unb3spe;
+            G = &hej_6_0unb3spe_;
             break;
         case HEJ_8:
-            G = &_hej_8_0unb3spe;
+            G = &hej_8_0unb3spe_;
             break;
         case HEJ_10:
-            G = &_hej_10_0unb3spe;
+            G = &hej_10_0unb3spe_;
             break; 
         case HEJ_0:
             //spectral solution is here given by 1/k^2, i.e. same 
             //as CHAT_2 kernel
-            G = &_chat_2_0unb3spe;
+            G = &chat_2_0unb3spe_;
             break;                           
         case CHAT_2:
-            G = &_chat_2_0unb3spe;
+            G = &chat_2_0unb3spe_;
             break;
         case LGF_2:
-            G = &_lgf_2_0unb3spe;
+            G = &lgf_2_0unb3spe_;
             break;
         default:
             FLUPS_ERROR("Green Function type unknow.", LOCATION);

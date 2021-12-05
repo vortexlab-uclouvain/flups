@@ -39,10 +39,10 @@
 using namespace std;
 
 #if defined(PROF)
-#define PROF_START(name) if (_prof != NULL) _prof->start(name);
-#define PROF_STARTi(name,ip) if (_prof != NULL) _prof->start(name+to_string(ip));
-#define PROF_STOP(name) if (_prof != NULL) _prof->stop(name);
-#define PROF_STOPi(name,ip) if (_prof != NULL) _prof->stop(name+to_string(ip));
+#define PROF_START(name) if (prof_ != NULL) prof_->start(name);
+#define PROF_STARTi(name,ip) if (prof_ != NULL) prof_->start(name+to_string(ip));
+#define PROF_STOP(name) if (prof_ != NULL) prof_->stop(name);
+#define PROF_STOPi(name,ip) if (prof_ != NULL) prof_->stop(name+to_string(ip));
 #else
 #define PROF_START(name) ((void)0);
 #define PROF_STARTi(name,ip) ((void)0);
@@ -52,20 +52,20 @@ using namespace std;
 
 class TimerAgent {
    protected:
-    bool   _isroot  = true;
-    int    _count   = 0;
-    double _timeAcc = 0.0;
-    double _t0      = 0.0;
-    double _t1      = 0.0;
-    size_t _memsize = 0;
+    bool   isroot_  = true;
+    int    count_   = 0;
+    double timeAcc_ = 0.0;
+    double t0_      = 0.0;
+    double t1_      = 0.0;
+    size_t memsize_ = 0;
 
-    double _timeMax = 0.0;
-    double _timeMin = 0.0;
+    double timeMax_ = 0.0;
+    double timeMin_ = 0.0;
 
-    string _name = "noname";
+    string name_ = "noname";
 
-    TimerAgent*       _daddy = NULL;
-    map<string,TimerAgent*> _children;
+    TimerAgent*       daddy_ = NULL;
+    map<string,TimerAgent*> children_;
 
    public:
     TimerAgent(string name);
@@ -76,9 +76,9 @@ class TimerAgent {
     void addMem(size_t mem);
     void disp(FILE* file, const int level, const double totalTime);
 
-    int    count() const { return _count; };
-    bool   isroot() const { return _isroot; };
-    string name() const { return _name; };
+    int    count() const { return count_; };
+    bool   isroot() const { return isroot_; };
+    string name() const { return name_; };
     double timeAcc() const;
     double timeMin() const;
     double timeMax() const;
@@ -90,10 +90,10 @@ class TimerAgent {
 
 class Profiler {
    protected:
-    map<string, TimerAgent*> _timeMap;
+    map<string, TimerAgent*> timeMap_;
 
-    const string _name;
-    void _createSingle(string name);
+    const string name_;
+    void createSingle_(string name);
 
    public:
     Profiler();

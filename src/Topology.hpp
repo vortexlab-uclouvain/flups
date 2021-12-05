@@ -37,29 +37,29 @@
  * A topology describes the layout of the data on the current processor.
  * 
  * The number of unkowns in each direction owned by a rank divides them in two groups.
- * First, we compute the integer division, nbyproc, between _nglob and _nproc.
+ * First, we compute the integer division, nbyproc, between nglob_ and nproc_.
  * 
- * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(_nglob,_nproc)-1, included.
- * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(_nglob,_nproc) to rank _nproc, included.
+ * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(nglob_,nproc_)-1, included.
+ * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(nglob_,nproc_) to rank nproc_, included.
  * 
  */
 class Topology {
    protected:
-    int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int       _nloc[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
-    int       _nmem[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
-    int       _axis;       /**<@brief fastest rotating index in the topology  */
-    int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int       _lda;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
-    // int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
-    const int _alignment;
-    MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
+    int       nproc_[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int       axproc_[3];  /**<@brief axis of the procs for ranksplit  */
+    int       nf_;         /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
+    int       nloc_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       nmem_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       axis_;       /**<@brief fastest rotating index in the topology  */
+    int       rankd_[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int       nglob_[3];   /**<@brief number of unknowns per dim, global (012-indexing)  */
+    int       lda_;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
+    // int       nbyproc_[3]; /**<@brief mean number of unknowns per dim = nloc except for the last one (012-indexing)  */
+    const int alignment_;
+    MPI_Comm  comm_; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
-    // double _h[3]; //**< @brief grid spacing */
-    // double _L[3];//**< @brief length of the domain  */
+    // double h_[3]; //**< @brief grid spacing */
+    // double L_[3];//**< @brief length of the domain  */
     // -> We got rid of these, as L changes during a transform occuring in the associated topo, and the computation of h would also
     //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
@@ -80,19 +80,19 @@ class Topology {
      * 
      * @{
      */
-    inline int axis() const { return _axis; }
-    inline int lda() const { return _lda; }
-    inline int nf() const { return _nf; }
-    inline int isComplex() const { return _nf == 2; }
+    inline int axis() const { return axis_; }
+    inline int lda() const { return lda_; }
+    inline int nf() const { return nf_; }
+    inline int isComplex() const { return nf_ == 2; }
 
-    inline int nglob(const int dim) const { return _nglob[dim]; }
-    inline int nloc(const int dim) const { return _nloc[dim]; }
-    inline int nmem(const int dim) const { return _nmem[dim]; }
-    inline int nproc(const int dim) const { return _nproc[dim]; }
-    inline int rankd(const int dim) const { return _rankd[dim]; }
-    // inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
-    inline int      axproc(const int dim) const { return _axproc[dim]; }
-    inline MPI_Comm get_comm() const { return _comm; }
+    inline int nglob(const int dim) const { return nglob_[dim]; }
+    inline int nloc(const int dim) const { return nloc_[dim]; }
+    inline int nmem(const int dim) const { return nmem_[dim]; }
+    inline int nproc(const int dim) const { return nproc_[dim]; }
+    inline int rankd(const int dim) const { return rankd_[dim]; }
+    // inline int nbyproc(const int dim) const { return nbyproc_[dim]; }
+    inline int      axproc(const int dim) const { return axproc_[dim]; }
+    inline MPI_Comm get_comm() const { return comm_; }
 
     /**
      * @brief compute the scalar number of unknowns on each proc, i.e. the number of unkowns for one component
@@ -101,7 +101,7 @@ class Topology {
      * @return int 
      */
     inline int cmpt_nbyproc(const int id) const {
-        return (_nglob[id] / _nproc[id]) + 1 * ((_nglob[id] % _nproc[id]) > _rankd[id]);
+        return (nglob_[id] / nproc_[id]) + 1 * ((nglob_[id] % nproc_[id]) > rankd_[id]);
     }
 
     /**
@@ -110,7 +110,7 @@ class Topology {
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
-        return (_rankd[id]) * (_nglob[id] / _nproc[id]) + std::min(_rankd[id], _nglob[id] % _nproc[id]);
+        return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
     }
 
     /**
@@ -121,8 +121,8 @@ class Topology {
      * @return int 
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const{
-        const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
-        const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
+        const int nproc_g0 = nglob_[id]%nproc_[id]; // number of procs that have a +1 in their unkowns
+        const int nbyproc = nglob_[id]/nproc_[id]; // the number of unknowns in the integer division
         const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
 
         return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
@@ -149,20 +149,20 @@ class Topology {
      * 
      * @return size_t 
      */
-    inline size_t locsize() const { return (size_t)_nloc[0] * (size_t)_nloc[1] * (size_t)_nloc[2] * (size_t)_nf; }
+    inline size_t locsize() const { return (size_t)nloc_[0] * (size_t)nloc_[1] * (size_t)nloc_[2] * (size_t)nf_; }
 
     /**
      * @brief returns the memory size of on this proc for one component
      * 
      * @return size_t 
      */
-    inline size_t memdim() const { return (size_t)_nmem[0] * (size_t)_nmem[1] *(size_t) _nmem[2] * (size_t)_nf; }
+    inline size_t memdim() const { return (size_t)nmem_[0] * (size_t)nmem_[1] *(size_t) nmem_[2] * (size_t)nf_; }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      * 
      * @return size_t 
      */
-    inline size_t memsize() const { return (size_t)_nmem[0] * (size_t)_nmem[1] * (size_t)_nmem[2] * (size_t)_nf * (size_t)_lda; }
+    inline size_t memsize() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_ * (size_t)lda_; }
 
     /**
      * @brief returns the starting global index on the current proc
@@ -180,12 +180,12 @@ class Topology {
      * 
      */
     inline void switch2complex() {
-        if (_nf == 1) {
-            _nf = 2;
-            _nglob[_axis] /= 2;
-            _nloc[_axis] /= 2;
-            _nmem[_axis] /= 2;
-            // _nbyproc[_axis] /= 2;
+        if (nf_ == 1) {
+            nf_ = 2;
+            nglob_[axis_] /= 2;
+            nloc_[axis_] /= 2;
+            nmem_[axis_] /= 2;
+            // nbyproc_[axis_] /= 2;
         }
     }
     /**
@@ -193,12 +193,12 @@ class Topology {
      * 
      */
     inline void switch2real() {
-        if (_nf == 2) {
-            _nf = 1;
-            _nglob[_axis] *= 2;
-            _nloc[_axis] *= 2;
-            _nmem[_axis] *= 2;
-            // _nbyproc[_axis] *= 2;
+        if (nf_ == 2) {
+            nf_ = 1;
+            nglob_[axis_] *= 2;
+            nloc_[axis_] *= 2;
+            nmem_[axis_] *= 2;
+            // nbyproc_[axis_] *= 2;
         }
     }
 
@@ -207,14 +207,14 @@ class Topology {
      * 
      */
     inline void switch2Scalar(){
-        _lda=1;
+        lda_=1;
     }
     /**
      * @brief switch the current topo to the vector state
      * 
      */
     inline void switch2Vector(){
-        _lda=3;
+        lda_=3;
     }
 
     void disp() const;
