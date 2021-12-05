@@ -4,8 +4,10 @@
 CXX = mpic++
 CC = mpicc
 
-# set the flag (optimisation or not)
+# Set the options 
+OPTS+= -DNODE_CENTERED
 
+# set the flag (optimisation or not)
 ## For debugging:
 # CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG
 ## For profiling:
@@ -15,7 +17,7 @@ CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros
 
 CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros
 
-LDFLAGS = -fopenmp -lstc++
+LDFLAGS = -fopenmp 
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

@@ -90,13 +90,13 @@ IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
 $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
 default: lib_static 
@@ -170,7 +170,7 @@ destroy:
 info: logo
 	$(info prefix = $(PREFIX)/lib )
 	$(info compiler = $(shell $(CXX) --version))
-	$(info compil. flags = $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD)
+	$(info compil. flags = $(CXXFLAGS) $(OPTS) $(INC) $(DEF)  -fPIC -MMD)
 	$(info linker flags = -shared $(LDFLAGS))
 	$(info using arch file = $(ARCH_FILE) )
 	$(info LGF path = $(LGF_PATH) )

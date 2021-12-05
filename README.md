@@ -99,7 +99,7 @@ The documentation is built using Doxygen.
 To build the documentation, go to the `./doc` subfolder and type `doxygen`.
 
 #### Available compilation flags
-Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `CXXFLAGS` in your `make_arch`.
+Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
