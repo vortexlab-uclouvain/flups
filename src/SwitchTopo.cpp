@@ -289,10 +289,13 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
     if((*o2i_destTag) != NULL){
         flups_free(*o2i_destTag);
     }
+    
     // reallocate it at the correct size
     (*i2o_destTag) = (int*)flups_malloc(sizeof(int) * inBlock);
     (*o2i_destTag) = (int*)flups_malloc(sizeof(int) * onBlock);
 
+    // allocate the tag buffers
+    int* ib_buffer = (int*)flups_malloc(sizeof(int) * MAX(inBlock, onBlock));
 
     // allocate the requests
     MPI_Request* irequest = (MPI_Request*)flups_malloc(inBlock * sizeof(MPI_Request));
@@ -304,8 +307,10 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
     for (int ib = 0; ib < inBlock; ib++) {
         MPI_Irecv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm,irequest+ib);
     }
+
     for (int ib = 0; ib < onBlock; ib++) {
-        MPI_Isend(&ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
+        ib_buffer[ib] = ib;
+        MPI_Isend(ib_buffer + ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
     }
     // for for everything to be done
     MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
@@ -316,13 +321,15 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
         MPI_Irecv(&((*o2i_destTag)[ib]), 1, MPI_INT, o2i_destRank[ib], 1, comm, orequest+ib);
     }
     for (int ib = 0; ib < inBlock; ib++) {
-        MPI_Isend(&ib, 1, MPI_INT, i2o_destRank[ib], 1, comm,irequest+ib);
+        ib_buffer[ib] = ib;
+        MPI_Isend(ib_buffer + ib, 1, MPI_INT, i2o_destRank[ib], 1, comm,irequest+ib);
     }
     // for for everything to be done
     MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);
     MPI_Waitall(onBlock,orequest,MPI_STATUSES_IGNORE);
 
-    // free the requests
+    // free everything
+    flups_free(ib_buffer);
     flups_free(irequest);
     flups_free(orequest);
 
