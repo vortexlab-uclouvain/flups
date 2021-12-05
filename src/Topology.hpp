@@ -110,7 +110,7 @@ class Topology {
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
-        return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
+        return (nglob_[id] * rankd_[id]) / nproc_[id];
     }
 
     /**
