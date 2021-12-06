@@ -101,7 +101,9 @@ class Topology {
      * @return int 
      */
     inline int cmpt_nbyproc(const int id) const {
-        return (nglob_[id] / nproc_[id]) + 1 * ((nglob_[id] % nproc_[id]) > rankd_[id]);
+        const int start = (nglob_[id] * rankd_[id]) / nproc_[id];
+        const int end = (nglob_[id] * (rankd_[id]+1)) / nproc_[id];
+        return (end - start);
     }
 
     /**
