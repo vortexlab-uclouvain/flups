@@ -39,6 +39,12 @@
 
 #define MANUFACTURED_SOLUTION
 
+#ifdef NODE_CENTERED
+#define VALID_CELL_CENTERED 0
+#else 
+#define VALID_CELL_CENTERED 1
+#endif 
+
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);

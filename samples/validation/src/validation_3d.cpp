@@ -144,20 +144,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                     centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
                     centerPos[2] = orig[2] + ((j2 != 0) && (mybc[2][(j2 + 1) / 2] != PER) ? (1.0 - center[2]) * L[2] : (center[2] * L[2]));
 
-                    // printf("CENTER HERE IS: %d,%d,%d -- %lf,%lf,%lf -- %lf,%lf,%lf ++ %lf,%lf,%lf ** %lf\n",j0,j1,j2,orig[0],orig[1],orig[2],centerPos[0],centerPos[1],centerPos[2],\
-                    ( (j0!=0)&&(mybc[0][(j0+1)/2]!=PER )) ? (1.0-center[0])*L[0] : (center[0]*L[0]),\
-                    ( (j1!=0)&&(mybc[1][(j1+1)/2]!=PER )) ? (1.0-center[1])*L[1] : (center[1]*L[1]),\
-                    ( (j2!=0)&&(mybc[2][(j2+1)/2]!=PER )) ? (1.0-center[2])*L[2] : (center[2]*L[2]), sign);
-
                     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
                         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                                double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
-                                double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
-                                double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
-                                double       rho2 = (x * x + y * y + z * z) * oosigma2;
-                                double       rho  = sqrt(rho2);
-                                const size_t id   = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
+                                const double shift = 0.5*VALID_CELL_CENTERED;
+                                double       x     = (istart[0] + i0 + shift) * h[0] - centerPos[0];
+                                double       y     = (istart[1] + i1 + shift) * h[1] - centerPos[1];
+                                double       z     = (istart[2] + i2 + shift) * h[2] - centerPos[2];
+                                double       rho2  = (x * x + y * y + z * z) * oosigma2;
+                                double       rho   = sqrt(rho2);
+                                const size_t id    = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
 
                                 // Gaussian
                                 rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
@@ -303,9 +299,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                         const size_t id   = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
-                        const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                             (istart[ax1] + i1 + 0.5) * h[ax1],
-                                             (istart[ax2] + i2 + 0.5) * h[ax2]};
+                        const double shift = 0.5*VALID_CELL_CENTERED;
+                        const double x[3] = {(istart[ax0] + i0 + shift) * h[ax0],
+                                             (istart[ax1] + i1 + shift) * h[ax1],
+                                             (istart[ax2] + i2 + shift) * h[ax2]};
 
                         // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
                         // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
