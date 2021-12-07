@@ -119,8 +119,10 @@ static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6
 //=============================================================================
 #ifdef VERBOSE
 static inline void FLUPS_INFO_DISP(std::string a) {
+    int log_rank_;                                  \
+    MPI_Comm_rank(MPI_COMM_WORLD, &log_rank_);  
     char msg[1024];
-    sprintf(msg, "[FLUPS] %s\n", a.c_str());
+    sprintf(msg, "[FLUPS %d] %s\n", log_rank_, a.c_str());
     printf("%s", msg);
     fflush(stdout);
 }

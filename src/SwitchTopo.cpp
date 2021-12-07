@@ -101,6 +101,7 @@ void SwitchTopo::cmpt_blockDestRank_(const int nBlock[3],const int nByBlock[3],c
             // destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
         }
         destRank[ib] = rankindex(destrankd, topo_out);
+        FLUPS_CHECK(destRank[ib] < comm_size, "You should have a destination smaller than your comm_size -> %d vs %d -- ib == %d ", destRank[ib] , comm_size, ib, LOCATION);
         
         FLUPS_INFO_4("block %d will go to proc %d",ib,destRank[ib]);
     }
@@ -138,7 +139,8 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
     /** - count the number of block going to each proc */
     //-------------------------------------------------------------------------
     const int old_nBlock = nBlockv[0] * nBlockv[1] * nBlockv[2];
-    
+
+
     for (int ib = 0; ib < old_nBlock; ib++) {
         nblockToEachProc[(*destRank)[ib]] += 1;
     }
@@ -202,6 +204,7 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
 
                 // compute the block size
                 int myblockSize[3] = {0,0,0};
+#pragma unroll 3
                 for (int id = 0; id < 3; id++) {
                     myblockSize[id] = (bidv[id] < (nBlockv[id] - 1))? nByBlock[id] : (iend[id] - istart[id]) - bidv[id] * nByBlock[id];
                 }
@@ -305,12 +308,12 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
     // for each block in the output configuration, I give its ID to the sender
     // for each block in the input configuration, I receive from the destinator of this block the tag to put in the comm
     for (int ib = 0; ib < inBlock; ib++) {
-        MPI_Irecv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm,irequest+ib);
+        MPI_Irecv((*i2o_destTag) + ib, 1, MPI_INT, i2o_destRank[ib], 0, comm, irequest+ib);
     }
 
     for (int ib = 0; ib < onBlock; ib++) {
         ib_buffer[ib] = ib;
-        MPI_Isend(ib_buffer + ib, 1, MPI_INT, o2i_destRank[ib], 0, comm,orequest+ib);
+        MPI_Isend(ib_buffer + ib, 1, MPI_INT, o2i_destRank[ib], 0, comm, orequest+ib);
     }
     // for for everything to be done
     MPI_Waitall(inBlock,irequest,MPI_STATUSES_IGNORE);

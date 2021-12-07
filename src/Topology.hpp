@@ -117,17 +117,23 @@ class Topology {
 
     /**
      * @brief compute the rank associated to a scalar global id
-     * 
+     * The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality 
+     * global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
+     * Since we use integral division, we only take the right inequality to compute the 
+     * rank associated with a global id
+     *
      * @param global_id the scalar id of the point considered
      * @param id the direction of interest
      * @return int 
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const{
-        const int nproc_g0 = nglob_[id]%nproc_[id]; // number of procs that have a +1 in their unkowns
-        const int nbyproc = nglob_[id]/nproc_[id]; // the number of unknowns in the integer division
-        const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
+        // const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
+        // const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
+        // const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
 
-        return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
+        // return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
+        // const int isnot_last = (int) ( !(global_id == nglob_[id] - 1) );
+        return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;
     }
 
      /**
