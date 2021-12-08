@@ -24,6 +24,8 @@
  */
 
 #include "Solver.hpp"
+#include "FFTW_plan_dim_cell.hpp"
+#include "FFTW_plan_dim_node.hpp"
 
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
@@ -104,7 +106,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
         hgrid_[id] = h[id];
     }
     lda_       = topo->lda();
-    odiff_ = orderDiff;
+    odiff_     = orderDiff;
 
     //-------------------------------------------------------------------------
     /** - initialize the diff bc */
@@ -134,9 +136,15 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
     for (int id = 0; id < 3; id++) {
-        plan_forward_[id]  = new FFTW_plan_dim(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
-        plan_backward_[id] = new FFTW_plan_dim(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
-        plan_green_[id]    = new FFTW_plan_dim(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
+#if FLUPS_CELL_CENTERED
+        plan_forward_[id]  = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
+        plan_backward_[id] = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
+        plan_green_[id]    = new FFTW_plan_dim_cell(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
+#else 
+        plan_forward_[id]  = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
+        plan_backward_[id] = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
+        plan_green_[id]    = new FFTW_plan_dim_node(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
+#endif
     }
 
     sort_plans_(plan_forward_);
@@ -150,7 +158,11 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             // get the corresponding direction
             const int dimID = plan_backward_[id]->dimID();
             // initialize the plan with the BC of the considered direction
-            plan_backward_diff_[id] = new FFTW_plan_dim(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+#if FLUPS_CELL_CENTERED
+            plan_backward_diff_[id] = new FFTW_plan_dim_cell(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+#else 
+            plan_backward_diff_[id] = new FFTW_plan_dim_node(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+#endif 
         }
     }
 
@@ -1161,6 +1173,21 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     /** - go to Fourier */
     //-------------------------------------------------------------------------
     do_FFT(mydata, FLUPS_FORWARD);
+
+    // const int    ax0     = topo_hat_[2]->axis();
+    // const int    ax1     = (ax0 + 1) % 3;
+    // const int    ax2     = (ax0 + 2) % 3;
+    // const int    nmem[3] = {topo_hat_[2]->nmem(ax0), topo_hat_[2]->nmem(ax1), topo_hat_[2]->nmem(ax2)};
+    // for(int i2 = 0; i2 < topo_hat_[2]->nloc(ax2); i2 ++ ){
+    //     for(int i1 = 0; i1 < topo_hat_[2]->nloc(ax1); i1 ++ ){
+    //         for(int i0 = 0; i0 < topo_hat_[2]->nloc(ax0); i0 ++ ){
+    //             int ii = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
+    //             printf("%e \t ", mydata[ii]);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n \n \n");
+    // }
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_hat_[ndim_-1], "rhs_h", mydata);

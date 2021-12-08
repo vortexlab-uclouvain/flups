@@ -69,10 +69,10 @@ class FFTW_plan_dim {
     };
 
    protected:
-    const int  lda_;     /**<@brief the dimension of the solver */
-    const bool isGreen_; /**< @brief boolean is true if this plan is for a Green's function */
-    const int  dimID_;   /**< @brief the dimension of the plan in the field reference */
-    const int  sign_;    /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
+    const int  lda_;                /**<@brief the dimension of the solver */
+    const bool isGreen_;            /**< @brief boolean is true if this plan is for a Green's function */
+    const int  dimID_;              /**< @brief the dimension of the plan in the field reference */
+    const int  sign_;               /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
     bool   isr2c_       = false; /**< @brief is this plan the one that changes to complex?*/
     bool   isSpectral_  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
@@ -129,23 +129,26 @@ class FFTW_plan_dim {
 
    protected:
     void check_dataAlign_(const Topology* topo, double* data) const;
-    /**
-     * @name Initialization
-     */
-    /**@{ */
-    void init_real2real_(const int size[3], bool isComplex);
-    void init_mixunbounded_(const int size[3], bool isComplex);
-    void init_periodic_(const int size[3], bool isComplex);
-    void init_unbounded_(const int size[3], bool isComplex);
-    void init_empty_(const int size[3], bool isComplex);
-    /**@} */
-
+    
     /**
      * @name Plan allocation
      */
     /**@{ */
     void allocate_plan_real_(const Topology* topo, double* data);
     void allocate_plan_complex_(const Topology* topo, double* data);
+    /**@} */
+
+
+    /**
+     * @name Initialization
+     */
+    /**@{ */
+    virtual void init_real2real_(const int size[3], bool isComplex)    = 0;
+    virtual void init_mixunbounded_(const int size[3], bool isComplex) = 0;
+    virtual void init_periodic_(const int size[3], bool isComplex)     = 0;
+    virtual void init_unbounded_(const int size[3], bool isComplex)    = 0;
+    virtual void init_empty_(const int size[3], bool isComplex)        = 0;
+    virtual std::string disp_data_center() const                       = 0;
     /**@} */
 };
 
