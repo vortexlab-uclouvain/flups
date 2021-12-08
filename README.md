@@ -171,7 +171,13 @@ double h = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 Then, you can define a new solver and its boundary condition
 ```cpp
 // define the solver
-const FLUPS_BoundaryType mybc[3][2] = {{UNB, UNB}, {EVEN, ODD}, {UNB, EVEN}};  // BC in X,Y,Z
+FLUPS_BoundaryType* mybc[3][2];
+for(int id=0; id<3; id++){
+    for(int is=0; is<2; is++){
+        mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*lda);
+        for(int ida = 0; ida < lda; ida++) mybc[id][is][ida] = EVEN; 
+    }
+}
 FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L,prof);
 
 // setup the solver
@@ -188,6 +194,11 @@ Then, destroy the solver and the created topology
 ```
 flups_cleanup(mysolver);
 flups_topo_free(topo);
+for (int id = 0; id < 3; id++) {
+    for (int is = 0; is < 2; is++) {
+        flups_free(mybc[id][is]);
+    }
+}
 ```
 
 #### Code examples
