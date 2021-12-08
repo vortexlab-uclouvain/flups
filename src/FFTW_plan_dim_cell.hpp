@@ -48,7 +48,7 @@ class FFTW_plan_dim_cell : public FFTW_plan_dim {
     void init_mixunbounded_(const int size[3], bool isComplex) override;
     void init_periodic_(const int size[3], bool isComplex)     override;
     void init_unbounded_(const int size[3], bool isComplex)    override;
-    void init_empty_(const int size[3], bool isComplex)        override;
+    void init_empty_(const int size[3], bool isComplex) override {};
     std::string disp_data_center() const override {return ("cell-centered");};
     /**@} */
      
