@@ -4,12 +4,6 @@ CC = mpicc
 CXXFLAGS := -O3 -g -fopenmp 
 LDFLAGS := -fopenmp -lstdc++ -lm
 
-HDF5_INC := /usr/local/hdf5/include
-HDF5_LIB := /usr/local/hdf5/lib
-
-GTEST_INC := /soft/googletest/include
-GTEST_LIB := /soft/googletest/lib
-
 ## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
 FFTW_DIR  :=  /usr/local/fftw
 FFTW_LIB := ${FFTW_DIR}/lib
@@ -19,3 +13,7 @@ FFTW_INC := ${FFTW_DIR}/include
 HDF5_DIR  := /usr/local/hdf5
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
+
+## Specify the location of Googletest library (by default, assumed to be /usr/lib/)
+GTEST_INC := /soft/googletest/include
+GTEST_LIB := /soft/googletest/lib
