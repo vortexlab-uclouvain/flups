@@ -5,7 +5,7 @@ CXX = mpic++
 CC = mpicc
 
 # Set the options 
-OPTS+= -DNODE_CENTERED
+OPTS=  -DVERBOSE 
 
 # set the flag (optimisation or not)
 ## For debugging:
@@ -13,11 +13,11 @@ OPTS+= -DNODE_CENTERED
 ## For profiling:
 # CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
 ## For production:
-CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros
+CXXFLAGS := -g -O3 -std=c++17  -Wno-variadic-macros #-fsanitize=undefined -fsanitize=address
 
-CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros
+CCFLAGS := -O3 -std=c99  -Wno-variadic-macros
 
-LDFLAGS = -fopenmp 
+LDFLAGS = -fopenmp #-fsanitize=undefined -fsanitize=address
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

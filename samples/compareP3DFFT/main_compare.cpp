@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
     const double  L[3]     = {1., 1., 1.};
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+    
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
 
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
@@ -62,7 +64,7 @@ int main(int argc, char *argv[]) {
     std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0]/L[0])) + "_nrank" + std::to_string(comm_size)+"_nthread" + std::to_string(omp_get_max_threads());
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
-    FLUPS_Solver *mysolver = new FLUPS_Solver(topoIn, mybc, h, L, NOD, FLUprof);
+    FLUPS_Solver *mysolver = new FLUPS_Solver(topoIn, mybc, h, L, NOD, center_type, FLUprof);
 
     mysolver->set_GreenType(CHAT_2);
     double *solFLU = mysolver->setup(true);

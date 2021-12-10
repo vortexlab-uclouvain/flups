@@ -36,11 +36,6 @@
 #include "flups.h"
 
 
-#ifdef NODE_CENTERED
-#define FLUPS_CELL_CENTERED 0
-#else 
-#define FLUPS_CELL_CENTERED 1
-#endif
 
 //=============================================================================
 // LOCATORS

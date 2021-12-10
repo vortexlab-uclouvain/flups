@@ -37,6 +37,8 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+
     FLUPS_BoundaryType mybc[3][2] = {PER, PER,
                                             PER, PER,
                                             PER, PER};
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
 
     
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L, NONE);
+    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L, NONE, center_type);
     flups_set_greenType(mysolver,CHAT_2);
     double* solFLU = flups_setup(mysolver, true);
 

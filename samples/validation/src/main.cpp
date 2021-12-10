@@ -264,7 +264,6 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
-        printf("... on  %s data ", VALID_CELL_CENTERED ? "cell centered data \n": "node centered data \n");
     }
 
     for (int is = 0; is < nsample; is++) {

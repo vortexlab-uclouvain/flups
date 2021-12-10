@@ -100,6 +100,18 @@ enum FLUPS_DiffType {
     FD2 = 2 /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
 };
 
+
+/**
+ * @brief List of supported data center
+ * 
+ * The data can be either Cell-centered or Node-centered
+ */
+enum FLUPS_CenterType {
+    NODE_CENTER = 0, /**< NODE centered data  */
+    CELL_CENTER = 1 /**< CELL centered data */
+};
+
+
 /**
  * @brief to be used as "sign" for all of the FORWARD tranform
  * 
@@ -138,6 +150,7 @@ typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;
 typedef enum FLUPS_SolverType   FLUPS_SolverType;
 typedef enum FLUPS_DiffType     FLUPS_DiffType;
+typedef enum FLUPS_CenterType   FLUPS_CenterType;
 
 /**@} */
 
@@ -424,13 +437,13 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3]);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver

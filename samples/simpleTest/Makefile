@@ -23,24 +23,26 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_gcc_test
+ARCH_FILE ?= make_arch/make.docker_gcc
+
 include ../../$(ARCH_FILE)
+
+FLUPSDIR := ../../
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
-NAME := flups
+PREFIX ?= ./
+NAME := simple_test
+FLUPS_LIBNAME := -lflups_nb
 # executable naming
-TARGET_EXE_A2A := $(NAME)_validation_a2a
-TARGET_EXE_NB := $(NAME)_validation_nb
+TARGET_EXE_A2A := $(NAME)_a2a
+TARGET_EXE_NB := $(NAME)_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
-SRC_DIR := ./src
+SRC_DIR := ./
 OBJ_DIR := ./build
-
-## add the headers to the vpaths
-INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
 #---- FFTW
@@ -61,61 +63,58 @@ LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
-
-#---- METIS
-#check if HAVE_METIS
-ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
-	METIS_INC ?= /usr/include
-	METIS_LIB ?= /usr/lib
-	INC+= -I$(METIS_INC)
-	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
-endif
+LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
-HEAD := $(wildcard $(SRC_DIR)/*.hpp)
+# HEAD := $(wildcard $(SRC_DIR)/*.hpp)
 
 ## generate object list
-DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
+# DEP := $(SRC:%.c=$(OBJ_DIR)/%.d)
 OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 
 ################################################################################
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
+
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: all
+default: $(TARGET_EXE_NB)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
-
-all2all: $(TARGET_EXE_A2A)
-
-nonblocking: $(TARGET_EXE_NB)
+all: default
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS)  $^ -o $@ $(LIB) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+
+install: $(TARGET_EXE_A2A) 
+	mkdir -p $(PREFIX)/bin
+	cp $(TARGET_EXE_A2A) $(PREFIX)/bin
+	cp $(TARGET_EXE_NB) $(PREFIX)/bin
+
+test:
+	@echo $(SRC)
+	@echo $(INC)
+	@echo $(LIB)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-
+	
 destroy:
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	rm -f $(OBJ_DIR)/*
-	rm -rf include
-	rm -rf lib
-
+	
 info:
 	@echo $(ARCH_FILE)
 	$(info SRC = $(SRC))
 	$(info OBJ = $(OBJ))
-	$(info OBJ = $(OBJ))
-	$(info DEP = $(DEP))
+	# $(info DEP = $(DEP))
 
--include $(DEP)
+# -include $(DEP)

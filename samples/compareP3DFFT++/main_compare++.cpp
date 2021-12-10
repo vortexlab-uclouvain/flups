@@ -142,6 +142,7 @@ int main(int argc, char *argv[]) {
     Topology *topoIn      = new Topology(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
     
     // prepare profiling
 #ifdef SKIP_P3D
@@ -152,7 +153,7 @@ int main(int argc, char *argv[]) {
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
     // solver creation and init
-    Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, FLUprof);
+    Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, center_type, FLUprof);
     mysolver->set_GreenType(CHAT_2);
     double *solFLU = mysolver->setup(true);
     // update the comm and the rank

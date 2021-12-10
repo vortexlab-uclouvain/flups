@@ -155,9 +155,9 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
     // prepare the stide: we will fill the file component by component
     int topo_offset[3];
     topo->get_istart_glob(topo_offset);
-    hsize_t count[4]  = {1, 1, 1, 1};                                                                                          // how many blocks to write
-    hsize_t stride[4] = {1, 1, 1, (hsize_t)topo->lda()};                                                                                          // distance between 2 blocks
-    hsize_t block[4]  = {(hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)   ,1};  // the block size = the local size
+    hsize_t count[4]  = {1, 1, 1, 1};                                                                                         // how many blocks to write
+    hsize_t stride[4] = {1, 1, 1, (hsize_t)topo->lda()};                                                                      // distance between 2 blocks
+    hsize_t block[4]  = {(hsize_t)topo->nloc(ax2), (hsize_t)topo->nloc(ax1), (hsize_t)topo->nloc(ax0)   ,1};                  // the block size = the local size
     hsize_t offset[4] = {(hsize_t)topo_offset[ax2], (hsize_t)topo_offset[ax1], (hsize_t)topo_offset[ax0],0};                  // offset in the file
 
     //-------------------------------------------------------------------------

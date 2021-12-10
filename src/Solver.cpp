@@ -37,7 +37,7 @@
  * @param orderDiff the differential order used for the rotational case. If no need of rotational, set 0. (order 1 = spectral, order 2 = finite diff 2nd order)
  * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler *prof){
+Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centertype[3], Profiler *prof){
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
@@ -136,15 +136,17 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
     for (int id = 0; id < 3; id++) {
-#if FLUPS_CELL_CENTERED
-        plan_forward_[id]  = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
-        plan_backward_[id] = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
-        plan_green_[id]    = new FFTW_plan_dim_cell(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
-#else 
-        plan_forward_[id]  = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
-        plan_backward_[id] = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
-        plan_green_[id]    = new FFTW_plan_dim_node(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
-#endif
+        if (CELL_CENTER == centertype[id]) {
+            plan_forward_[id]  = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
+            plan_backward_[id] = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
+            plan_green_[id]    = new FFTW_plan_dim_cell(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
+        } else if (NODE_CENTER == centertype[id]) {
+            plan_forward_[id]  = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
+            plan_backward_[id] = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
+            plan_green_[id]    = new FFTW_plan_dim_node(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
+        } else {
+            FLUPS_CHECK(false, "The type of data you asked is not supported", LOCATION);
+        }
     }
 
     sort_plans_(plan_forward_);
@@ -158,11 +160,11 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             // get the corresponding direction
             const int dimID = plan_backward_[id]->dimID();
             // initialize the plan with the BC of the considered direction
-#if FLUPS_CELL_CENTERED
-            plan_backward_diff_[id] = new FFTW_plan_dim_cell(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
-#else 
-            plan_backward_diff_[id] = new FFTW_plan_dim_node(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
-#endif 
+            if (CELL_CENTER == centertype[id]) {
+                plan_backward_diff_[id] = new FFTW_plan_dim_cell(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+            }else{
+                FLUPS_CHECK(false, "The type of data you asked is not supported", LOCATION);
+            }
         }
     }
 
@@ -1174,21 +1176,6 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     //-------------------------------------------------------------------------
     do_FFT(mydata, FLUPS_FORWARD);
 
-    // const int    ax0     = topo_hat_[2]->axis();
-    // const int    ax1     = (ax0 + 1) % 3;
-    // const int    ax2     = (ax0 + 2) % 3;
-    // const int    nmem[3] = {topo_hat_[2]->nmem(ax0), topo_hat_[2]->nmem(ax1), topo_hat_[2]->nmem(ax2)};
-    // for(int i2 = 0; i2 < topo_hat_[2]->nloc(ax2); i2 ++ ){
-    //     for(int i1 = 0; i1 < topo_hat_[2]->nloc(ax1); i1 ++ ){
-    //         for(int i0 = 0; i0 < topo_hat_[2]->nloc(ax0); i0 ++ ){
-    //             int ii = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
-    //             printf("%e \t ", mydata[ii]);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n \n \n");
-    // }
-
 #ifdef DUMP_DBG
     hdf5_dump(topo_hat_[ndim_-1], "rhs_h", mydata);
 #endif
@@ -1196,6 +1183,26 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     /** - Perform the magic */
     //-------------------------------------------------------------------------
     do_mult(mydata,type);
+
+    // Topology *ctopo = topo_hat_[2];
+
+    // int ax0     = ctopo->axis();
+    // int ax1     = (ax0 + 1) % 3;
+    // int ax2     = (ax0 + 2) % 3;
+    // int nmem[3] = {ctopo->nmem(ax0), ctopo->nmem(ax1), ctopo->nmem(ax2)};
+
+    // printf("ax0 = %d nmeme = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], ctopo->nloc(ax0), ctopo->nloc(ax1), ctopo->nloc(ax2));
+    // for (int i2 = 0; i2 < ctopo->nloc(ax2); i2++) {
+    //     for (int i1 = 0; i1 < ctopo->nloc(ax1); i1++) {
+    //         for (int i0 = 0; i0 < ctopo->nloc(ax0); i0++) {
+    //             int ii = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
+    //             printf("%4.0f \t ", mydata[ii]);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n \n \n");
+    // }
+
 
 #ifdef DUMP_DBG
     // io if needed

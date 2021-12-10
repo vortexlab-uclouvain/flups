@@ -53,6 +53,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
         for(int is=0; is<2; is++){
@@ -88,7 +90,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L, NOD, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, NOD, center_type, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -147,7 +149,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
                         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                                const double shift = 0.5*VALID_CELL_CENTERED;
+                                const double shift = 0.5;
                                 double       x     = (istart[0] + i0 + shift) * h[0] - centerPos[0];
                                 double       y     = (istart[1] + i1 + shift) * h[1] - centerPos[1];
                                 double       z     = (istart[2] + i2 + shift) * h[2] - centerPos[2];
@@ -299,7 +301,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                         const size_t id   = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
-                        const double shift = 0.5*VALID_CELL_CENTERED;
+                        const double shift = 0.5;
                         const double x[3] = {(istart[ax0] + i0 + shift) * h[ax0],
                                              (istart[ax1] + i1 + shift) * h[ax1],
                                              (istart[ax2] + i2 + shift) * h[ax2]};
@@ -417,7 +419,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     char   filename[512];
     string folder = "./data";
 
-    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};

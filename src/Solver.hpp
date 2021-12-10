@@ -74,6 +74,7 @@ class Solver {
     double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
     double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
     double*        data_          = NULL;  /**< @brief data pointer to the transposed memory */
+    
 
     /**
      * @name Forward and backward 
@@ -165,7 +166,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centerType[3], Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);

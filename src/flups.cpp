@@ -99,15 +99,15 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
 //********************************************************************* */
 
 // get a new solver
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff) {
-    Solver* s = new Solver(t, bc, h, L, orderDiff, NULL);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3]) {
+    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof) {
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof) {
 #ifndef PROF
-    Solver* s = new Solver(t, bc, h, L, orderDiff, NULL);
+    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
 #else
-    Solver* s = new Solver(t, bc, h, L, orderDiff, prof);
+    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, prof);
 #endif
     return s;
 }

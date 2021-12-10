@@ -1,5 +1,8 @@
 CXX = mpic++
 CC = mpicc
+
+# OPTS += 
+
 CCFLAGS := -O0 -g --debug -DVERBOSE -std=c99 -fopenmp -Wno-format-security -DPROF -Wcast-align -DDUMP_DBG
 CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -fopenmp -DPROF -Wcast-align -DDUMP_DBG
 LDFLAGS += -fopenmp -lstdc++ -lm
