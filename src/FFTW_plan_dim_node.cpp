@@ -42,17 +42,20 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
 
+    //When removing this assert, we have to make sure that the computation of the normfact_ is consistent with 3D data
+    FLUPS_CHECK(lda_<= 1 ,"For the moment, we can only handle scalar data in node centered simulation", LOCATION);
+
     //-------------------------------------------------------------------------
     /** - check that the BC given for the different component are compatible,
      *    i.e. the size of the transform is the same for every compoment */
     //-------------------------------------------------------------------------
     // get if the first dimension asks for a type 4 transform?
     bool istype4 = bc_[0][0] != bc_[1][0];
-    for(int lia=1; lia<lda_; lia++){
+    for (int lia = 1; lia < lda_; lia++) {
         // a boundary condition of type4 = left != right has to be the case for EVERY component
         bool type4 = bc_[0][lia] != bc_[1][lia];
-        if((type4 && !istype4) || (!type4 && istype4) ){
-            FLUPS_ERROR("one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported",LOCATION);
+        if ((type4 && !istype4) || (!type4 && istype4)) {
+            FLUPS_ERROR("one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported", LOCATION);
         }
     }
 
@@ -62,12 +65,6 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     symstart_   = 0;  // if no symmetry is needed, set to 0
     fieldstart_ = 0;
     isr2c_      = false;
-
-    //-------------------------------------------------------------------------
-    /** - update #normfact_ factor */
-    //-------------------------------------------------------------------------
-    // following the FFTW3 documentations, two consecutive RED00 should be normalised by 1/2(N-1)
-    normfact_ *= 1.0 / (2.0 * (size[dimID_] - 1));
 
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
@@ -80,6 +77,10 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
     // yet its easier to read if we set them lda times...
     for (int lia = 0; lia < lda_; lia++) {
+        
+        //-------------------------------------------------------------------------
+        /** - Take care of the Green function                                    */
+        //-------------------------------------------------------------------------
         if (isGreen_) {
             corrtype_[lia] = CORRECTION_NONE;
             imult_[lia]    = false;
@@ -94,22 +95,38 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
             } else {
                 // we go for DST/DCT of type I or III
                 // -> we have to add one information because of the vertex-centered
-                n_in_  = size[dimID_];
-                n_out_ = size[dimID_] + FLUPS_CELL_CENTERED;
+                
                 // no shift in the mode is required
                 koffset_ = 0.0;
+                if (bc_[0][lia] == EVEN) { 
+                    n_in_  = size[dimID_];
+                    n_out_ = size[dimID_];
+                    normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
+                    }
+                else if (bc_[0][lia] == ODD){ 
+                    n_in_  = size[dimID_] - 2;
+                    n_out_ = size[dimID_] - 2;
+                    normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
+                    printf("Moiiiiiiiiiiiiiiiiiiii====================================== \n");
+                    }        
             }
             return;
-        } else if (bc_[0][lia] == EVEN) {  // We have a DCT
+        
+        //-------------------------------------------------------------------------
+        /** - Take care of the DCTs                                              */
+        //-------------------------------------------------------------------------
+        } else if (bc_[0][lia] == EVEN) {  
             // the information coming in does not change
             n_in_ = size[dimID_];
             // we do a DCT, so no imult
             imult_[lia] = false;
             if (bc_[1][lia] == EVEN) {
+                
+                normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
                 // -> we add the flip-flop mode by hand
-                n_out_ = size[dimID_] + FLUPS_CELL_CENTERED;
+                n_out_ = size[dimID_];
                 // the correction is the one of the DCT = put 0 in the flip-flop mode
-                corrtype_[lia] = FLUPS_CELL_CENTERED ? CORRECTION_DCT : CORRECTION_NONE;
+                corrtype_[lia] = CORRECTION_NONE;
                 koffset_       = 0.0;
                 // choose the correct type
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
@@ -124,26 +141,36 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT11;   // DCT type IV
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT11;  // DCT type IV
             }
+        
+        //-------------------------------------------------------------------------
+        /** - Take care of the DSTs                                              */
+        //-------------------------------------------------------------------------
         } else if (bc_[0][lia] == ODD) {  // We have a DST
-                                          // the information coming in does not change
-            n_in_ = size[dimID_];
-            // we do a DST, so no imult
+
+            // we do a DST, so imult
             imult_[lia] = true;
             if (bc_[1][lia] == ODD) {
-                // -> we add the 0 mode by hand
-                n_out_ = size[dimID_] + 1;
-                // the correction is the one of the DST = put 0 in the 0 mode
-                corrtype_[lia] = CORRECTION_DST;
+                
+                // -> we remove the first and the last data, as FFTW don't need them 
+                n_in_  = size[dimID_] - 2;
+                n_out_ = size[dimID_] - 2;
+                normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
+
+                // The first data of the memory is not given to fftw
+                corrtype_[lia] = CORRECTION_NONE;
                 koffset_       = 0.0;
+                fieldstart_   = -1;  
+
                 // always the correct DST
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT10;   // DST type II
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT01;  // DST type III
+                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
+                if (sign_ == FLUPS_BACKWARD)kind_[lia] = FFTW_RODFT00;   // DST type I
+
             } else if (bc_[1][lia] == EVEN) {
                 // no additional mode is required
                 n_out_ = size[dimID_];
                 // no correction is needed for the types 4 but an offset of 1/2 in fourier
                 corrtype_[lia] = CORRECTION_NONE;
-                koffset_       = 0.5;
+                koffset_       = 0.0;
                 // always the samed DST
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT11;   // DST type IV
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT11;  // DST type IV
@@ -151,6 +178,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         } else {
             FLUPS_ERROR("unable to init the solver required", LOCATION);
         }
+
     }
     END_FUNC;
 }
@@ -262,13 +290,13 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = size[dimID_];  // takes n complex, return n complex
-        n_out_ = size[dimID_];
-
+        n_in_  = size[dimID_] - 1;   // takes n complex, return n complex
+        n_out_ = size[dimID_] - 1;
         isr2c_ = false;
+
     } else {
-        n_in_  = size[dimID_];   // takes n real
-        n_out_ = n_in_ / 2 + 1;  // return n_in/2 + 1 complex
+        n_in_  = size[dimID_] - 1;   // takes n real
+        n_out_ = n_in_ / 2 + 1;      // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }
@@ -286,7 +314,7 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     /** - update #normfact_ factor */
     //-------------------------------------------------------------------------
-    normfact_ *= 1.0 / (size[dimID_]);
+    normfact_ *= 1.0 / (size[dimID_] - 1);
 
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
