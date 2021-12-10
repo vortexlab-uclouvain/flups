@@ -99,10 +99,14 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-default: lib_static 
+# default: lib_static 
+default: lib_dynamic
 
 # for the validation, do a static lib
 validation: install_static
+
+# for the validation, do a static lib
+test : install_static
 
 # compile static and dynamic lib
 all: lib_static lib_dynamic
