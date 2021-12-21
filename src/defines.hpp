@@ -35,7 +35,32 @@
 #include "mpi.h"
 #include "flups.h"
 
-
+//=============================================================================
+// Debug
+//=============================================================================
+// #if DEBUG_ST
+#define FLUPS_print_data(topo, data)                                                                                                               \
+    ({                                                                                                                                             \
+        const int    ax0     = topo->axis();                                                                                                       \
+        const int    ax1     = (ax0 + 1) % 3;                                                                                                      \
+        const int    ax2     = (ax0 + 2) % 3;                                                                                                      \
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                      \
+        const size_t memdim  = topo->memdim();                                                                                                     \
+        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
+        const size_t inmax   = topo->nloc(ax0);                                                                                                    \
+        printf("ax0 = %d nmem = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], topo->nloc(ax0), topo->nloc(ax1), topo->nloc(ax2)); \
+        for (int id = 0; id < onmax; id++) {                                                                                                       \
+            const size_t   lia    = id / ondim;                                                                                                    \
+            const size_t   io     = id % ondim;                                                                                                    \
+            opt_double_ptr argloc = data + collapsedIndex(ax0, 0, io, nmem, 1);                                                                    \
+            for (size_t ii = 0; ii < inmax; ii++) {                                                                                                \
+                printf("%e \t ", argloc[ii]);                                                                                                   \
+            }                                                                                                                                      \
+            printf("\n");                                                                                                                          \
+        }                                                                                                                                          \
+    })
+// #endif
 
 //=============================================================================
 // LOCATORS
@@ -53,7 +78,7 @@ static inline void FLUPS_WARNING(std::string a, std::string loc) {
     sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
     printf("%s", msg_error);
     fflush(stdout);
-};
+    };
 template<typename T1>
 static inline void FLUPS_WARNING(std::string a, T1 b, std::string loc) {
     char tmp[512];

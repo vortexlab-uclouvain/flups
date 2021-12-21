@@ -74,6 +74,12 @@ class Solver {
     double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
     double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
     double*        data_          = NULL;  /**< @brief data pointer to the transposed memory */
+
+#if DEBUG_ST
+    double*        datad_[4]      = {NULL, NULL, NULL, NULL};  /**< @brief data pointer to the transposed memory */
+    void           copydata_(const Topology * const topo, double *datad);
+    void           comparedata_(const Topology * const topo, double *datad);
+#endif
     
 
     /**

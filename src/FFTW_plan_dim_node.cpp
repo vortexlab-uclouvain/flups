@@ -84,101 +84,140 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         if (isGreen_) {
             corrtype_[lia] = CORRECTION_NONE;
             imult_[lia]    = false;
-            // if we are doing odd-even we have to use shifted FFTW plans
-            if (bc_[0][lia] != bc_[1][lia]) {
-                // we would go for a DCT/DST type III
-                // -> the size of unknows: DST missing first point, DCT missing last one
-                n_in_  = size[dimID_];
-                n_out_ = size[dimID_];
-                // -> the modes are shifted by 1/2
-                koffset_ = 0.5;
-            } else {
-                // we go for DST/DCT of type I or III
-                // -> we have to add one information because of the vertex-centered
-                
-                // no shift in the mode is required
-                koffset_ = 0.0;
-                if (bc_[0][lia] == EVEN) { 
+
+            if (bc_[0][lia] == EVEN) {
+                if (bc_[1][lia] == EVEN) {
                     n_in_  = size[dimID_];
                     n_out_ = size[dimID_];
                     normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
-                    }
-                else if (bc_[0][lia] == ODD){ 
+                    koffset_   = 0.0;
+
+                } else if (bc_[1][lia] == ODD) {
+                    // We need to remove the 0 at the end of the input
+                    n_in_  = size[dimID_] - 1;
+                    n_out_ = size[dimID_] - 1;
+                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    koffset_   = 0.0;
+                }
+
+            }else if (bc_[0][lia] == ODD) {  // We have a DST
+                if (bc_[1][lia] == ODD) {
                     n_in_  = size[dimID_] - 2;
                     n_out_ = size[dimID_] - 2;
                     normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
-                    printf("Moiiiiiiiiiiiiiiiiiiii====================================== \n");
-                    }        
+                    koffset_   = 1.0;
+
+                } else if (bc_[1][lia] == EVEN) {
+                    // no additional mode is required
+                    n_in_  = size[dimID_] - 1;
+                    n_out_ = size[dimID_] - 1;
+                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
+                    corrtype_[lia] = CORRECTION_NONE;
+                    koffset_       = 1.0;
+                    // always the samed DST
+
+                }
+
             }
+
+            //     // if we are doing odd-even we have to use shifted FFTW plans
+            //     if (bc_[0][lia] != bc_[1][lia]) {
+            //         // we would go for a DCT/DST type III
+            //         // -> the size of unknows: DST missing first point, DCT missing last one
+            //         n_in_  = size[dimID_];
+            //         n_out_ = size[dimID_];
+            //         // -> the modes are shifted by 1/2
+            //         koffset_ = 0.5;
+            //     } else {
+            //         // we go for DST/DCT of type I or III
+            //         // -> we have to add one information because of the vertex-centered
+
+            //         // no shift in the mode is required
+            //         koffset_ = 0.0;
+            //         if (bc_[0][lia] == EVEN) {
+
+            //         }
+            //         else if (bc_[0][lia] == ODD){ 
+            //         }
+
+            //     }        
+            // }
             return;
         
         //-------------------------------------------------------------------------
         /** - Take care of the DCTs                                              */
         //-------------------------------------------------------------------------
-        } else if (bc_[0][lia] == EVEN) {  
-            // the information coming in does not change
-            n_in_ = size[dimID_];
-            // we do a DCT, so no imult
-            imult_[lia] = false;
-            if (bc_[1][lia] == EVEN) {
-                
-                normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
-                // -> we add the flip-flop mode by hand
-                n_out_ = size[dimID_];
-                // the correction is the one of the DCT = put 0 in the flip-flop mode
-                corrtype_[lia] = CORRECTION_NONE;
-                koffset_       = 0.0;
-                // choose the correct type
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;  // DCT type I
-            } else if (bc_[1][lia] == ODD) {
-                // no additional mode is required
-                n_out_ = size[dimID_];
-                // no correction is needed for the types 4 but an offset of 1/2 in fourier
-                corrtype_[lia] = CORRECTION_NONE;
-                koffset_       = 0.5;
-                // always the samed DCT
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT11;   // DCT type IV
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT11;  // DCT type IV
+            } else if (bc_[0][lia] == EVEN) {
+                // we do a DCT, so no imult
+                imult_[lia] = false;
+
+                if (bc_[1][lia] == EVEN) {
+                    // the information coming in does not change
+                    n_in_  = size[dimID_];
+                    n_out_ = size[dimID_];
+                    normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
+
+                    // No correction or offset needed
+                    corrtype_[lia] = CORRECTION_NONE;
+                    koffset_       = 0.0;
+
+                    // Both the forward and the backward tranform uses a REDFT00 transform
+                    kind_[lia] = FFTW_REDFT00;  // DCT type I
+
+                } else if (bc_[1][lia] == ODD) {
+                    // We need to remove the 0 at the end of the input
+                    n_in_  = size[dimID_] - 1;
+                    n_out_ = size[dimID_] - 1;
+                    normfact_ *= 1.0 / (2.0 * (n_in_));
+
+                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
+                    corrtype_[lia] = CORRECTION_NONE;
+                    koffset_       = 0.0;
+                    // always the samed DCT
+                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT01;   // DCT type III
+                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT10;  // DCT type II (inverse of the type III)
+                }
+
+                //-------------------------------------------------------------------------
+                /** - Take care of the DSTs                                              */
+                //-------------------------------------------------------------------------
+            } else if (bc_[0][lia] == ODD) {  // We have a DST
+
+                // we do a DST, so imult
+                imult_[lia] = true;
+                if (bc_[1][lia] == ODD) {
+                    // -> we remove the first and the last data, as FFTW don't need them
+                    n_in_  = size[dimID_] - 2;
+                    n_out_ = size[dimID_] - 2;
+                    normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
+
+                    // The first data of the memory is not given to fftw
+                    corrtype_[lia] = CORRECTION_NONE;
+                    koffset_       = 0.0;
+                    fieldstart_    = -1;
+
+                    // always the correct DST
+                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
+                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
+
+                } else if (bc_[1][lia] == EVEN) {
+                    // no additional mode is required
+                    n_in_  = size[dimID_] - 1;
+                    n_out_ = size[dimID_] - 1;
+                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
+                    
+                    corrtype_[lia] = CORRECTION_NONE;
+                    koffset_       = 0.0;
+                    fieldstart_    = -1;
+                    // always the samed DST
+                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT01;   // DST type IV
+                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type IV
+                }
+            } else {
+                FLUPS_ERROR("unable to init the solver required", LOCATION);
             }
-        
-        //-------------------------------------------------------------------------
-        /** - Take care of the DSTs                                              */
-        //-------------------------------------------------------------------------
-        } else if (bc_[0][lia] == ODD) {  // We have a DST
-
-            // we do a DST, so imult
-            imult_[lia] = true;
-            if (bc_[1][lia] == ODD) {
-                
-                // -> we remove the first and the last data, as FFTW don't need them 
-                n_in_  = size[dimID_] - 2;
-                n_out_ = size[dimID_] - 2;
-                normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
-
-                // The first data of the memory is not given to fftw
-                corrtype_[lia] = CORRECTION_NONE;
-                koffset_       = 0.0;
-                fieldstart_   = -1;  
-
-                // always the correct DST
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
-                if (sign_ == FLUPS_BACKWARD)kind_[lia] = FFTW_RODFT00;   // DST type I
-
-            } else if (bc_[1][lia] == EVEN) {
-                // no additional mode is required
-                n_out_ = size[dimID_];
-                // no correction is needed for the types 4 but an offset of 1/2 in fourier
-                corrtype_[lia] = CORRECTION_NONE;
-                koffset_       = 0.0;
-                // always the samed DST
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT11;   // DST type IV
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT11;  // DST type IV
-            }
-        } else {
-            FLUPS_ERROR("unable to init the solver required", LOCATION);
-        }
-
     }
     END_FUNC;
 }
@@ -295,7 +334,7 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
         isr2c_ = false;
 
     } else {
-        n_in_  = size[dimID_] - 1;   // takes n real
+        n_in_  = size[dimID_] - 1;   // takes n-1 real
         n_out_ = n_in_ / 2 + 1;      // return n_in/2 + 1 complex
 
         isr2c_ = true;
@@ -308,7 +347,7 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     symstart_ = 0;  // if no symmetry is needed, set to 0
     if(isComplex ){
-        symstart_ = size[dimID_]/2.0;
+        symstart_ = (size[dimID_] - 1)/2.0;
     }
 
     //-------------------------------------------------------------------------

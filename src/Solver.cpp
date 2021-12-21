@@ -447,6 +447,11 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     if (prof_ != NULL) prof_->start("alloc_data");
     allocate_data_(topo_hat_, topo_phys_, &data_);
+#if DEBUG_ST
+    for(int i = 0; i < 4; i++){
+        allocate_data_(topo_hat_, topo_phys_, &datad_[i]);
+    }
+#endif
     if (prof_ != NULL) prof_->stop("alloc_data");
 
     //-------------------------------------------------------------------------
@@ -501,6 +506,12 @@ Solver::~Solver() {
     delete_topologies_(topo_hat_);
     
     if (data_ != NULL) flups_free(data_);
+
+#ifdef DEBUG_ST 
+    for(int i =0; i < 4; i++){
+        if (datad_[i] != NULL) flups_free(datad_[i]);
+    }
+#endif
 
     //cleanup
     fftw_cleanup_threads();
@@ -1118,7 +1129,7 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
 
     FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
     FLUPS_CHECK(topo->nloc(0) == topo_field->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field --> %d vs %d ",topo->nloc(1), topo_field->nloc(1) , LOCATION);
     FLUPS_CHECK(topo->nloc(2) == topo_field->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
     FLUPS_CHECK(topo->nglob(0) == topo_field->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
     FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
@@ -1168,6 +1179,10 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
 
     do_copy(topo_phys_, rhs, FLUPS_FORWARD);
 
+#if DEBUG_ST
+    copydata_(topo_phys_, datad_[0]);
+#endif
+
 #ifdef DUMP_DBG
     hdf5_dump(topo_phys_, "rhs", mydata);
 #endif
@@ -1175,6 +1190,10 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     /** - go to Fourier */
     //-------------------------------------------------------------------------
     do_FFT(mydata, FLUPS_FORWARD);
+    
+    // FLUPS_print_data(topo_hat_[0], mydata);            
+    // FLUPS_CHECK(false, "Stop there for a minute", LOCATION);
+
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_hat_[ndim_-1], "rhs_h", mydata);
@@ -1182,27 +1201,9 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
+#if !(DEBUG_ST)
     do_mult(mydata,type);
-
-    // Topology *ctopo = topo_hat_[2];
-
-    // int ax0     = ctopo->axis();
-    // int ax1     = (ax0 + 1) % 3;
-    // int ax2     = (ax0 + 2) % 3;
-    // int nmem[3] = {ctopo->nmem(ax0), ctopo->nmem(ax1), ctopo->nmem(ax2)};
-
-    // printf("ax0 = %d nmeme = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], ctopo->nloc(ax0), ctopo->nloc(ax1), ctopo->nloc(ax2));
-    // for (int i2 = 0; i2 < ctopo->nloc(ax2); i2++) {
-    //     for (int i1 = 0; i1 < ctopo->nloc(ax1); i1++) {
-    //         for (int i0 = 0; i0 < ctopo->nloc(ax0); i0++) {
-    //             int ii = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
-    //             printf("%4.0f \t ", mydata[ii]);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n \n \n");
-    // }
-
+#endif 
 
 #ifdef DUMP_DBG
     // io if needed
@@ -1219,7 +1220,11 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
-    //-------------------------------------------------------------------------
+    //------------------------------------------------------------------------- 
+#if DEBUG_ST
+    comparedata_(topo_phys_, datad_[0]);
+#endif
+
     do_copy(topo_phys_, field, FLUPS_BACKWARD);
 
 #ifdef DUMP_DBG
@@ -1357,6 +1362,9 @@ void Solver::do_FFT(double *data, const int sign){
         for (int ip = 0; ip < ndim_; ip++) {
             // go to the correct topo
             switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
+#if DEBUG_ST
+            copydata_(topo_hat_[ip], datad_[ip+1]);
+#else            
             // run the FFT
             if (prof_ != NULL) prof_->start("fftw");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1366,10 +1374,14 @@ void Solver::do_FFT(double *data, const int sign){
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
+            // FLUPS_print_data(topo_hat_[0], mydata);            
+            // FLUPS_CHECK(false, "Stop there for a minute", LOCATION);
+#endif
         }
     } 
     else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = ndim_-1; ip >= 0; ip--) {
+#if !(DEBUG_ST)
             if (prof_ != NULL) prof_->start("fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1378,6 +1390,9 @@ void Solver::do_FFT(double *data, const int sign){
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
+#else
+            comparedata_(topo_hat_[ip], datad_[ip+1]);
+#endif
             switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
         }
     }
@@ -1779,3 +1794,83 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     }
 #endif
 }
+
+
+#if DEBUG_ST
+void  Solver::copydata_(const Topology *const topo, double *datad) {    
+    
+    double* sourcedata = data_; 
+    double* argdata = datad;  
+
+    const int    ax0     = topo->axis();
+    const int    ax1     = (ax0 + 1) % 3;
+    const int    ax2     = (ax0 + 2) % 3;
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t memdim  = topo->memdim();
+    const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * lda_;
+    const size_t inmax   = topo->nloc(ax0);
+
+    // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+    if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+        for (int id = 0; id < onmax; id++) {
+            // get the lia and the io
+            const size_t lia = id / ondim;
+            const size_t io  = id % ondim;
+            // get the pointers
+            opt_double_ptr argloc    = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+            opt_double_ptr sourceloc = sourcedata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+            // set the alignment
+            FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+            FLUPS_ASSUME_ALIGNED(sourceloc, FLUPS_ALIGNMENT);
+            for (size_t ii = 0; ii < inmax; ii++) {
+                argloc[ii] = sourceloc[ii];
+            }
+        }
+    }
+}
+
+void   Solver::comparedata_(const Topology * const topo, double *datad){
+    double* sourcedata = data_; 
+    double* argdata = datad;  
+
+    const int    ax0     = topo->axis();
+    const int    ax1     = (ax0 + 1) % 3;
+    const int    ax2     = (ax0 + 2) % 3;
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t memdim  = topo->memdim();
+    const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * lda_;
+    const size_t inmax   = topo->nloc(ax0);
+
+    bool is_correct = true;
+
+    // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+    for (int id = 0; id < onmax; id++) {
+        // get the lia and the io
+        const size_t lia = id / ondim;
+        const size_t io  = id % ondim;
+        // get the pointers
+        opt_double_ptr argloc    = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        opt_double_ptr sourceloc = sourcedata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        // set the alignment
+        FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+        FLUPS_ASSUME_ALIGNED(sourceloc, FLUPS_ALIGNMENT);
+        for (size_t ii = 0; ii < inmax; ii++) {
+            is_correct = (bool) (argloc[ii] == sourceloc[ii]);
+        }
+    }
+
+    if(!is_correct){
+        printf("The data was : \n");
+        printf("ax0 = %d nmem = %d %d %d -- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], topo->nloc(ax0), topo->nloc(ax1), topo->nloc(ax2));
+        FLUPS_print_data(topo, argdata);
+
+        printf("The data now is  : \n");
+        FLUPS_print_data(topo, sourcedata);
+    }
+
+    FLUPS_CHECK(is_correct, "Your have a problem in your switch topo.. ", LOCATION);
+    FLUPS_INFO("You are good to go mate!!");
+}
+#endif

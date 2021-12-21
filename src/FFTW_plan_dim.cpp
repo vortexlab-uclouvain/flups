@@ -601,7 +601,6 @@ void FFTW_plan_dim::disp() {
     BEGIN_FUNC;
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Plan num created for dimension %d", dimID_);
-    FLUPS_INFO("- data are %s %d", disp_data_center());
     if (type_ == SYMSYM) {
         FLUPS_INFO("- type = real2real (=%d)", type_);
     } else if (type_ == MIXUNB) {
