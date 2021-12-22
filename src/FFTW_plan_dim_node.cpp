@@ -384,26 +384,26 @@ void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex
     /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = 2 * size[dimID_];  // takes 2n complex, return 2n complex
-        n_out_ = 2 * size[dimID_];
+        n_in_  = 2 * (size[dimID_] - 1);  // takes 2n complex, return 2n complex
+        n_out_ = 2 * (size[dimID_] - 1);
 
         isr2c_ = false;
     } else {
-        n_in_  = 2 * size[dimID_];  // takes 2n real (because of the padding)
+        n_in_  = 2 * (size[dimID_] - 1);  // takes 2n real (because of the padding)
         n_out_ = n_in_ / 2 + 1;     // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }
 
     fieldstart_ = 0;
-    //-------------------------------------------------------------------------
+    //------------------------------------------------------------------------- .///
     /** - get the #symstart_ if is Green */
     //-------------------------------------------------------------------------
     symstart_ = size[dimID_];
     //-------------------------------------------------------------------------
     /** - update #normfact_ factor */
     //-------------------------------------------------------------------------
-    normfact_ *= 1.0 / (2.0 * size[dimID_]);
+    normfact_ *= 1.0 / (2.0 * (size[dimID_] - 1 ));
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
