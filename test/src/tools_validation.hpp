@@ -8,6 +8,21 @@
 #define DOUBLE_TOL 1e-15
 #define CONV_TOL   0.05
 
+#define NSPECTRAL 7
+
+static const FLUPS_BoundaryType spectral_bc[NSPECTRAL][6] = {
+    {PER, PER, PER, PER, PER, PER},
+    {EVEN, EVEN, EVEN, EVEN, EVEN},
+    {ODD, ODD, ODD, ODD, ODD, ODD},
+    {EVEN, EVEN, ODD, ODD, EVEN, EVEN},
+    {PER, PER, EVEN, EVEN, ODD, ODD},
+    {PER, PER, ODD, EVEN, PER, PER},
+    {EVEN, ODD, EVEN, EVEN, EVEN, EVEN}
+};
+
+static const FLUPS_BoundaryType fully_unbounded_bc[1][6] = {
+    {UNB, UNB, UNB, UNB, UNB, UNB},
+};
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
@@ -56,6 +71,8 @@ static double KernelOrder(FLUPS_GreenType kernel){
     return 0; 
 }
 
+class AnalyticalField;
+typedef double (*anal_fn)(const double, const double, const AnalyticalField* fid);
 
 class AnalyticalField {
     protected:
@@ -65,33 +82,35 @@ class AnalyticalField {
      double             center_  = 0.5;
      double             sigma_   = .5;  // sigma for the compact Gaussian
      FLUPS_BoundaryType bc_[2]   = {PER, PER};
-
+     anal_fn            sol_fn_  = nullptr;
+     anal_fn            rhs_fn_  = nullptr;
+     
+     void SetAnalFn_();
 
     public: 
     explicit AnalyticalField() = default; 
-    explicit AnalyticalField(FLUPS_BoundaryType bc[2]): bc_{bc[0], bc[1]} {}; 
-    explicit AnalyticalField(FLUPS_BoundaryType bc[2], int lda, double freq, double sign[2], double center, double sigma):bc_{bc[0], bc[1]}, lia_(lda), freq_(freq), sign_{sign[0], sign[1]}, center_(center), sigma_(sigma){}; 
+    explicit AnalyticalField(FLUPS_BoundaryType bc[2]);
+    explicit AnalyticalField(FLUPS_BoundaryType bc[2], int lda, double freq, double sign[2], double center, double sigma);//:bc_{bc[0], bc[1]}, lia_(lda), freq_(freq), sign_{sign[0], sign[1]}, center_(center), sigma_(sigma){}; 
     ~AnalyticalField(){};
 
-    void SetParam(FLUPS_BoundaryType bc[2]){
-        bc_[0] = bc[0];
-        bc_[1] = bc[1];
-    }
     
-    inline double freq() const {return freq_;};
+    void SetParam(FLUPS_BoundaryType bc0, FLUPS_BoundaryType bc1){
+        bc_[0] = bc0;
+        bc_[1] = bc1;
+        SetAnalFn_();
+    }
 
-    template <FLUPS_BoundaryType BC0, FLUPS_BoundaryType BC1>
-    inline double RhsSpe(const double x, const double L){
-        
-        // FLUPS_CHECK(false, "There is no specialisation for your case", LOCATION);
-    };
+    double freq() const { return freq_; };
+    double sign(const int id) const { return sign_[id]; };
+    double center() const { return center_; };
+    double sigma() const { return sigma_; };
 
-    template <FLUPS_BoundaryType BC0, FLUPS_BoundaryType BC1>
-    inline double SolSpe(const double x, const double L){
-        // FLUPS_CHECK(false, "There is no specialisation for your case", LOCATION);
+    double Rhs(const double x, const double L){
+        return rhs_fn_(x, L, this);
+    }; 
+    double Sol(const double x, const double L){
+        return sol_fn_(x, L, this);
     };
-    double Rhs(const double x, const double L); 
-    double Sol(const double x, const double L);
 };
 
 class BaseConvergenceTest : public testing::TestWithParam<int> {
@@ -119,11 +138,11 @@ class BaseConvergenceTest : public testing::TestWithParam<int> {
     double ComputeErr_(); 
 
     // Functions used in the test - To be overriden
-    virtual void InitFlups_(int N, FLUPS_GreenType kernel, FLUPS_BoundaryType bc_in) = 0;
+    virtual void InitFlups_(int N, FLUPS_GreenType kernel, const FLUPS_BoundaryType bc_in[6]) = 0;
    public:
     BaseConvergenceTest(double shift) : shift_(shift){};
 
-    void ActualTest(FLUPS_GreenType kernel, FLUPS_BoundaryType boundary) {
+    void ActualTest(FLUPS_GreenType kernel, const FLUPS_BoundaryType boundary[6]) {
         int Nmin = 128;
         if (kernel == CHAT_2 || kernel == HEJ_0) {
             InitFlups_(Nmin, kernel, boundary);
@@ -131,11 +150,12 @@ class BaseConvergenceTest : public testing::TestWithParam<int> {
             double err = ComputeErr_();
             printf(" The convergence of %s is spectral. You obtained a error of %e \n \n", kname[(int)kernel].c_str(), err);
             ASSERT_NEAR(err, 0.0, DOUBLE_TOL);
+            KillFlups_();
         } else {
             double erri[2];
             for(int i = 1; i <= 2; i++){
                 InitFlups_(Nmin*i, kernel, boundary);
-                erri[i] = ComputeErr_();
+                erri[i-1] = ComputeErr_();
                 KillFlups_();
             }
             double expected_order = KernelOrder(kernel);
@@ -147,44 +167,96 @@ class BaseConvergenceTest : public testing::TestWithParam<int> {
 
 };
 
-template<> 
-inline double AnalyticalField::RhsSpe<PER, PER>(const double x, const double L){
-    return -(c_2pi / L * freq_) * (c_2pi / L * freq_) * sin((c_2pi / L * freq_) * x);
-};
 
-template<> 
-inline double AnalyticalField::SolSpe<PER, PER>(const double x, const double L){
-    return sin((c_2pi / L * freq_) * x);
-};
+static inline double fOddOdd(const double x, const double L, const AnalyticalField* fid) {
+    return sin((c_2pi / L * fid->freq()) * x);
+}
+static inline double d2dx2_fOddOdd(const double x, const double L, const AnalyticalField* fid) {
+    return -(c_2pi / L * fid->freq()) * (c_2pi / L * fid->freq()) * sin((c_2pi / L * fid->freq()) * x);
+}
 
-template<> 
-inline double AnalyticalField::RhsSpe<ODD, ODD>(const double x, const double L){
-    return -(c_2pi / L * freq_) * (c_2pi / L * freq_) * sin((c_2pi / L * freq_) * x);
-};
+static inline double fEvenEven(const double x, const double L, const AnalyticalField* fid) {
+    return cos((M_PI / L * fid->freq()) * x);
+}
+static inline double d2dx2_fEvenEven(const double x, const double L, const AnalyticalField* fid) {
+    return -(M_PI / L * fid->freq()) * (M_PI / L * fid->freq()) * cos((M_PI / L * fid->freq()) * x);
+}
 
-template<> 
-inline double AnalyticalField::SolSpe<ODD, ODD>(const double x, const double L){
-    return sin((c_2pi / L * freq_) * x);
-};
+static inline double fOddEven(const double x, const double L, const AnalyticalField* fid) {
+    return sin((M_PI / L * (fid->freq()+.5)) * x);
+}
+static inline double d2dx2_fOddEven(const double x, const double L, const AnalyticalField* fid) {
+    return -(M_PI / L * (fid->freq()+.5)) * (M_PI / L * (fid->freq()+.5)) * sin((M_PI / L * (fid->freq()+.5)) * x);
+}
 
-template<> 
-inline double AnalyticalField::RhsSpe<EVEN, EVEN>(const double x, const double L){
-    return  -(M_PI / L * freq_) * (M_PI / L * freq_) * cos((M_PI / L * freq_) * x);
-};
+static inline double fEvenOdd(const double x, const double L, const AnalyticalField* fid) {
+    return cos((M_PI / L * (fid->freq()+.5)) * x);
+}
+static inline double d2dx2_fEvenOdd(const double x, const double L, const AnalyticalField* fid) {
+    return -(M_PI / L * (fid->freq()+.5)) * (M_PI / L * (fid->freq()+.5)) * cos((M_PI / L * (fid->freq()+.5)) * x);
+}
 
-template<> 
-inline double AnalyticalField::SolSpe<EVEN, EVEN>(const double x, const double L){
-    return sin((M_PI / L * (freq_ + .5)) * x);
-};
+static inline double fUnb(const double x, const double L, const AnalyticalField* fid) {
+    const double x0 = (x -       fid->center()  * L) / fid->sigma();
+    const double x1 = (x +       fid->center()  * L) / fid->sigma();
+    const double x2 = (x - (2. - fid->center()) * L) / fid->sigma();
+    return                   exp(-x0*x0) + \
+            fid->sign(0) * exp(-x1*x1) + \
+            fid->sign(1) * exp(-x2*x2) ;
+}
+static inline double ddx_fUnb(const double x, const double L, const AnalyticalField* fid) {
+    const double x0 = (x -       fid->center()  * L) / fid->sigma();
+    const double x1 = (x +       fid->center()  * L) / fid->sigma();
+    const double x2 = (x - (2. - fid->center()) * L) / fid->sigma();
 
-template<> 
-inline double AnalyticalField::RhsSpe<ODD, EVEN>(const double x, const double L){
-    return -(c_2pi / L * freq_) * (c_2pi / L * freq_) * sin((c_2pi / L * freq_) * x);
-};
+    return                   -2.0/(fid->sigma()) * exp(-x0*x0) * x0 + \
+            fid->sign(0)   * -2.0/(fid->sigma()) * exp(-x1*x1) * x1 + \
+            fid->sign(1)   * -2.0/(fid->sigma()) * exp(-x2*x2) * x2;
+}
+static inline double d2dx2_fUnb(const double x, const double L, const AnalyticalField* fid) {
+    const double x0 = (x -       fid->center()  * L) / fid->sigma();
+    const double x1 = (x +       fid->center()  * L) / fid->sigma();
+    const double x2 = (x - (2. - fid->center()) * L) / fid->sigma();
+    return                   -2. / (fid->sigma() * fid->sigma()) * exp(-x0*x0 ) * (1. - 2. * ( x0 * x0)) + \
+            fid->sign(0) * -2. / (fid->sigma() * fid->sigma()) * exp(-x1*x1 ) * (1. - 2. * ( x1 * x1)) + \
+            fid->sign(1) * -2. / (fid->sigma() * fid->sigma()) * exp(-x2*x2 ) * (1. - 2. * ( x2 * x2)) ;
+}
 
-template<> 
-inline double AnalyticalField::SolSpe<ODD, EVEN>(const double x, const double L){
-    return -(M_PI / L * (freq_ + .5)) * (M_PI / L * (freq_ + .5)) * sin((M_PI / L * (freq_ + .5)) * x);
-};
+static const double c_C = 10.;
+
+static inline double fUnbSpietz(const double x, const double L, const AnalyticalField* fid) {
+    const double x0 = (x -       fid->center()  * L) / (fid->sigma() * L);
+    const double x1 = (x +       fid->center()  * L) / (fid->sigma() * L);
+    const double x2 = (x - (2. - fid->center()) * L) / (fid->sigma() * L);
+    return    (fabs(x0)>=1. ? 0.0 :                  exp(c_C * (1. - 1. / (1. - x0 * x0)))) + \
+              (fabs(x1)>=1. ? 0.0 : fid->sign(0) * exp(c_C * (1. - 1. / (1. - x1 * x1)))) + \
+              (fabs(x2)>=1. ? 0.0 : fid->sign(1) * exp(c_C * (1. - 1. / (1. - x2 * x2))));
+}
+static inline double ddx_fUnbSpietz(const double x, const double L, const AnalyticalField* fid) {
+    const double x0 = (x -       fid->center()  * L) / (fid->sigma() * L);
+    const double x1 = (x +       fid->center()  * L) / (fid->sigma() * L);
+    const double x2 = (x - (2. - fid->center()) * L) / (fid->sigma() * L);
+
+    return    (fabs(x0)>=1. ? 0.0 :                  (-2.0) * c_C * x0 * exp(c_C * (1.0 - 1.0 / (1.0 - x0*x0))) / (fid->sigma()*L * pow((1.0 - x0*x0),2.0))) + \
+              (fabs(x1)>=1. ? 0.0 : fid->sign(0) *   (-2.0) * c_C * x1 * exp(c_C * (1.0 - 1.0 / (1.0 - x1*x1))) / (fid->sigma()*L * pow((1.0 - x1*x1),2.0))) + \
+              (fabs(x2)>=1. ? 0.0 : fid->sign(1) *   (-2.0) * c_C * x2 * exp(c_C * (1.0 - 1.0 / (1.0 - x2*x2))) / (fid->sigma()*L * pow((1.0 - x2*x2),2.0))) ;
+}
+static inline double d2dx2_fUnbSpietz(const double x, const double L, const AnalyticalField* fid) {
+    const double x0sq = pow((x -       fid->center()  * L) / (fid->sigma() * L),2);
+    const double x1sq = pow((x +       fid->center()  * L) / (fid->sigma() * L),2);
+    const double x2sq = pow((x - (2. - fid->center()) * L) / (fid->sigma() * L),2);
+    return    (fabs(x0sq)>=1. ? 0.0 :                  exp(c_C * (1. - 1. / (1. - x0sq))) * (2. * c_C * (2. * (c_C - 1.) * x0sq + 3. * x0sq * x0sq - 1.)) / pow(x0sq - 1., 4) / (fid->sigma()*L*fid->sigma()*L)) + \
+              (fabs(x1sq)>=1. ? 0.0 : fid->sign(0) * exp(c_C * (1. - 1. / (1. - x1sq))) * (2. * c_C * (2. * (c_C - 1.) * x1sq + 3. * x1sq * x1sq - 1.)) / pow(x1sq - 1., 4) / (fid->sigma()*L*fid->sigma()*L)) + \
+              (fabs(x2sq)>=1. ? 0.0 : fid->sign(1) * exp(c_C * (1. - 1. / (1. - x2sq))) * (2. * c_C * (2. * (c_C - 1.) * x2sq + 3. * x2sq * x2sq - 1.)) / pow(x2sq - 1., 4) / (fid->sigma()*L*fid->sigma()*L)) ;
+}
+
+static inline double fCst(const double x, const double L, const AnalyticalField* fid) {
+    return 1.0;
+}
+static inline double fZero(const double x, const double L, const AnalyticalField* fid) {
+    return 0.0;
+}
+
+
 
 #endif //_SRC_TOOLS_VALIDATION
