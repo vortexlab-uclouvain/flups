@@ -97,7 +97,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     n_in_  = size[dimID_] - 1;
                     n_out_ = size[dimID_] - 1;
                     normfact_ *= 1.0 / (2.0 * (n_in_));
-                    koffset_   = 0.0;
+                    koffset_   = 0.5;
                 }
 
             }else if (bc_[0][lia] == ODD) {  // We have a DST
@@ -114,7 +114,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     normfact_ *= 1.0 / (2.0 * (n_in_));
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
                     corrtype_[lia] = CORRECTION_NONE;
-                    koffset_       = 1.0;
+                    koffset_       = 0.5;
                     // always the samed DST
 
                 }
