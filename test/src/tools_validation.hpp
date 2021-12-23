@@ -9,7 +9,6 @@
 #define CONV_TOL   0.05
 
 #define NSPECTRAL 7
-
 static const FLUPS_BoundaryType spectral_bc[NSPECTRAL][6] = {
     {PER, PER, PER, PER, PER, PER},
     {EVEN, EVEN, EVEN, EVEN, EVEN},
@@ -22,6 +21,17 @@ static const FLUPS_BoundaryType spectral_bc[NSPECTRAL][6] = {
 
 static const FLUPS_BoundaryType fully_unbounded_bc[1][6] = {
     {UNB, UNB, UNB, UNB, UNB, UNB},
+};
+
+#define NMIXUNB 6
+static const FLUPS_BoundaryType mix_unbounded_bc[NMIXUNB][6] = {
+    {EVEN, EVEN, UNB, UNB, EVEN, EVEN},
+    {UNB, UNB, UNB, UNB, UNB, UNB},
+    {ODD, ODD, ODD, UNB, ODD, ODD},
+    {EVEN, EVEN, EVEN, UNB, EVEN, EVEN},
+    {ODD, ODD, UNB, ODD, ODD, ODD},
+    {EVEN, EVEN, UNB, EVEN, EVEN, EVEN}
+    
 };
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
@@ -100,10 +110,16 @@ class AnalyticalField {
         SetAnalFn_();
     }
 
+    // Getter 
     double freq() const { return freq_; };
     double sign(const int id) const { return sign_[id]; };
     double center() const { return center_; };
     double sigma() const { return sigma_; };
+
+    // Setter
+    void SetFreq(const double freq){freq_ = freq;};
+    void SetCenter(const double center){center_ = center;};
+    void SetSign(const int id, const double sign){sign_[id] = sign;};
 
     double Rhs(const double x, const double L){
         return rhs_fn_(x, L, this);
@@ -143,7 +159,7 @@ class BaseConvergenceTest : public testing::TestWithParam<int> {
     BaseConvergenceTest(double shift) : shift_(shift){};
 
     void ActualTest(FLUPS_GreenType kernel, const FLUPS_BoundaryType boundary[6]) {
-        int Nmin = 128;
+        int Nmin = 64;
         if (kernel == CHAT_2 || kernel == HEJ_0) {
             InitFlups_(Nmin, kernel, boundary);
 
@@ -160,7 +176,7 @@ class BaseConvergenceTest : public testing::TestWithParam<int> {
             }
             double expected_order = KernelOrder(kernel);
             double computed_order = -log(erri[1] / erri[0]) / log(2.0);
-            printf(" The choosen kernel is %s has an order of %2.0f. You obtained a convergence of %2.3f \n \n", kname[(int)kernel].c_str(), expected_order, computed_order);
+            printf(" The choosen kernel is %s has an order of %2.0f. You obtained a convergence of %2.3f\n \n", kname[(int)kernel].c_str(), expected_order, computed_order);
             ASSERT_GE(computed_order, expected_order - CONV_TOL);
         }
     }

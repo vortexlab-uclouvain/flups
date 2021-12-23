@@ -42,6 +42,9 @@ double BaseConvergenceTest::ComputeErr_() {
     for (int dir = 0; dir < 3; dir++) {
         analytics[dir].SetParam(*mybc_[dir][0], *mybc_[dir][1]);
     }
+    analytics[0].SetFreq(1.);
+    analytics[1].SetFreq(2.);
+    analytics[2].SetFreq(4.);
 
     for (int i2 = 0; i2 < flups_topo_get_nloc(topo_, ax2); i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topo_, ax1); i1++) {
@@ -107,10 +110,31 @@ void AnalyticalField::SetAnalFn_(){
     } else if (bc_[0] == ODD && bc_[1] == EVEN) {
         sol_fn_ = &fOddEven;
         rhs_fn_ = &d2dx2_fOddEven;
-    }  else if (bc_[0] == UNB && bc_[1] == UNB) {
-        sol_fn_ = &fOddEven;
-        rhs_fn_ = &d2dx2_fOddEven;
+    } else if (bc_[0] == UNB && bc_[1] == UNB) {
+        sol_fn_ = &fUnbSpietz;
+        rhs_fn_ = &d2dx2_fUnbSpietz;
+    } else if (bc_[0] == UNB && bc_[1] != UNB){
+        if(bc_[1] == ODD){
+            center_  = 0.7;
+            sign_[1] = -1;
+        } else if (bc_[1] == EVEN){
+            center_  = 0.7;
+            sign_[1] = +1;
+        }
+        sol_fn_ = &fUnbSpietz;
+        rhs_fn_ = &d2dx2_fUnbSpietz;
+    } else if (bc_[1] == UNB && bc_[0] != UNB){
+        if(bc_[0] == ODD){
+            center_  = 0.3;
+            sign_[0] = -1;
+        } else if (bc_[0] == EVEN){
+            center_  = 0.3;
+            sign_[0] = +1;
+        }
+        sol_fn_ = &fUnbSpietz;
+        rhs_fn_ = &d2dx2_fUnbSpietz;
     }
+    
     if (sol_fn_ == nullptr || rhs_fn_ == nullptr) {
         printf("[WARNING] - You do not have any Rhs --> bc_[0] = %d -- bc_[1] == %d \n", bc_[0], bc_[1]);
     }

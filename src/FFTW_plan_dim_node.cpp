@@ -246,7 +246,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     if (isGreen_)
         fieldstart_ = 0;
     else if (bc_[0][0] == UNB)
-        fieldstart_ = size[dimID_];  // padding to the left - only the first dim is enough
+        fieldstart_ = size[dimID_] - 1;  // padding to the left - only the first dim is enough
     else if (bc_[1][0] == UNB)
         fieldstart_ = 0;  // padding to the right - only the first dim is enough
 
@@ -254,11 +254,6 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     /** - get the #symstart_ if is Green */
     //-------------------------------------------------------------------------
     symstart_ = 0;  // if no symmetry is needed, set to 0
-
-    //-------------------------------------------------------------------------
-    /** - update #normfact_ factor */
-    //-------------------------------------------------------------------------
-    normfact_ *= 1.0 / (4.0 * size[dimID_]);
 
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
@@ -269,11 +264,21 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
 
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
-            // the sizes have to be augmented by 1 compared to the cell-centered approach
-            n_in_  = 2 * size[dimID_] + 1;
-            n_out_ = 2 * size[dimID_] + 1;
-            // since we do a pure DCT/DST, no offset
-            koffset_ = 0.0;
+            // We have a DCT - we are EVEN - EVEN over 2L
+            if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {
+                // In node centered, we need to remove one point when doubling the domain
+                n_in_  = 2 * size[dimID_] - 1;
+                n_out_ = n_in_;
+                // since we do a pure DCT/DST, no offset
+                koffset_ = 0.0;
+            } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {
+                //In node centered, we need to remove one point when doubling the domain
+                n_in_  = (2 * size[dimID_] - 1);
+                n_out_ = n_in_;
+                // since we do a pure DCT/DST, no offset
+                koffset_ = 0.0;
+            }
+            normfact_ *= 1.0 / (2.0 *(n_in_ - 1.0));
             // no correction is needed
             corrtype_[lia] = CORRECTION_NONE;
             // we do a DCT, so no imult
@@ -283,29 +288,36 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
             if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;
 
         } else {
-            // we double the size of the data
-            n_in_ = 2 * size[dimID_];
-            // we add a mode for the outgoing dct/dst
-            n_out_ = 2 * size[dimID_] + 1;
-            // no offset after the correction
-            koffset_ = 0.0;
-
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
+                // In node centered, we need to remove one point when doubling the domain
+                n_in_ = 2 * size[dimID_] - 1 ;
+                // we add a mode for the outgoing dct/dst
+                n_out_ = n_in_;
+                // no offset after the correction
+                koffset_ = 0.0;
+                normfact_ *= 1.0 / (2.0 *(n_in_ - 1.0));
                 // we need a DCT correction
-                corrtype_[lia] = CORRECTION_DCT;
+                corrtype_[lia] = CORRECTION_NONE;
                 // we do a DCT, so no imult
                 imult_[lia] = false;
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT10;   // DCT type II
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT01;  // DCT type III
+                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
+                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;  // DCT type I
 
-            } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
-                                                                                                                    // we need a DST correction
+            } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {  
+                // We have a DST - we are ODD - ODD over 2L
+                // we double the size of the data
+                n_in_ = (2 * size[dimID_] - 1) - 2 ;
+                // we add a mode for the outgoing dct/dst
+                n_out_ = n_in_ + 2;
+                // no offset after the correction
+                koffset_       = 0.0;
                 corrtype_[lia] = CORRECTION_DST;
+                normfact_ *= 1.0 / (2.0 *(n_in_ + 1.0));
                 // we do a DCT, so no imult
                 imult_[lia] = true;
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT10;   // DST type II
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT01;  // DST type III
-                koffset_ = 0.0;
+                fieldstart_-= 1; 
+                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type II
+                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type III
             } else {
                 FLUPS_ERROR("unable to init the solver required", LOCATION);
             }

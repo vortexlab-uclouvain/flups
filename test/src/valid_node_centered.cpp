@@ -58,6 +58,20 @@ TEST_P(NodeConvergenceTest, Spectral){
 
 }
 
+TEST_P(NodeConvergenceTest, MixUnbounded){
+    ASSERT_LT(GetParam(), NMIXUNB);
+    const int case_id = GetParam();
+    printf("The boundary conditions for this case are %d %d %d %d %d %d \n", mix_unbounded_bc[case_id][0],mix_unbounded_bc[case_id][1],mix_unbounded_bc[case_id][2],mix_unbounded_bc[case_id][3],mix_unbounded_bc[case_id][4],mix_unbounded_bc[case_id][5]);
+    
+    // printf("I will perform %d different cases \n", n_case);
+    for(int i = 3; i < 8; i ++){
+        FLUPS_GreenType kernel = (FLUPS_GreenType) i;
+        printf("Testing kernel %s \n", NodeConvergenceTest::kname[(int)kernel].c_str());
+        NodeConvergenceTest::ActualTest(kernel, mix_unbounded_bc[case_id]);
+    }
+
+}
+
 // TEST_P(NodeConvergenceTest, PerPer){
 //     ASSERT_LT(GetParam(), 8);
 //     FLUPS_GreenType kernel = (FLUPS_GreenType) GetParam();
@@ -72,4 +86,4 @@ TEST_P(NodeConvergenceTest, Spectral){
 
 INSTANTIATE_TEST_SUITE_P(NodeCentered,
                          NodeConvergenceTest,
-                         testing::Range(0, NSPECTRAL));
+                         testing::Range(0, NMIXUNB));
