@@ -135,6 +135,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
 
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
+    FLUPS_CHECK(centertype[0] == centertype[1] && centertype[0] == centertype[2],"We handle only data located at the same place in all the direction", LOCATION);
     for (int id = 0; id < 3; id++) {
         if (CELL_CENTER == centertype[id]) {
             plan_forward_[id]  = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
@@ -1181,6 +1182,7 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
 
 #if DEBUG_ST
     copydata_(topo_phys_, datad_[0]);
+    FLUPS_print_data(topo_phys_, mydata);  
 #endif
 
 #ifdef DUMP_DBG
@@ -1223,6 +1225,7 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     //------------------------------------------------------------------------- 
 #if DEBUG_ST
     comparedata_(topo_phys_, datad_[0]);
+    FLUPS_print_data(topo_phys_, mydata);  
 #endif
 
     do_copy(topo_phys_, field, FLUPS_BACKWARD);
@@ -1364,6 +1367,7 @@ void Solver::do_FFT(double *data, const int sign){
             switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
 #if DEBUG_ST
             copydata_(topo_hat_[ip], datad_[ip+1]);
+            FLUPS_print_data(topo_hat_[ip], mydata);  
 #else            
             // run the FFT
             if (prof_ != NULL) prof_->start("fftw");
@@ -1374,7 +1378,7 @@ void Solver::do_FFT(double *data, const int sign){
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
-            // FLUPS_print_data(topo_hat_[0], mydata);            
+            // FLUPS_print_data(topo_hat_[ip], mydata);            
             // FLUPS_CHECK(false, "Stop there for a minute", LOCATION);
 #endif
         }
@@ -1392,6 +1396,7 @@ void Solver::do_FFT(double *data, const int sign){
             }
 #else
             comparedata_(topo_hat_[ip], datad_[ip+1]);
+            FLUPS_print_data(topo_hat_[ip], mydata);  
 #endif
             switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
         }
