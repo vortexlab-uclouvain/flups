@@ -41,6 +41,9 @@ extern "C" {
 #define MAX(a,b) a>b?a:b
 #endif
 
+#ifdef PB_DBG
+#define DEBUG_ST 1 
+#endif
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS
@@ -637,6 +640,9 @@ void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data);
 
 /**@} */
+
+void flups_print_data(const FLUPS_Topology *topo, double* data);
+
 
 #ifdef __cplusplus
 }
