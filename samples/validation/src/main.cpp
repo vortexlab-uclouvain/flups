@@ -41,6 +41,7 @@ const static int                 d_startSize = 16;
 const static int                 d_nprocs[3] = {1, 1, 1};
 const static double              d_L[3]      = {1., 1., 1.};
 const static FLUPS_GreenType     d_kernel    = CHAT_2;
+const static FLUPS_CenterType    d_center    = CELL_CENTER;
 const static FLUPS_BoundaryType  d_bcdef     = UNB;
 const static int                 d_lda       = 1;
 
@@ -54,22 +55,24 @@ static void print_help(){
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
     printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6, 5=HEJ8, 6=HEJ10, 7=HEJ0 \n");
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
+    printf(" --center, -c {0,1}:               location of the data (0 = node centered; 1 = cell-centered) \n");
     printf(" --boundary-conditions, -bc     \n ");
     printf("     Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
     printf(" --boundary-conditionv, -bcv     \n ");
     printf("     3 x (Bxl Bxr Byl Byr Bzl Bzr) : the boundary conditions in x/y/z on each side l/r, 3 times for each component. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded \n");
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2],  FLUPS_BoundaryType bcdefv[3][2][3], FLUPS_GreenType *kernel, int *lda, int *nsample, int **size, int *nsolve){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_BoundaryType bcdef[3][2],  FLUPS_BoundaryType bcdefv[3][2][3], FLUPS_GreenType *kernel, int *lda, FLUPS_CenterType center_type[3], int *nsample, int **size, int *nsolve){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
     //assigning default values
     for (int i = 0; i < 3; i++) {
-        nprocs[i]   = d_nprocs[i];
-        L[i]        = d_L[i];
-        bcdef[i][0] = d_bcdef;
-        bcdef[i][1] = d_bcdef;
+        nprocs[i]      = d_nprocs[i];
+        L[i]           = d_L[i];
+        center_type[i] = d_center;
+        bcdef[i][0]    = d_bcdef;
+        bcdef[i][1]    = d_bcdef;
 
         bcdefv[i][0][0] = NONE;
         bcdefv[i][0][1] = NONE;
@@ -175,6 +178,17 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 return 1;
             }  
             i++;
+
+        } else if ((arg == "-c") || (arg == "--center")) {
+            if (i + 1 < argc) {  // Make sure we aren't at the end of argv!
+                for(int j = 0; j < 3; j ++ ){
+                    center_type[j] = (FLUPS_CenterType)atoi(argv[i + 1]);
+                }
+            } else {  // Missing argument
+                fprintf(stderr, "missing --center\n");
+                return 1;
+            }
+            i ++;
         } else if ((arg == "-bc")|| (arg== "--boundary-conditions") ) {
             for (int j = 0; j<6;j++){
                 if (i + j + 1 < argc) { // Make sure we aren't at the end of argv!
@@ -196,7 +210,7 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3], FLUPS_
                 }  
             }
             i+=18;
-        } 
+        }
     }
     
     // finilizing allocations
@@ -218,10 +232,11 @@ int main(int argc, char *argv[]) {
     double L[3];
     int *size = NULL;
     FLUPS_GreenType kernel;
+    FLUPS_CenterType center[3];
     FLUPS_BoundaryType bcdef[3][2];
     FLUPS_BoundaryType bcdefv[3][2][3];
     
-    int status = parse_args(argc, argv, nprocs, L, bcdef, bcdefv, &kernel, &lda, &nsample, &size, &nsolve );
+    int status = parse_args(argc, argv, nprocs, L, bcdef, bcdefv, &kernel, &lda, center, &nsample, &size, &nsolve);
 
     if (status) exit(status);
     if (size==NULL){
@@ -260,6 +275,7 @@ int main(int argc, char *argv[]) {
         }
         printf("  --kernel: %d\n", kernel);
         printf("  --lda: %d\n", lda);
+        printf("  --center: %d\n", center[0]);
         printf("  --nsolve: %d\n", nsolve);
         for (int i = 0; i < nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
