@@ -51,9 +51,15 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
 
-    const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+    const bool is_cell = myCase.center_type[0] == CELL_CENTER; 
+    const double fact = (double) (!is_cell);
 
-    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    const double h[3] = {L[0]/ (nglob[0] - fact), L[1]/ (nglob[1] - fact), L[1]/ (nglob[1] - fact)} ;
+
+    FLUPS_CenterType center_type[3];
+    for (int i = 0; i < 3; i++) {
+            center_type[i] = myCase.center_type[i];
+    }
 
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
@@ -295,13 +301,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             const int ax2     = (ax0 + 2) % 3;
             const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
 
-            printf("for dim %d, we use the sign = %f %f %f\n",lia,params[0].sign[0],params[1].sign[0],params[2].sign[0]);
+            // printf("for dim %d, we use the sign = %f %f %f\n",lia,params[0].sign[0],params[1].sign[0],params[2].sign[0]);
 
             for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                         const size_t id   = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
-                        const double shift = 0.5;
+                        const double shift = is_cell ? 0.5: 0.0;
                         const double x[3] = {(istart[ax0] + i0 + shift) * h[ax0],
                                              (istart[ax1] + i1 + shift) * h[ax1],
                                              (istart[ax2] + i2 + shift) * h[ax2]};
