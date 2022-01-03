@@ -202,5 +202,8 @@ void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const do
     hdf5_dump(topo,fn, data);
 }
 
+void flups_print_data(const FLUPS_Topology *topo, double* data){
+    FLUPS_print_data(topo, data);    
+}
 
 }

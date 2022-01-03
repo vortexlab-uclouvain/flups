@@ -55,7 +55,7 @@
             const size_t   io     = id % ondim;                                                                                                    \
             opt_double_ptr argloc = data + collapsedIndex(ax0, 0, io, nmem, 1);                                                                    \
             for (size_t ii = 0; ii < inmax; ii++) {                                                                                                \
-                printf("%e \t ", argloc[ii]);                                                                                                   \
+                printf("%4.0f \t ", argloc[ii]);                                                                                                   \
             }                                                                                                                                      \
             printf("\n");                                                                                                                          \
         }                                                                                                                                          \
