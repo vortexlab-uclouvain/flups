@@ -101,9 +101,10 @@ class Topology {
      * @return int 
      */
     inline int cmpt_nbyproc(const int id) const {
-        const int start = (nglob_[id] * rankd_[id]) / nproc_[id];
-        const int end = (nglob_[id] * (rankd_[id]+1)) / nproc_[id];
-        return (end - start);
+        return (nglob_[id] / nproc_[id]) + 1 * ((nglob_[id] % nproc_[id]) > rankd_[id]);
+        // const int start = (nglob_[id] * rankd_[id]) / nproc_[id];
+        // const int end   = (nglob_[id] * (rankd_[id] + 1)) / nproc_[id];
+        // return (end - start);
     }
 
     /**
@@ -112,7 +113,8 @@ class Topology {
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
-        return (nglob_[id] * rankd_[id]) / nproc_[id];
+        return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
+        // return (nglob_[id] * rankd_[id]) / nproc_[id];
     }
 
     /**
@@ -127,13 +129,12 @@ class Topology {
      * @return int 
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const{
-        // const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
-        // const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
-        // const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
-
-        // return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
-        // const int isnot_last = (int) ( !(global_id == nglob_[id] - 1) );
-        return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;
+        const int nproc_g0 = nglob_[id]%nproc_[id]; // number of procs that have a +1 in their unkowns
+        const int nbyproc = nglob_[id]/nproc_[id]; // the number of unknowns in the integer division
+        const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
+        return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
+        
+        // return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;
     }
 
      /**
