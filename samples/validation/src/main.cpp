@@ -290,6 +290,8 @@ int main(int argc, char *argv[]) {
             valCase.mybc[ip][0] = bcdef[ip][0];
             valCase.mybc[ip][1] = bcdef[ip][1];
 
+            valCase.center_type[ip] = center[ip];
+
             valCase.mybcv[ip][0][0] = bcdefv[ip][0][0];
             valCase.mybcv[ip][0][1] = bcdefv[ip][0][1];
             valCase.mybcv[ip][0][2] = bcdefv[ip][0][2];
