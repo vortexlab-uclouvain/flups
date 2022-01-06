@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.generic
+ARCH_FILE ?= make_arch.local
 
 include $(ARCH_FILE)
 
@@ -99,8 +99,8 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-# default: lib_static 
-default: lib_dynamic
+default: lib_static 
+# default: lib_dynamic
 
 # for the validation, do a static lib
 validation: install_static

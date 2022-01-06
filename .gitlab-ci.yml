@@ -81,6 +81,49 @@ compil vortex_rot :
     - make all -j4
 
 
+compil dbg :
+  stage: build
+  only:
+    - /.*$/i@examples/flups
+    - merge_requests
+  artifacts: 
+    paths: 
+      - libflups_a2a.a
+    when: on_success
+
+  before_script :
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - eval $(ssh-agent -s)
+    #- sshpass -p "$SSHPWD" -P "Enter passphrase" ssh-add <(echo "$SSHKEY")
+    - ssh-add <(echo "$SSHKEY")
+#    - ssh-keyscan gwceci.cism.ucl.ac.be >> ~/.ssh/known_hosts
+#    - ssh $SSHUSER@gwceci.cism.ucl.ac.be ssh-keyscan lemaitre3.cism.ucl.ac.be >> ~/.ssh/known_hosts #no need for this since user can't directly access gw now.
+    - echo $LM3KH >> ~/.ssh/known_hosts
+    - echo $GWKH >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo "Host lm3" > ~/.ssh/config
+#    - echo "  ProxyCommand ssh -q $SSHUSER@gwceci.cism.ucl.ac.be nc %h %p \$*" >> ~/.ssh/config
+    - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
+    - echo "  HostName lemaitre3.cism.ucl.ac.be"  >> ~/.ssh/config
+    - echo "  User $SSHUSER" >> ~/.ssh/config
+
+  script :
+    # first check that the libraries are here:
+    - export PATH2BIN=/home/ucl/tfl/vortexbot/flups_test/flups_auto_build/
+    - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
+    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
+    - ssh lm3 mkdir -p ${PATH2BIN}_${TAG}
+    - scp -r * lm3:${PATH2BIN}_${TAG} #copy the sources from the runner: he will take the correct branch/version
+    # - ssh lm3 ls ${PATH2BIN}_${TAG}/../ppm_lib_vortex/lib/libppm.a
+    # - ssh lm3 ls ${PATH2BIN}_${TAG}/../ppm_lib_fft/lib/libppmfft.a
+    - ssh lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gcc ${PATH2BIN}_${TAG}/make_arch.local
+    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh #make the executable, and test if the file was created
+    - scp lm3:${PATH2BIN}_${TAG}/lib/libflups_a2a.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
+    - echo "Done with compilation."
+
+
 #checks that the code runs without error in serial dbg
 ################################################################################
 # ALL TO ALL
