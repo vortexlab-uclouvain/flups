@@ -81,7 +81,7 @@ compil vortex_rot :
     - make all -j4
 
 
-compil dbg :
+compil lm3 :
   stage: build
   only:
     - /.*$/i@examples/flups
