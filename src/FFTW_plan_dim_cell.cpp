@@ -71,9 +71,7 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
 
     // because of the constrain on the BC, we only the kind argument is linked to the lia
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
@@ -195,9 +193,7 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
 
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
@@ -290,8 +286,6 @@ void FFTW_plan_dim_cell::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
         // we do a DFT, so no imult
@@ -339,8 +333,6 @@ void FFTW_plan_dim_cell::init_unbounded_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
         // we do a DFT, so no imult

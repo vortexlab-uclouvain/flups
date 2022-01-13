@@ -102,6 +102,9 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     //-------------------------------------------------------------------------
     // Get type and mult factors
     //-------------------------------------------------------------------------
+    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
+    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
+
     for(int lia= 0 ; lia<lda_; lia++){
         FLUPS_CHECK(bc_[0][lia] + bc_[1][lia] <= type_, "dimension %d's bc = %d %d is not compatible with the plan choosen = %d", lia, bc_[0][lia], bc_[1][lia], type_,LOCATION);
     }

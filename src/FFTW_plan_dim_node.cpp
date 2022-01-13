@@ -69,9 +69,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
 
     // because of the constrain on the BC, we only the kind argument is linked to the lia
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
@@ -95,6 +93,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 } else if (bc_[1][lia] == ODD) {
                     // We need to remove the 0 at the end of the input
                     n_in_  = size[dimID_] - 1;
+                    // n_out_ = size[dimID_];
                     n_out_ = size[dimID_] - 1;
                     normfact_ *= 1.0 / (2.0 * (n_in_));
                     koffset_   = 0.5;
@@ -104,6 +103,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 if (bc_[1][lia] == ODD) {
                     n_in_  = size[dimID_] - 2;
                     n_out_ = size[dimID_] - 2;
+                    // n_out_ = size[dimID_];
                     normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
                     koffset_   = 1.0;
 
@@ -121,28 +121,6 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
             }
 
-            //     // if we are doing odd-even we have to use shifted FFTW plans
-            //     if (bc_[0][lia] != bc_[1][lia]) {
-            //         // we would go for a DCT/DST type III
-            //         // -> the size of unknows: DST missing first point, DCT missing last one
-            //         n_in_  = size[dimID_];
-            //         n_out_ = size[dimID_];
-            //         // -> the modes are shifted by 1/2
-            //         koffset_ = 0.5;
-            //     } else {
-            //         // we go for DST/DCT of type I or III
-            //         // -> we have to add one information because of the vertex-centered
-
-            //         // no shift in the mode is required
-            //         koffset_ = 0.0;
-            //         if (bc_[0][lia] == EVEN) {
-
-            //         }
-            //         else if (bc_[0][lia] == ODD){ 
-            //         }
-
-            //     }        
-            // }
             return;
         
         //-------------------------------------------------------------------------
@@ -169,6 +147,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // We need to remove the 0 at the end of the input
                     n_in_  = size[dimID_] - 1;
                     n_out_ = size[dimID_] - 1;
+                    // n_out_ = size[dimID_];
                     normfact_ *= 1.0 / (2.0 * (n_in_));
 
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
@@ -190,6 +169,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // -> we remove the first and the last data, as FFTW don't need them
                     n_in_  = size[dimID_] - 2;
                     n_out_ = size[dimID_] - 2;
+                    // n_out_ = size[dimID_];
                     normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
 
                     // The first data of the memory is not given to fftw
@@ -205,6 +185,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // no additional mode is required
                     n_in_  = size[dimID_] - 1;
                     n_out_ = size[dimID_] - 1;
+                    // n_out_ = size[dimID_];
                     normfact_ *= 1.0 / (2.0 * (n_in_));
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
                     
@@ -258,9 +239,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
 
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
@@ -370,8 +349,6 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
         // we do a DFT, so no imult
@@ -419,8 +396,6 @@ void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
         // we do a DFT, so no imult
