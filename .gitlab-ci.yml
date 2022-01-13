@@ -95,22 +95,18 @@ compil lm3 :
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - eval $(ssh-agent -s)
-    #- sshpass -p "$SSHPWD" -P "Enter passphrase" ssh-add <(echo "$SSHKEY")
     - ssh-add <(echo "$SSHKEY")
-#    - ssh-keyscan gwceci.cism.ucl.ac.be >> ~/.ssh/known_hosts
-#    - ssh $SSHUSER@gwceci.cism.ucl.ac.be ssh-keyscan lemaitre3.cism.ucl.ac.be >> ~/.ssh/known_hosts #no need for this since user can't directly access gw now.
     - echo $LM3KH >> ~/.ssh/known_hosts
     - echo $GWKH >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
     - echo "Host lm3" > ~/.ssh/config
-#    - echo "  ProxyCommand ssh -q $SSHUSER@gwceci.cism.ucl.ac.be nc %h %p \$*" >> ~/.ssh/config
     - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
     - echo "  HostName lemaitre3.cism.ucl.ac.be"  >> ~/.ssh/config
     - echo "  User $SSHUSER" >> ~/.ssh/config
 
   script :
     # first check that the libraries are here:
-    - export PATH2BIN=/home/ucl/tfl/vortexbot/flups_test/flups_auto_build/
+    - export PATH2BIN=$PATH2DIR/flups_auto_build/
     - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
     - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
     - ssh lm3 mkdir -p ${PATH2BIN}_${TAG}
