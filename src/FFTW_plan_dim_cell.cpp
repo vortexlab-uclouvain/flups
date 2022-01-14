@@ -82,16 +82,16 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
             imult_[lia]    = false;
             // if we are doing odd-even we have to use shifted FFTW plans
             if (bc_[0][lia] != bc_[1][lia]) {
-                // we would go for a DCT/DST type III
+                // we would go for a DCT/DST type IV
                 // -> the size of unknows: DST missing first point, DCT missing last one
-                n_in_  = size[dimID_];
+                n_in_[lia]  = size[dimID_];
                 n_out_ = size[dimID_];
                 // -> the modes are shifted by 1/2
                 koffset_ = 0.5;
             } else {
-                // we go for DST/DCT of type I or III
+                // we go for DST/DCT of type II or III
                 // -> we have to add one information because of the vertex-centered
-                n_in_  = size[dimID_];
+                n_in_[lia]  = size[dimID_];
                 n_out_ = size[dimID_] + 1;
                 // no shift in the mode is required
                 koffset_ = 0.0;
@@ -99,7 +99,7 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
             return;
         } else if (bc_[0][lia] == EVEN) {  // We have a DCT
             // the information coming in does not change
-            n_in_ = size[dimID_];
+            n_in_[lia] = size[dimID_];
             // we do a DCT, so no imult
             imult_[lia] = false;
             if (bc_[1][lia] == EVEN) {
@@ -123,7 +123,7 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
             }
         } else if (bc_[0][lia] == ODD) {  // We have a DST
                                           // the information coming in does not change
-            n_in_ = size[dimID_];
+            n_in_[lia] = size[dimID_];
             // we do a DST, so no imult
             imult_[lia] = true;
             if (bc_[1][lia] == ODD) {
@@ -198,7 +198,7 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
             // the sizes have to be augmented by 1 compared to the cell-centered approach
-            n_in_  = 2 * size[dimID_] + 1;
+            n_in_[lia]  = 2 * size[dimID_] + 1;
             n_out_ = 2 * size[dimID_] + 1;
             // since we do a pure DCT/DST, no offset
             koffset_ = 0.0;
@@ -212,7 +212,7 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
 
         } else {
             // we double the size of the data
-            n_in_ = 2 * size[dimID_];
+            n_in_[lia] = 2 * size[dimID_];
             // we add a mode for the outgoing dct/dst
             n_out_ = 2 * size[dimID_] + 1;
             // no offset after the correction
@@ -257,13 +257,13 @@ void FFTW_plan_dim_cell::init_periodic_(const int size[3], const bool isComplex)
     /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = size[dimID_];  // takes n complex, return n complex
+        n_in_[0]  = size[dimID_];  // takes n complex, return n complex
         n_out_ = size[dimID_];
 
         isr2c_ = false;
     } else {
-        n_in_  = size[dimID_];   // takes n real
-        n_out_ = n_in_ / 2 + 1;  // return n_in/2 + 1 complex
+        n_in_[0]  = size[dimID_];   // takes n real
+        n_out_ = n_in_[0] / 2 + 1;  // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }
@@ -310,13 +310,13 @@ void FFTW_plan_dim_cell::init_unbounded_(const int size[3], const bool isComplex
     /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = 2 * size[dimID_];  // takes 2n complex, return 2n complex
+        n_in_[0]  = 2 * size[dimID_];  // takes 2n complex, return 2n complex
         n_out_ = 2 * size[dimID_];
 
         isr2c_ = false;
     } else {
-        n_in_  = 2 * size[dimID_];  // takes 2n real (because of the padding)
-        n_out_ = n_in_ / 2 + 1;     // return n_in/2 + 1 complex
+        n_in_[0]  = 2 * size[dimID_];  // takes 2n real (because of the padding)
+        n_out_ = n_in_[0] / 2 + 1;     // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }

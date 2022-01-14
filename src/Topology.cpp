@@ -148,7 +148,7 @@ void Topology::change_comm(MPI_Comm comm) {
 Topology::~Topology() {}
 
 /**
- * @brief compute the sarting and ending ids for the current topo in order to be inside the other topology's bounds
+ * @brief compute the starting and ending ids for the current topo in order to be inside the other topology's bounds
  * 
  * @param shift the shift between the 2 topos: current topo in (0,0,0) = other topo in (shift)
  * @param other the other topology

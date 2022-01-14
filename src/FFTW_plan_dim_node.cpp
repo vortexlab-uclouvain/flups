@@ -67,6 +67,11 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     isr2c_      = false;
 
     //-------------------------------------------------------------------------
+    /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/
+    //-------------------------------------------------------------------------
+    normfact_ *= 1.0 / (2.0 * ( size[dimID_] - 1));
+
+    //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
@@ -85,33 +90,27 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
             if (bc_[0][lia] == EVEN) {
                 if (bc_[1][lia] == EVEN) {
-                    n_in_  = size[dimID_];
+                    n_in_[lia]  = size[dimID_];
                     n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
                     koffset_   = 0.0;
 
                 } else if (bc_[1][lia] == ODD) {
                     // We need to remove the 0 at the end of the input
-                    n_in_  = size[dimID_] - 1;
-                    // n_out_ = size[dimID_];
-                    n_out_ = size[dimID_] - 1;
-                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    n_in_[lia]  = size[dimID_] - 1;
+                    n_out_ = size[dimID_];
                     koffset_   = 0.5;
                 }
 
             }else if (bc_[0][lia] == ODD) {  // We have a DST
                 if (bc_[1][lia] == ODD) {
-                    n_in_  = size[dimID_] - 2;
-                    n_out_ = size[dimID_] - 2;
-                    // n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
-                    koffset_   = 1.0;
+                    n_in_[lia]  = size[dimID_] - 2;
+                    n_out_ = size[dimID_];
+                    koffset_   = 0.0;
 
                 } else if (bc_[1][lia] == EVEN) {
                     // no additional mode is required
-                    n_in_  = size[dimID_] - 1;
-                    n_out_ = size[dimID_] - 1;
-                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    n_in_[lia]  = size[dimID_] - 1;
+                    n_out_ = size[dimID_];
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
                     corrtype_[lia] = CORRECTION_NONE;
                     koffset_       = 0.5;
@@ -132,9 +131,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 if (bc_[1][lia] == EVEN) {
                     // the information coming in does not change
-                    n_in_  = size[dimID_];
+                    n_in_[lia]  = size[dimID_];
                     n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_ - 1));
 
                     // No correction or offset needed
                     corrtype_[lia] = CORRECTION_NONE;
@@ -145,10 +143,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 } else if (bc_[1][lia] == ODD) {
                     // We need to remove the 0 at the end of the input
-                    n_in_  = size[dimID_] - 1;
-                    n_out_ = size[dimID_] - 1;
-                    // n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    n_in_[lia]  = size[dimID_] - 1;
+                    n_out_ = size[dimID_];
 
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
                     corrtype_[lia] = CORRECTION_NONE;
@@ -167,15 +163,14 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 imult_[lia] = true;
                 if (bc_[1][lia] == ODD) {
                     // -> we remove the first and the last data, as FFTW don't need them
-                    n_in_  = size[dimID_] - 2;
-                    n_out_ = size[dimID_] - 2;
-                    // n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_ + 1));
+                    n_in_[lia]  = size[dimID_] - 2;
+                    n_out_ = size[dimID_];
 
                     // The first data of the memory is not given to fftw
-                    corrtype_[lia] = CORRECTION_NONE;
-                    koffset_       = 0.0;
-                    fieldstart_    = -1;
+                    corrtype_[lia]  = CORRECTION_NONE;
+                    fftwstart_[lia] = 1;
+                    koffset_        = 0.0;
+                    fieldstart_     = 0;
 
                     // always the correct DST
                     if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
@@ -183,15 +178,14 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 } else if (bc_[1][lia] == EVEN) {
                     // no additional mode is required
-                    n_in_  = size[dimID_] - 1;
-                    n_out_ = size[dimID_] - 1;
-                    // n_out_ = size[dimID_];
-                    normfact_ *= 1.0 / (2.0 * (n_in_));
+                    n_in_[lia]  = size[dimID_] - 1;
+                    n_out_ = size[dimID_];
                     // no correction is needed for the types 4 but an offset of 1/2 in fourier
-                    
-                    corrtype_[lia] = CORRECTION_NONE;
-                    koffset_       = 0.0;
-                    fieldstart_    = -1;
+
+                    corrtype_[lia]  = CORRECTION_NDST;
+                    fftwstart_[lia] = 1;
+                    koffset_        = 0.0;
+                    fieldstart_     = 0;
                     // always the samed DST
                     if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT01;   // DST type IV
                     if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type IV
@@ -223,6 +217,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     /** - get the memory details: #fieldstart_ and #isr2c_ */
     //-------------------------------------------------------------------------
     isr2c_ = false;
+    
 
     if (isGreen_)
         fieldstart_ = 0;
@@ -241,23 +236,27 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
 
+    //-------------------------------------------------------------------------
+    /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/
+    //-------------------------------------------------------------------------
+    normfact_ *= 1.0 / (2.0 *((2 * size[dimID_] - 1) - 1.0));
+
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
             // We have a DCT - we are EVEN - EVEN over 2L
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {
                 // In node centered, we need to remove one point when doubling the domain
-                n_in_  = 2 * size[dimID_] - 1;
-                n_out_ = n_in_;
+                n_in_[lia]  = 2 * size[dimID_] - 1;
+                n_out_ = n_in_[lia];
                 // since we do a pure DCT/DST, no offset
                 koffset_ = 0.0;
             } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {
                 //In node centered, we need to remove one point when doubling the domain
-                n_in_  = (2 * size[dimID_] - 1);
-                n_out_ = n_in_;
+                n_in_[lia]  = (2 * size[dimID_] - 1);
+                n_out_ = n_in_[lia];
                 // since we do a pure DCT/DST, no offset
                 koffset_ = 0.0;
             }
-            normfact_ *= 1.0 / (2.0 *(n_in_ - 1.0));
             // no correction is needed
             corrtype_[lia] = CORRECTION_NONE;
             // we do a DCT, so no imult
@@ -269,12 +268,11 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
         } else {
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
                 // In node centered, we need to remove one point when doubling the domain
-                n_in_ = 2 * size[dimID_] - 1 ;
+                n_in_[lia] = 2 * size[dimID_] - 1 ;
                 // we add a mode for the outgoing dct/dst
-                n_out_ = n_in_;
+                n_out_ = n_in_[lia];
                 // no offset after the correction
                 koffset_ = 0.0;
-                normfact_ *= 1.0 / (2.0 *(n_in_ - 1.0));
                 // we need a DCT correction
                 corrtype_[lia] = CORRECTION_NONE;
                 // we do a DCT, so no imult
@@ -285,18 +283,17 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
             } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {  
                 // We have a DST - we are ODD - ODD over 2L
                 // we double the size of the data
-                n_in_ = (2 * size[dimID_] - 1) - 2 ;
-                // we add a mode for the outgoing dct/dst
-                n_out_ = n_in_ + 2;
+                n_in_[lia] = (2 * size[dimID_] - 1) - 2 ;
+                // n_out_ must be equal to the n_out_ of the UNB EVEN transform
+                n_out_ = n_in_[lia] + 2;
                 // no offset after the correction
                 koffset_       = 0.0;
-                corrtype_[lia] = CORRECTION_DST;
-                normfact_ *= 1.0 / (2.0 *(n_in_ + 1.0));
+                corrtype_[lia] = CORRECTION_NONE;
                 // we do a DCT, so no imult
                 imult_[lia] = true;
-                fieldstart_-= 1; 
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type II
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type III
+                fftwstart_[lia] = 1;
+                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
+                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
             } else {
                 FLUPS_ERROR("unable to init the solver required", LOCATION);
             }
@@ -317,16 +314,16 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
 void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
-    /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
+    /** - get the memory details (#n_in_[lia], #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = size[dimID_] - 1;   // takes n complex, return n complex
+        n_in_[0]  = size[dimID_] - 1;   // takes n complex, return n complex
         n_out_ = size[dimID_] - 1;
         isr2c_ = false;
 
     } else {
-        n_in_  = size[dimID_] - 1;   // takes n-1 real
-        n_out_ = n_in_ / 2 + 1;      // return n_in/2 + 1 complex
+        n_in_[0]  = size[dimID_] - 1;   // takes n-1 real
+        n_out_ = n_in_[0] / 2 + 1;      // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }
@@ -370,16 +367,16 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
 void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
-    /** - get the memory details (#n_in_, #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
+    /** - get the memory details (#n_in_[lia], #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_  = 2 * (size[dimID_] - 1);  // takes 2n complex, return 2n complex
+        n_in_[0]  = 2 * (size[dimID_] - 1);  // takes 2n complex, return 2n complex
         n_out_ = 2 * (size[dimID_] - 1);
 
         isr2c_ = false;
     } else {
-        n_in_  = 2 * (size[dimID_] - 1);  // takes 2n real (because of the padding)
-        n_out_ = n_in_ / 2 + 1;     // return n_in/2 + 1 complex
+        n_in_[0]  = 2 * (size[dimID_] - 1);  // takes 2n real (because of the padding)
+        n_out_ = n_in_[0] / 2 + 1;     // return n_in/2 + 1 complex
 
         isr2c_ = true;
     }

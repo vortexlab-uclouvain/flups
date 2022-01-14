@@ -66,32 +66,27 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     //-------------------------------------------------------------------------
     if (mytype <= SYMSYM) {
         type_     = SYMSYM;
-        normfact_ = 1.0;
         volfact_  = 1.0;  // no convolution so no multiplication by h
         kfact_    = c_2pi / (2.0 * L[dimID_]);
         if (isGreen_) isSpectral_ = true;
     } else if (mytype <= MIXUNB) {
         type_       = MIXUNB;
-        normfact_   = 1.0;
         volfact_    = h[dimID_];
         kfact_      = c_2pi / (4.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == PERPER) {
         type_     = PERPER;
-        normfact_ = 1.0;
         volfact_  = 1.0;  // no convolution so no multiplication by h
         kfact_    = c_2pi / (L[dimID_]);
         if (isGreen_) isSpectral_ = true;
     } else if (mytype == UNBUNB) {
         type_     = UNBUNB;
-        normfact_ = 1.0;
         volfact_  = h[dimID_];
         kfact_    = c_2pi / (2.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == EMPTY) {
         type_ = EMPTY;
         // chosen to have no influence
-        normfact_   = 1.0;
         volfact_    = 1.0;
         kfact_      = 0.0;
         isSpectral_ = false;
@@ -100,8 +95,18 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     }
 
     //-------------------------------------------------------------------------
-    // Get type and mult factors
+    // Allocate the component dependent stuffs
     //-------------------------------------------------------------------------
+    n_in_     = (int*)flups_malloc(sizeof(int) * lda_);
+    fftwstart_= (int*)flups_malloc(sizeof(int) * lda_);
+    // normfact_ = (double*)flups_malloc(sizeof(double) * lda_);
+    for(int lia = 0; lia < lda_; lia ++){
+        n_in_[lia]      = 1;
+        fftwstart_[lia] = 0;
+        // normfact_[lia] = 1.0;
+
+    }
+    normfact_ = 1.0;
     corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
     imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
 
@@ -117,7 +122,8 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
  */
 FFTW_plan_dim::~FFTW_plan_dim() {
     BEGIN_FUNC;
-
+    //-------------------------------------------------------------------
+    
     if (type_ == SYMSYM || type_ == MIXUNB) {
         // if the solver is SYMSYM or MIXUNB, each dimension has its own plan
         for (int lia = 0; lia < lda_; lia++) {
@@ -127,13 +133,18 @@ FFTW_plan_dim::~FFTW_plan_dim() {
         // else, the first plan is the same as all the other ones
         if (plan_ != NULL) fftw_destroy_plan(plan_[0]);
     }
+    
     // free the allocated arrays
     if (bc_[0] != NULL) flups_free(bc_[0]);
     if (bc_[1] != NULL) flups_free(bc_[1]);
+
+    if (n_in_ != NULL) flups_free(n_in_);
+    if (fftwstart_ != NULL) flups_free(fftwstart_);
     if (imult_ != NULL) flups_free(imult_);
     if (kind_ != NULL) flups_free(kind_);
     if (corrtype_ != NULL) flups_free(corrtype_);
     if (plan_ != NULL) flups_free(plan_);
+    //-------------------------------------------------------------------
     END_FUNC;
 }
 
@@ -264,11 +275,11 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     for (int lia = 0; lia < lda_; lia++) {
         if (topo->nf() == 1) {
             fftw_stride_ = memsize[dimID_];
-            plan_[lia]   = fftw_plan_r2r_1d(n_in_, data, data, kind_[lia], FFTW_FLAG);
+            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FFTW_FLAG);
 
         } else if (topo->nf() == 2) {
             fftw_stride_ = memsize[dimID_] * topo->nf();
-            plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_), 1,
+            plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_[lia]), 1,
                                             data, NULL, topo->nf(), memsize[dimID_] * topo->nf(),
                                             data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FFTW_FLAG);
         }
@@ -284,7 +295,8 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     FLUPS_INFO("dimID     = %d", dimID_);
     FLUPS_INFO("howmany   = %d", howmany_);
     FLUPS_INFO("fftw stride   = %d", fftw_stride_);
-    FLUPS_INFO("size n    = %d", n_in_);
+    FLUPS_INFO("lda       = %d", lda_);
+    FLUPS_INFO(" size n   = %d", n_in_[0]);
     if (topo->nf() == 1) {
         FLUPS_INFO("plan created with the simple interface");
     } else if (topo->nf() == 2) {
@@ -353,13 +365,13 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("dimID     = %d", dimID_);
         FLUPS_INFO("howmany   = %d", howmany_);
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
-        FLUPS_INFO("size n    = %d", n_in_);
+        FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = fftw_plan_dft_r2c_1d(n_in_, data, (fftw_complex*)data, FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data, (fftw_complex*)data, FFTW_FLAG);
         } else {
-            plan_[0] = fftw_plan_dft_c2r_1d(n_in_, (fftw_complex*)data, data, FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data, data, FFTW_FLAG);
         }
 
     } else {
@@ -379,10 +391,10 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("dimID     = %d", dimID_);
         FLUPS_INFO("howmany   = %d", howmany_);
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
-        FLUPS_INFO("size n    = %d", n_in_);
+        FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
-        plan_[0] = fftw_plan_dft_1d(n_in_, (fftw_complex*)data, (fftw_complex*)data, sign_, FFTW_FLAG);
+        plan_[0] = fftw_plan_dft_1d(n_in_[0], (fftw_complex*)data, (fftw_complex*)data, sign_, FFTW_FLAG);
     }
 
     // the plan is the same in every other direction
@@ -480,8 +492,21 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 dataloc[0] = 0.0;
             }
 
-        }
-        else if(corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD){
+        } 
+        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_FORWARD) {
+            // we need to shift everything from i+1 to i
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // shift everything i+1 -> i
+                for (int ii = 1; ii < nloc; ii++) {
+                    dataloc[ii - 1] = dataloc[ii];
+                }
+            }
+        } 
+
+        else if (corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD) {
             // we need to enforce the the mode 0 + shift everything from i to i-1
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
@@ -492,7 +517,20 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                     dataloc[ii-1] = dataloc[ii];
                 }
             }
-
+        }
+        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_BACKWARD) {
+            // we need to shift everything from i to i+1
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // shift everything i+1 -> i
+                for (int ii = nloc-2; ii >= 0; ii--) {
+                    dataloc[ii + 1] = dataloc[ii];
+                }
+                // enforce the first point in the physical domain to be 0
+                dataloc[0] = 0.0;
+            }
         }
     }
     END_FUNC;
@@ -552,7 +590,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             // get the memory
             double* mydata = (double*)data + lia * memdim + io * fftw_stride;
             // execute the plan on it
-            fftw_execute_r2r(plan[lia], (double*)mydata, (double*)mydata);
+            fftw_execute_r2r(plan[lia], (double*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
@@ -565,7 +603,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // get the memory
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_r2c(plan[lia], (double*)mydata, (fftw_complex*)mydata);
+                    fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
@@ -576,7 +614,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata, (double*)mydata);
+                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
                 }
             }
 
@@ -589,7 +627,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 // we access complex info with a fftw_stride real
                 double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
                 // execute the plan on it
-                fftw_execute_dft(plan[lia], (fftw_complex*)mydata, (fftw_complex*)mydata);
+                fftw_execute_dft(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
             }
         }
     }
@@ -673,7 +711,7 @@ void FFTW_plan_dim::disp() {
     FLUPS_INFO("- dimID      = %d", dimID_);
     FLUPS_INFO("- is Green   ? %d", isGreen_);
     FLUPS_INFO("- s2Complex  ? %d", isr2c_);
-    FLUPS_INFO("- n_in       = %d", n_in_);
+    FLUPS_INFO("- n_in       = %d", n_in_[0]);
     FLUPS_INFO("- n_out      = %d", n_out_);
     FLUPS_INFO("- fieldstart = %d", fieldstart_);
     FLUPS_INFO("- isSpectral ? %d", isSpectral_);
