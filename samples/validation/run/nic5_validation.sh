@@ -2,10 +2,10 @@
 ## RM the previous validation dir
 
 HOME_FLUPS=/home/ucl/tfl/pbalty/flups/samples/validation/
-EXEC_FLUPS=flups_validation_a2a
+EXEC_FLUPS=flups_validation_nb
 
 ######### WEAK -> keep the size/proc constant
-SCRATCH=$GLOBALSCRATCH/flups_validation/
+SCRATCH=$GLOBALSCRATCH/flups_validation/vector
 
 # clean the validation dir
 rm -rf ${SCRATCH}
@@ -35,7 +35,7 @@ export MY_NSOLVE=1
 #export MY_KERNEL=0
 
 
-for MYKERNEL in 0 1 2 3 4
+for MYKERNEL in 0 1 2 3 4 5 6
 do
         export MY_KERNEL=$((MYKERNEL))
         #sbatch --ntasks=${MY_NTASKS} --cpus-per-task=${MY_NTHREADS} ./lm3_kernel_valid.sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Submission script for NIC5 
-#SBATCH --job-name=symmetric-validation
+#SBATCH --job-name=vector-validation
 #SBATCH --time=00:15:00
 #
 ##SBATCH --ntasks=${MY_NTASKS}
@@ -17,7 +17,7 @@ module list
 
 
 #HOME_FLUPS=/home/ucl/tfl/tgillis/flups
-EXEC_FLUPS=flups_validation_a2a
+EXEC_FLUPS=flups_validation_nb
 #
 #SCRATCH=$GLOBALSCRATCH/${SLURM_JOB_NAME}_${SLURM_JOB_ID}
 #
@@ -29,4 +29,4 @@ EXEC_FLUPS=flups_validation_a2a
 #
 #cd $SCRATCH
 #srun --label valgrind --leak-check=full --track-origins=yes ./flups
-mpirun ${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZEX} ${MY_SIZEY} ${MY_SIZEZ} -nres ${MY_NRES} -ns ${MY_NSOLVE} -k ${MY_KERNEL} -c 1 -bc ${MY_BC}
+mpirun ${EXEC_FLUPS} -np ${MY_NX} ${MY_NY} ${MY_NZ} -res ${MY_SIZEX} ${MY_SIZEY} ${MY_SIZEZ} -nres ${MY_NRES} -ns ${MY_NSOLVE} -k ${MY_KERNEL} -c 0 -bc ${MY_BC}

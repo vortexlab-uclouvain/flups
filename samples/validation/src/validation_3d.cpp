@@ -47,14 +47,14 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
-    const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
 
     const bool is_cell = myCase.center_type[0] == CELL_CENTER; 
     const double fact = (double) (!is_cell);
 
-    const double h[3] = {L[0]/ (nglob[0] - fact), L[1]/ (nglob[1] - fact), L[1]/ (nglob[1] - fact)} ;
+    const int  nglob[3]  = {myCase.nglob[0] + (int) fact, myCase.nglob[1] + (int) fact, myCase.nglob[2] + (int) fact};
+    const double h[3]    = {L[0]/ (nglob[0] - fact), L[1]/ (nglob[1] - fact), L[1]/ (nglob[1] - fact)} ;
 
     FLUPS_CenterType center_type[3];
     for (int i = 0; i < 3; i++) {
