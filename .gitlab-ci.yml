@@ -132,7 +132,7 @@ run serial a2a 1:1:
     - merge_requests
   script:
     - ./flups_validation_a2a -bc 3 3 3 3 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_333333_typeGreen=0.txt'))"
   dependencies:
     - compil dbg
 
@@ -145,7 +145,7 @@ run serial a2a 2:1:
     - merge_requests
   script:
     - ./flups_validation_a2a -bc 0 1 4 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_014411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -157,7 +157,7 @@ run serial a2a 3:1:
     - merge_requests
   script:
     - ./flups_validation_a2a -bc 3 3 1 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -169,7 +169,7 @@ run serial a2a 4:1:
     - merge_requests
   script:
     - ./flups_validation_a2a -bc 3 3 0 0 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_330011_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -183,7 +183,7 @@ run MPI a2a 1:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -195,7 +195,7 @@ run MPI a2a 2:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411444_typeGreen=2.txt'))"
   dependencies: 
     - compil dbg
 
@@ -207,7 +207,7 @@ run MPI a2a 3:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -219,7 +219,7 @@ run MPI a2a 4:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg    
 
@@ -231,7 +231,7 @@ run MPI a2a 5:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_443310_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_443310_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
     
@@ -243,7 +243,7 @@ run MPI a2a 6:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -258,7 +258,7 @@ run MPI-OMP a2a 1:1:
     - export OMP_NUM_THREADS=2
     - echo $OMP_NUM_THREADS
     - mpirun -np 2 ./flups_validation_a2a -np 1 2 1 -res 32 32 32 -bc 4 1 4 4 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_414433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -275,7 +275,7 @@ run comm a2a 1:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 4 ./flups_validation_a2a -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
 run comm a2a 2:1:
   stage: test
@@ -290,7 +290,7 @@ run comm a2a 2:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
 run 2d 1:1:
   stage: test
@@ -300,7 +300,7 @@ run 2d 1:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 1 -L 1 1 0 -bc 0 4 4 1 9 9 -k 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_044199_typeGreen=1.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_044199_typeGreen=1.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -312,7 +312,7 @@ run 2d 2:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 1 -L 1 1 0 -bc 4 4 3 3 9 9 -k 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_443399_typeGreen=3.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_443399_typeGreen=3.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -324,7 +324,7 @@ run 2d 3:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 1 -L 1 1 0 -bc 1 0 4 1 9 9 -k 0
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_104199_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_104199_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -336,7 +336,7 @@ run 2d 4:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 1 -L 1 1 0 -bc 3 3 3 3 9 9 -k 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333399_typeGreen=1.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_333399_typeGreen=1.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -355,9 +355,9 @@ run metis:
     - make all -j2
     - mkdir prof
     - mpirun --mca btl_vader_single_copy_mechanism none -np 4 ./flups_validation_a2a -np 2 1 2 -res 16 16 16 -bc 4 4 4 4 4 4 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_444444_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_444444_typeGreen=0.txt'))"
     - mpirun --mca btl_vader_single_copy_mechanism none -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
 run vector a2a 1:1:
   stage: vector
@@ -367,7 +367,7 @@ run vector a2a 1:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -379,7 +379,7 @@ run vector a2a 2:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 4 4 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -391,7 +391,7 @@ run vector a2a 3:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bcv 4 4 1 4 0 0  4 4 0 4 1 1  4 4 1 4 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_441400_typeGreen=0.txt','validation_3d_441400_typeGreen=0.txt','validation_3d_440411_typeGreen=0.txt','validation_3d_441411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_441400_typeGreen=0.txt','validation_3d_CellCenter_441400_typeGreen=0.txt','validation_3d_CellCenter_440411_typeGreen=0.txt','validation_3d_CellCenter_441411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -403,7 +403,7 @@ run vector a2a 4:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_a2a -np 1 3 1 -res 17 17 17 -bcv 3 3 1 4 0 0  3 3 0 4 0 0  3 3 1 4 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_331400_typeGreen=0.txt','validation_3d_331400_typeGreen=0.txt','validation_3d_330400_typeGreen=0.txt','validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_330400_typeGreen=0.txt','validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg    
 
@@ -431,7 +431,7 @@ run serial nb 1:1:
     - merge_requests
   script:
     - ./flups_validation_nb -bc 3 3 3 3 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_333333_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_333333_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -444,7 +444,7 @@ run serial nb 2:1:
     - merge_requests
   script:
     - ./flups_validation_nb -bc 0 1 4 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_014411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_014411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -456,7 +456,7 @@ run serial nb 3:1:
     - merge_requests
   script:
     - ./flups_validation_nb -bc 3 3 1 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -468,7 +468,7 @@ run serial nb 4:1:
     - merge_requests
   script:
     - ./flups_validation_nb -bc 3 3 0 0 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_330011_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_330011_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -482,7 +482,7 @@ run MPI nb 1:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 4
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411444_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -494,7 +494,7 @@ run MPI nb 2:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 4 4 -k 2
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411444_typeGreen=2.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411444_typeGreen=2.txt'))"
   dependencies: 
     - compil dbg
 
@@ -506,7 +506,7 @@ run MPI nb 3:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 3 3 1 4 1 1
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -518,7 +518,7 @@ run MPI nb 4:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 32 32 32 -bc 4 1 1 4 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_411433_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_411433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg    
 
@@ -530,7 +530,7 @@ run MPI nb 5:1:
     - merge_requests
   script:
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 4 4 3 3 1 0
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_443310_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_443310_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
     
@@ -542,7 +542,7 @@ run MPI nb 6:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
 
@@ -557,7 +557,7 @@ run MPI-OMP nb 1:1:
     - export OMP_NUM_THREADS=2
     - echo $OMP_NUM_THREADS
     - mpirun -np 2 ./flups_validation_nb -np 1 2 1 -res 32 32 32 -bc 4 1 4 4 3 3
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_414433_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_414433_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -574,7 +574,7 @@ run comm nb 1:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 4 ./flups_validation_nb -np 2 2 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
 run comm nb 2:1:
   stage: test
@@ -589,7 +589,7 @@ run comm nb 2:1:
     - cd ./samples/validation
     - make all -j4
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 1 1 
-    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_334111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
 run vector nb 1:1:
   stage: vector
@@ -599,7 +599,7 @@ run vector nb 1:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 1 1 4 1 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt','validation_3d_114111_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt','validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -611,7 +611,7 @@ run vector nb 2:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bc 3 3 4 1 4 4 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt','validation_3d_334144_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt','validation_3d_CellCenter_334144_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -623,7 +623,7 @@ run vector nb 3:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bcv 4 4 1 4 0 0  4 4 0 4 1 1  4 4 1 4 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_441400_typeGreen=0.txt','validation_3d_441400_typeGreen=0.txt','validation_3d_440411_typeGreen=0.txt','validation_3d_441411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_441400_typeGreen=0.txt','validation_3d_CellCenter_441400_typeGreen=0.txt','validation_3d_CellCenter_440411_typeGreen=0.txt','validation_3d_CellCenter_441411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg
 
@@ -635,7 +635,7 @@ run vector nb 4:1:
     - merge_requests
   script:
     - mpirun -np 3 ./flups_validation_nb -np 1 3 1 -res 17 17 17 -bcv 3 3 1 4 0 0  3 3 0 4 0 0  3 3 1 4 1 1 -l 3
-    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_331400_typeGreen=0.txt','validation_3d_331400_typeGreen=0.txt','validation_3d_330400_typeGreen=0.txt','validation_3d_331411_typeGreen=0.txt'))"
+    - python3.7 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_330400_typeGreen=0.txt','validation_3d_CellCenter_331411_typeGreen=0.txt'))"
   dependencies: 
     - compil dbg  
 
