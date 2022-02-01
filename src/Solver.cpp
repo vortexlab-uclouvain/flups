@@ -178,7 +178,15 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             ndim_ --;
         }
     }
-
+    FLUPS_CHECK(ndim_ > 1, "We only hanlde 2D and 3D field", LOCATION);
+#ifndef NDEBUG
+    const bool is2D = (ndim_ == 2);
+    const bool isDir1 = (topo->nloc(0) == 1 && topo->nloc(1) != 1 && topo->nloc(2) != 1);
+    const bool isDir2 = (topo->nloc(0) != 1 && topo->nloc(1) == 1 && topo->nloc(2) != 1);
+    const bool isDir3 = (topo->nloc(0) != 1 && topo->nloc(1) != 1 && topo->nloc(2) == 1);
+    const bool isOk = is2D && (isDir1 || isDir2 || isDir3);
+    FLUPS_CHECK((isOk || !is2D), "In 2D, at least one of the direction must be equal to 1", LOCATION);
+#endif
     //-------------------------------------------------------------------------
     /** - Initialise the topos, the plans and the SwitchTopos */
     //-------------------------------------------------------------------------
@@ -1192,10 +1200,6 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     /** - go to Fourier */
     //-------------------------------------------------------------------------
     do_FFT(mydata, FLUPS_FORWARD);
-    
-    // FLUPS_print_data(topo_hat_[0], mydata);            
-    // FLUPS_CHECK(false, "Stop there for a minute", LOCATION);
-
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_hat_[ndim_-1], "rhs_h", mydata);

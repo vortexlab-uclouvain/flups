@@ -103,8 +103,6 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     for(int lia = 0; lia < lda_; lia ++){
         n_in_[lia]      = 1;
         fftwstart_[lia] = 0;
-        // normfact_[lia] = 1.0;
-
     }
     normfact_ = 1.0;
     corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
