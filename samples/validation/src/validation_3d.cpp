@@ -424,8 +424,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
     char   filename[512];
     string folder = "./data";
+    string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
 
-    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
