@@ -22,9 +22,9 @@ n_failure = 0
 print("Starting the tests...")
 
 
-# centerType = [0, 1]
-centerType = [1]
+centerType = [0, 1]
 centername = ['NodeCenter', 'CellCenter']
+
 i = 0
 for ct in centerType :
     for bcs in BCs :

@@ -18,10 +18,9 @@ n_failure = 0
 BC2 = BC1.copy()
 BC2.append(["9","9"])
 
-# centerType = [0, 1]
-# centername = ['NodeCenter', 'CellCenter']
-centerType = [1]
+centerType = [0, 1]
 centername = ['NodeCenter', 'CellCenter']
+
 i = 0
 for ct in centerType :
     for bcx in BC1 :
