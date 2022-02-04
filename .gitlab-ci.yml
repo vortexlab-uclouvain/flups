@@ -82,6 +82,8 @@ compil vortex_rot :
 
 
 compil lm3 :
+  tags:
+    - vanreeslab
   stage: build
   only:
     - /.*$/i@examples/flups
