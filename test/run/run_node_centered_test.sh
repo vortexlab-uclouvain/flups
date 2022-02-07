@@ -11,7 +11,7 @@
 #SBATCH --profile=all
 
 
-BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_run/
+BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/node_centered_test/
 SCRATCH=.
 
 EXEC=flups_test_nb
