@@ -20,15 +20,16 @@ compil lm3 :
     # create the runing directory
     - export PATH2BIN=$PATH2DIR/flups_auto_build/
     - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
-    - echo "export DIR_NAME=${PATH2BIN}_${TAG}" > dir_name.sh;
+    #- echo "export DIR_NAME=${PATH2BIN}_${TAG}" > dir_name.sh;
     - ssh -v lm3 rm -rf ${PATH2BIN}_${TAG}
     - ssh -v lm3 mkdir -p ${PATH2BIN}_${TAG}
+    - ssh -v lm3 chmod 700 ${PATH2BIN}_${TAG}
     # compress the whole current repo, more robust with scp
     - tar -czf flups_src.tar.gz --exclude=flups_src.tar.gz * && du -sh flups_src.tar.gz
     # send the tar on LM3
     - scp -v flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
-    - ssh -v lm3 cd ${PATH2BIN}_${TAG}; tar -xvzf flups_src.tar.gz
-    - ssh -v  lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
+    - ssh -v lm3 cd ${PATH2BIN}_${TAG} && tar -xvzf flups_src.tar.gz
+    - ssh -v lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KCompilation of Flups"
     - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh #make the executable, and test if the file was created
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
