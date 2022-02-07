@@ -1,7 +1,7 @@
 CXX = mpic++
 CC = mpicc
 
-OPTS += #-DVERBOSE #-DPB_DBG  #-DVERBOSE 
+OPTS += #-DVERBOSE #-DPB_DBG
 
 #CXXFLAGS := -O3 -g -fopenmp #-fsanitize=undefined -fsanitize=address
 #LDFLAGS := -fopenmp -lstdc++ -lm #-fsanitize=undefined -fsanitize=address

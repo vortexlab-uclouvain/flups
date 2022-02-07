@@ -27,7 +27,12 @@ int main(int argc, char** argv) {
         // init google and remove Google Test arguments
         ::testing::InitGoogleTest(&argc, argv);
         err = RUN_ALL_TESTS();
+
+        if (rank == 0){
+            printf("Tests are over \n");
+        }
     }
+    
     //-------------------------------------------------------------------------
     /* Tear down the communication infrastructure */
     MPI_Finalize();
