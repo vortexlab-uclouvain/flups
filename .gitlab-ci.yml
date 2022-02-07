@@ -8,33 +8,37 @@ workflow:
       when: never                                                     # pipelines if there is a push event and an open merge request 
     - if: '$CI_COMMIT_BRANCH'                                          # Trigger a pipeline when there is a push event 
 
-
-
 default :
   image : vanreeslab/flups:v0.5
   before_script :
     - OMP_NUM_THREADS=1
+    #--------------------------------------------------------------------------
+    # create the ~/.ssh and set the correct permissions
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
+    #--------------------------------------------------------------------------
+    # write the ssh config
     - echo "Host gwceci" > ~/.ssh/config
     - echo "  HostName gwceci.cism.ucl.ac.be" >> ~/.ssh/config
     - echo "  User $SSHUSER" >> ~/.ssh/config
     - echo "Host lm3" >> ~/.ssh/config
-    - echo "  ProxyCommand ssh gwceci -W %h:%p 2> /dev/null" >> ~/.ssh/config
-    - echo "  User $SSHUSER" >> ~/.ssh/config
-    # - echo "Host lm3" > ~/.ssh/config
-    # - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
     - echo "  HostName lemaitre3.cism.ucl.ac.be"  >> ~/.ssh/config
-    # - echo "  User $SSHUSER" >> ~/.ssh/config
+    - echo "  User $SSHUSER" >> ~/.ssh/config
+    - echo "  ProxyCommand ssh gwceci -W %h:%p 2> /dev/null" >> ~/.ssh/config
+    # you could replace the ProxyCommand with ProxyJump but it's less supported so we keep the good old ProxyCommand
+    # - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
+    #--------------------------------------------------------------------------
+    #register the key and the know_hosts for the coming calls
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SSHKEY")
-    # - ssh-keyscan gwceci.cism.ucl.ac.be >> ~/.ssh/known_hosts
-    # - ssh gwceci ssh-keyscan lm3 >> ~/.ssh/known_hosts
     - echo $LM3KH >> ~/.ssh/known_hosts
     - echo $GWKH >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
+    #--------------------------------------------------------------------------
+    # verify that we have a key and everything needed
     - ssh-add -L
-    - ssh -v lm3 touch coucou.text
+    - ssh lm3 touch coucou.txt
+    
 
 stages:
   - build
