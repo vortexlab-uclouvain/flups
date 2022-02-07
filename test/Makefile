@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_gcc_test
+ARCH_FILE ?= make_arch.local
 include ../$(ARCH_FILE)
 
 ################################################################################

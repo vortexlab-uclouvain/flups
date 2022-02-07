@@ -1,10 +1,12 @@
 # build image
-docker build -t immc/flups-valid:v0.4 .
+# docker build -t immc/flups-valid:v0.4 .
+docker build -t vanreeslab/flups:v0.5 .
 #v0.3 has valgrind but not metis
+# v0.5 has metis and google test but not valgrind 
 
 # push image to docker-hub
 docker login
-docker push immc/flups-valid:v0.4
+docker push vanreeslab/flups:v0.5
 
 # local test:
-docker run -it --rm immc/flups-valid:v0.4
+docker run -it --rm vanreeslab/flups:v0.5

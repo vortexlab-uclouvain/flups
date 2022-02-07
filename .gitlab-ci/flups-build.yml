@@ -1,0 +1,99 @@
+compil dbg:
+  stage: build
+  artifacts: 
+    paths: 
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_dbg
+    - make validation -j4
+    - cd ./samples/validation
+    - make all -j4
+
+compil opt:
+  stage: build
+  artifacts: 
+    paths: 
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make validation -j4
+    - cd ./samples/validation
+    - make all -j4
+
+
+compil comm:
+  stage: build
+  artifacts: 
+    paths: 
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_comm
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j4
+
+compil metis:
+  stage: build
+  artifacts: 
+    paths:
+      - ./samples/validation/flups_validation_nb
+      - ./samples/validation/flups_validation_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker 
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_metis
+    - make install -j4
+    - cd ./samples/validation
+    - make all -j2
+
+compil solve_advanced:
+  stage: build
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make install_static -j4
+    - cd ./samples/solve_advanced_C
+    - make 
+
+compil vortex_rot:
+  stage: build
+  artifacts: 
+    paths: 
+      - ./samples/solve_vtube/flups_tube_nb
+      - ./samples/solve_vtube/flups_tube_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make install_static -j4
+    - cd ./samples/solve_vtube
+    - make all -j4
+
+# compil google_test :
+#   stage: build
+#   artifacts: 
+#     paths: 
+#       - ./test/flups_test_nb
+#       - ./test/flups_test_a2a
+#       - ./include/LGF_2d_sym_acc12_32.ker
+#       - ./include/LGF_3d_sym_acc12_64.ker
+#     when: on_success
+#   script:
+#     - export ARCH_FILE=make_arch/make.docker_gcc_test
+#     - make install_static -j4
+#     - cd ./test/
+#     - make all -j4
+

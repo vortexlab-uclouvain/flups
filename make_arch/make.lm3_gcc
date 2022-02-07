@@ -17,6 +17,7 @@ LDFLAGS := -fopenmp -lstdc++
 FFTW_DIR  := ${EBROOTFFTW}
 FFTW_LIB := ${FFTW_DIR}/lib
 FFTW_INC := ${FFTW_DIR}/include
+
 #_avx512
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
