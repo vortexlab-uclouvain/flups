@@ -21,16 +21,16 @@ default :
     - echo $LM3KH >> ~/.ssh/known_hosts
     - echo $GWKH >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
-    - echo "Host gwceci" > ~/.ssh/config
-    - echo "  HostName gwceci.cism.ucl.ac.be" > ~/.ssh/config
-    - echo "  User $SSHUSER" > ~/.ssh/config
-    - echo " " > ~/.ssh/config
-    - echo "Host lm3" > ~/.ssh/config
-    - echo "  ProxyCommand ssh gwceci -W %h:%p 2> /dev/null" > ~/.ssh/config
-    # - echo "Host lm3" > ~/.ssh/config
-    # - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
-    # - echo "  HostName lemaitre3.cism.ucl.ac.be"  >> ~/.ssh/config
+    # - echo "Host gwceci" >> ~/.ssh/config
+    # - echo "  HostName gwceci.cism.ucl.ac.be" >> ~/.ssh/config
     # - echo "  User $SSHUSER" >> ~/.ssh/config
+    # - echo " " >> ~/.ssh/config
+    # - echo "Host lm3" >> ~/.ssh/config
+    # - echo "  ProxyCommand ssh gwceci -W %h:%p 2> /dev/null" >> ~/.ssh/config
+    - echo "Host lm3" > ~/.ssh/config
+    - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
+    - echo "  HostName lemaitre3.cism.ucl.ac.be"  >> ~/.ssh/config
+    - echo "  User $SSHUSER" >> ~/.ssh/config
 
 stages:
   - build
