@@ -21,24 +21,24 @@ compil lm3 :
     - export PATH2BIN=$PATH2DIR/flups_auto_build/
     - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
     #- echo "export DIR_NAME=${PATH2BIN}_${TAG}" > dir_name.sh;
-    - ssh -v lm3 rm -rf ${PATH2BIN}_${TAG}
-    - ssh -v lm3 mkdir -p ${PATH2BIN}_${TAG}
-    - ssh -v lm3 chmod 700 ${PATH2BIN}_${TAG}
+    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
+    - ssh lm3 mkdir -p ${PATH2BIN}_${TAG}
+    - ssh lm3 chmod 700 ${PATH2BIN}_${TAG}
     # compress the whole current repo, more robust with scp
     - tar -czf flups_src.tar.gz --exclude=flups_src.tar.gz * && du -sh flups_src.tar.gz
     # send the tar on LM3
-    - scp -v flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
-    - ssh -v lm3 tar -xvzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
-    - ssh -v lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
+    - scp flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
+    - ssh lm3 tar -xvzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
+    - ssh lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KCompilation of Flups"
     - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh #make the executable, and test if the file was created
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - scp -v lm3:${PATH2BIN}_${TAG}/lib/libflups_a2a.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
-    - scp -v lm3:${PATH2BIN}_${TAG}/lib/libflups_nb.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - scp lm3:${PATH2BIN}_${TAG}/lib/libflups_a2a.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - scp lm3:${PATH2BIN}_${TAG}/lib/libflups_nb.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
     - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Google tests"
     - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
-    - scp -v lm3:${PATH2BIN}_${TAG}/test/flups_test_a2a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - scp lm3:${PATH2BIN}_${TAG}/test/flups_test_a2a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
     - scp -v lm3:${PATH2BIN}_${TAG}/test/flups_test_nb . #we must download the EXE back to the test machine, so that the runner can archive
     - echo "Done with compilation."
     - ssh lm3 rm -rf ${PATH2BIN}_${TAG}/
@@ -48,18 +48,19 @@ run lm3:
   tags:
     - vanreeslab
   stage: deploy_cluster
-  rules:
-    - if: ($CI_OPEN_MERGE_REQUESTS)
-    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+  #rules:
+  #  - if: ($CI_OPEN_MERGE_REQUESTS)
+  #  - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
   needs: [compil lm3]
   dependencies:
     - compil lm3 
   script:
-    - ssh lm3 rm -f $PATH2RUN/node_centered_test/*
-    - ssh lm3 mkdir -p $PATH2RUN/node_centered_test/
-    - scp flups_test_nb lm3:$PATH2RUN/node_centered_test/ #sending the previously compiled exe back to lm3
-    - scp -r test/run/run_node_centered_test.sh lm3:${PATH2RUN}/node_centered_test/ #copy the slurm script from the runner
-    - ssh lm3 "cd $PATH2RUN/node_centered_test/ && sbatch run_node_centered_test.sh"
+    - export PATH2LAUNCH=${PATH2RUN}/node_centered_test/
+    - ssh lm3 rm -f ${PATH2LAUNCH}/*
+    - ssh lm3 mkdir -p ${PATH2LAUNCH}
+    - scp flups_test_nb lm3:${PATH2LAUNCH} #sending the previously compiled exe back to lm3
+    - scp -r test/run/run_node_centered_test.sh lm3:${PATH2LAUNCH}/ #copy the slurm script from the runner
+    - ssh lm3 "cd ${PATH2LAUNCH}/ && sbatch run_node_centered_test.sh"
     
 
 
@@ -68,13 +69,13 @@ check result lm3:
   tags:
     - vanreeslab
   stage: deploy_cluster
-  rules:
-    - if: ($CI_OPEN_MERGE_REQUESTS)
-      when: delayed
-      start_in: 1 minutes
-    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-      when: delayed
-      start_in: 1 minutes
+  #rules:
+  #  - if: ($CI_OPEN_MERGE_REQUESTS)
+  #    when: delayed
+  #    start_in: 1 minutes
+  #  - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+  #    when: delayed
+  #    start_in: 1 minutes
   
   artifacts: 
     reports:
