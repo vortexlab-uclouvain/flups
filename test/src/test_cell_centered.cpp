@@ -24,7 +24,7 @@ TEST_P(CellConvergenceTest, AllBoundaryConditions){
 
 INSTANTIATE_TEST_SUITE_P(CellCentered,
                          CellConvergenceTest,
-                         testing::Range(0, 1000));
+                         testing::Range(0, 10));
 
 // TEST_P(CellConvergenceTest, Spectral){
 //     ASSERT_LT(GetParam(), NSPECTRAL);

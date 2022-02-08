@@ -64,13 +64,13 @@ run lm3:
       ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:node_report.xml
       export TYPE=NODE
-      export TESTS=NodeCentered/NodeConvergenceTest.AllBoundaryConditions/0 &&
+      export TESTS=NodeCentered/NodeConvergenceTest.AllBoundaryConditions &&
       sbatch run_test.sh"
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:cell_report.xml
       export TYPE=CELL
-      export TESTS=CellCentered/CellConvergenceTest.AllBoundaryConditions/0 &&
+      export TESTS=CellCentered/CellConvergenceTest.AllBoundaryConditions &&
       sbatch run_test.sh"
 
 
