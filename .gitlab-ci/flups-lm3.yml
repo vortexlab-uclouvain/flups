@@ -89,7 +89,9 @@ check result lm3:
   
   artifacts: 
     reports:
-        junit: *.xml
+        junit: 
+          - node_report.xml
+          - cell_report.xml
     when: on_success
   needs: [run lm3]
   dependencies:
