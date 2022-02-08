@@ -20,10 +20,6 @@ compil lm3 :
     # create the runing directory
     - export PATH2BIN=$PATH2DIR/flups_auto_build/
     - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
-<<<<<<< HEAD
-=======
-    #- echo "export DIR_NAME=${PATH2BIN}_${TAG}" > dir_name.sh;
->>>>>>> 0e4599ee02555924a0a73195c2490b312c0f8c54
     - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
     - ssh lm3 mkdir -p ${PATH2BIN}_${TAG}
     - ssh lm3 chmod 700 ${PATH2BIN}_${TAG}
