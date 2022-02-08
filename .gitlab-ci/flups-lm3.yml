@@ -28,7 +28,7 @@ compil lm3 :
     - tar -czf flups_src.tar.gz --exclude=flups_src.tar.gz * && du -sh flups_src.tar.gz
     # send the tar on LM3
     - scp flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
-    - ssh lm3 tar -xvzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
+    - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
     - ssh lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
     - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Flups"
@@ -56,19 +56,26 @@ run lm3:
   dependencies:
     - compil lm3 
   script:
-    - ssh lm3 rm -f $PATH2RUN/*
-    - ssh lm3 mkdir -p $PATH2RUN/
-    - scp flups_test_nb lm3:$PATH2RUN/                                              #sending the previously compiled exe back to lm3
+    - ssh lm3 rm -f ${PATH2RUN}/*
+    - ssh lm3 mkdir -p ${PATH2RUN}/
+    - scp flups_test_nb lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
     - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - > 
-      ssh lm3 "cd $PATH2RUN/ && 
+      ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:node_report.xml
+      export TYPE=NODE
       export TESTS=NodeCentered/NodeConvergenceTest.AllBoundaryConditions/0 &&
+      sbatch run_test.sh"
+    - > 
+      ssh lm3 "cd ${PATH2RUN}/ && 
+      export REPORT=xml:cell_report.xml
+      export TYPE=CELL
+      export TESTS=CellCentered/CellConvergenceTest.AllBoundaryConditions/0 &&
       sbatch run_test.sh"
 
 
 
-check result lm3 node:
+check result lm3:
   tags:
     - vanreeslab
   stage: deploy_cluster
@@ -82,7 +89,7 @@ check result lm3 node:
   
   artifacts: 
     reports:
-        junit: node_report.xml
+        junit: *.xml
     when: on_success
   needs: [run lm3]
   dependencies:
@@ -91,8 +98,9 @@ check result lm3 node:
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 10m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/node_centered_test/stdout*") ]]; then echo "This run did not execute till the end."; exit 1; fi
-    - scp lm3:${PATH2RUN}/node_report.xml .
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_*") ]]; then echo "The Node test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_*") ]]; then echo "The Cell test did not execute till the end."; exit 1; fi
+    - scp lm3:${PATH2RUN}/*.xml .
 
   retry:                              # Retry -- Relaunch the Job
     max: 2                            # Limited to 2 (because of gitlab)

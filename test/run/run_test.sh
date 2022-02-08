@@ -40,4 +40,4 @@ cd ${SCRATCH}
 
 #------------------------------------------------------------------------------
 # run the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS} > stdout_$SLURM_JOB_ID
+mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS} > ${TYPE}_$SLURM_JOB_ID
