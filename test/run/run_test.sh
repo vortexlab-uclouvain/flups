@@ -10,8 +10,7 @@
 #SBATCH --comment=flups
 #SBATCH --profile=all
 
-
-BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/node_centered_test/
+BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
 SCRATCH=.
 
 EXEC=flups_test_nb
@@ -37,10 +36,8 @@ mkdir -p ${SCRATCH}
 
 # copy the exec in it
 cp -r ${BIN_DIR}/${EXEC} ${SCRATCH}
-
 cd ${SCRATCH}
 
-
 #------------------------------------------------------------------------------
-# runing the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="xml:report_node.xml" --gtest_filter=NodeCentered/NodeConvergenceTest.AllBoundaryConditions/0 > stdout_$SLURM_JOB_ID
+# run the simulation
+mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS} > stdout_$SLURM_JOB_ID

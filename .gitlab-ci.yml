@@ -37,7 +37,6 @@ default :
     #--------------------------------------------------------------------------
     # verify that we have a key and everything needed
     - ssh-add -L
-    - ssh lm3 touch coucou.txt
     
 
 stages:
