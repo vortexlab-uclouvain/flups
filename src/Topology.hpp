@@ -118,6 +118,16 @@ class Topology {
     }
 
     /**
+     * @name Functions to compute the starting index of each rank of the topology
+     * 
+     * @param id the id for one component
+     */
+    inline int cmpt_start_id_from_rank(const int rank_id, const int id) const {
+        return (rankd_id) * (nglob_[id] / nproc_[id]) + std::min(rankd_id, nglob_[id] % nproc_[id]);
+        // return (nglob_[id] * rankd_[id]) / nproc_[id];
+    }
+
+    /**
      * @brief compute the rank associated to a scalar global id
      * The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality 
      * global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
