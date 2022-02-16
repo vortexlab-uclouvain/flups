@@ -95,7 +95,7 @@ check result lm3:
         junit: 
           - node_report.xml
           - cell_report.xml
-    when: on_success
+    when: always
   needs: [run lm3]
   dependencies:
       - run lm3                    
@@ -106,8 +106,9 @@ check result lm3:
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_*") ]]; then echo "The Node test did not execute till the end."; exit 1; fi
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_*") ]]; then echo "The Cell test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f node_report.xml && grep -L "<failure" node_report.xml   # Check that there is no failed tests
-    - test -f cell_report.xml && grep -L "<failure" cell_report.xml   # Check that there is no failed tests
+    - test -f node_report.xml && if [ $(grep "<failure" node_report.xml) ] ; then echo "At least one of the node tests has failed "; exit 1; fi 
+    - test -f cell_report.xml && if [ $(grep "<failure" cell_report.xml) ] ; then echo "At least one of the cell tests has failed "; exit 1; fi
+    # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
 
   retry:                              # Retry -- Relaunch the Job
     max: 2                            # Limited to 2 (because of gitlab)
