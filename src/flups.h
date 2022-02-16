@@ -434,7 +434,7 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void flups_ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]);
+static inline void flups_ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]);
 
 /**
  * @brief get the rank from the rank per dimension
@@ -443,7 +443,7 @@ inline static void flups_ranksplit(const int rank, const int axproc[3], const in
  * @param topo the topology
  * @return int 
  */
-inline static int flups_rankindex(const int rankd[3], const Topology *topo);
+static inline int flups_rankindex(const int rankd[3], const Topology *topo);
 
 /**@} */
 
