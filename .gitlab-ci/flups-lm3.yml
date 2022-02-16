@@ -101,13 +101,13 @@ check result lm3:
       - run lm3                    
   script :
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
-    - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 10m; done
+    - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_*") ]]; then echo "The Node test did not execute till the end."; exit 1; fi
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_*") ]]; then echo "The Cell test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f node_report.xml && if [ $(grep "<failure" node_report.xml) ] ; then echo "At least one of the node tests has failed "; exit 1; fi 
-    - test -f cell_report.xml && if [ $(grep "<failure" cell_report.xml) ] ; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - test -f node_report.xml && if [[ $(grep "<failure" node_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    - test -f cell_report.xml && if [[ $(grep "<failure" cell_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
     # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
 
   retry:                              # Retry -- Relaunch the Job
