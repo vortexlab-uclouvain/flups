@@ -90,6 +90,14 @@ size_t flups_topo_get_memsize(const FLUPS_Topology* t) {
     return (size_t)t->memsize();
 }
 
+int flups_topo_cmpt_rank_fromid(const FLUPS_Topology* t, const int global_id, const int id){
+    return t->cmpt_rank_fromid(global_id, id);
+}
+
+int flups_topo_cmpt_start_id_from_rank(const FLUPS_Topology* t, const int rank_id, const int id){
+    return t->cmpt_start_id_from_rank(rank_id, id);
+}
+
 MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
     return t->get_comm();
 }

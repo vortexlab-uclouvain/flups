@@ -414,6 +414,28 @@ size_t flups_topo_get_locsize(const FLUPS_Topology* t);
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
+
+/**
+* @brief compute the rank associated to a scalar global id
+* The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality 
+* global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
+* Since we use integral division, we only take the right inequality to compute the 
+* rank associated with a global id
+*
+* @param global_id the scalar id of the point considered
+* @param id the direction of interest
+* @return int 
+*/
+int flups_topo_cmpt_rank_fromid(const FLUPS_Topology* t, const int global_id, const int id);
+
+/**
+ * @name Functions to compute the starting index of each rank of the topology
+ * 
+ * @param id the id for one component
+ */
+int flups_topo_cmpt_start_id_from_rank(const FLUPS_Topology* t, const int rank_id, const int id);
+
+
 /**
  * @brief returns the MPI-communicator of the topology
  * 
