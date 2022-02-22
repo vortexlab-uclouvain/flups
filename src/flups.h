@@ -447,16 +447,15 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
 
 
 /**
- * @brief split the rank into rank per dimensions
+ * @brief split the rank into rank per dimensions based on information from a topology
  * 
  * axproc is not used if comm is of type MPI_CART.
  * 
+ * @param topo the target topology
  * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
- * @param nproc the number of procs along each direction
- * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-void flups_ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]);
+void flups_topo_ranksplit(const FLUPS_Topology* t, const int rank, int rankd[3]);
 
 /**
  * @brief get the rank from the rank per dimension
@@ -465,7 +464,7 @@ void flups_ranksplit(const int rank, const int axproc[3], const int nproc[3], MP
  * @param topo the topology
  * @return int 
  */
-int flups_rankindex(const int rankd[3], const Topology *topo);
+int flups_topo_rankindex(const Topology *topo, const int rankd[3]);
 
 /**@} */
 

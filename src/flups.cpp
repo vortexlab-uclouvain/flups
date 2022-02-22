@@ -102,11 +102,13 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
     return t->get_comm();
 }
 
-void flups_ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
-    ranksplit(rank, axproc, nproc, comm, rankd);
+void flups_topo_ranksplit(const FLUPS_Topology* t, const int rank, int rankd[3]) {
+    int axproc[3] = {t->axproc(0),t->axproc(1),t->axproc(2)};
+    int nproc[3]  = {t->nproc(0),t->nproc(1),t->nproc(2)};
+    ranksplit(rank, axproc, nproc, t->get_comm(), rankd);
 }
 
-int flups_rankindex(const int rankd[3], const Topology *topo) {
+int flups_topo_rankindex(const Topology *topo, const int rankd[3]) {
     return rankindex(rankd, topo);
 }
 
