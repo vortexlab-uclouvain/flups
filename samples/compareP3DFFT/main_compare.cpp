@@ -304,6 +304,13 @@ int main(int argc, char *argv[]) {
     topoSpec->~Topology();
     
     mysolver->~Solver();
+    
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            flups_free(mybc[id][is]);
+        }
+    }
     Cp3dfft_clean();
 
     MPI_Finalize();
