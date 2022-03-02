@@ -464,7 +464,7 @@ void flups_topo_ranksplit(const FLUPS_Topology* t, const int rank, int rankd[3])
  * @param topo the topology
  * @return int 
  */
-int flups_topo_rankindex(const Topology *topo, const int rankd[3]);
+int flups_topo_rankindex(const FLUPS_Topology *topo, const int rankd[3]);
 
 /**@} */
 
