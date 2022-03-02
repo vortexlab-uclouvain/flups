@@ -24,7 +24,7 @@ TEST_P(NodeConvergenceTest, AllBoundaryConditions){
 
 INSTANTIATE_TEST_SUITE_P(NodeCentered,
                          NodeConvergenceTest,
-                         testing::Range(0, 10));
+                         testing::Range(0, 1000));
 // TEST_P(NodeConvergenceTest, Spectral){
 //     ASSERT_LT(GetParam(), NSPECTRAL);
 //     const int case_id = GetParam();

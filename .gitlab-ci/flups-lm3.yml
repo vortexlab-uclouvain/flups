@@ -2,9 +2,9 @@ compil lm3 :
   tags:
     - vanreeslab
   stage: build
-    #rules:
-    #  - if: ($CI_OPEN_MERGE_REQUESTS)
-    #  - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    rules:
+     - if: ($CI_OPEN_MERGE_REQUESTS)
+     - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
   artifacts: 
     paths: 
       - libflups_a2a.a
@@ -49,9 +49,9 @@ run lm3:
   tags:
     - vanreeslab
   stage: deploy_cluster
-  #rules:
-  #  - if: ($CI_OPEN_MERGE_REQUESTS)
-  #  - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+  rules:
+   - if: ($CI_OPEN_MERGE_REQUESTS)
+   - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
   needs: [compil lm3]
   dependencies:
     - compil lm3 
@@ -79,13 +79,13 @@ check result lm3:
   tags:
     - vanreeslab
   stage: deploy_cluster
-  #rules:
-  #  - if: ($CI_OPEN_MERGE_REQUESTS)
-  #    when: delayed
-  #    start_in: 1 minutes
-  #  - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-  #    when: delayed
-  #    start_in: 1 minutes
+  rules:
+   - if: ($CI_OPEN_MERGE_REQUESTS)
+     when: delayed
+     start_in: 120 minutes
+   - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+     when: delayed
+     start_in: 120 minutes
   
   artifacts: 
     paths: 
