@@ -1,7 +1,7 @@
 #!/bin/bash
 # Submission script for Lemaitre3 
 #SBATCH --job-name=flups_auto_test
-#SBATCH --time=1:30:00 # hh:mm:ss
+#SBATCH --time=2:30:00 # hh:mm:ss
 #
 #SBATCH --ntasks=8
 #SBATCH --mem-per-cpu=4000 # megabytes 
