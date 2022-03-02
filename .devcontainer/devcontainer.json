@@ -17,7 +17,9 @@
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
 		"ms-vscode.cpptools",
-		"cschlosser.doxdocgen"
+		"cschlosser.doxdocgen",
+		"notskm.clang-tidy",
+		"vadimcn.vscode-lldb"
 	]
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
