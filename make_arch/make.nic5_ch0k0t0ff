@@ -1,0 +1,30 @@
+
+MPI_DIR  ?= /opt/cecisw/arch/easybuild/2021b/software/OpenMPI/4.1.2-GCC-11.2.0/
+FFTW_DIR ?= ${EBROOTFFTW}
+HDF5_DIR ?= ${HOME}
+
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+#OPTS+= -DVERBOSE=4
+# specify the compiler
+CXX = ${MPI_DIR}/bin/mpic++
+CC = ${MPI_DIR}/bin/mpicc
+
+# set the flag (optimisation or not)
+#CXXFLAGS := -fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
+CXXFLAGS := -fopenmp -O0 -g -std=c++11 -DPROF
+#CCFLAGS := -fopenmp -O3 -g -DNDEBUG -stdc99
+CCFLAGS := -fopenmp -O0 -g -stdc99
+
+LDFLAGS := -fopenmp -lstdc++
+
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
+
