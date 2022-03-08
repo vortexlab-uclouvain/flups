@@ -2,11 +2,11 @@
 source $2
 
 # Export the variables needed for flups
-export FLUPS_MPICXX = mpic++
-export FLUPS_MPICC = mpicc
-export FLUPS_CXXFLAGS = -fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
-export FLUPS_CCFLAGS = -fopenmp -O3 -g -DNDEBUG -std=c99
-export FLUPS_LDFLAGS = -fopenmp -lstdc++
+export FLUPS_MPICXX=mpic++
+export FLUPS_MPICC=mpicc
+export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF"
+export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
+export FLUPS_LDFLAGS="-fopenmp -lstdc++"
 
 
 # Clone and compile google source test 
@@ -23,14 +23,14 @@ rm -rf /googletest;
 # echo "GTEST_INC := $1/googletest-lib/include/" >> make_arch/make.lm3_gtest
 
 # Export the variables needed for the gtest library
-export FLUPS_GTEST_INC = $1/googletest-lib/include/
-export FLUPS_GTEST_LIB = $1/googletest-lib/lib64/
+export FLUPS_GTEST_INC=$1/googletest-lib/include/
+export FLUPS_GTEST_LIB=$1/googletest-lib/lib64/
 
 
 # Compile the tests 
 cd $1/test/
 MPICC=${FLUPS_MPICC} MPICXX=${FLUPS_MPICXX} \
-CXXFLAGS=$(FLUPS_CXXFLAGS) CCFLAGS=$(FLUPS_CCFLAGS) LDFLAGS=$(FLUPS_LDFLAGS) \
+CXXFLAGS=${FLUPS_CXXFLAGS} CCFLAGS=${FLUPS_CCFLAGS} LDFLAGS=${FLUPS_LDFLAGS} \
 HDF5_DIR=${HDF5_DIR} FFTW_DIR=${EBROOTFFTW} \
 GTEST_INC=${FLUPS_GTEST_INC} GTEST_LIB=${FLUPS_GTEST_LIB} \ 
 make -j 
