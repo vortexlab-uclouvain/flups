@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch.local
+ARCH_FILE ?= make_arch/make.default
 include ../$(ARCH_FILE)
 
 ################################################################################
