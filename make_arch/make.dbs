@@ -1,5 +1,5 @@
-
-MPI_DIR  ?= /opt/cecisw/arch/easybuild/2021b/software/OpenMPI/4.1.2-GCC-11.2.0/
+MPICC ?= mpicc
+MPICXX ?= mpic++
 FFTW_DIR ?= ${EBROOTFFTW}
 HDF5_DIR ?= ${HOME}
 
@@ -8,8 +8,8 @@ HDF5_DIR ?= ${HOME}
 #---------------------------------------------------------
 #OPTS+= -DVERBOSE=4
 # specify the compiler
-CXX = ${MPI_DIR}/bin/mpic++
-CC = ${MPI_DIR}/bin/mpicc
+CXX = ${MPICXX}
+CC = ${MPICC}
 
 # set the flag (optimisation or not)
 #CXXFLAGS := -fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
