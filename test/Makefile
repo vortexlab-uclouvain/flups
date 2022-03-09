@@ -96,7 +96,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 ################################################################################
 default: all
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+all: info $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
 all2all: $(TARGET_EXE_A2A)
 
@@ -121,7 +121,33 @@ destroy:
 	rm -rf lib
 
 info:
-	@echo $(ARCH_FILE)
+	$(info prefix = $(PREFIX)/lib )
+	$(info compiler = $(shell $(CXX) --version))
+	$(info compil. flags = $(CXXFLAGS) $(OPTS) $(INC) $(DEF)  -fPIC -MMD)
+	$(info linker flags = -shared $(LDFLAGS))
+	$(info using arch file = $(ARCH_FILE) )
+	$(info LGF path = $(LGF_PATH) )
+	$(info ------------)
+	$(info FFTW:)
+	$(info - include: -I$(FFTW_INC) )
+	$(info - lib: -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB))
+	$(info ------------)
+	$(info HDF5:)
+	$(info - include: -I$(HDF5_INC) )
+	$(info - lib: -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB))
+	$(info ------------)
+	$(info GTEST:)
+	$(info - include: -I$(GTEST_INC) )
+	$(info - lib: -L$(GTEST_LIB) $(GTEST_LIBNAME) -Wl,-rpath,$(GTEST_LIB))
+	$(info ------------)
+	$(info LIST OF OBJECTS:)
+	$(info - SRC = $(SRC))
+	$(info - OBJ A2A = $(OBJ_A2A))
+	$(info - OBJ NB = $(OBJ_NB))
+	$(info - DEP = $(DEP))
+	$(info - LGF_DATA = $(LGF_DATA))
+	$(info ------------)
+
 	$(info SRC = $(SRC))
 	$(info OBJ = $(OBJ))
 	$(info OBJ = $(OBJ))
