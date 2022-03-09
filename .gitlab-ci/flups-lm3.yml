@@ -30,7 +30,6 @@ compil lm3 :
     - scp flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
     - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
-    - ssh lm3 ln -fs ${PATH2BIN}_${TAG}/make_arch/make.lm3_gtest ${PATH2BIN}_${TAG}/make_arch.local
     - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Flups"
     - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh #make the executable, and test if the file was created
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
