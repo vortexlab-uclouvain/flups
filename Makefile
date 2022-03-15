@@ -99,8 +99,14 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
+<<<<<<< HEAD
 default: lib_static 
 # default: lib_dynamic
+=======
+default: 
+	@$(MAKE) info 
+	@$(MAKE) lib_static 
+>>>>>>> origin/fix-makefile
 
 # for the validation, do a static lib
 validation: install_static
@@ -115,9 +121,9 @@ all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
 
-lib_static: info $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
 
-lib_dynamic: info $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
 
 lib: lib_static
 
@@ -152,7 +158,9 @@ install_static: lib_static
 	@cp $(LGF_DATA) $(PREFIX)/include
 
 # for a standard installation, do the dynamic link	
-install: info install_static
+install: 
+	@$(MAKE) info 
+	@$(MAKE) install_static 
 
 test:
 	@echo $(SRC)
@@ -171,43 +179,13 @@ destroy:
 	@rm -rf include
 	@rm -rf lib
 
-info: logo
-	$(info prefix = $(PREFIX)/lib )
-	$(info compiler = $(shell $(CXX) --version))
-	$(info compil. flags = $(CXXFLAGS) $(OPTS) $(INC) $(DEF)  -fPIC -MMD)
-	$(info linker flags = -shared $(LDFLAGS))
-	$(info using arch file = $(ARCH_FILE) )
-	$(info LGF path = $(LGF_PATH) )
-	$(info ------------)
-	$(info FFTW:)
-	$(info - include: -I$(FFTW_INC) )
-	$(info - lib: -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB))
-	$(info ------------)
-	$(info HDF5:)
-	$(info - include: -I$(HDF5_INC) )
-	$(info - lib: -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB))
-	$(info ------------)
-	$(info LIST OF OBJECTS:)
-	$(info - SRC = $(SRC))
-	$(info - OBJ A2A = $(OBJ_A2A))
-	$(info - OBJ NB = $(OBJ_NB))
-	$(info - DEP = $(DEP))
-	$(info - LGF_DATA = $(LGF_DATA))
-	$(info ------------)
+#-------------------------------------------------------------------------------
+# mentioning this target will export all the current variables to child-make processes
+.EXPORT_ALL_VARIABLES:
 
-.NOTPARALLEL: logo
-
-logo: 
-	@echo "----------------------------------------------------"
-	@echo "    ______   _        _    _   _____     _____       "
-	@echo "   |  ____| | |      | |  | | |  __ \   / ____|     "
-	@echo "   | |__    | |      | |  | | | |__) | | (___       "
-	@echo "   |  __|   | |      | |  | | |  ___/   \___ \      "
-	@echo "   | |      | |____  | |__| | | |       ____) |     "
-	@echo "   |_|      |______|  \____/  |_|      |_____/      "
-	@echo "                                                    "
-	@echo "                                                    "
-	@echo "    	(C) UCLouvain - Appache 2.0                    "
-	@echo "----------------------------------------------------"
+.PHONY: info
+info: 
+	@$(MAKE) --file=info.mak
+#-------------------------------------------------------------------------------
 
 -include $(DEP)
