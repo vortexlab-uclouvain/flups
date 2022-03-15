@@ -27,6 +27,7 @@
 #include "FFTW_plan_dim_cell.hpp"
 #include "FFTW_plan_dim_node.hpp"
 
+
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  * 
@@ -150,9 +151,9 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
         }
     }
 
-    sort_plans_(plan_forward_);
-    sort_plans_(plan_backward_);
-    sort_plans_(plan_green_);
+    sort_plans(plan_forward_);
+    sort_plans(plan_backward_);
+    sort_plans(plan_green_);
     FLUPS_INFO("I will proceed with forward transforms in the following direction order: %d, %d, %d", plan_forward_[0]->dimID(), plan_forward_[1]->dimID(), plan_forward_[2]->dimID());
 
     // create the backward plan in the EXACT same order as the backward one
@@ -590,49 +591,7 @@ void Solver::delete_topologies_(Topology *topo[3]) {
     END_FUNC;
 }
 
-/**
- * @brief smartly determines in which order the FFTs will be executed
- * 
- * @param plan the list of plan, which will be reordered
- */
-void Solver::sort_plans_(FFTW_plan_dim *plan[3]) {
-    BEGIN_FUNC;
-    int id_min, val_min = INT_MAX;
-    int priority[3];
-    for (int id = 0; id < 3; id++) {
-        priority[id] = plan[id]->type();
-        if (priority[id] < val_min) {
-            id_min  = id;
-            val_min = priority[id];
-        }
-    }
-    if (id_min == 0) {
-        if (priority[1] > priority[2]) {
-            FFTW_plan_dim *temp_plan = plan[2];
-            plan[2]                  = plan[1];
-            plan[1]                  = temp_plan;
-        }
-    } else {
-        // do the sort by hand...
-        int            temp_priority = priority[id_min];
-        FFTW_plan_dim *temp_plan     = plan[id_min];
-        plan[id_min]                 = plan[0];
-        plan[0]                      = temp_plan;
-        priority[id_min]             = priority[0];
-        priority[0]                  = temp_priority;
 
-        // printf("priority now = %d %d %d -> idim = %d",plan[0]->type(), plan[1]->type(),plan[2]->type());
-
-        if (priority[1] > priority[2]) {
-            FFTW_plan_dim *temp_plan = plan[2];
-            plan[2]                  = plan[1];
-            plan[1]                  = temp_plan;
-        }
-    }
-
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
-    END_FUNC;
-}
 
 /**
  * @brief Initializes a set of 3 plans by doing a dry run through the plans

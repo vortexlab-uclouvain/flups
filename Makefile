@@ -31,7 +31,7 @@ include $(ARCH_FILE)
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
 # Do not show GNU makefile command and info 
-.SILENT:
+#.SILENT:
 
 PREFIX ?= ./
 NAME := flups

@@ -47,6 +47,51 @@
 using namespace std;
 
 /**
+ * @brief smartly determines in which order the FFTs will be executed
+ * 
+ * @param plan the list of plan, which will be reordered
+ */
+static int sort_plans(FFTW_plan_dim *plan[3]) {
+    BEGIN_FUNC;
+    int id_min, val_min = INT_MAX;
+    int priority[3];
+    for (int id = 0; id < 3; id++) {
+        priority[id] = plan[id]->type();
+        if (priority[id] < val_min) {
+            id_min  = id;
+            val_min = priority[id];
+        }
+    }
+    if (id_min == 0) {
+        if (priority[1] > priority[2]) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
+        }
+    } else {
+        // do the sort by hand...
+        int            temp_priority = priority[id_min];
+        FFTW_plan_dim *temp_plan     = plan[id_min];
+        plan[id_min]                 = plan[0];
+        plan[0]                      = temp_plan;
+        priority[id_min]             = priority[0];
+        priority[0]                  = temp_priority;
+
+        // printf("priority now = %d %d %d -> idim = %d",plan[0]->type(), plan[1]->type(),plan[2]->type());
+
+        if (priority[1] > priority[2]) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
+        }
+    }
+
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
+    END_FUNC;
+    return id_min;
+}
+
+/**
  * @brief The Poisson solver
  * 
  * A collection of 3 FFTW_plan_dim for the forward and backward FFT transform of
@@ -131,7 +176,6 @@ class Solver {
      * 
      * @{
      */
-    void sort_plans_(FFTW_plan_dim* plan[3]);
     void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
     void allocate_plans_(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void delete_plans_(FFTW_plan_dim* planmap[3]);
