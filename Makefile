@@ -150,7 +150,9 @@ install_static: lib_static
 	@cp $(LGF_DATA) $(PREFIX)/include
 
 # for a standard installation, do the dynamic link	
-install: info install_static
+install: 
+	@$(MAKE) info 
+	@$(MAKE) install_static 
 
 test:
 	@echo $(SRC)
