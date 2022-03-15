@@ -30,6 +30,9 @@ include $(ARCH_FILE)
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
+# Do not show GNU makefile command and info 
+.SILENT:
+
 PREFIX ?= ./
 NAME := flups
 # library naming
@@ -99,14 +102,9 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
 
 ################################################################################
-<<<<<<< HEAD
-default: lib_static 
-# default: lib_dynamic
-=======
 default: 
 	@$(MAKE) info 
 	@$(MAKE) lib_static 
->>>>>>> origin/fix-makefile
 
 # for the validation, do a static lib
 validation: install_static
@@ -159,8 +157,8 @@ install_static: lib_static
 
 # for a standard installation, do the dynamic link	
 install: 
-	@$(MAKE) info 
-	@$(MAKE) install_static 
+	@$(MAKE) info
+	@$(MAKE) install_static
 
 test:
 	@echo $(SRC)
