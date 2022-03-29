@@ -72,8 +72,8 @@
 SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
-    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda(),LOCATION);
+    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
+    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda());
 
     topo_in_  = topo_input;
     topo_out_ = topo_output;
@@ -142,7 +142,7 @@ void SwitchTopo_nb::init_blockInfo_(const Topology* topo_in, const Topology* top
     MPI_Comm_size(inComm_, &comm_size);
     MPI_Comm_size(outComm_, &ocomm_size);
 
-    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
+    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.");
 
     //-------------------------------------------------------------------------
     /** - get the number of blocks and for each block get the size and the destination rank */
@@ -250,7 +250,7 @@ void SwitchTopo_nb::setup(){
     //if the graph communicator has the same numbering as the old commn we will skip the following
     if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
-            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.");
         }
 
         inComm_ = inComm;
@@ -303,7 +303,7 @@ void SwitchTopo_nb::setup(){
             temp++;
         }
     }
-    FLUPS_CHECK(temp == selfBlockN_, "the number of selfBlocks has to be the same in both TOPO!", LOCATION);
+    FLUPS_CHECK(temp == selfBlockN_, "the number of selfBlocks has to be the same in both TOPO!");
     iselfBlockID_ = (int*)flups_malloc(selfBlockN_ * sizeof(int));
     oselfBlockID_ = (int*)flups_malloc(selfBlockN_ * sizeof(int));
     //-------------------------------------------------------------------------
@@ -411,7 +411,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             setup_shuffle_(tmp_size, topo_out_, topo_in_, sendBuf_[bid], &o2i_shuffle_[bid]);
         }
     }
-    FLUPS_CHECK(selfcount == selfBlockN_, "the number of counted block has to match the allocation number: %d vs %d", selfcount, selfBlockN_, LOCATION);
+    FLUPS_CHECK(selfcount == selfBlockN_, "the number of counted block has to match the allocation number: %d vs %d", selfcount, selfBlockN_);
 
     // reset the self count
     selfcount = 0;
@@ -444,7 +444,7 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
             setup_shuffle_(tmp_size, topo_in_, topo_out_, recvBuf_[bid], &i2o_shuffle_[bid]);
         }
     }
-    FLUPS_CHECK(selfcount == selfBlockN_, "the number of counted block has to match the allocation number: %d vs %d", selfcount, selfBlockN_, LOCATION);
+    FLUPS_CHECK(selfcount == selfBlockN_, "the number of counted block has to match the allocation number: %d vs %d", selfcount, selfBlockN_);
     END_FUNC;
 }
 
@@ -529,10 +529,10 @@ SwitchTopo_nb::~SwitchTopo_nb() {
 void SwitchTopo_nb::execute(double* v, const int sign) const {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(),"both topologies have to be complex or real", LOCATION);
-    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda", LOCATION);
-    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported", LOCATION);
-    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL",LOCATION);
+    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(),"both topologies have to be complex or real");
+    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda");
+    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported");
+    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL");
 
     PROF_START("reorder");
     int iswitch = iswitch_;
@@ -635,7 +635,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
             
         }
     } else {
-        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
+        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
     }
 
     FLUPS_INFO("switch nb: previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());

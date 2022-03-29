@@ -72,8 +72,8 @@
 SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
-    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda(),LOCATION);
+    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
+    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda());
 
     topo_in_  = topo_input;
     topo_out_ = topo_output;
@@ -144,7 +144,7 @@ void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* to
     MPI_Comm_size(inComm_, &comm_size);
     MPI_Comm_size(outComm_, &ocomm_size);
 
-    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
+    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.");
 
     //-------------------------------------------------------------------------
     /** - allocate temporary arrays */
@@ -239,7 +239,7 @@ void SwitchTopo_a2a::setup() {
     //if the graph communicator has the same numbering as the old commn we will skip the following
     if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
-            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.");
         }
 
         inComm_ = inComm;
@@ -304,13 +304,13 @@ void SwitchTopo_a2a::setup() {
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
         MPI_Comm_get_name(subcomm_, myname, &rlen);
-        FLUPS_ERROR("communicator %s: at least one process is NOT in the all to all communication scheme",myname,LOCATION);
+        FLUPS_CHECK(false, "communicator %s: at least one process is NOT in the all to all communication scheme",myname);
     }
     if((!is_all2all_) && any_is_alltoall){
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
         MPI_Comm_get_name(subcomm_, myname, &rlen);
-        FLUPS_ERROR("communicator %s: at least one process is in the all to all communication scheme",myname,LOCATION);
+        FLUPS_CHECK(false, "communicator %s: at least one process is in the all to all communication scheme",myname);
     }
     
     // if we are all to all, clean the start array
@@ -538,10 +538,10 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
 void SwitchTopo_a2a::execute(double* v, const int sign) const {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(), "both topologies have to be complex or real", LOCATION);
-    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda", LOCATION);
-    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported", LOCATION);
-    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL",LOCATION);
+    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(), "both topologies have to be complex or real");
+    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda");
+    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported");
+    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL");
 
     int comm_size;
     // MPI_Comm_rank(subcomm_, &rank);
@@ -648,7 +648,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             oBlockiStart[id]  = iBlockiStart_[id];
         }
     } else {
-        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
+        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
     }
 
     FLUPS_INFO("switch: previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
@@ -741,6 +741,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -760,6 +761,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -779,6 +781,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -797,6 +800,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -927,6 +931,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -945,6 +950,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -963,6 +969,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -979,6 +986,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }

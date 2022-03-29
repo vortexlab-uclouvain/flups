@@ -72,6 +72,13 @@ ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
 	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
 endif
 
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory

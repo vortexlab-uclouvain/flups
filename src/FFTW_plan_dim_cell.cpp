@@ -40,7 +40,7 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - check that the BC given for the different component are compatible,
@@ -51,9 +51,8 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
     for(int lia=1; lia<lda_; lia++){
         // a boundary condition of type4 = left != right has to be the case for EVERY component
         bool type4 = bc_[0][lia] != bc_[1][lia];
-        if((type4 && !istype4) || (!type4 && istype4) ){
-            FLUPS_ERROR("one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported",LOCATION);
-        }
+        bool isOk = !((type4 && !istype4) || (!type4 && istype4));
+        FLUPS_CHECK(isOk, "one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported");
     }
 
     //-------------------------------------------------------------------------
@@ -146,7 +145,7 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT11;  // DST type IV
             }
         } else {
-            FLUPS_ERROR("unable to init the solver required", LOCATION);
+                FLUPS_CHECK(false, "unable to init the solver required");
         }
     }
     END_FUNC;
@@ -166,7 +165,7 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false, "the data cannot be complex", LOCATION);
+    FLUPS_CHECK(isComplex == false, "the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details: #fieldstart_ and #isr2c_ */
@@ -235,7 +234,7 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT01;  // DST type III
                 koffset_ = 0.0;
             } else {
-                FLUPS_ERROR("unable to init the solver required", LOCATION);
+                FLUPS_CHECK(false, "unable to init the solver required");
             }
         }
     }

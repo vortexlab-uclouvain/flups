@@ -54,9 +54,9 @@ void Solver::dothemagic_rot_complex_o2(double *data,const double koffset[3],cons
     BEGIN_FUNC;
     int cdim = ndim_ - 1;  // get current dim
 #if (KIND == 01 || KIND == 02)
-    FLUPS_CHECK(topo_hat_[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex", LOCATION);
+    FLUPS_CHECK(topo_hat_[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex");
 #else
-    FLUPS_CHECK(topo_hat_[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex", LOCATION);
+    FLUPS_CHECK(topo_hat_[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex");
 #endif
     // get the axis
     const int nf  = topo_hat_[cdim]->nf();
@@ -84,8 +84,8 @@ void Solver::dothemagic_rot_complex_o2(double *data,const double koffset[3],cons
     const size_t nloc_ax1 = topo_hat_[cdim]->nloc(ax1);
 
     // check the alignment
-    FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
-    FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
+    FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
     FLUPS_ASSUME_ALIGNED(mydata, FLUPS_ALIGNMENT);
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     

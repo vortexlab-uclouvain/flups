@@ -220,7 +220,7 @@ void TimerAgent::disp(FILE* file,const int level, const double totalTime){
         double locSelfTime = (this->timeAcc()-sumChild);
         double selfTime;
         double self_percent;
-        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",name_.c_str(), LOCATION);
+        FLUPS_CHECK(locSelfTime >= 0.0,"The timer %s does not include his children",name_.c_str());
         MPI_Allreduce(&locSelfTime, &selfTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         selfTime *= scale;
         self_percent = selfTime / totalTime * 100.0;
@@ -347,8 +347,8 @@ void Profiler::start(string name) {
         timeMap_[name]->start();
     }
     else{
-        string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg, LOCATION);
+        // string msg = "timer "+name+ " not found";
+        FLUPS_CHECK(false, "timer %s not found", name.c_str());
     }
 #endif
 }
@@ -367,8 +367,8 @@ void Profiler::stop(string name) {
         timeMap_[name]->stop();
     }
     else{
-        string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg, LOCATION);
+        // string msg = "timer "+name+ " not found";
+        FLUPS_CHECK(false, "timer %s not found", name.c_str());
     }
 #endif
 }
@@ -382,8 +382,7 @@ void Profiler::addMem(string name,size_t mem) {
         timeMap_[name]->addMem(mem);
     }
     else{
-        string msg = "timer "+name+ " not found";
-        FLUPS_ERROR(msg, LOCATION);
+        FLUPS_CHECK(false, "timer %s not found", name.c_str());
     }
 #endif
 }

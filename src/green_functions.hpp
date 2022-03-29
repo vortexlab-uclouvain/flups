@@ -59,7 +59,7 @@ static void lgf_readfile_(const int greendim, int* N, double** data) {
         (*N) = 32;
         sprintf(lgfname, "%s/LGF_2d_sym_acc12_%d.ker", path, (*N));
     } else {
-        FLUPS_ERROR("Greendim = %d is not available in this version", greendim, LOCATION);
+        FLUPS_CHECK(false, "Greendim = %d is not available in this version", greendim);
     }
 
     // open the file
@@ -77,7 +77,7 @@ static void lgf_readfile_(const int greendim, int* N, double** data) {
         // close the file
         fclose(lgf_file);
     } else {
-        FLUPS_ERROR("unable to read file %s", lgfname, LOCATION);
+        FLUPS_CHECK(false, "unable to read file %s", lgfname);
     }
     END_FUNC;
 }

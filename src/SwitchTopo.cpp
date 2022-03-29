@@ -101,7 +101,7 @@ void SwitchTopo::cmpt_blockDestRank_(const int nBlock[3],const int nByBlock[3],c
             // destrankd[id] = std::min(destrankd[id],topo_out->nproc(id)-1);
         }
         destRank[ib] = rankindex(destrankd, topo_out);
-        FLUPS_CHECK(destRank[ib] < comm_size, "You should have a destination smaller than your comm_size -> %d vs %d -- ib == %d ", destRank[ib] , comm_size, ib, LOCATION);
+        FLUPS_CHECK(destRank[ib] < comm_size, "You should have a destination smaller than your comm_size -> %d vs %d -- ib == %d ", destRank[ib] , comm_size, ib);
         
         FLUPS_INFO_4("block %d will go to proc %d",ib,destRank[ib]);
     }
@@ -356,7 +356,7 @@ void SwitchTopo::cmpt_blockIndexes_(const int istart[3], const int iend[3], cons
         // send/recv number of block on my proc
         nBlock[id] = (iend[id] - istart[id]) / nByBlock[id];
         // do some checks
-        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2], LOCATION);
+        FLUPS_CHECK(nBlock[id] > 0, "The number of proc in one direction cannot be 0: istart = %d %d %d to iend = %d %d %d ", istart[0], istart[1], istart[2], iend[0], iend[1], iend[2]);
     }
     END_FUNC;
 }
@@ -446,7 +446,7 @@ void SwitchTopo::cmpt_commSplit_(){
     // if we failed to create the subcom, uses the default one
     if (n_left > 0) {
         subcomm_ = inComm_;
-        FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete", LOCATION);
+        FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete");
     } else {
         //If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
         int sumColor = 0;
@@ -626,10 +626,10 @@ void SwitchTopo::setup_shuffle_(const int bSize[3], const Topology* topo_in, con
     // the nf is driven by the OUT topology ALWAYS
     if (nf == 1) {
         *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
-        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
     } else if (nf == 2) {
         *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
-        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup", LOCATION);
+        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
     }
 
     END_FUNC;

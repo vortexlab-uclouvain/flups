@@ -58,17 +58,15 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     for (int i = 1; i < 10 * alignSize; i++) {
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
-            if (i > alignSize) {
-                FLUPS_ERROR("The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNEMENT into file flups.h accordingly: FFTW=%d vs FLUPS=%d", fftwalignment_, FLUPS_ALIGNMENT, LOCATION);
-            }
+            FLUPS_CHECK(i < alignSize, "The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNEMENT into file flups.h accordingly: FFTW=%d vs FLUPS=%d", fftwalignment_, FLUPS_ALIGNMENT);
             // else, just stop and advise the user to change
             break;
         }
         fftwalignment_ += sizeof(double);
     }
     if (fftwalignment_ != FLUPS_ALIGNMENT) {
-        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT, LOCATION);
-        FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)", LOCATION);
+        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
+        FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     } else {
         FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
         FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
@@ -136,7 +134,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
 
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
-    FLUPS_CHECK(centertype[0] == centertype[1] && centertype[0] == centertype[2],"We handle only data located at the same place in all the direction", LOCATION);
+    FLUPS_CHECK(centertype[0] == centertype[1] && centertype[0] == centertype[2],"We handle only data located at the same place in all the direction");
     for (int id = 0; id < 3; id++) {
         if (CELL_CENTER == centertype[id]) {
             plan_forward_[id]  = new FFTW_plan_dim_cell(lda_, id, h, L, rhsbc[id], FLUPS_FORWARD, false);
@@ -147,7 +145,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             plan_backward_[id] = new FFTW_plan_dim_node(lda_, id, h, L, rhsbc[id], FLUPS_BACKWARD, false);
             plan_green_[id]    = new FFTW_plan_dim_node(1, id, h, L, rhsbc[id], FLUPS_FORWARD, true);
         } else {
-            FLUPS_CHECK(false, "The type of data you asked is not supported", LOCATION);
+            FLUPS_CHECK(false, "The type of data you asked is not supported");
         }
     }
 
@@ -165,7 +163,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             if (CELL_CENTER == centertype[id]) {
                 plan_backward_diff_[id] = new FFTW_plan_dim_cell(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
             }else{
-                FLUPS_CHECK(false, "The type of data you asked is not supported", LOCATION);
+                FLUPS_CHECK(false, "The type of data you asked is not supported");
             }
         }
     }
@@ -179,14 +177,14 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             ndim_ --;
         }
     }
-    FLUPS_CHECK(ndim_ > 1, "We only hanlde 2D and 3D field", LOCATION);
+    FLUPS_CHECK(ndim_ > 1, "We only hanlde 2D and 3D field");
 #ifndef NDEBUG
     const bool is2D = (ndim_ == 2);
     const bool isDir1 = (topo->nloc(0) == 1 && topo->nloc(1) != 1 && topo->nloc(2) != 1);
     const bool isDir2 = (topo->nloc(0) != 1 && topo->nloc(1) == 1 && topo->nloc(2) != 1);
     const bool isDir3 = (topo->nloc(0) != 1 && topo->nloc(1) != 1 && topo->nloc(2) == 1);
     const bool isOk = is2D && (isDir1 || isDir2 || isDir3);
-    FLUPS_CHECK((isOk || !is2D), "In 2D, at least one of the direction must be equal to 1", LOCATION);
+    FLUPS_CHECK((isOk || !is2D), "In 2D, at least one of the direction must be equal to 1");
 #endif
     //-------------------------------------------------------------------------
     /** - Initialise the topos, the plans and the SwitchTopos */
@@ -805,7 +803,7 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
         }
     }
-    FLUPS_CHECK(max_mem > 0, "number of memory %d should be >0", max_mem, LOCATION);
+    FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
     *send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
     *recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
@@ -858,7 +856,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK((*data) == NULL, "Pointer has to be NULL for allocation", LOCATION);
+    FLUPS_CHECK((*data) == NULL, "Pointer has to be NULL for allocation");
 
     //-------------------------------------------------------------------------
     /** - Do the memory allocation */
@@ -880,7 +878,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT, LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
     END_FUNC;
 }
 
@@ -915,7 +913,7 @@ void Solver:: cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim
     }
 
     if ((typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10 || typeGreen_ == HEJ_0 || typeGreen_ == LGF_2) && ((ndim_ == 3 && (hgrid_[0] != hgrid_[1] || hgrid_[1] != hgrid_[2])) || (ndim_ == 2 && hgrid_[0] != hgrid_[1]))) {
-        FLUPS_ERROR("You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.", LOCATION);
+        FLUPS_CHECK(false, "You are trying to use a regularized kernel or a LGF while not having dx=dy=dz.");
     }
 
     // get the info + determine which green function to use:
@@ -955,7 +953,7 @@ void Solver:: cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", typeGreen_);
         cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength);
     } else if ((n_unbounded) == 2) {
-        FLUPS_CHECK(!(typeGreen_ == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!", LOCATION);
+        FLUPS_CHECK(!(typeGreen_ == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!");
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", typeGreen_);
         cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
     } else if ((n_unbounded) == 1) {
@@ -966,7 +964,7 @@ void Solver:: cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim
         cmpt_Green_0dirunbounded(topo[0], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength);
     }
     // else {
-    //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, ndim_, nbr_spectral, LOCATION);
+    //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, ndim_, nbr_spectral);
     // }
 
     // dump the green func
@@ -1044,7 +1042,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
     const size_t inmax   = topo->nloc(ax0) * topo->nf();
     const double volfact = volfact_;
 
-    FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory", LOCATION);
+    FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
 
     // do the loop
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact, ax0)
@@ -1095,13 +1093,13 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
         topo_field->switch2complex();
     }
 
-    FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nloc(0) == topo_field->nloc(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field --> %d vs %d ",topo->nloc(1), topo_field->nloc(1) , LOCATION);
-    FLUPS_CHECK(topo->nloc(2) == topo_field->nloc(2), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nglob(0) == topo_field->nglob(0), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field", LOCATION);
-    FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field", LOCATION);
+    FLUPS_CHECK(topo->nf() == topo_field->nf(), "Topo of Green has to be the same as Topo of field");
+    FLUPS_CHECK(topo->nloc(0) == topo_field->nloc(0), "Topo of Green has to be the same as Topo of field");
+    FLUPS_CHECK(topo->nloc(1) == topo_field->nloc(1), "Topo of Green has to be the same as Topo of field --> %d vs %d ",topo->nloc(1), topo_field->nloc(1) );
+    FLUPS_CHECK(topo->nloc(2) == topo_field->nloc(2), "Topo of Green has to be the same as Topo of field");
+    FLUPS_CHECK(topo->nglob(0) == topo_field->nglob(0), "Topo of Green has to be the same as Topo of field");
+    FLUPS_CHECK(topo->nglob(1) == topo_field->nglob(1), "Topo of Green has to be the same as Topo of field");
+    FLUPS_CHECK(topo->nglob(2) == topo_field->nglob(2), "Topo of Green has to be the same as Topo of field");
 
     //coming back (only if the last plan was r2c. No need it if was c2c or r2r...)
     if (planmap[ndim_ - 1]->isr2c()) {
@@ -1124,12 +1122,12 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
  */
 void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     BEGIN_FUNC;
-    FLUPS_CHECK(!(type == ROT && odiff_ == NOD),"If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2",LOCATION);
+    FLUPS_CHECK(!(type == ROT && odiff_ == NOD),"If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(field != NULL, "field is NULL", LOCATION);
-    FLUPS_CHECK(rhs != NULL, "rhs is NULL", LOCATION);
+    FLUPS_CHECK(field != NULL, "field is NULL");
+    FLUPS_CHECK(rhs != NULL, "rhs is NULL");
 
     opt_double_ptr       mydata  = data_;
 
@@ -1143,7 +1141,7 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(topo_phys_->nf() == 1, "The RHS topology cannot be complex", LOCATION);
+    FLUPS_CHECK(topo_phys_->nf() == 1, "The RHS topology cannot be complex");
 
     do_copy(topo_phys_, rhs, FLUPS_FORWARD);
 
@@ -1211,8 +1209,8 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
  */
 void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     BEGIN_FUNC;
-    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
-    FLUPS_CHECK(lda_ == topo->lda(),"the solver lda = %d must match the topology one = %d",lda_,topo->lda(),LOCATION);
+    FLUPS_CHECK(data != NULL, "data is NULL");
+    FLUPS_CHECK(lda_ == topo->lda(),"the solver lda = %d must match the topology one = %d",lda_,topo->lda());
 
     double* owndata = data_; 
     double* argdata = data;  
@@ -1247,7 +1245,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1265,14 +1263,14 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     argloc[ii] = ownloc[ii];
                 }
             }
         }
     } else {
         // do the loop
-        FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %d. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT, LOCATION);
+        FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %lu. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT);
         if (sign == FLUPS_FORWARD) {
             //Copying from arg to own
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
@@ -1285,7 +1283,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1301,7 +1299,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     argloc[ii] = ownloc[ii];
                 }
             }
@@ -1324,7 +1322,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
  */
 void Solver::do_FFT(double *data, const int sign){
     BEGIN_FUNC;
-    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
+    FLUPS_CHECK(data != NULL, "data is NULL");
     
     opt_double_ptr  mydata  = data;
 
@@ -1346,7 +1344,7 @@ void Solver::do_FFT(double *data, const int sign){
                 topo_hat_[ip]->switch2complex();
             }
             // FLUPS_print_data(topo_hat_[ip], mydata);            
-            // FLUPS_CHECK(false, "Stop there for a minute", LOCATION);
+            // FLUPS_CHECK(false, "Stop there for a minute");
 #endif
         }
     } 
@@ -1393,7 +1391,7 @@ void Solver::do_FFT(double *data, const int sign){
  */
 void Solver::do_mult(double *data, const FLUPS_SolverType type) {
     BEGIN_FUNC;
-    FLUPS_CHECK(data != NULL, "data is NULL", LOCATION);
+    FLUPS_CHECK(data != NULL, "data is NULL");
 
     if (prof_ != NULL) prof_->start("domagic");
 
@@ -1601,7 +1599,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
             //writing graph to file, CSR format
             string filename = "prof/graph.csr";
             FILE* file      = fopen(filename.c_str(), "w+");
-            if(file==NULL){FLUPS_ERROR("Could not create file in ./prof. Did you create the folder?",LOCATION);}
+            if(file==NULL){FLUPS_ERROR("Could not create file in ./prof. Did you create the folder?");}
             for(int i=0; i<=comm_size; i++){
                 fprintf(file, "%d ",xadj[i]);
             }
@@ -1638,7 +1636,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         int max_iter = 10;
         if(n_nodes==1){
             max_iter = 0;
-            FLUPS_WARNING("METIS: you asked only 1 node. I can't do the partitaioning.",LOCATION);
+            FLUPS_WARNING("METIS: you asked only 1 node. I can't do the partitaioning.");
         }
         int iter;
         idx_t options[METIS_NOPTIONS];
@@ -1698,7 +1696,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         }
         // check that we did not reach max_iter
         if(iter>=max_iter){
-            FLUPS_WARNING("Failed to find a graph partitioning with the current allocation. I will not change the rank orderegin in the graph_comm!",LOCATION);
+            FLUPS_WARNING("Failed to find a graph partitioning with the current allocation. I will not change the rank orderegin in the graph_comm!");
             for (int i = 0; i < comm_size; ++i) {
                 order[i] = i;
             }
@@ -1842,7 +1840,7 @@ void   Solver::comparedata_(const Topology * const topo, double *datad){
         FLUPS_print_data(topo, sourcedata);
     }
 
-    FLUPS_CHECK(is_correct, "Your have a problem in your switch topo.. ", LOCATION);
+    FLUPS_CHECK(is_correct, "Your have a problem in your switch topo.. ");
     FLUPS_INFO("You are good to go mate!!");
 }
 #endif

@@ -22,6 +22,12 @@ HDF5_LIB := /usr/lib/x86_64-linux-gnu
 HDF5_LIBNAME := -lhdf5_openmpi
 
 
+## H3LPR
+H3lPR_DIR := ./h3lpr/
+H3lPR_INC = ${H3lPR_DIR}/include/
+H3lPR_LIB = ${H3lPR_DIR}/lib/
+
+
 ## Specify the location of Googletest library (by default, assumed to be /usr/lib/)
 GTEST_INC := /soft/googletest/include
 GTEST_LIB := /soft/googletest/lib

@@ -86,7 +86,7 @@ static int sort_plans(FFTW_plan_dim *plan[3]) {
         }
     }
 
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
     END_FUNC;
     return id_min;
 }
@@ -323,10 +323,10 @@ class Solver {
 
 //     FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
 //     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
-//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 //     }
 //     if(comm_size>8 && (n1==1||n2==1)){
-//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
 //         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
 //         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
 //         //We could prevent this to happen by doing something like:
@@ -361,10 +361,10 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
     FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
-    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 
     if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){
-        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
     }
 }
 

@@ -11,7 +11,7 @@ int hint_proc_repartition(const int lda, const double h[3], const double L[3], B
         } else if (NODE_CENTER == center_type[id]) {
             plan[id]  = new FFTW_plan_dim_node(lda, id, h, L, bc[id], FLUPS_FORWARD, false);
         } else {
-            FLUPS_CHECK(false, "The type of data you asked is not supported", LOCATION);
+            FLUPS_CHECK(false, "The type of data you asked is not supported");
         }
     }
     

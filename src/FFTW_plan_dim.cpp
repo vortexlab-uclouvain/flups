@@ -43,7 +43,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     //-------------------------------------------------------------------------
     // sanity checks
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2", LOCATION);
+    FLUPS_CHECK(dimID >= 0 && dimID < 3,"we are only creating plans on dim from 0 to 2");
 
     //-------------------------------------------------------------------------
     // get the boundary conditions for each dimnension
@@ -91,7 +91,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
         kfact_      = 0.0;
         isSpectral_ = false;
     } else {
-        FLUPS_ERROR("Invalid combination of BCs", LOCATION);
+        FLUPS_CHECK(false, "Invalid combination of BCs");
     }
 
     //-------------------------------------------------------------------------
@@ -109,7 +109,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
 
     for(int lia= 0 ; lia<lda_; lia++){
-        FLUPS_CHECK(bc_[0][lia] + bc_[1][lia] <= type_, "dimension %d's bc = %d %d is not compatible with the plan choosen = %d", lia, bc_[0][lia], bc_[1][lia], type_,LOCATION);
+        FLUPS_CHECK(bc_[0][lia] + bc_[1][lia] <= type_, "dimension %d's bc = %d %d is not compatible with the plan choosen = %d", lia, bc_[0][lia], bc_[1][lia], type_);
     }
     END_FUNC;
 }
@@ -238,7 +238,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(data != NULL,"data cannot be null",LOCATION);
+    FLUPS_CHECK(data != NULL,"data cannot be null");
     const int memsize[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)}; //the "current" size, corresponding to size_tmp during the dry run, see init_plansAndTopos_
 
     //-------------------------------------------------------------------------
@@ -345,7 +345,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     plan_ =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * lda_);
        
     if (isr2c_) {
-        FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo",LOCATION);
+        FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo");
 
         FLUPS_INFO("------------------------------------------");
         if (type_ == PERPER) {
@@ -373,7 +373,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         }
 
     } else {
-        FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo",LOCATION);
+        FLUPS_CHECK(topo->nf() == 2, "the nf of the input topology has to be 1 = real topo");
         FLUPS_INFO("------------------------------------------");
         if (type_ == PERPER) {
             FLUPS_INFO("## C2C plan created for plan periodic-periodic (=%d)", type_);
@@ -434,7 +434,7 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
             }
         }
         // check the alignment
-        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %d and fftw_stride = %d", fftw_alignment_of(mydata), id, fftw_stride_, LOCATION);
+        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %zu and fftw_stride = %d", fftw_alignment_of(mydata), id, fftw_stride_);
     }
 #endif
 }
@@ -547,8 +547,8 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
  */
 void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     BEGIN_FUNC;
-    FLUPS_CHECK(!isSpectral_, "Trying to execute a plan for data which has already been setup spectraly", LOCATION);
-    FLUPS_CHECK(topo->lda() == lda_, "The given topology's lda does not match with the initialisation one", LOCATION);
+    FLUPS_CHECK(!isSpectral_, "Trying to execute a plan for data which has already been setup spectraly");
+    FLUPS_CHECK(topo->lda() == lda_, "The given topology's lda does not match with the initialisation one");
 
     if (type_ == SYMSYM) {
         FLUPS_INFO(">> Doing plan real2real for dim %d", dimID_);
@@ -593,7 +593,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
             if (sign_ == FLUPS_FORWARD) {  // DFT - R2C
-                FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage", LOCATION);
+                FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage");
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
@@ -604,7 +604,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
                 }
             } else {  // DFT - C2R
-                FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+                FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
@@ -617,7 +617,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             }
 
         } else {  // DFT
-            FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+            FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
             for (size_t id = 0; id < onmax; id++) {
                 size_t lia = id / howmany;
@@ -678,7 +678,7 @@ void FFTW_plan_dim::disp() {
             sprintf(msg,"%s , PER}",msg);
             // FLUPS_INFO(" PER}");
         }
-        FLUPS_INFO(msg);
+        FLUPS_INFO("%s", msg);
         if ((type_ == SYMSYM && !isGreen_) || type_ == MIXUNB) {
             if (kind_[lia] == FFTW_REDFT00) {
                 FLUPS_INFO("- kind = REDFT00 = DCT type I");
