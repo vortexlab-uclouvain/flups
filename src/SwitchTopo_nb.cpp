@@ -69,7 +69,7 @@
  * @param prof the profiler to use to profile the execution of the SwitchTopo
  */
 
-SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
+SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_output, const int shift[3], H3LPR::Profiler* prof) {
     BEGIN_FUNC;
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
@@ -534,7 +534,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported");
     FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL");
 
-    PROF_START("reorder");
+    m_profStart(prof_, "reorder");
     int iswitch = iswitch_;
 
     //-------------------------------------------------------------------------
@@ -659,7 +659,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
             FLUPS_INFO("I skip this switch because nothing needs to change.");
-            PROF_STOP("reorder");
+            m_profStop(prof_, "reorder");
             return void();
         }
     };
@@ -682,8 +682,8 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         }
     }
 
-    PROF_STARTi("switch",iswitch);
-    PROF_STARTi("mem2buf",iswitch);
+    m_profStarti(prof_, "switch%d",iswitch);
+    m_profStarti(prof_, "mem2buf%d",iswitch);
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
@@ -815,7 +815,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         }
     }
 
-    PROF_STOPi("mem2buf",iswitch);
+    m_profStopi(prof_, "mem2buf%d",iswitch);
 
     //-------------------------------------------------------------------------
     /** - reset the memory to 0 */
@@ -859,7 +859,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
             const size_t blockSize = oBlockSize[oax0][bid] * oBlockSize[oax1][bid] * oBlockSize[oax2][bid] * nf;
 #pragma omp master
             {
-                PROF_STARTi("buf2mem",iswitch);
+                m_profStarti(prof_, "buf2mem%d",iswitch);
                 // only the master call the fftw_execute which is executed in multithreading
                 if (shuffle != NULL) {
                     for (int lia = 0; lia < lda; lia++){
@@ -876,11 +876,11 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         } else {
 #pragma omp master
             {
-                PROF_STARTi("waiting",iswitch);
+                m_profStarti(prof_, "waiting%d",iswitch);
                 int request_index;
                 MPI_Waitany(recv_nBlock, recvRequest, &request_index, &status);
-                PROF_STOPi("waiting",iswitch);
-                PROF_STARTi("buf2mem",iswitch);
+                m_profStopi(prof_, "waiting%d",iswitch);
+                m_profStarti(prof_, "buf2mem%d",iswitch);
                 
                 // bid is set for the master
                 bid = status.MPI_TAG;
@@ -1018,14 +1018,14 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 
 #pragma omp master
         {
-            PROF_STOPi("buf2mem",iswitch);
+            m_profStopi(prof_, "buf2mem%d",iswitch);
         }
     }
     // now that we have received everything, close the send requests
     MPI_Waitall(send_nBlock, sendRequest,MPI_STATUSES_IGNORE);
 
-    PROF_STOPi("switch",iswitch);
-    PROF_STOP("reorder");
+    m_profStopi(prof_, "switch%d",iswitch);
+    m_profStop(prof_, "reorder");
     END_FUNC;
 }
 

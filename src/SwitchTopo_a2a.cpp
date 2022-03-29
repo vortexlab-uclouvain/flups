@@ -69,7 +69,7 @@
  * @param prof the profiler to use to profile the execution of the SwitchTopo
  */
 
-SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
+SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_output, const int shift[3], H3LPR::Profiler* prof) {
     BEGIN_FUNC;
 
     FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
@@ -547,7 +547,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // MPI_Comm_rank(subcomm_, &rank);
     MPI_Comm_size(subcomm_, &comm_size);
 
-    PROF_START("reorder");
+    m_profStart(prof_, "reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -672,7 +672,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
             FLUPS_INFO("I skip this switch because nothing needs to change.");
-            PROF_STOP("reorder");
+            m_profStop(prof_, "reorder");
             return void();
         }
     };
@@ -686,8 +686,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     const int oax2 = (oax0 + 2) % 3;
     const int nf   = topo_in->nf();
 
-    PROF_STARTi("switch",iswitch_);
-    PROF_STARTi("mem2buf",iswitch_);
+    m_profStarti(prof_, "switch%d", iswitch_);
+    m_profStarti(prof_, "mem2buf%d",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -808,13 +808,13 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
     
-    PROF_STOPi("mem2buf",iswitch_);
+    m_profStopi(prof_,"mem2buf%d",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - Do the communication */
     //-------------------------------------------------------------------------
     if (is_all2all_) {
-        PROF_STARTi("all_2_all",iswitch_);
+        m_profStarti(prof_,"all_2_all%d",iswitch_);
         MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, subcomm_);
 #ifdef PROF        
         if (prof_ != NULL) {
@@ -826,7 +826,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 #endif
 
     } else {
-        PROF_STARTi("all_2_all_v",iswitch_)
+        m_profStarti(prof_,"all_2_all_v%d",iswitch_);
         MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, subcomm_);
 #ifdef PROF        
         if (prof_ != NULL) {
@@ -868,7 +868,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // get some counters
     // const int nblocks_recv = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     // for each block
-    PROF_STARTi("buf2mem",iswitch_);
+    m_profStarti(prof_,"buf2mem%d",iswitch_);
 
     
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, recv_nBlock, v, recvBuf, oBlockSize,oBlockiStart, nf, onmem, oax0, oax1, oax2, lda)
@@ -994,9 +994,9 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
 
-    PROF_STOPi("buf2mem",iswitch_);
-    PROF_STOPi("switch",iswitch_);
-    PROF_STOP("reorder");
+    m_profStopi(prof_,"buf2mem%d",iswitch_);
+    m_profStopi(prof_,"switch%d",iswitch_);
+    m_profStop(prof_, "reorder");
     END_FUNC;
 }
 

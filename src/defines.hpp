@@ -33,6 +33,7 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
 #include "h3lpr/macros.hpp"
 #include "flups.h"
 
@@ -491,6 +492,21 @@ typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
+#define m_profStarti(prof, name, ...)                                    \
+    ({                                                                   \
+        H3LPR::Profiler *m_profStarti_prof_ = (H3LPR::Profiler *)(prof); \
+        char m_profStarti_name_[1024];                                    \
+        std::sprintf(m_profStarti_name_, name, ##__VA_ARGS__);                         \
+        m_profStart(m_profStarti_prof_, m_profStarti_name_);                                           \
+    })
+
+#define m_profStopi(prof, name, ...)                           \
+    ({                                                                 \
+        H3LPR::Profiler *m_profStopi_prof_ = (H3LPR::Profiler *)(prof); \
+        char m_profStopi_name_[1024];                                   \
+        sprintf(m_profStopi_name_, name, ##__VA_ARGS__);                      \
+        m_profStop(m_profStopi_prof_, m_profStopi_name_);                                                              \
+    })
 
 //=============================================================================
 // MEMORY ALLOCATION AND FREE

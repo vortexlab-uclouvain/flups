@@ -31,7 +31,7 @@
 #include "defines.hpp"
 #include "mpi.h"
 #include "omp.h"
-#include "Profiler.hpp"
+#include "h3lpr/profiler.hpp"
 
 /**
  * @brief Defines the basic interface for the SwitchTopo objects.
@@ -74,9 +74,7 @@ class SwitchTopo {
     fftw_plan* i2o_shuffle_ = NULL;
     fftw_plan* o2i_shuffle_ = NULL;
 
-#ifdef PROF
-    Profiler* prof_    = NULL;
-#endif 
+    H3LPR::Profiler* prof_    = NULL;
     int       iswitch_ = -1;
 
    public:

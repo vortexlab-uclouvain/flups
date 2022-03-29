@@ -37,7 +37,7 @@
 #include "SwitchTopo_a2a.hpp"
 #include "SwitchTopo_nb.hpp"
 
-#include "Profiler.hpp"
+#include "h3lpr/profiler.hpp"
 #include "omp.h"
 
 #ifdef HAVE_METIS
@@ -158,7 +158,7 @@ class Solver {
     /**@} */
 
     // time the solve
-    Profiler* prof_ = NULL;
+    H3LPR::Profiler* prof_ = NULL;
 
    protected:
     /**
@@ -216,7 +216,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centerType[3], Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centerType[3], H3LPR::Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);

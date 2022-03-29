@@ -35,7 +35,7 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 #include "Topology.hpp"
-#include "Profiler.hpp"
+#include "h3lpr/profiler.hpp"
 #include "SwitchTopo.hpp"
 
 /**
@@ -68,7 +68,7 @@ class SwitchTopo_a2a : public SwitchTopo {
     void free_blockInfo_();
 
    public:
-    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
+    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], H3LPR::Profiler *prof);
     ~SwitchTopo_a2a();
 
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
