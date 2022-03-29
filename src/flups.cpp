@@ -193,23 +193,23 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
 //  PROFILER - TIMERS
 //**********************************************************************
 
-// FLUPS_Profiler* flups_profiler_new() {
-//     Profiler* p = new Profiler();
-//     return p;
-// }
+FLUPS_Profiler* flups_profiler_new() {
+    FLUPS_Profiler* p = new H3LPR::Profiler();
+    return p;
+}
 
-// FLUPS_Profiler* flups_profiler_new_n(const char name[]){
-//     Profiler* p = new Profiler(name);
-//     return p;
-// }
+FLUPS_Profiler* flups_profiler_new_n(const char name[]){
+    FLUPS_Profiler* p = new H3LPR::Profiler(name);
+    return p;
+}
 
-// void flups_profiler_free(FLUPS_Profiler* p) {
-//     delete p;
-// }
+void flups_profiler_free(FLUPS_Profiler* p) {
+    delete p;
+}
 
-// void flups_profiler_disp_root(FLUPS_Profiler* p) {
-//     p->disp();
-// }
+void flups_profiler_disp(FLUPS_Profiler* p) {
+    m_profDisp(p);
+}
 
 // void flups_profiler_disp(FLUPS_Profiler* p, const char* name) {
 //     const std::string myname(name);

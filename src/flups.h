@@ -630,37 +630,37 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
 
 
 //=============================================================================
-// /**
-//  * @name PROFILER - TIMERS
-//  * @{
-//  */
+/**
+ * @name PROFILER - TIMERS
+ * @{
+ */
 
-// /**
-//  * @brief create a timer using the default name "default".
-//  * 
-//  * @return FLUPS_Profiler* 
-//  */
-// FLUPS_Profiler* flups_profiler_new();
-// /**
-//  * @brief create a timer with a name "name"
-//  * 
-//  * @param name 
-//  * @return FLUPS_Profiler* 
-//  */
-// FLUPS_Profiler* flups_profiler_new_n(const char name[]);
-// /**
-//  * @brief free the profiler created
-//  * 
-//  * @param p 
-//  */
-// void            flups_profiler_free(FLUPS_Profiler* p);
-// /**
-//  * @brief display the profiler using the "root" as a reference
-//  * 
-//  * @param p 
-//  */
-// void            flups_profiler_disp_root(FLUPS_Profiler* p);
-// /**
+/**
+ * @brief create a timer using the default name "default".
+ * 
+ * @return FLUPS_Profiler* 
+ */
+FLUPS_Profiler* flups_profiler_new();
+/**
+ * @brief create a timer with a name "name"
+ * 
+ * @param name 
+ * @return FLUPS_Profiler* 
+ */
+FLUPS_Profiler* flups_profiler_new_n(const char name[]);
+/**
+ * @brief free the profiler created
+ * 
+ * @param p 
+ */
+void            flups_profiler_free(FLUPS_Profiler* p);
+/**
+ * @brief display the profiler using the "root" as a reference
+ * 
+ * @param p 
+ */
+void            flups_profiler_disp(FLUPS_Profiler* p);
+/**
 //  * @brief display the profiler using "name" as reference
 //  * 
 //  * @param p 
@@ -668,7 +668,7 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
 //  */
 // void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 
-// /**@} */
+/**@} */
 
 //=============================================================================
 /**

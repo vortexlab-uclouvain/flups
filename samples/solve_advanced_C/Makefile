@@ -63,6 +63,13 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.c))

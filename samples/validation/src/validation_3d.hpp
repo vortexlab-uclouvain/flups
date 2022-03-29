@@ -35,6 +35,7 @@
 #include <cstring>
 
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
 #include "flups.h"
 
 #define MANUFACTURED_SOLUTION
