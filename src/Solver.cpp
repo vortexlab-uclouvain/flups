@@ -1247,6 +1247,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1264,6 +1265,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
                     argloc[ii] = ownloc[ii];
                 }
             }
@@ -1283,6 +1285,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1298,6 +1301,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
+                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %d", ii, LOCATION);
                     argloc[ii] = ownloc[ii];
                 }
             }
