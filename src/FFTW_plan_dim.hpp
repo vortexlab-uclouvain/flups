@@ -100,7 +100,7 @@ class FFTW_plan_dim {
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
-    ~FFTW_plan_dim();
+    virtual ~FFTW_plan_dim(); // Virtual, following http://www.gotw.ca/publications/mill18.htm 
 
     void init(const int size[3], const bool isComplex);
 
