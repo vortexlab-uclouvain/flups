@@ -1245,7 +1245,6 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1263,7 +1262,6 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     argloc[ii] = ownloc[ii];
                 }
             }
@@ -1283,7 +1281,6 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     ownloc[ii] = argloc[ii];
                 }
             }
@@ -1299,12 +1296,27 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
                 for (size_t ii = 0; ii < inmax; ii++) {
-                    FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
                     argloc[ii] = ownloc[ii];
                 }
             }
         }
     }
+
+#ifndef NDEBUG
+    for (int id = 0; id < onmax; id++){
+        // get the lia and the io
+        const size_t lia          = id / ondim;
+        const size_t io           = id % ondim;
+        double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+        for (size_t ii = 0; ii < inmax; ii++) {
+            FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
+        }
+    }
+
+#endif
+
 
     m_profStop(prof_,"copy");
 

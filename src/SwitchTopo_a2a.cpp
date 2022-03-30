@@ -99,29 +99,29 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
-#ifdef PROF    
-    if (prof_ != NULL) {
-        prof_->create("reorder", "solve");
+// #ifdef PROF    
+//     if (prof_ != NULL) {
+//         prof_->create("reorder", "solve");
 
-        prof_->create("switch0", "reorder");
-        prof_->create("mem2buf0", "switch0");
-        prof_->create("buf2mem0", "switch0");
-        prof_->create("all_2_all0", "switch0");
-        prof_->create("all_2_all_v0", "switch0");
+//         prof_->create("switch0", "reorder");
+//         prof_->create("mem2buf0", "switch0");
+//         prof_->create("buf2mem0", "switch0");
+//         prof_->create("all_2_all0", "switch0");
+//         prof_->create("all_2_all_v0", "switch0");
 
-        prof_->create("switch1", "reorder");
-        prof_->create("mem2buf1", "switch1");
-        prof_->create("buf2mem1", "switch1");
-        prof_->create("all_2_all1", "switch1");
-        prof_->create("all_2_all_v1", "switch1");
+//         prof_->create("switch1", "reorder");
+//         prof_->create("mem2buf1", "switch1");
+//         prof_->create("buf2mem1", "switch1");
+//         prof_->create("all_2_all1", "switch1");
+//         prof_->create("all_2_all_v1", "switch1");
 
-        prof_->create("switch2", "reorder");
-        prof_->create("mem2buf2", "switch2");
-        prof_->create("buf2mem2", "switch2");
-        prof_->create("all_2_all2", "switch2");
-        prof_->create("all_2_all_v2", "switch2");
-    }
-#endif
+//         prof_->create("switch2", "reorder");
+//         prof_->create("mem2buf2", "switch2");
+//         prof_->create("buf2mem2", "switch2");
+//         prof_->create("all_2_all2", "switch2");
+//         prof_->create("all_2_all_v2", "switch2");
+//     }
+// #endif
     END_FUNC;
 }
 
@@ -816,29 +816,12 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     if (is_all2all_) {
         m_profStarti(prof_,"all_2_all%d",iswitch_);
         MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, subcomm_);
-#ifdef PROF        
-        if (prof_ != NULL) {
-            string profName = "all_2_all"+to_string(iswitch_);
-            prof_->stop(profName);
-            int loc_mem = send_count[0] * comm_size;
-            prof_->addMem(profName, loc_mem*sizeof(double));
-        }
-#endif
+        m_profStopi(prof_, "all_2_all%d", iswitch_);
 
     } else {
         m_profStarti(prof_,"all_2_all_v%d",iswitch_);
         MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, subcomm_);
-#ifdef PROF        
-        if (prof_ != NULL) {
-            string profName = "all_2_all_v"+to_string(iswitch_);
-            prof_->stop(profName);
-            int loc_mem = 0;
-            for (int ir = 0; ir < comm_size; ir++) {
-                loc_mem += send_count[ir];
-            }
-            prof_->addMem(profName, loc_mem*sizeof(double));
-        }
-#endif        
+        m_profStopi(prof_, "all_2_all_v%d", iswitch_);
     }
 
     //-------------------------------------------------------------------------

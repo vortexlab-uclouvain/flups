@@ -98,26 +98,26 @@ SwitchTopo_nb::SwitchTopo_nb(const Topology* topo_input, const Topology* topo_ou
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
-#ifdef PROF
-    if (prof_ != NULL) {
-        prof_->create("reorder","solve");
+// #ifdef PROF
+//     if (prof_ != NULL) {
+//         prof_->create("reorder","solve");
 
-        prof_->create("switch0", "reorder");
-        prof_->create("mem2buf0", "switch0");
-        prof_->create("buf2mem0", "switch0");
-        prof_->create("waiting0", "switch0");
+//         prof_->create("switch0", "reorder");
+//         prof_->create("mem2buf0", "switch0");
+//         prof_->create("buf2mem0", "switch0");
+//         prof_->create("waiting0", "switch0");
 
-        prof_->create("switch1", "reorder");
-        prof_->create("mem2buf1", "switch1");
-        prof_->create("buf2mem1", "switch1");
-        prof_->create("waiting1", "switch1");
+//         prof_->create("switch1", "reorder");
+//         prof_->create("mem2buf1", "switch1");
+//         prof_->create("buf2mem1", "switch1");
+//         prof_->create("waiting1", "switch1");
 
-        prof_->create("switch2", "reorder");
-        prof_->create("mem2buf2", "switch2");
-        prof_->create("buf2mem2", "switch2");
-        prof_->create("waiting2", "switch2");
-    }
-#endif
+//         prof_->create("switch2", "reorder");
+//         prof_->create("mem2buf2", "switch2");
+//         prof_->create("buf2mem2", "switch2");
+//         prof_->create("waiting2", "switch2");
+//     }
+// #endif
     END_FUNC;
 }
 
@@ -905,15 +905,15 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
             // get the block id = the tag
             bid = status.MPI_TAG;
         }
-        // add the bandwith info
-        #pragma omp master
-        {
-#ifdef PROF            
-            if (prof_ != NULL) {
-                prof_->addMem("waiting"+to_string(iswitch), get_blockMemSize(bid,nf,oBlockSize)*lda*sizeof(double));
-            }
-#endif
-        }
+//         // add the bandwith info
+//         #pragma omp master
+//         {
+// #ifdef PROF            
+//             if (prof_ != NULL) {
+//                 prof_->addMem("waiting"+to_string(iswitch), get_blockMemSize(bid,nf,oBlockSize)*lda*sizeof(double));
+//             }
+// #endif
+//         }
 
         for (int lia = 0; lia < lda; lia++){
             // total size of a block, 1 component
