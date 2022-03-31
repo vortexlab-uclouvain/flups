@@ -27,6 +27,7 @@
  */
 
 #include "defines.hpp"
+#include "h3lpr/profiler.hpp"
 #include "toolsinterface.hpp"
 #include "Topology.hpp"
 #include "Solver.hpp"
@@ -122,7 +123,7 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const 
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof) {
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], H3LPR::Profiler* prof) {
 #ifndef PROF
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
 #else
@@ -193,27 +194,31 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
 //  PROFILER - TIMERS
 //**********************************************************************
 
-FLUPS_Profiler* flups_profiler_new() {
-    FLUPS_Profiler* p = new H3LPR::Profiler();
+H3LPR::Profiler* flups_profiler_new() {
+    H3LPR::Profiler* p = new H3LPR::Profiler();
+    // return reinterpret_cast<void*>(p);
     return p;
 }
 
-FLUPS_Profiler* flups_profiler_new_n(const char name[]){
-    FLUPS_Profiler* p = new H3LPR::Profiler(name);
-    return p;
+H3LPR::Profiler* flups_profiler_new_n(const char name[]){
+    H3LPR::Profiler* p = new H3LPR::Profiler(name);
+    // return reinterpret_cast<void*>(p);
+    return p; 
 }
 
-void flups_profiler_free(FLUPS_Profiler* p) {
+void flups_profiler_free(H3LPR::Profiler* p) {
+    // delete reinterpret_cast<H3LPR::Profiler*>(p);
     delete p;
 }
 
-void flups_profiler_disp(FLUPS_Profiler* p) {
+void flups_profiler_disp(H3LPR::Profiler* p) {
+    // m_profDisp(reinterpret_cast<H3LPR::Profiler*>(p));
     m_profDisp(p);
 }
 
-// void flups_profiler_disp(FLUPS_Profiler* p, const char* name) {
+// void flups_profiler_disp(H3LPR::Profiler* p, const char* name) {
 //     const std::string myname(name);
-//     p->disp(myname);
+//     p->Disp(myname);
 // }
 
 //**********************************************************************

@@ -36,6 +36,7 @@
 #include <iostream>
 extern "C" {
 #define MAX(a,b) std::max(a,b)
+
 #else
 #include "stdlib.h"
 #define MAX(a,b) a>b?a:b
@@ -147,7 +148,9 @@ enum FLUPS_CenterType {
 
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
-typedef struct H3LPR::Profiler FLUPS_Profiler;
+
+struct FLUPS_Profiler;
+typedef struct FLUPS_Profiler FLUPS_Profiler;
 
 typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
 typedef enum FLUPS_GreenType    FLUPS_GreenType;

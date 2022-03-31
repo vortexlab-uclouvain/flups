@@ -534,7 +534,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported");
     FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL");
 
-    m_profStart(prof_, "reorder");
+    m_profStarti(prof_, "reorder");
     int iswitch = iswitch_;
 
     //-------------------------------------------------------------------------
@@ -659,7 +659,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
             FLUPS_INFO("I skip this switch because nothing needs to change.");
-            m_profStop(prof_, "reorder");
+            m_profStopi(prof_, "reorder");
             return void();
         }
     };
@@ -1025,7 +1025,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     MPI_Waitall(send_nBlock, sendRequest,MPI_STATUSES_IGNORE);
 
     m_profStopi(prof_, "switch%d",iswitch);
-    m_profStop(prof_, "reorder");
+    m_profStopi(prof_, "reorder");
     END_FUNC;
 }
 

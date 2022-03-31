@@ -96,8 +96,8 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // if (prof_ != NULL) prof_->create("copy", "solve");
     // if (prof_ != NULL) prof_->create("fftw", "solve");
     // if (prof_ != NULL) prof_->create("domagic", "solve");
-    m_profStart(prof_, "init");
-    m_profStart(prof_,"init");
+    m_profStarti(prof_, "init");
+    m_profStarti(prof_,"init");
 
     
 
@@ -225,7 +225,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
             }
         }
     }
-    m_profStop(prof_, "init");
+    m_profStopi(prof_, "init");
     END_FUNC;
 }
 
@@ -246,7 +246,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
  */
 double* Solver::setup(const bool changeTopoComm) {
     BEGIN_FUNC;
-    m_profStart(prof_, "setup");
+    m_profStarti(prof_, "setup");
 
     //-------------------------------------------------------------------------
     /** [IF REORDER_RANKS IS DEFINED] */
@@ -419,28 +419,28 @@ double* Solver::setup(const bool changeTopoComm) {
     //-------------------------------------------------------------------------
     /** - allocate the data for the Green's function */
     //-------------------------------------------------------------------------
-    m_profStart(prof_, "alloc_data");
+    m_profStarti(prof_, "alloc_data");
     // allocate to the maximum size needed by all the topologies
     allocate_data_(topo_green_, NULL, &green_);
-    m_profStop(prof_, "alloc_data");
+    m_profStopi(prof_, "alloc_data");
 
     //-------------------------------------------------------------------------
     /** - allocate the plan and comnpute the Green's function */
     //-------------------------------------------------------------------------
-    m_profStart(prof_, "green");
-    m_profStart(prof_, "green_plan");
+    m_profStarti(prof_, "green");
+    m_profStarti(prof_, "green_plan");
     allocate_plans_(topo_green_, plan_green_, green_);
-    m_profStop(prof_, "green_plan");
+    m_profStopi(prof_, "green_plan");
     // setup the buffers for Green
     allocate_switchTopo_(3, switchtopo_green_, &sendBuf_, &recvBuf_);
-    m_profStart(prof_, "green_func");
+    m_profStarti(prof_, "green_func");
     cmptGreenFunction_(topo_green_, green_, plan_green_);
-    m_profStop(prof_, "green_func");
+    m_profStopi(prof_, "green_func");
     // finalize green by replacing some data in full spectral if needed by the kernel,
     // and by doing a last switch to the field topo
-    m_profStart(prof_, "green_final");
+    m_profStarti(prof_, "green_final");
     finalizeGreenFunction_(topo_hat_[ndim_-1], green_, topo_green_[ndim_-1], plan_green_);
-    m_profStop(prof_, "green_final");
+    m_profStopi(prof_, "green_final");
 
     //-------------------------------------------------------------------------
     /** - Clean the Green's function accessories (allocated topo and plans) */
@@ -450,37 +450,37 @@ double* Solver::setup(const bool changeTopoComm) {
     delete_switchtopos_(switchtopo_green_);
     delete_topologies_(topo_green_);
     delete_plans_(plan_green_);
-    m_profStop(prof_, "green");
+    m_profStopi(prof_, "green");
 
     //-------------------------------------------------------------------------
     /** - allocate the data for the field */
     //-------------------------------------------------------------------------
-    m_profStart(prof_, "alloc_data");
+    m_profStarti(prof_, "alloc_data");
     allocate_data_(topo_hat_, topo_phys_, &data_);
 #if DEBUG_ST
     for(int i = 0; i < 4; i++){
         allocate_data_(topo_hat_, topo_phys_, &datad_[i]);
     }
 #endif
-    m_profStop(prof_, "alloc_data");
+    m_profStopi(prof_, "alloc_data");
 
     //-------------------------------------------------------------------------
     /** - allocate the plans forward, forward_diff and backward for the field */
     //-------------------------------------------------------------------------
-    m_profStart(prof_, "alloc_plans");
+    m_profStarti(prof_, "alloc_plans");
     allocate_plans_(topo_hat_, plan_forward_, data_);
     allocate_plans_(topo_hat_, plan_backward_, data_);
     if (odiff_ != NOD) {
         allocate_plans_(topo_hat_, plan_backward_diff_, data_);
     }
-    m_profStop(prof_, "alloc_plans");
+    m_profStopi(prof_, "alloc_plans");
 
     //-------------------------------------------------------------------------
     /** - Setup the SwitchTopo, this will take the latest comm into account */
     //-------------------------------------------------------------------------
     allocate_switchTopo_(ndim_, switchtopo_, &sendBuf_, &recvBuf_);
 
-    m_profStop(prof_, "setup");
+    m_profStopi(prof_, "setup");
 
     FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
@@ -1133,7 +1133,7 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
 
     opt_double_ptr       mydata  = data_;
 
-    m_profStart(prof_, "solve");
+    m_profStarti(prof_, "solve");
 
     //-------------------------------------------------------------------------
     /** - clean the data memory */
@@ -1198,7 +1198,7 @@ void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
     hdf5_dump(topo_phys_, "sol", field);
 #endif
     // stop the whole timer
-    m_profStop(prof_, "solve");
+    m_profStopi(prof_, "solve");
     END_FUNC;
 }
 
@@ -1217,7 +1217,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     double* owndata = data_; 
     double* argdata = data;  
 
-    m_profStart(prof_,"copy");
+    m_profStarti(prof_,"copy");
 
     const int    ax0     = topo->axis();
     const int    ax1     = (ax0 + 1) % 3;
@@ -1306,7 +1306,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         }
     }
 
-    m_profStop(prof_,"copy");
+    m_profStopi(prof_,"copy");
 
     END_FUNC;
 }
@@ -1334,10 +1334,10 @@ void Solver::do_FFT(double *data, const int sign){
             FLUPS_print_data(topo_hat_[ip], mydata);  
 #else            
             // run the FFT
-            m_profStart(prof_, "fftw");
+            m_profStarti(prof_, "fftw");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
             plan_forward_[ip]->correct_plan(topo_hat_[ip], mydata);
-            m_profStop(prof_, "fftw");
+            m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
@@ -1350,10 +1350,10 @@ void Solver::do_FFT(double *data, const int sign){
     else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = ndim_-1; ip >= 0; ip--) {
 #if !(DEBUG_ST)
-            m_profStart(prof_, "fftw");
+            m_profStarti(prof_, "fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStop(prof_, "fftw");
+            m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
@@ -1367,10 +1367,10 @@ void Solver::do_FFT(double *data, const int sign){
     }
     else if (sign == FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
         for (int ip = ndim_-1; ip >= 0; ip--) {
-            m_profStart(prof_, "fftw");
+            m_profStarti(prof_, "fftw");
             plan_backward_diff_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStop(prof_, "fftw");
+            m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
@@ -1392,7 +1392,7 @@ void Solver::do_mult(double *data, const FLUPS_SolverType type) {
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL");
 
-    m_profStart(prof_, "domagic");
+    m_profStarti(prof_, "domagic");
 
     // every lda is done at once inside the dothemagic functions
     if (type == STD) {
@@ -1449,7 +1449,7 @@ void Solver::do_mult(double *data, const FLUPS_SolverType type) {
         }
     }
 
-    m_profStop(prof_, "domagic");
+    m_profStopi(prof_, "domagic");
     END_FUNC;
 }
 

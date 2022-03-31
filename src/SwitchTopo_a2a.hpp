@@ -35,7 +35,7 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 #include "Topology.hpp"
-#include "h3lpr/profiler.hpp"
+// #include "h3lpr/profiler.hpp"
 #include "SwitchTopo.hpp"
 
 /**

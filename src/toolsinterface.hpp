@@ -1,3 +1,5 @@
+#ifndef SRC_TOOLS_INTERFACE_H_
+#define SRC_TOOLS_INTERFACE_H_
 #include "Solver.hpp"
 #include "FFTW_plan_dim_cell.hpp"
 #include "FFTW_plan_dim_node.hpp"
@@ -22,3 +24,5 @@ int hint_proc_repartition(const int lda, const double h[3], const double L[3], B
     }
     return ridx;
 }
+
+#endif 

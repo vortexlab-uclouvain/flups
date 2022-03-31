@@ -37,7 +37,7 @@
 #include "SwitchTopo_a2a.hpp"
 #include "SwitchTopo_nb.hpp"
 
-#include "h3lpr/profiler.hpp"
+// #include "h3lpr/profiler.hpp"
 #include "omp.h"
 
 #ifdef HAVE_METIS

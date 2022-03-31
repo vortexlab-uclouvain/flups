@@ -547,7 +547,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // MPI_Comm_rank(subcomm_, &rank);
     MPI_Comm_size(subcomm_, &comm_size);
 
-    m_profStart(prof_, "reorder");
+    m_profStarti(prof_, "reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -672,7 +672,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
             FLUPS_INFO("I skip this switch because nothing needs to change.");
-            m_profStop(prof_, "reorder");
+            m_profStopi(prof_, "reorder");
             return void();
         }
     };
@@ -996,7 +996,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
     m_profStopi(prof_,"buf2mem%d",iswitch_);
     m_profStopi(prof_,"switch%d",iswitch_);
-    m_profStop(prof_, "reorder");
+    m_profStopi(prof_, "reorder");
     END_FUNC;
 }
 
