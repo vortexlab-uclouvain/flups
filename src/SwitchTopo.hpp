@@ -175,7 +175,6 @@ inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Co
         FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in",LOCATION);
         err = MPI_Comm_group(outComm, &group_out);
         FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
-
         err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
         FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
     }

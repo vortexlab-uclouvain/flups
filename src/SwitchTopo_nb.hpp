@@ -52,25 +52,26 @@
  * there is a need for skipping some data at the left or right side of a given direction.
  * 
  */
-class SwitchTopo_nb : public SwitchTopo {
-   protected:
-    int selfBlockN_=0;
-    int* iselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the input topology (used while output to input)  */
-    int* oselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the output topoloy (used while input to ouput) */
+class SwitchTopo_nb : public SwitchTopo
+{
+protected:
+    int selfBlockN_ = 0;
+    int *iselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the input topology (used while output to input)  */
+    int *oselfBlockID_ = NULL; /**<@brief The list of the block iD that stays on the current rank in the output topoloy (used while input to ouput) */
 
-    int* i2o_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
-    int* o2i_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
+    int *i2o_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
+    int *o2i_destTag_ = NULL; /**<@brief The destination rank in the output topo of each block */
 
     MPI_Request *i2o_sendRequest_ = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *i2o_recvRequest_ = NULL; /**<@brief The MPI Request generated on the recv */
     MPI_Request *o2i_sendRequest_ = NULL; /**<@brief The MPI Request generated on the send */
     MPI_Request *o2i_recvRequest_ = NULL; /**<@brief The MPI Request generated on the recv */
 
-    void init_blockInfo_(const Topology* topo_in, const Topology* topo_out);
+    void init_blockInfo_(const Topology *topo_in, const Topology *topo_out);
     void free_blockInfo_();
 
-   public:
-    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],Profiler* prof);
+public:
+    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
     ~SwitchTopo_nb();
 
     void setup_buffers(opt_double_ptr sendBuf_,opt_double_ptr recvBuf_);

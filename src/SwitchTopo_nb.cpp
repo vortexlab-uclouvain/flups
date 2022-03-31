@@ -551,10 +551,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     int send_nBlock;
     int recv_nBlock;
 
-    // int istart[3];
-    // int ostart[3];
-    // int iend[3];
-    // int oend[3];
     int inmem[3];
     int onmem[3];
 
@@ -697,10 +693,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 #endif
     for (int bid = 0; bid < send_nBlock; bid++) {
         for (int lia = 0; lia < lda ; lia++){
-            // // get the split index
-            // int ib[3];
-            // localSplit(bid, send_nBlock, 0, ib, 1);
-
             // total size of a block, 1 component
             const size_t blockSize = iBlockSize[iax0][bid] * iBlockSize[iax1][bid] * iBlockSize[iax2][bid] * nf;
 
@@ -714,10 +706,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
                 // else we copy inside the sendbuffer
                 data = sendBuf[bid] + lia * blockSize;
             }
-            // // get the starting index in the global memory
-            // const int loci0 = istart[iax0] + ib[iax0] * nByBlock[iax0];
-            // const int loci1 = istart[iax1] + ib[iax1] * nByBlock[iax1];
-            // const int loci2 = istart[iax2] + ib[iax2] * nByBlock[iax2];
 
             // go inside the block
             const int id_max = iBlockSize[iax1][bid] * iBlockSize[iax2][bid];
