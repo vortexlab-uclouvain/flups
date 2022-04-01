@@ -142,7 +142,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     }
     // free Gdata if needed
     if (Gdata != NULL) {
-        flups_free(Gdata);
+        m_free(Gdata);
     }
 
     END_FUNC;

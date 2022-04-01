@@ -44,7 +44,7 @@
 #include "metis.h"
 #endif
 
-using namespace std;
+// using namespace std;
 
 /**
  * @brief smartly determines in which order the FFTs will be executed
@@ -114,7 +114,7 @@ class Solver {
     int            lda_           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
     int            ndim_          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
     int            fftwalignment_ = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    FLUPS_DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
     double         normfact_      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
     double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
@@ -216,7 +216,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centerType[3], H3LPR::Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -258,7 +258,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double *field, double *rhs,const FLUPS_SolverType type);
+    void solve(double *field, double *rhs,const SolverType type);
     /**@} */
 
     /**
@@ -268,7 +268,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data,const FLUPS_SolverType type);
+    void do_mult(double *data,const SolverType type);
     /**@} */
 
     /**

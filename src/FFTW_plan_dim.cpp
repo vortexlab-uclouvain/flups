@@ -49,8 +49,8 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     // get the boundary conditions for each dimnension
     //-------------------------------------------------------------------------
     // allocate the bc space
-    bc_[0] =(BoundaryType*) flups_malloc(sizeof(int)*lda_);
-    bc_[1] =(BoundaryType*) flups_malloc(sizeof(int)*lda_);
+    bc_[0] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
+    bc_[1] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
 
     //store the other dimension and check if the type is correct
     for (int lia = 0; lia < lda_; lia++) {
@@ -97,16 +97,16 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     //-------------------------------------------------------------------------
     // Allocate the component dependent stuffs
     //-------------------------------------------------------------------------
-    n_in_     = (int*)flups_malloc(sizeof(int) * lda_);
-    fftwstart_= (int*)flups_malloc(sizeof(int) * lda_);
-    // normfact_ = (double*)flups_malloc(sizeof(double) * lda_);
+    n_in_     = (int*)m_calloc(sizeof(int) * lda_);
+    fftwstart_= (int*)m_calloc(sizeof(int) * lda_);
+    // normfact_ = (double*)m_calloc(sizeof(double) * lda_);
     for(int lia = 0; lia < lda_; lia ++){
         n_in_[lia]      = 1;
         fftwstart_[lia] = 0;
     }
     normfact_ = 1.0;
-    corrtype_ = (PlanCorrectionType*)flups_malloc(sizeof(int) * lda_);
-    imult_    = (bool*)flups_malloc(sizeof(bool) * lda_);
+    corrtype_ = (PlanCorrectionType*)m_calloc(sizeof(int) * lda_);
+    imult_    = (bool*)m_calloc(sizeof(bool) * lda_);
 
     for(int lia= 0 ; lia<lda_; lia++){
         FLUPS_CHECK(bc_[0][lia] + bc_[1][lia] <= type_, "dimension %d's bc = %d %d is not compatible with the plan choosen = %d", lia, bc_[0][lia], bc_[1][lia], type_);
@@ -133,15 +133,15 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     }
     
     // free the allocated arrays
-    if (bc_[0] != NULL) flups_free(bc_[0]);
-    if (bc_[1] != NULL) flups_free(bc_[1]);
+    if (bc_[0] != NULL) m_free(bc_[0]);
+    if (bc_[1] != NULL) m_free(bc_[1]);
 
-    if (n_in_ != NULL) flups_free(n_in_);
-    if (fftwstart_ != NULL) flups_free(fftwstart_);
-    if (imult_ != NULL) flups_free(imult_);
-    if (kind_ != NULL) flups_free(kind_);
-    if (corrtype_ != NULL) flups_free(corrtype_);
-    if (plan_ != NULL) flups_free(plan_);
+    if (n_in_ != NULL) m_free(n_in_);
+    if (fftwstart_ != NULL) m_free(fftwstart_);
+    if (imult_ != NULL) m_free(imult_);
+    if (kind_ != NULL) m_free(kind_);
+    if (corrtype_ != NULL) m_free(corrtype_);
+    if (plan_ != NULL) m_free(plan_);
     //-------------------------------------------------------------------
     END_FUNC;
 }
@@ -267,7 +267,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     fftw_plan_with_nthreads(1);
 
     // allocate the plan
-    plan_ =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * lda_);
+    plan_ =(fftw_plan*) m_calloc(sizeof(fftw_plan) * lda_);
 
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
@@ -342,7 +342,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     fftw_stride_ = memsize[dimID_];
 
     // allocate the plan
-    plan_ =(fftw_plan*) flups_malloc(sizeof(fftw_plan) * lda_);
+    plan_ =(fftw_plan*) m_calloc(sizeof(fftw_plan) * lda_);
        
     if (isr2c_) {
         FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo");

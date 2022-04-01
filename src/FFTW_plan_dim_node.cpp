@@ -73,7 +73,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
-    kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_     = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
 
     // because of the constrain on the BC, we only the kind argument is linked to the lia
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
@@ -233,7 +233,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_     = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
 
     //-------------------------------------------------------------------------
     /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/

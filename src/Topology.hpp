@@ -27,7 +27,6 @@
 #define TOPOLOGY_HPP
 
 #include "defines.hpp"
-#include "hdf5_io.hpp"
 #include "mpi.h"
 #include <cstring>
 

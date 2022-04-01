@@ -163,7 +163,7 @@ inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Co
     MPI_Comm_compare(inComm, outComm, &comp);
     FLUPS_CHECK(size!=0,"size cant be 0.");
 
-    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
+    int* tmprnks = (int*) m_calloc(size*sizeof(int));
     std::memcpy(tmprnks,ranks,size*sizeof(int));
 
     int err;
@@ -178,7 +178,7 @@ inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Co
         FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.");
     }
 
-    flups_free(tmprnks);
+    m_free(tmprnks);
     END_FUNC;
 }
 

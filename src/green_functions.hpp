@@ -72,7 +72,7 @@ static void lgf_readfile_(const int greendim, int* N, double** data) {
     if (lgf_file != NULL) {
         // allocate the data
         const int size = (*N) * (*N) * (*N);
-        (*data) = (double *)flups_malloc(sizeof(double) * size);
+        (*data) = (double *)m_calloc(sizeof(double) * size);
         fread((*data), sizeof(double), size, lgf_file);
         // close the file
         fclose(lgf_file);

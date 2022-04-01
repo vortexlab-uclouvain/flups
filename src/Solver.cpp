@@ -38,7 +38,7 @@
  * @param orderDiff the differential order used for the rotational case. If no need of rotational, set 0. (order 1 = spectral, order 2 = finite diff 2nd order)
  * @param prof the profiler to use for the solve timing
  */
-Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centertype[3], H3LPR::Profiler *prof){
+Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centertype[3], H3LPR::Profiler *prof){
     BEGIN_FUNC;
 
     // //-------------------------------------------------------------------------
@@ -51,7 +51,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
-    double *data      = (double *)flups_malloc(10 * alignSize * sizeof(double));
+    double *data      = (double *)m_calloc(10 * alignSize * sizeof(double));
     // initialize the fftw alignement
     fftwalignment_ = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
     // get the fftw alignement and stop if it is lower than the one we assumed
@@ -74,7 +74,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
         FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     }
 
-    flups_free(data);
+    m_free(data);
 
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -113,11 +113,11 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - initialize the diff bc */
     //-------------------------------------------------------------------------
-    FLUPS_BoundaryType* diffbc[3][2];
+    BoundaryType* diffbc[3][2];
     if(odiff_ != NOD){
         for (int id = 0; id < 3; id++) {
             for(int is=0; is<2; is++){
-                diffbc[id][is] =(FLUPS_BoundaryType*) flups_malloc(sizeof(int)*lda_);
+                diffbc[id][is] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
                 for(int lia=0; lia<lda_; lia++){
                     if(rhsbc[id][is][lia] == EVEN){
                         diffbc[id][is][lia] = ODD;
@@ -221,7 +221,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     if (odiff_ != NOD) {
         for (int id = 0; id < 3; id++) {
             for (int is = 0; is < 2; is++) {
-                flups_free(diffbc[id][is]);
+                m_free(diffbc[id][is]);
             }
         }
     }
@@ -262,10 +262,10 @@ double* Solver::setup(const bool changeTopoComm) {
     MPI_Comm_rank(topo_phys_->get_comm(), &rank);
     
     // initialize the sources, sources weights, destination and destination weights
-    int* sources  = (int*)flups_malloc(worldsize * sizeof(int));
-    int* sourcesW = (int*)flups_malloc(worldsize * sizeof(int));
-    int* dests    = (int*)flups_malloc(worldsize * sizeof(int));
-    int* destsW   = (int*)flups_malloc(worldsize * sizeof(int));
+    int* sources  = (int*)m_calloc(worldsize * sizeof(int));
+    int* sourcesW = (int*)m_calloc(worldsize * sizeof(int));
+    int* dests    = (int*)m_calloc(worldsize * sizeof(int));
+    int* destsW   = (int*)m_calloc(worldsize * sizeof(int));
 
     //Preparing the graph:
     // we setup the thing as if every node was to communicate with every other node
@@ -346,7 +346,7 @@ double* Solver::setup(const bool changeTopoComm) {
         int shift = worldsize/2;
     #endif
 
-    int* outRanks = (int*) flups_malloc(sizeof(int)*worldsize);
+    int* outRanks = (int*) m_calloc(sizeof(int)*worldsize);
     if(rank == 0){
         FLUPS_INFO("SIMULATED GRAPH_COMM with shift = %d : REORDERING RANKS AS FOLLOWS",shift);
     }
@@ -362,7 +362,7 @@ double* Solver::setup(const bool changeTopoComm) {
     MPI_Group_incl(group_in, worldsize, outRanks, &group_out);        //manually reorder the ranks
     MPI_Comm_create(topo_phys_->get_comm(), group_out, &graph_comm);  // create the new comm
 
-    flups_free(outRanks);
+    m_free(outRanks);
 #endif
 //end simulate_graph
 
@@ -375,20 +375,20 @@ double* Solver::setup(const bool changeTopoComm) {
 
 #else
     //Use METIS to find a smart partition of the graph
-    int *order = (int *)flups_malloc(sizeof(int) * worldsize);
+    int *order = (int *)m_calloc(sizeof(int) * worldsize);
     reorder_metis_(topo_phys_->get_comm(), sources, sourcesW, dests, destsW, order);
     // create a new comm based on the order given by metis
     MPI_Group group_in, group_out;
     MPI_Comm_group(topo_phys_->get_comm(), &group_in);                //get the group of the current comm
     MPI_Group_incl(group_in, worldsize, order, &group_out);           //manually reorder the ranks
     MPI_Comm_create(topo_phys_->get_comm(), group_out, &graph_comm);  // create the new comm
-    flups_free(order);
+    m_free(order);
 #endif // METIS
 
-    flups_free(sources);
-    flups_free(sourcesW);
-    flups_free(dests);
-    flups_free(destsW);
+    m_free(sources);
+    m_free(sourcesW);
+    m_free(dests);
+    m_free(destsW);
 
     std::string commname = "graph_comm";
     MPI_Comm_set_name(graph_comm, commname.c_str());
@@ -495,7 +495,7 @@ double* Solver::setup(const bool changeTopoComm) {
 Solver::~Solver() {
     BEGIN_FUNC;
     // for Green
-    if (green_ != NULL) flups_free(green_);
+    if (green_ != NULL) m_free(green_);
     // delete the plans
     delete_plans_(plan_forward_);
     delete_plans_(plan_backward_);
@@ -515,11 +515,11 @@ Solver::~Solver() {
 #endif
     delete_topologies_(topo_hat_);
     
-    if (data_ != NULL) flups_free(data_);
+    if (data_ != NULL) m_free(data_);
 
 #ifdef DEBUG_ST 
     for(int i =0; i < 4; i++){
-        if (datad_[i] != NULL) flups_free(datad_[i]);
+        if (datad_[i] != NULL) m_free(datad_[i]);
     }
 #endif
 
@@ -807,8 +807,8 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+    *send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+    *recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
     std::memset(*send_buff, 0, max_mem * sizeof(double));
     std::memset(*recv_buff, 0, max_mem * sizeof(double));
 
@@ -822,11 +822,11 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
 }
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
     if (*send_buff != NULL) {
-        flups_free(*send_buff);
+        m_free(*send_buff);
         (*send_buff) = NULL;
     }
     if (*recv_buff != NULL) {
-        flups_free(*recv_buff);
+        m_free(*recv_buff);
         (*recv_buff) = NULL;
     }
 }
@@ -873,7 +873,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     }
 
     FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
-    (*data) = (double *)flups_malloc(size_tot * sizeof(double));
+    (*data) = (double *)m_calloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));
 
@@ -1122,7 +1122,7 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
  * -----------------------------------------------
  * We perform the following operations:
  */
-void Solver::solve(double *field, double *rhs,const FLUPS_SolverType type) {
+void Solver::solve(double *field, double *rhs,const SolverType type) {
     BEGIN_FUNC;
     FLUPS_CHECK(!(type == ROT && odiff_ == NOD),"If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
     //-------------------------------------------------------------------------
@@ -1400,7 +1400,7 @@ void Solver::do_FFT(double *data, const int sign){
  * @param data 
  * @param type 
  */
-void Solver::do_mult(double *data, const FLUPS_SolverType type) {
+void Solver::do_mult(double *data, const SolverType type) {
     BEGIN_FUNC;
     FLUPS_CHECK(data != NULL, "data is NULL");
 
@@ -1526,7 +1526,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     MPI_Comm_size(nodecomm, &local_nodesize);
 
     // gather on proc 1 the number of proc per node
-    int *vec_nodesize = (int *)flups_malloc(sizeof(int) * comm_size);
+    int *vec_nodesize = (int *)m_calloc(sizeof(int) * comm_size);
     MPI_Allgather(&local_nodesize, 1, MPI_INT, vec_nodesize, 1, MPI_INT, comm);
     
     // count the number of partitions we'll need:
@@ -1546,7 +1546,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     vec_nodesize[0]=comm_size-vec_nodesize[1];
 #endif
 
-    real_t* tpwgts = (real_t*) flups_malloc(sizeof(real_t)*n_nodes);
+    real_t* tpwgts = (real_t*) m_calloc(sizeof(real_t)*n_nodes);
     // deduce the size of each partition:
     id = 0;
     for (int ip = 0; ip<n_nodes; ip++ ){
@@ -1556,7 +1556,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     //______________________________________________
 
     // free stuffs
-    flups_free(vec_nodesize);
+    m_free(vec_nodesize);
     MPI_Comm_free(&nodecomm);
 
     //-------------------------------------------------------------------------
@@ -1569,8 +1569,8 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         if ((sourcesW[i] + destsW[i]) > 0 && i != comm_rank) n_neighbours++;
     }
     // allocate the number of neighbours and their weights
-    int *neighbours = (int *)flups_malloc(sizeof(int) * n_neighbours);
-    int *weights    = (int *)flups_malloc(sizeof(int) * n_neighbours);
+    int *neighbours = (int *)m_calloc(sizeof(int) * n_neighbours);
+    int *weights    = (int *)m_calloc(sizeof(int) * n_neighbours);
     n_neighbours    = 0;
     for (int i = 0; i < comm_size; ++i) {
         if (sourcesW[i] + destsW[i] > 0 && i != comm_rank) {
@@ -1589,8 +1589,8 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
      * */
     //-------------------------------------------------------------------------
     if (comm_rank == 0) {
-        int *xadj = (int *)flups_malloc((comm_size + 1) * sizeof(int));
-        int *nadj = (int *)flups_malloc((comm_size) * sizeof(int));
+        int *xadj = (int *)m_calloc((comm_size + 1) * sizeof(int));
+        int *nadj = (int *)m_calloc((comm_size) * sizeof(int));
 
         // get the number of neighbours from everybody
         MPI_Gather(&n_neighbours, 1, MPI_INT, nadj, 1, MPI_INT, 0, comm);
@@ -1601,8 +1601,8 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         }
 
         // allocate the adjency list + weights and fill it with the neighbour list from everybody
-        int *adj  = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
-        int *adjw = (int *)flups_malloc(xadj[comm_size] * sizeof(int));
+        int *adj  = (int *)m_calloc(xadj[comm_size] * sizeof(int));
+        int *adjw = (int *)m_calloc(xadj[comm_size] * sizeof(int));
         MPI_Gatherv(neighbours, n_neighbours, MPI_INT, adj, nadj, xadj, MPI_INT, 0, comm);
         MPI_Gatherv(weights, n_neighbours, MPI_INT, adjw, nadj, xadj, MPI_INT, 0, comm);
 #ifdef PROF
@@ -1639,8 +1639,8 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         int  ncon = 1;  // the number of balancing constraints
         real_t tol = 1.0001; //tolerance on the constraint 
         int  objval;
-        int *part = (int *)flups_malloc(comm_size * sizeof(int));
-        int *rids = (int *)flups_malloc(n_nodes * sizeof(int));
+        int *part = (int *)m_calloc(comm_size * sizeof(int));
+        int *rids = (int *)m_calloc(n_nodes * sizeof(int));
         std::memset(rids,0,sizeof(int)*n_nodes);
 
         // ask of the partitioning. call metis several times in case the tolerance on the partition size is not exactly respected 
@@ -1734,22 +1734,22 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
         fclose(file);
 #endif        
 
-        flups_free(xadj);
-        flups_free(nadj);
-        flups_free(adj);
-        flups_free(adjw);
+        m_free(xadj);
+        m_free(nadj);
+        m_free(adj);
+        m_free(adjw);
 
-        flups_free(part);
-        flups_free(rids);
+        m_free(part);
+        m_free(rids);
     } else {
         MPI_Gather(&n_neighbours, 1, MPI_INT, NULL, 1, MPI_INT, 0, comm);
         MPI_Gatherv(neighbours, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
         MPI_Gatherv(weights, n_neighbours, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, comm);
     }
-    flups_free(neighbours);
-    flups_free(weights);
+    m_free(neighbours);
+    m_free(weights);
 #ifndef PART_OF_EQUAL_SIZE
-    flups_free(tpwgts);
+    m_free(tpwgts);
 #endif
 
     //-------------------------------------------------------------------------

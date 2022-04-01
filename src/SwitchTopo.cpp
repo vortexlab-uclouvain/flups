@@ -29,7 +29,10 @@
 
 #include "SwitchTopo.hpp"
 #include "Topology.hpp"
-#include <limits>
+#include "h3lpr/macros.hpp"
+#include <bits/stdc++.h>
+
+using namespace std;
 
 /**
  * @brief computes nByBlock, the unit block size
@@ -46,7 +49,7 @@ void SwitchTopo::cmpt_nByBlock_(int istart[3], int iend[3], int ostart[3], int o
     int comm_size;
     MPI_Comm_size(inComm_, &comm_size);
 
-    int* onProc = (int*)flups_malloc(comm_size * sizeof(int));
+    int* onProc = (int*)m_calloc(comm_size * sizeof(int));
 
     for (int id = 0; id < 3; id++) {
         // get the gcd between send and receive
@@ -63,7 +66,7 @@ void SwitchTopo::cmpt_nByBlock_(int istart[3], int iend[3], int ostart[3], int o
         // store it as the block dimension
         nByBlock[id] = my_gcd;
     }
-    flups_free(onProc);
+    m_free(onProc);
     END_FUNC;
 }
 
@@ -132,7 +135,7 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
     int      commsize;
     MPI_Comm_size(comm, &commsize);
 
-    int* nblockToEachProc = (int*)flups_malloc(sizeof(int) * commsize);
+    int* nblockToEachProc = (int*)m_calloc(sizeof(int) * commsize);
     std::memset(nblockToEachProc, 0, sizeof(int) * commsize);
 
     //-------------------------------------------------------------------------
@@ -158,14 +161,14 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
     // allocate the new arrays: rank, tag, blocksize, block istart
     int* newBlockSize[3]   = {NULL, NULL, NULL};
     int* newblockiStart[3] = {NULL, NULL, NULL};
-    int* newDestRank       = (int*)flups_malloc(sizeof(int) * newNBlock);
+    int* newDestRank       = (int*)m_calloc(sizeof(int) * newNBlock);
 
-    newBlockSize[0]   = (int*)flups_malloc(sizeof(int) * newNBlock);
-    newBlockSize[1]   = (int*)flups_malloc(sizeof(int) * newNBlock);
-    newBlockSize[2]   = (int*)flups_malloc(sizeof(int) * newNBlock);
-    newblockiStart[0] = (int*)flups_malloc(sizeof(int) * newNBlock);
-    newblockiStart[1] = (int*)flups_malloc(sizeof(int) * newNBlock);
-    newblockiStart[2] = (int*)flups_malloc(sizeof(int) * newNBlock);
+    newBlockSize[0]   = (int*)m_calloc(sizeof(int) * newNBlock);
+    newBlockSize[1]   = (int*)m_calloc(sizeof(int) * newNBlock);
+    newBlockSize[2]   = (int*)m_calloc(sizeof(int) * newNBlock);
+    newblockiStart[0] = (int*)m_calloc(sizeof(int) * newNBlock);
+    newblockiStart[1] = (int*)m_calloc(sizeof(int) * newNBlock);
+    newblockiStart[2] = (int*)m_calloc(sizeof(int) * newNBlock);
 
     // compute the default value of each array
     int count = 0;
@@ -186,7 +189,7 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
         }
     }
     // free the temp array
-    flups_free(nblockToEachProc);
+    m_free(nblockToEachProc);
 
     //-------------------------------------------------------------------------
     /** - Gathering blocks: recompute the blocksize, the blockiStart and the destination rank */
@@ -241,24 +244,24 @@ void SwitchTopo::gather_blocks_(const Topology* topo, int nByBlock[3], int istar
     (*nBlock) = newNBlock;
 
     // delete the old arrays
-    flups_free((*destRank));
+    m_free((*destRank));
     if (blockSize[0] != NULL) {
-        flups_free(blockSize[0]);
+        m_free(blockSize[0]);
     }
     if (blockSize[1] != NULL) {
-        flups_free(blockSize[1]);
+        m_free(blockSize[1]);
     }
     if (blockSize[2] != NULL) {
-        flups_free(blockSize[2]);
+        m_free(blockSize[2]);
     }
     if (blockiStart[0] != NULL) {
-        flups_free(blockiStart[0]);
+        m_free(blockiStart[0]);
     }
     if (blockiStart[1] != NULL) {
-        flups_free(blockiStart[1]);
+        m_free(blockiStart[1]);
     }
     if (blockiStart[2] != NULL) {
-        flups_free(blockiStart[2]);
+        m_free(blockiStart[2]);
     }
     // store the new arrays
     (*destRank) = newDestRank;
@@ -287,22 +290,22 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
     BEGIN_FUNC;
     // free the memory if it has been allocated
     if((*i2o_destTag) != NULL){
-        flups_free(*i2o_destTag);
+        m_free(*i2o_destTag);
     }
     if((*o2i_destTag) != NULL){
-        flups_free(*o2i_destTag);
+        m_free(*o2i_destTag);
     }
     
     // reallocate it at the correct size
-    (*i2o_destTag) = (int*)flups_malloc(sizeof(int) * inBlock);
-    (*o2i_destTag) = (int*)flups_malloc(sizeof(int) * onBlock);
+    (*i2o_destTag) = (int*)m_calloc(sizeof(int) * inBlock);
+    (*o2i_destTag) = (int*)m_calloc(sizeof(int) * onBlock);
 
     // allocate the tag buffers
-    int* ib_buffer = (int*)flups_malloc(sizeof(int) * MAX(inBlock, onBlock));
+    int* ib_buffer = (int*)m_calloc(sizeof(int) * m_max(inBlock, onBlock));
 
     // allocate the requests
-    MPI_Request* irequest = (MPI_Request*)flups_malloc(inBlock * sizeof(MPI_Request));
-    MPI_Request* orequest = (MPI_Request*)flups_malloc(onBlock * sizeof(MPI_Request));
+    MPI_Request* irequest = (MPI_Request*)m_calloc(inBlock * sizeof(MPI_Request));
+    MPI_Request* orequest = (MPI_Request*)m_calloc(onBlock * sizeof(MPI_Request));
 
     //----------------------------
     // for each block in the output configuration, I give its ID to the sender
@@ -332,9 +335,9 @@ void SwitchTopo::gather_tags_(MPI_Comm comm, const int inBlock, const int onBloc
     MPI_Waitall(onBlock,orequest,MPI_STATUSES_IGNORE);
 
     // free everything
-    flups_free(ib_buffer);
-    flups_free(irequest);
-    flups_free(orequest);
+    m_free(ib_buffer);
+    m_free(irequest);
+    m_free(orequest);
 
     END_FUNC;
 }
@@ -380,8 +383,8 @@ void SwitchTopo::cmpt_commSplit_(){
     /** - Set the starting color and determine who I wish to get in my group */
     //-------------------------------------------------------------------------
     // allocate colors and inMyGroup array
-    int*  colors    = (int*)flups_malloc(comm_size * sizeof(int));
-    bool* inMyGroup = (bool*)flups_malloc(comm_size * sizeof(bool));
+    int*  colors    = (int*)m_calloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)m_calloc(comm_size * sizeof(bool));
 
 
     for (int ir = 0; ir < comm_size; ir++) {
@@ -467,8 +470,8 @@ void SwitchTopo::cmpt_commSplit_(){
         }
     }
     // free the vectors
-    flups_free(colors);
-    flups_free(inMyGroup);
+    m_free(colors);
+    m_free(inMyGroup);
 
     END_FUNC;
 }
@@ -499,15 +502,15 @@ void SwitchTopo::setup_subComm_(const int nBlock, const int lda, int* blockSize[
     MPI_Comm_rank(inComm_, &inrank);
     
     // get the ranks of everybody in all communicators
-    int* subRanks = (int*)flups_malloc(worldsize * sizeof(int));
+    int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
     MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_);
 
     // replace the old ranks by the newest ones
     for (int ib = 0; ib < nBlock; ib++) {
         destRank[ib] = subRanks[destRank[ib]];
     }
-    // flups_free(destRank_cpy);
-    flups_free(subRanks);
+    // m_free(destRank_cpy);
+    m_free(subRanks);
     
     //-------------------------------------------------------------------------
     /** - build the size vector of block to each procs    */
@@ -536,8 +539,8 @@ void SwitchTopo::cmpt_start_and_count_(MPI_Comm comm, const int nBlock, const in
     int size;
     MPI_Comm_size(comm, &size);
     // count the number of blocks to each process
-    (*count) = (int*)flups_malloc(size * sizeof(int));
-    (*start) = (int*)flups_malloc(size * sizeof(int));
+    (*count) = (int*)m_calloc(size * sizeof(int));
+    (*start) = (int*)m_calloc(size * sizeof(int));
     std::memset((*count), 0, size * sizeof(int));
     std::memset((*start), 0, size * sizeof(int));
     

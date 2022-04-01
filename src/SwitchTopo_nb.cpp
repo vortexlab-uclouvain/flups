@@ -172,8 +172,8 @@ void SwitchTopo_nb::init_blockInfo_(const Topology* topo_in, const Topology* top
     cmpt_blockIndexes_(ostart, oend, nByBlock, topo_out, onBlockv);
 
     // allocate the destination ranks
-    i2o_destRank_ = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    o2i_destRank_ = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    i2o_destRank_ = (int*)m_calloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    o2i_destRank_ = (int*)m_calloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
     // get the ranks
     cmpt_blockDestRank_(inBlockv,nByBlock,shift_,istart,topo_in,topo_out,i2o_destRank_);
@@ -186,20 +186,20 @@ void SwitchTopo_nb::init_blockInfo_(const Topology* topo_in, const Topology* top
     gather_tags_(inComm_, inBlock_, onBlock_, i2o_destRank_, o2i_destRank_, &i2o_destTag_, &o2i_destTag_);
 
     // allocate the requests
-    i2o_sendRequest_ = (MPI_Request*)flups_malloc(inBlock_ * sizeof(MPI_Request));
-    i2o_recvRequest_ = (MPI_Request*)flups_malloc(onBlock_ * sizeof(MPI_Request));
-    o2i_sendRequest_ = (MPI_Request*)flups_malloc(onBlock_ * sizeof(MPI_Request));
-    o2i_recvRequest_ = (MPI_Request*)flups_malloc(inBlock_ * sizeof(MPI_Request));
+    i2o_sendRequest_ = (MPI_Request*)m_calloc(inBlock_ * sizeof(MPI_Request));
+    i2o_recvRequest_ = (MPI_Request*)m_calloc(onBlock_ * sizeof(MPI_Request));
+    o2i_sendRequest_ = (MPI_Request*)m_calloc(onBlock_ * sizeof(MPI_Request));
+    o2i_recvRequest_ = (MPI_Request*)m_calloc(inBlock_ * sizeof(MPI_Request));
 
     END_FUNC;
 }
 
 void SwitchTopo_nb::free_blockInfo_(){
 
-    if (i2o_destRank_ != NULL) flups_free(i2o_destRank_);
-    if (o2i_destRank_ != NULL) flups_free(o2i_destRank_);
-    if (i2o_destTag_ != NULL) flups_free(i2o_destTag_);
-    if (o2i_destTag_ != NULL) flups_free(o2i_destTag_);
+    if (i2o_destRank_ != NULL) m_free(i2o_destRank_);
+    if (o2i_destRank_ != NULL) m_free(o2i_destRank_);
+    if (i2o_destTag_ != NULL) m_free(i2o_destTag_);
+    if (o2i_destTag_ != NULL) m_free(o2i_destTag_);
 
     i2o_destRank_ = NULL;
     o2i_destRank_ = NULL;
@@ -207,20 +207,20 @@ void SwitchTopo_nb::free_blockInfo_(){
     o2i_destTag_  = NULL;
 
     for (int id = 0; id < 3; id++) {
-        if (iBlockSize_[id] != NULL) flups_free(iBlockSize_[id]);
-        if (oBlockSize_[id] != NULL) flups_free(oBlockSize_[id]);
-        if (iBlockiStart_[id] != NULL) flups_free(iBlockiStart_[id]);
-        if (oBlockiStart_[id] != NULL) flups_free(oBlockiStart_[id]);
+        if (iBlockSize_[id] != NULL) m_free(iBlockSize_[id]);
+        if (oBlockSize_[id] != NULL) m_free(oBlockSize_[id]);
+        if (iBlockiStart_[id] != NULL) m_free(iBlockiStart_[id]);
+        if (oBlockiStart_[id] != NULL) m_free(oBlockiStart_[id]);
         iBlockSize_[id]   = NULL;
         oBlockSize_[id]   = NULL;
         iBlockiStart_[id] = NULL;
         oBlockiStart_[id] = NULL;
     }
 
-    if (i2o_sendRequest_ != NULL) flups_free(i2o_sendRequest_);
-    if (i2o_recvRequest_ != NULL) flups_free(i2o_recvRequest_);
-    if (o2i_sendRequest_ != NULL) flups_free(o2i_sendRequest_);
-    if (o2i_recvRequest_ != NULL) flups_free(o2i_recvRequest_);
+    if (i2o_sendRequest_ != NULL) m_free(i2o_sendRequest_);
+    if (i2o_recvRequest_ != NULL) m_free(i2o_recvRequest_);
+    if (o2i_sendRequest_ != NULL) m_free(o2i_sendRequest_);
+    if (o2i_recvRequest_ != NULL) m_free(o2i_recvRequest_);
 
     i2o_sendRequest_ = NULL;
     i2o_recvRequest_ = NULL;
@@ -304,8 +304,8 @@ void SwitchTopo_nb::setup(){
         }
     }
     FLUPS_CHECK(temp == selfBlockN_, "the number of selfBlocks has to be the same in both TOPO!");
-    iselfBlockID_ = (int*)flups_malloc(selfBlockN_ * sizeof(int));
-    oselfBlockID_ = (int*)flups_malloc(selfBlockN_ * sizeof(int));
+    iselfBlockID_ = (int*)m_calloc(selfBlockN_ * sizeof(int));
+    oselfBlockID_ = (int*)m_calloc(selfBlockN_ * sizeof(int));
     //-------------------------------------------------------------------------
     /** - Display performance information if asked */
     //-------------------------------------------------------------------------
@@ -363,14 +363,14 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
     int newrank;
     MPI_Comm_rank(subcomm_, &newrank);
     // allocate the second layer of buffers
-    sendBuf_ = (double**)flups_malloc(inBlock_ * sizeof(double*));
-    recvBuf_ = (double**)flups_malloc(onBlock_ * sizeof(double*));
+    sendBuf_ = (double**)m_calloc(inBlock_ * sizeof(double*));
+    recvBuf_ = (double**)m_calloc(onBlock_ * sizeof(double*));
 
     const bool doShuffle=(topo_in_->axis() != topo_out_->axis());
     
     if (doShuffle) {
-        i2o_shuffle_ = (fftw_plan*)flups_malloc(onBlock_ * sizeof(fftw_plan));
-        o2i_shuffle_ = (fftw_plan*)flups_malloc(inBlock_ * sizeof(fftw_plan));
+        i2o_shuffle_ = (fftw_plan*)m_calloc(onBlock_ * sizeof(fftw_plan));
+        o2i_shuffle_ = (fftw_plan*)m_calloc(inBlock_ * sizeof(fftw_plan));
     } else {
         i2o_shuffle_ = NULL;
         o2i_shuffle_ = NULL;
@@ -465,36 +465,36 @@ SwitchTopo_nb::~SwitchTopo_nb() {
     }
 
     for(int ib=0; ib< inBlock_; ib++){
-        // if (sendBuf_[ib] != NULL) flups_free(sendBuf_[ib]);
+        // if (sendBuf_[ib] != NULL) m_free(sendBuf_[ib]);
         if (i2o_sendRequest_[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(i2o_sendRequest_[ib]));
         if (o2i_recvRequest_[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(o2i_recvRequest_[ib]));
     }
     for(int ib=0; ib< onBlock_; ib++){
-        // if (recvBuf_[ib] != NULL) flups_free(recvBuf_[ib]);
+        // if (recvBuf_[ib] != NULL) m_free(recvBuf_[ib]);
         if (i2o_recvRequest_[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(i2o_recvRequest_[ib]));
         if (o2i_sendRequest_[ib] != MPI_REQUEST_NULL) MPI_Request_free(&(o2i_sendRequest_[ib]));
     }
 
     free_blockInfo_();
 
-    if (iselfBlockID_ != NULL) flups_free(iselfBlockID_);
-    if (oselfBlockID_ != NULL) flups_free(oselfBlockID_);
+    if (iselfBlockID_ != NULL) m_free(iselfBlockID_);
+    if (oselfBlockID_ != NULL) m_free(oselfBlockID_);
 
     if (i2o_shuffle_ != NULL) {
         for (int ib = 0; ib < onBlock_; ib++) {
             fftw_destroy_plan(i2o_shuffle_[ib]);
         }
-        flups_free(i2o_shuffle_);
+        m_free(i2o_shuffle_);
     }
     if (o2i_shuffle_ != NULL) {
         for (int ib = 0; ib < inBlock_; ib++) {
             fftw_destroy_plan(o2i_shuffle_[ib]);
         }
-        flups_free(o2i_shuffle_);
+        m_free(o2i_shuffle_);
     }
 
-    flups_free((double*)sendBuf_);
-    flups_free((double*)recvBuf_);
+    m_free((double*)sendBuf_);
+    m_free((double*)recvBuf_);
     END_FUNC;
 }
 
@@ -1070,7 +1070,7 @@ void SwitchTopo_nb_test() {
     Topology* topo    = new Topology(0, 1, nglob, nproc, false,NULL,1, MPI_COMM_WORLD);
     Topology* topobig = new Topology(0, 1, nglob_big, nproc_big, false,NULL,1, MPI_COMM_WORLD);
 
-    double* data = (double*)flups_malloc(sizeof(double*) * std::max(topo->memsize(), topobig->memsize()));
+    double* data = (double*)m_calloc(sizeof(double*) * std::max(topo->memsize(), topobig->memsize()));
 
     const int nmem[3] = {topo->nmem(0),topo->nmem(1),topo->nmem(2)};
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -1091,8 +1091,8 @@ void SwitchTopo_nb_test() {
     switchtopo->disp();
 
     size_t         max_mem    = switchtopo->get_bufMemSize();
-    opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-    opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+    opt_double_ptr send_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+    opt_double_ptr recv_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
     std::memset(send_buff, 0, max_mem * sizeof(double));
     std::memset(recv_buff, 0, max_mem * sizeof(double));
     // associate the buffer
@@ -1109,7 +1109,7 @@ void SwitchTopo_nb_test() {
 
     hdf5_dump(topo, "test_real_returned", data);
 
-    flups_free(data);
+    m_free(data);
     delete (switchtopo);
     delete (topo);
     delete (topobig);
@@ -1119,7 +1119,7 @@ void SwitchTopo_nb_test() {
     topo    = new Topology(0, 1, nglob, nproc, true,NULL,1, MPI_COMM_WORLD);
     topobig = new Topology(2, 1, nglob_big, nproc_big, true,NULL,1, MPI_COMM_WORLD);
 
-    data = (double*)flups_malloc(sizeof(double*) * topobig->memsize());
+    data = (double*)m_calloc(sizeof(double*) * topobig->memsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
@@ -1150,7 +1150,7 @@ void SwitchTopo_nb_test() {
 
     hdf5_dump(topo, "test_complex_returned", data);
 
-    flups_free(data);
+    m_free(data);
     delete (switchtopo);
     delete (topo);
     delete (topobig);

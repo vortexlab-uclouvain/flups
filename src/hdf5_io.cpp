@@ -25,6 +25,8 @@
 
 #include "hdf5_io.hpp"
 
+using std::string;
+
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
     BEGIN_FUNC;
     xmf_write(topo, filename, "data");
@@ -364,7 +366,7 @@ void hdf5_dumptest() {
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
     // we only allocate the real size = local size
-    double *data = (double *)flups_malloc(sizeof(double *) * topo->locsize());
+    double *data = (double *)m_calloc(sizeof(double *) * topo->locsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
@@ -377,14 +379,14 @@ void hdf5_dumptest() {
     // try the dump
     hdf5_dump(topo, "test_real", data);
 
-    flups_free(data);
+    m_free(data);
     delete (topo);
 
     //===========================================================================
     // create a real topology
     topo = new Topology(0, 1, nglob, nproc, true,NULL,1,MPI_COMM_WORLD);
 
-    data = (double *)flups_malloc(sizeof(double *) * topo->locsize());
+    data = (double *)m_calloc(sizeof(double *) * topo->locsize());
 
     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
@@ -397,7 +399,7 @@ void hdf5_dumptest() {
     }
     // try the dump
     hdf5_dump(topo, "test_complex", data);
-    flups_free(data);
+    m_free(data);
     delete (topo);
     END_FUNC;
 }
