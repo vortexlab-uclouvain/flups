@@ -27,89 +27,91 @@
  */
 
 #include "defines.hpp"
+#include "h3lpr/macros.hpp"
+#include "h3lpr/profiler.hpp"
 #include "toolsinterface.hpp"
 #include "Topology.hpp"
 #include "Solver.hpp"
-#include "Profiler.hpp"
+
 
 
 extern "C" {
 
 void * flups_malloc(size_t size){
-    return flups_mem_malloc(size);
+    return m_calloc(size);
 }
 
 void flups_free(void* data){
-    flups_mem_free(data);
+    m_free(data);
 }
 
 //***********************************************************************
 // * TOPOLOGIES
 // **********************************************************************/
-FLUPS_Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm){
+Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm){
     Topology* t = new Topology(axis, lda, nglob, nproc, isComplex, axproc, alignment, comm);
     return t;
 }
 
-void flups_topo_free(const FLUPS_Topology* t) {
+void flups_topo_free(const Topology* t) {
     delete t;
 }
 
-bool flups_topo_get_isComplex(const FLUPS_Topology* t) {
+bool flups_topo_get_isComplex(const Topology* t) {
     return t->isComplex();
 }
 
-int flups_topo_get_axis(const FLUPS_Topology* t) {
+int flups_topo_get_axis(const Topology* t) {
     return t->axis();
 }
 
-int flups_topo_get_nglob(const FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nglob(const Topology* t, const int dim) {
     return t->nglob(dim);
 }
 
-int flups_topo_get_nloc(const FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nloc(const Topology* t, const int dim) {
     return t->nloc(dim);
 }
 
-int flups_topo_get_nmem(const FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nmem(const Topology* t, const int dim) {
     return t->nmem(dim);
 }
 
-int flups_topo_get_nproc(const FLUPS_Topology* t, const int dim) {
+int flups_topo_get_nproc(const Topology* t, const int dim) {
     return t->nproc(dim);
 }
 
-void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]) {
+void flups_topo_get_istartGlob(const Topology* t, int istart[3]) {
     t->get_istart_glob(istart);
 }
 
-size_t flups_topo_get_locsize(const FLUPS_Topology* t) {
+size_t flups_topo_get_locsize(const Topology* t) {
     return (size_t)t->locsize();
 }
 
-size_t flups_topo_get_memsize(const FLUPS_Topology* t) {
+size_t flups_topo_get_memsize(const Topology* t) {
     return (size_t)t->memsize();
 }
 
-int flups_topo_cmpt_rank_fromid(const FLUPS_Topology* t, const int global_id, const int id){
+int flups_topo_cmpt_rank_fromid(const Topology* t, const int global_id, const int id){
     return t->cmpt_rank_fromid(global_id, id);
 }
 
-int flups_topo_cmpt_start_id_from_rank(const FLUPS_Topology* t, const int rank_id, const int id){
+int flups_topo_cmpt_start_id_from_rank(const Topology* t, const int rank_id, const int id){
     return t->cmpt_start_id_from_rank(rank_id, id);
 }
 
-MPI_Comm flups_topo_get_comm(FLUPS_Topology* t){
+MPI_Comm flups_topo_get_comm(Topology* t){
     return t->get_comm();
 }
 
-void flups_topo_ranksplit(const FLUPS_Topology* t, const int rank, int rankd[3]) {
+void flups_topo_ranksplit(const Topology* t, const int rank, int rankd[3]) {
     int axproc[3] = {t->axproc(0),t->axproc(1),t->axproc(2)};
     int nproc[3]  = {t->nproc(0),t->nproc(1),t->nproc(2)};
     ranksplit(rank, axproc, nproc, t->get_comm(), rankd);
 }
 
-int flups_topo_rankindex(const FLUPS_Topology *topo, const int rankd[3]) {
+int flups_topo_rankindex(const Topology *topo, const int rankd[3]) {
     return rankindex(rankd, topo);
 }
 
@@ -118,74 +120,70 @@ int flups_topo_rankindex(const FLUPS_Topology *topo, const int rankd[3]) {
 //********************************************************************* */
 
 // get a new solver
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3]) {
+Solver* flups_init(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3]) {
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
     return s;
 }
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof) {
-#ifndef PROF
-    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
-#else
+Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType center_type[3], H3LPR::Profiler* prof) {
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, prof);
-#endif
     return s;
 }
 
 // destroy the solver
-void flups_cleanup(FLUPS_Solver* s){
+void flups_cleanup(Solver* s){
     delete s;
 }
 
 // setup the solver
-void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type){
+void flups_set_greenType(Solver* s, const GreenType type){
     s->set_GreenType(type);
 }
 
-double* flups_setup(FLUPS_Solver* s,const bool changeComm){
+double* flups_setup(Solver* s,const bool changeComm){
     return s->setup(changeComm);
 }
 
 // solve
-void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_SolverType type) {
+void flups_solve(Solver* s, double* field, double* rhs, const SolverType type) {
     s->solve(field, rhs, type);
 }
 
 
 // -- ADVANCED FEATURES --
 
-size_t flups_get_allocSize(FLUPS_Solver* s){
+size_t flups_get_allocSize(Solver* s){
     return(size_t) s->get_allocSize();
 }
 
-void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]){
+void flups_get_spectralInfo(Solver* s, double kfact[3], double koffset[3], double symstart[3]){
     s->get_spectralInfo(kfact,koffset,symstart);
 }
 
-void flups_set_alpha(FLUPS_Solver* s, const double alpha){
+void flups_set_alpha(Solver* s, const double alpha){
     s->set_alpha(alpha);   
 }
 
-const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s){
+const Topology* flups_get_innerTopo_physical(Solver* s){
     return s->get_innerTopo_physical();
 }
 
-const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s){
+const Topology* flups_get_innerTopo_spectral(Solver* s){
     return s->get_innerTopo_spectral();
 }
 
-void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, const int sign){
+void flups_do_copy(Solver* s, const Topology* topo, double* data, const int sign){
     s->do_copy(topo,data,sign);
 }
 
-void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign){
+void flups_do_FFT(Solver* s, double* data, const int sign){
     s->do_FFT(data,sign);
 }
 
-void flups_do_mult(FLUPS_Solver* s, double* data,const FLUPS_SolverType type){
+void flups_do_mult(Solver* s, double* data,const SolverType type){
     s->do_mult(data,type);
 }
 
-int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], FLUPS_BoundaryType* bc[3][2], const FLUPS_CenterType center_type[3]){
+int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], BoundaryType* bc[3][2], const CenterType center_type[3]){
     return hint_proc_repartition(lda, h, L, bc, center_type);
 }
 
@@ -193,39 +191,43 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
 //  PROFILER - TIMERS
 //**********************************************************************
 
-FLUPS_Profiler* flups_profiler_new() {
-    Profiler* p = new Profiler();
+H3LPR::Profiler* flups_profiler_new() {
+    H3LPR::Profiler* p = new H3LPR::Profiler();
+    // return reinterpret_cast<void*>(p);
     return p;
 }
 
-FLUPS_Profiler* flups_profiler_new_n(const char name[]){
-    Profiler* p = new Profiler(name);
-    return p;
+H3LPR::Profiler* flups_profiler_new_n(const char name[]){
+    H3LPR::Profiler* p = new H3LPR::Profiler(name);
+    // return reinterpret_cast<void*>(p);
+    return p; 
 }
 
-void flups_profiler_free(FLUPS_Profiler* p) {
+void flups_profiler_free(H3LPR::Profiler* p) {
+    // delete reinterpret_cast<H3LPR::Profiler*>(p);
     delete p;
 }
 
-void flups_profiler_disp_root(FLUPS_Profiler* p) {
-    p->disp();
+void flups_profiler_disp(H3LPR::Profiler* p) {
+    // m_profDisp(reinterpret_cast<H3LPR::Profiler*>(p));
+    m_profDisp(p);
 }
 
-void flups_profiler_disp(FLUPS_Profiler* p, const char* name) {
-    const std::string myname(name);
-    p->disp(myname);
-}
+// void flups_profiler_disp(H3LPR::Profiler* p, const char* name) {
+//     const std::string myname(name);
+//     p->Disp(myname);
+// }
 
 //**********************************************************************
 //  HDF5
 //**********************************************************************
 
-void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data){
+void flups_hdf5_dump(const Topology *topo, const char filename[], const double *data){
     const std::string fn(filename);
     hdf5_dump(topo,fn, data);
 }
 
-void flups_print_data(const FLUPS_Topology *topo, double* data){
+void flups_print_data(const Topology *topo, double* data){
     FLUPS_print_data(topo, data);    
 }
 

@@ -31,7 +31,7 @@
 #include "defines.hpp"
 #include "mpi.h"
 #include "omp.h"
-#include "Profiler.hpp"
+// #include "h3lpr/profiler.hpp"
 
 /**
  * @brief Defines the basic interface for the SwitchTopo objects.
@@ -74,9 +74,7 @@ class SwitchTopo {
     fftw_plan* i2o_shuffle_ = NULL;
     fftw_plan* o2i_shuffle_ = NULL;
 
-#ifdef PROF
-    Profiler* prof_    = NULL;
-#endif 
+    H3LPR::Profiler* prof_    = NULL;
     int       iswitch_ = -1;
 
    public:
@@ -105,7 +103,7 @@ class SwitchTopo {
         // add the difference with the alignement to be always aligned
         size_t alignDelta = ((total * sizeof(double)) % FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total * sizeof(double)) % FLUPS_ALIGNMENT) / sizeof(double);
         total             = total + alignDelta;
-        FLUPS_CHECK((total * sizeof(double)) % FLUPS_ALIGNMENT == 0, "The total size of one block HAS to match the alignement size", LOCATION);
+        FLUPS_CHECK((total * sizeof(double)) % FLUPS_ALIGNMENT == 0, "The total size of one block HAS to match the alignement size");
         // return the total size
         return total;
     };
@@ -163,23 +161,24 @@ inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Co
 
     int comp;
     MPI_Comm_compare(inComm, outComm, &comp);
-    FLUPS_CHECK(size!=0,"size cant be 0.",LOCATION);
+    FLUPS_CHECK(size!=0,"size cant be 0.");
 
-    int* tmprnks = (int*) flups_malloc(size*sizeof(int));
+    int* tmprnks = (int*) m_calloc(size*sizeof(int));
     std::memcpy(tmprnks,ranks,size*sizeof(int));
 
     int err;
     if (comp != MPI_IDENT) {
         MPI_Group group_in, group_out;
         err = MPI_Comm_group(inComm, &group_in);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in",LOCATION);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in");
         err = MPI_Comm_group(outComm, &group_out);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out",LOCATION);
+        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out");
+
         err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
-        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.", LOCATION);
+        FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.");
     }
 
-    flups_free(tmprnks);
+    m_free(tmprnks);
     END_FUNC;
 }
 

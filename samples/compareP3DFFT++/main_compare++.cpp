@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
+        FLUPS_ERROR("The MPI-provided thread behavior does not match");
     }
    
     MPI_Comm_rank(comm, &rank);
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
-        FLUPS_ERROR("Invalid number of procs",LOCATION);
+        FLUPS_ERROR("Invalid number of procs");
 
 
     //-------------------------------------------------------------------------

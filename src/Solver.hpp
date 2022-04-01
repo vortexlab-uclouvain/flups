@@ -37,14 +37,14 @@
 #include "SwitchTopo_a2a.hpp"
 #include "SwitchTopo_nb.hpp"
 
-#include "Profiler.hpp"
+// #include "h3lpr/profiler.hpp"
 #include "omp.h"
 
 #ifdef HAVE_METIS
 #include "metis.h"
 #endif
 
-using namespace std;
+// using namespace std;
 
 /**
  * @brief smartly determines in which order the FFTs will be executed
@@ -86,7 +86,7 @@ static int sort_plans(FFTW_plan_dim *plan[3]) {
         }
     }
 
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type(), LOCATION);
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
     END_FUNC;
     return id_min;
 }
@@ -114,7 +114,7 @@ class Solver {
     int            lda_           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
     int            ndim_          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
     int            fftwalignment_ = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    FLUPS_DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
     double         normfact_      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
     double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
     double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
@@ -158,7 +158,7 @@ class Solver {
     /**@} */
 
     // time the solve
-    Profiler* prof_ = NULL;
+    H3LPR::Profiler* prof_ = NULL;
 
    protected:
     /**
@@ -216,7 +216,7 @@ class Solver {
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType centerType[3], Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -258,7 +258,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double *field, double *rhs,const FLUPS_SolverType type);
+    void solve(double *field, double *rhs,const SolverType type);
     /**@} */
 
     /**
@@ -268,7 +268,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data,const FLUPS_SolverType type);
+    void do_mult(double *data,const SolverType type);
     /**@} */
 
     /**
@@ -323,10 +323,10 @@ class Solver {
 
 //     FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
 //     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
-//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 //     }
 //     if(comm_size>8 && (n1==1||n2==1)){
-//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
 //         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
 //         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
 //         //We could prevent this to happen by doing something like:
@@ -361,10 +361,10 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
     FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
-    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 
     if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){
-        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
     }
 }
 

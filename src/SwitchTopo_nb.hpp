@@ -34,7 +34,6 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 #include "Topology.hpp"
-#include "Profiler.hpp"
 #include "omp.h"
 #include "SwitchTopo.hpp"
 
@@ -70,8 +69,8 @@ protected:
     void init_blockInfo_(const Topology *topo_in, const Topology *topo_out);
     void free_blockInfo_();
 
-public:
-    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
+   public:
+    SwitchTopo_nb(const Topology *topo_input, const Topology *topo_output, const int shift[3],H3LPR::Profiler* prof);
     ~SwitchTopo_nb();
 
     void setup_buffers(opt_double_ptr sendBuf_,opt_double_ptr recvBuf_);

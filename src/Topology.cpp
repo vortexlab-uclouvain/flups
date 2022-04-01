@@ -51,7 +51,7 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
     MPI_Comm_size(comm_,&comm_size);
     MPI_Comm_rank(comm_,&rank);
 
-    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size);
 
     //-------------------------------------------------------------------------
     /** - get memory axis and complex information  */
@@ -157,7 +157,7 @@ Topology::~Topology() {}
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
-    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real", LOCATION);
+    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
 
     for (int id = 0; id < 3; id++) {
         const int onglob = other->nglob(id);
@@ -204,7 +204,7 @@ void Topology::disp_rank() {
     BEGIN_FUNC;
 #ifdef DUMP_DBG
     // we only focus on the real size = local size
-    double* rankdata = (double*)flups_malloc(sizeof(double) * this->locsize() * 2);
+    double* rankdata = (double*)m_calloc(sizeof(double) * this->locsize() * 2);
     int     rank, rank_new;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_rank(comm_, &rank_new);
@@ -226,7 +226,7 @@ void Topology::disp_rank() {
         hdf5_dump(this, name, rankdata);
         this->switch2real();
     }
-    flups_free(rankdata);
+    m_free(rankdata);
 #endif
     END_FUNC;
 }

@@ -69,11 +69,11 @@
  * @param prof the profiler to use to profile the execution of the SwitchTopo
  */
 
-SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_output, const int shift[3], Profiler* prof) {
+SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_output, const int shift[3], H3LPR::Profiler* prof) {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind", LOCATION);
-    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda(),LOCATION);
+    FLUPS_CHECK(topo_input->isComplex() == topo_output->isComplex(), "both topologies have to be the same kind");
+    FLUPS_CHECK(topo_input->lda() == topo_output->lda(),"Both lda's topologies must match: in=%d vs out=%d",topo_input->lda(), topo_output->lda());
 
     topo_in_  = topo_input;
     topo_out_ = topo_output;
@@ -81,11 +81,9 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     // we store the communicators at init
     inComm_  = topo_in_->get_comm();
     outComm_ = topo_out_->get_comm();
-
-#ifdef PROF    
+ 
     prof_     = prof;
     iswitch_ = topo_out_->axproc(topo_out_->axis());
-#endif
     //-------------------------------------------------------------------------
     /** - compute block information: sizes, start ids, ... */
     //-------------------------------------------------------------------------
@@ -99,29 +97,6 @@ SwitchTopo_a2a::SwitchTopo_a2a(const Topology* topo_input, const Topology* topo_
     //-------------------------------------------------------------------------
     /** - initialize the profiler    */
     //-------------------------------------------------------------------------
-#ifdef PROF    
-    if (prof_ != NULL) {
-        prof_->create("reorder", "solve");
-
-        prof_->create("switch0", "reorder");
-        prof_->create("mem2buf0", "switch0");
-        prof_->create("buf2mem0", "switch0");
-        prof_->create("all_2_all0", "switch0");
-        prof_->create("all_2_all_v0", "switch0");
-
-        prof_->create("switch1", "reorder");
-        prof_->create("mem2buf1", "switch1");
-        prof_->create("buf2mem1", "switch1");
-        prof_->create("all_2_all1", "switch1");
-        prof_->create("all_2_all_v1", "switch1");
-
-        prof_->create("switch2", "reorder");
-        prof_->create("mem2buf2", "switch2");
-        prof_->create("buf2mem2", "switch2");
-        prof_->create("all_2_all2", "switch2");
-        prof_->create("all_2_all_v2", "switch2");
-    }
-#endif
     END_FUNC;
 }
 
@@ -144,7 +119,7 @@ void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* to
     MPI_Comm_size(inComm_, &comm_size);
     MPI_Comm_size(outComm_, &ocomm_size);
 
-    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.",LOCATION);
+    FLUPS_CHECK(ocomm_size==comm_size,"In and out communicators must have the same size.");
 
     //-------------------------------------------------------------------------
     /** - allocate temporary arrays */
@@ -174,8 +149,8 @@ void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* to
     cmpt_blockIndexes_(ostart, oend, nByBlock, topo_out, onBlockv);
 
     // allocate the destination ranks
-    i2o_destRank_ = (int*)flups_malloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
-    o2i_destRank_ = (int*)flups_malloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
+    i2o_destRank_ = (int*)m_calloc(inBlockv[0] * inBlockv[1] * inBlockv[2] * sizeof(int));
+    o2i_destRank_ = (int*)m_calloc(onBlockv[0] * onBlockv[1] * onBlockv[2] * sizeof(int));
 
     // get the ranks
     // shift if the root position of the topo_in in the topo_out
@@ -194,17 +169,17 @@ void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* to
  * 
  */
 void SwitchTopo_a2a::free_blockInfo_(){
-    if (i2o_destRank_ != NULL) flups_free(i2o_destRank_);
-    if (o2i_destRank_ != NULL) flups_free(o2i_destRank_);
+    if (i2o_destRank_ != NULL) m_free(i2o_destRank_);
+    if (o2i_destRank_ != NULL) m_free(o2i_destRank_);
 
     i2o_destRank_ = NULL;
     o2i_destRank_ = NULL;
 
     for (int id = 0; id < 3; id++) {
-        if (iBlockSize_[id] != NULL) flups_free(iBlockSize_[id]);
-        if (oBlockSize_[id] != NULL) flups_free(oBlockSize_[id]);
-        if (iBlockiStart_[id] != NULL) flups_free(iBlockiStart_[id]);
-        if (oBlockiStart_[id] != NULL) flups_free(oBlockiStart_[id]);
+        if (iBlockSize_[id] != NULL) m_free(iBlockSize_[id]);
+        if (oBlockSize_[id] != NULL) m_free(oBlockSize_[id]);
+        if (iBlockiStart_[id] != NULL) m_free(iBlockiStart_[id]);
+        if (oBlockiStart_[id] != NULL) m_free(oBlockiStart_[id]);
 
         iBlockSize_[id] = NULL;
         oBlockSize_[id] = NULL;
@@ -239,7 +214,7 @@ void SwitchTopo_a2a::setup() {
     //if the graph communicator has the same numbering as the old commn we will skip the following
     if( compIn != MPI_CONGRUENT || compOut != MPI_CONGRUENT){
         if (rank == 0){
-            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.",LOCATION);
+            FLUPS_WARNING("The inComm and/or outComm have changed since this switchtopo was created. I will recompute the communication scheme.");
         }
 
         inComm_ = inComm;
@@ -304,23 +279,23 @@ void SwitchTopo_a2a::setup() {
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
         MPI_Comm_get_name(subcomm_, myname, &rlen);
-        FLUPS_ERROR("communicator %s: at least one process is NOT in the all to all communication scheme",myname,LOCATION);
+        FLUPS_CHECK(false, "communicator %s: at least one process is NOT in the all to all communication scheme",myname);
     }
     if((!is_all2all_) && any_is_alltoall){
         int rlen;
         char myname[MPI_MAX_OBJECT_NAME];
         MPI_Comm_get_name(subcomm_, myname, &rlen);
-        FLUPS_ERROR("communicator %s: at least one process is in the all to all communication scheme",myname,LOCATION);
+        FLUPS_CHECK(false, "communicator %s: at least one process is in the all to all communication scheme",myname);
     }
     
     // if we are all to all, clean the start array
     if (is_all2all_) {
         if (i2o_start_ != NULL) {
-            flups_free(i2o_start_);
+            m_free(i2o_start_);
             i2o_start_ = NULL;
         }
         if (o2i_start_ != NULL) {
-            flups_free(o2i_start_);
+            m_free(o2i_start_);
             o2i_start_ = NULL;
         }
     }
@@ -392,13 +367,13 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
 
     FLUPS_INFO("freeing the arrays");
 
-    if (i2o_count_ != NULL) flups_free(i2o_count_);
-    if (o2i_count_ != NULL) flups_free(o2i_count_);
-    if (i2o_start_ != NULL) flups_free(i2o_start_);
-    if (o2i_start_ != NULL) flups_free(o2i_start_);
+    if (i2o_count_ != NULL) m_free(i2o_count_);
+    if (o2i_count_ != NULL) m_free(o2i_count_);
+    if (i2o_start_ != NULL) m_free(i2o_start_);
+    if (o2i_start_ != NULL) m_free(o2i_start_);
 
-    if (sendBuf_ != NULL) flups_free((double*)sendBuf_);
-    if (recvBuf_ != NULL) flups_free((double*)recvBuf_);
+    if (sendBuf_ != NULL) m_free((double*)sendBuf_);
+    if (recvBuf_ != NULL) m_free((double*)recvBuf_);
 
     free_blockInfo_();
 
@@ -406,13 +381,13 @@ SwitchTopo_a2a::~SwitchTopo_a2a() {
         for (int ib = 0; ib < onBlock_; ib++) {
             fftw_destroy_plan(i2o_shuffle_[ib]);
         }
-        flups_free(i2o_shuffle_);
+        m_free(i2o_shuffle_);
     }
     if (o2i_shuffle_ != NULL) {
         for (int ib = 0; ib < inBlock_; ib++) {
             fftw_destroy_plan(o2i_shuffle_[ib]);
         }
-        flups_free(o2i_shuffle_);
+        m_free(o2i_shuffle_);
     }
 
     END_FUNC;
@@ -445,22 +420,22 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     MPI_Comm_size(subcomm_, &subsize);
 
     // allocate the second layer of buffers
-    sendBuf_ = (double**)flups_malloc(inBlock_ * sizeof(double*));
-    recvBuf_ = (double**)flups_malloc(onBlock_ * sizeof(double*));
+    sendBuf_ = (double**)m_calloc(inBlock_ * sizeof(double*));
+    recvBuf_ = (double**)m_calloc(onBlock_ * sizeof(double*));
 
     // determine if we have to suffle or not
     const bool doShuffle=(topo_in_->axis() != topo_out_->axis());
     // allocate the plan if we have to suffle
     if (doShuffle) {
-        i2o_shuffle_ = (fftw_plan*)flups_malloc(onBlock_ * sizeof(fftw_plan));
-        o2i_shuffle_ = (fftw_plan*)flups_malloc(inBlock_ * sizeof(fftw_plan));
+        i2o_shuffle_ = (fftw_plan*)m_calloc(onBlock_ * sizeof(fftw_plan));
+        o2i_shuffle_ = (fftw_plan*)m_calloc(inBlock_ * sizeof(fftw_plan));
     } else {
         i2o_shuffle_ = NULL;
         o2i_shuffle_ = NULL;
     }
     
     // link the buff of every block to the data initialized
-    int* countPerRank = (int*)flups_malloc(subsize * sizeof(int));
+    int* countPerRank = (int*)m_calloc(subsize * sizeof(int));
     std::memset(countPerRank, 0, subsize * sizeof(int));
     for (int ib = 0; ib < inBlock_; ib++) {
         // get the destination rank
@@ -503,7 +478,7 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         }
     }
 
-    flups_free(countPerRank);
+    m_free(countPerRank);
     END_FUNC;
 }
 
@@ -538,16 +513,16 @@ void SwitchTopo_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
 void SwitchTopo_a2a::execute(double* v, const int sign) const {
     BEGIN_FUNC;
 
-    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(), "both topologies have to be complex or real", LOCATION);
-    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda", LOCATION);
-    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported", LOCATION);
-    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL",LOCATION);
+    FLUPS_CHECK(topo_in_->isComplex() == topo_out_->isComplex(), "both topologies have to be complex or real");
+    FLUPS_CHECK(topo_in_->lda() == topo_out_->lda(), "both topologies must have the same lda");
+    FLUPS_CHECK(topo_in_->nf() <= 2, "the value of nf is not supported");
+    FLUPS_CHECK(sendBuf_!=NULL && recvBuf_ != NULL, "both buffers have to be non NULL");
 
     int comm_size;
     // MPI_Comm_rank(subcomm_, &rank);
     MPI_Comm_size(subcomm_, &comm_size);
 
-    PROF_START("reorder");
+    m_profStarti(prof_, "reorder");
 
     //-------------------------------------------------------------------------
     /** - setup required memory arrays */
@@ -648,7 +623,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
             oBlockiStart[id]  = iBlockiStart_[id];
         }
     } else {
-        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD", LOCATION);
+        FLUPS_CHECK(false, "the sign is not FLUPS_FORWARD nor FLUPS_BACKWARD");
     }
 
     FLUPS_INFO("switch: previous topo: %d,%d,%d axis=%d", topo_in->nglob(0), topo_in->nglob(1), topo_in->nglob(2), topo_in->axis());
@@ -672,7 +647,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         cond &= (inmem[topo_in->axis()] == onmem[topo_out->axis()]); //same size in memory in the FRI (also for alignement)
         if(cond){
             FLUPS_INFO("I skip this switch because nothing needs to change.");
-            PROF_STOP("reorder");
+            m_profStopi(prof_, "reorder");
             return void();
         }
     };
@@ -686,8 +661,8 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     const int oax2 = (oax0 + 2) % 3;
     const int nf   = topo_in->nf();
 
-    PROF_STARTi("switch",iswitch_);
-    PROF_STARTi("mem2buf",iswitch_);
+    m_profStarti(prof_, "switch%d", iswitch_);
+    m_profStarti(prof_, "mem2buf%d",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - fill the buffers */
@@ -741,6 +716,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -760,6 +736,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -779,6 +756,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -797,6 +775,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -804,37 +783,20 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
     
-    PROF_STOPi("mem2buf",iswitch_);
+    m_profStopi(prof_,"mem2buf%d",iswitch_);
 
     //-------------------------------------------------------------------------
     /** - Do the communication */
     //-------------------------------------------------------------------------
     if (is_all2all_) {
-        PROF_STARTi("all_2_all",iswitch_);
+        m_profStarti(prof_,"all_2_all%d",iswitch_);
         MPI_Alltoall(sendBufG, send_count[0], MPI_DOUBLE, recvBufG, recv_count[0], MPI_DOUBLE, subcomm_);
-#ifdef PROF        
-        if (prof_ != NULL) {
-            string profName = "all_2_all"+to_string(iswitch_);
-            prof_->stop(profName);
-            int loc_mem = send_count[0] * comm_size;
-            prof_->addMem(profName, loc_mem*sizeof(double));
-        }
-#endif
+        m_profStopi(prof_, "all_2_all%d", iswitch_);
 
     } else {
-        PROF_STARTi("all_2_all_v",iswitch_)
+        m_profStarti(prof_,"all_2_all_v%d",iswitch_);
         MPI_Alltoallv(sendBufG, send_count, send_start, MPI_DOUBLE, recvBufG, recv_count, recv_start, MPI_DOUBLE, subcomm_);
-#ifdef PROF        
-        if (prof_ != NULL) {
-            string profName = "all_2_all_v"+to_string(iswitch_);
-            prof_->stop(profName);
-            int loc_mem = 0;
-            for (int ir = 0; ir < comm_size; ir++) {
-                loc_mem += send_count[ir];
-            }
-            prof_->addMem(profName, loc_mem*sizeof(double));
-        }
-#endif        
+        m_profStopi(prof_, "all_2_all_v%d", iswitch_);
     }
 
     //-------------------------------------------------------------------------
@@ -864,7 +826,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
     // get some counters
     // const int nblocks_recv = recv_nBlock[0] * recv_nBlock[1] * recv_nBlock[2];
     // for each block
-    PROF_STARTi("buf2mem",iswitch_);
+    m_profStarti(prof_,"buf2mem%d",iswitch_);
 
     
 #pragma omp parallel default(none) proc_bind(close) firstprivate(shuffle, recv_nBlock, v, recvBuf, oBlockSize,oBlockiStart, nf, onmem, oax0, oax1, oax2, lda)
@@ -927,6 +889,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -945,6 +908,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -963,6 +927,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -979,6 +944,7 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
+                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -986,9 +952,9 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
         }
     }
 
-    PROF_STOPi("buf2mem",iswitch_);
-    PROF_STOPi("switch",iswitch_);
-    PROF_STOP("reorder");
+    m_profStopi(prof_,"buf2mem%d",iswitch_);
+    m_profStopi(prof_,"switch%d",iswitch_);
+    m_profStopi(prof_, "reorder");
     END_FUNC;
 }
 
@@ -1043,7 +1009,7 @@ void SwitchTopo_a2a_test() {
         topo->disp();
         topobig->disp();
 
-        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+        double* data = (double*)m_calloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
         const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -1063,8 +1029,8 @@ void SwitchTopo_a2a_test() {
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
         switchtopo->setup();
         size_t         max_mem    = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr send_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
@@ -1081,9 +1047,9 @@ void SwitchTopo_a2a_test() {
         hdf5_dump(topo, "test_real_returned", data);
         MPI_Barrier(MPI_COMM_WORLD);
 
-        flups_free(data);
-        flups_free((double*)send_buff);
-        flups_free((double*)recv_buff);
+        m_free(data);
+        m_free((double*)send_buff);
+        m_free((double*)recv_buff);
         delete (switchtopo);
         delete (topo);
         delete (topobig);
@@ -1095,7 +1061,7 @@ void SwitchTopo_a2a_test() {
         Topology* topo    = new Topology(0, 1, nglob, nproc, true, NULL, 1, MPI_COMM_WORLD);
         Topology* topobig = new Topology(1, 1, nglob_big, nproc_big, true, NULL, 1, MPI_COMM_WORLD);
 
-        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
+        double* data = (double*)m_calloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));
 
         const int nmem2[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
         for (int i2 = 0; i2 < topo->nloc(2); i2++) {
@@ -1121,8 +1087,8 @@ void SwitchTopo_a2a_test() {
         switchtopo->setup();
         switchtopo->disp();
         size_t         max_mem   = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         // associate the buffer
@@ -1136,7 +1102,7 @@ void SwitchTopo_a2a_test() {
 
         hdf5_dump(topo, "test_complex_returned", data);
 
-        flups_free(data);
+        m_free(data);
         delete (switchtopo);
         delete (topo);
         delete (topobig);
@@ -1215,7 +1181,7 @@ void SwitchTopo_a2a_test2() {
         topo->disp_rank();
         topobig->disp_rank();
 
-        double* data = (double*)flups_malloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
+        double* data = (double*)m_calloc(sizeof(double) * std::max(topo->memsize(), topobig->memsize()));       
 
         //Filling data (AFTER having assigned topo to a new topo)
         const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
@@ -1244,8 +1210,8 @@ void SwitchTopo_a2a_test2() {
         // associate the buffer
         switchtopo->setup();
         size_t         max_mem    = switchtopo->get_bufMemSize();
-        opt_double_ptr send_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
-        opt_double_ptr recv_buff  = (opt_double_ptr)flups_malloc(max_mem * sizeof(double));
+        opt_double_ptr send_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+        opt_double_ptr recv_buff  = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
         std::memset(send_buff, 0, max_mem * sizeof(double));
         std::memset(recv_buff, 0, max_mem * sizeof(double));
         switchtopo->setup_buffers(send_buff, recv_buff);
@@ -1264,9 +1230,9 @@ void SwitchTopo_a2a_test2() {
 
         MPI_Barrier(MPI_COMM_WORLD);
 
-        flups_free(data);
-        flups_free((double*)send_buff);
-        flups_free((double*)recv_buff);
+        m_free(data);
+        m_free((double*)send_buff);
+        m_free((double*)recv_buff);
         delete (switchtopo);
         delete (topo);
         delete (topobig);

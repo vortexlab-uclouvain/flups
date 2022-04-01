@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
 #include "flups.h"
 
 void print_res(double *A, const FLUPS_Topology* topo);
@@ -25,6 +26,7 @@ int main(int argc, char *argv[])  {
 
     const double h[3] = {L[0] / (nglob[0]-1), L[1] / (nglob[1]-1), L[2] / (nglob[2]-1)};
 
+    const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
     // FLUPS_BoundaryType* mybc[3][2] = {{EVEN, EVEN}, {EVEN, EVEN}, {EVEN, EVEN}};
 
     FLUPS_BoundaryType *mybc[3][2];
@@ -43,7 +45,7 @@ int main(int argc, char *argv[])  {
 
 
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L, NOD);
+    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L, NOD, center_type);
     flups_set_greenType(mysolver,CHAT_2);
     // flups_set_greenType(mysolver, HEJ_2);
     flups_setup(mysolver, true);
@@ -67,7 +69,6 @@ int main(int argc, char *argv[])  {
     const int ax0     = flups_topo_get_axis(topo);
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
-    const double shift = 0.5 * TEST_CELL_CENTERED;
 
     const double cos_cons = 2.0 * M_PI ;
     

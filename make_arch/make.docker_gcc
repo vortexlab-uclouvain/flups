@@ -13,23 +13,31 @@ OPTS=  -DVERBOSE
 ## For profiling:
 # CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
 ## For production:
-CXXFLAGS := -g -O3 -std=c++17  -Wno-variadic-macros #-fsanitize=undefined -fsanitize=address
+CXXFLAGS := -g -O0 -std=c++17  -Wno-variadic-macros -fsanitize=undefined -fsanitize=address
 
 CCFLAGS := -O3 -std=c99  -Wno-variadic-macros
 
-LDFLAGS = -fopenmp #-fsanitize=undefined -fsanitize=address
+LDFLAGS = -fopenmp -fsanitize=undefined -fsanitize=address
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
 #---------------------------------------------------------
+## FFTW3
+FFTW_DIR  :=  /usr/local/fftw
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+#FFTW_LIB := /usr/lib/x86_64-linux-gnu
 
-## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
-#FFTW_DIR  :=  /usr/local/fftw
-#FFTW_LIB := ${FFTW_DIR}/lib
-#FFTW_INC := ${FFTW_DIR}/include
-FFTW_LIB := /usr/lib/x86_64-linux-gnu
-
-## Specify the location of HDF5 (by default, assumed to be /usr/lib/)
+## HDF5
+#HDF5_DIR := /usr/local/hdf5/
+#HDF5_INC = ${HDF5_DIR}/include
+#HDF5_LIB = ${HDF5_DIR}/lib
 HDF5_INC := /usr/include/hdf5/openmpi
-HDF5_LIB := /usr/lib/x86_64-linux-gnu
-HDF5_LIBNAME := -lhdf5_openmpi
+HDF5_LIB := /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+HDF5_LIBNAME := -lhdf5
+
+
+## H3LPR
+H3LPR_DIR := /workspaces/flups-dbg/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/

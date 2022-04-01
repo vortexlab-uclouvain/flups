@@ -42,10 +42,8 @@ class SwitchTopoX {
     fftw_plan *i2o_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the output topo
     fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
 
-#ifdef PROF
     Profiler *prof_    = NULL;
     int       iswitch_ = -1;
-#endif
 
 
     public:
