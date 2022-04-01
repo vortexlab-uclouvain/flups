@@ -1,4 +1,17 @@
-# build image
+# build image for VS Code
+
+```bash
+hpccm --recipe docker.py > Dockerfile_daily
+cat docker_ext >> Dockerfile_daily
+
+docker build -f Dockerfile_daily -t vanreeslab/flups_daily:v0.0 .
+docker login
+docker push vanreeslab/flups_daily:v0.0
+```
+
+
+# build image for validation
+
 # docker build -t immc/flups-valid:v0.4 .
 docker build -t vanreeslab/flups:v0.5 .
 #v0.3 has valgrind but not metis

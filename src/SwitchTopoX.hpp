@@ -25,13 +25,13 @@ class SwitchTopoX {
     MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
     MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
 
-    const int shift[3];  //!< shift from global to local indexes
+    const int shift_[3];  //!< position of the (0,0,0) of topo_in_ in topo_out_
 
-    const int inchunks = 0;  //!< local number of chunks in the input topology
-    const int onchunks = 0;  //!< local number of chunks in the output topology
+    const int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
+    const int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology
 
-    MemChunk *ichunks;  //!< the local chunks of memory in the output topology
-    MemChunk *ochunks;  //!< the local chunks of memory in the output topology
+    MemChunk *i2o_chunks_;  //!< the local chunks of memory in the output topology
+    MemChunk *o2i_chunks_;  //!< the local chunks of memory in the output topology
 
     const Topology *topo_in_  = NULL; /**<@brief input topology  */
     const Topology *topo_out_ = NULL; /**<@brief  output topology */
@@ -45,8 +45,7 @@ class SwitchTopoX {
     Profiler *prof_    = NULL;
     int       iswitch_ = -1;
 
-
-    public:
+   public:
     explicit SwitchTopoX();
     virtual ~SwitchTopoX(){};
 
@@ -55,30 +54,32 @@ class SwitchTopoX {
     virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
     virtual void disp() const                                                               = 0;
 
-
-
     /**
      * @brief return the buffer size for one proc = number of blocks * blocks memory size * lda component
-     * 
-     * @return size_t 
+     *
+     * @return size_t
      */
     inline size_t get_bufMemSize() const {
         // the nf is the maximum between in and out
-        const int nf = std::max(topo_in_->nf(),topo_out_->nf());
+        const int nf = std::max(topo_in_->nf(), topo_out_->nf());
         // nultiply by the number of blocks
         size_t total = 0;
-        for(int ib=0; ib<ichunks; ib++){
-            total += get_blockMemSize(ib,nf,iBlockSize_) * ((size_t)topo_in_->lda());
+        for (int ib = 0; ib < in_chunks_; ib++) {
+            total += get_ChunkMemSize(nf, ichunks_ + ib) * ((size_t)topo_in_->lda());
         }
-        for(int ib=0; ib<onBlock_; ib++){
-            total += get_blockMemSize(ib,nf,oBlockSize_) * ((size_t)topo_in_->lda());
+        for (int ib = 0; ib < on_chunks_; ib++) {
+            total += get_ChunkMemSize(nf, ochunks_ + ib) * ((size_t)topo_in_->lda());
         }
         // return the total size
         return total;
     };
 
    protected:
-    
+    void Chunk_Setup();
+    void SubCom_SplitComm();
+    void SubCom_UpdateRanks(const int n_chunks, MemChunk *chunks);
+    setup_subComm_(const int nBlock, const int lda, int *blockSize[3], int *destRank, int **count, int **start);
+
     /**
      * @brief returns the memory size (!NOT padded!) of a MemChunk
      * 

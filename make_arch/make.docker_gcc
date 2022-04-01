@@ -5,7 +5,8 @@ CXX = mpic++
 CC = mpicc
 
 # Set the options 
-OPTS=  -DVERBOSE 
+#OPTS=  -DVERBOSE 
+OPTS=  -DPROF -DVERBOSE 
 
 # set the flag (optimisation or not)
 ## For debugging:
@@ -41,3 +42,5 @@ HDF5_LIBNAME := -lhdf5
 H3LPR_DIR := /workspaces/flups-dbg/h3lpr/
 H3LPR_INC = ${H3LPR_DIR}/include/
 H3LPR_LIB = ${H3LPR_DIR}/lib/
+
+

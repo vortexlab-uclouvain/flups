@@ -149,7 +149,7 @@ Topology::~Topology() {}
 
 /**
  * @brief compute the starting and ending ids for the current topo in order to be inside the other topology's bounds
- * 
+ *
  * @param shift the shift between the 2 topos: current topo in (0,0,0) = other topo in (shift)
  * @param other the other topology
  * @param start the start index to use in the current topo
@@ -158,20 +158,23 @@ Topology::~Topology() {}
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
     FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    //--------------------------------------------------------------------------
 
     for (int id = 0; id < 3; id++) {
+        // get the maximum index in the other topology, minimum is 0 by definition
         const int onglob = other->nglob(id);
 
-        start[id] = 0;
-        end[id]   = 0;
-        // for the input configuration
-        for (int i = 0; i < nloc_[id]; ++i) {
-            // get the global id in the other topology
-            int oid_global = cmpt_start_id(id) + i + shift[id];
-            if (oid_global <= 0) start[id] = i;
-            if (oid_global < onglob) end[id] = i + 1;
-        }
+        // we try to get the first point
+        const int start_global_id = shift[id] + this->cmpt_start_id(id);
+        const int end_global_id   = shift[id] + this->cmpt_start_id(id) + this->nloc(id);
+
+        // enforces the bounds
+        // if the start_global_id is negative, we have offset the start index
+        start[id] = this->cmpt_start_id(id) - m_min(start_global_id, 0);
+        // if the end_global_id is bigger than onglob we have to offset the end
+        end[id] = this->cmpt_start_id(id) + this->nloc(id) - m_max(end_global_id - onglob, 0);
     }
+    //--------------------------------------------------------------------------
     END_FUNC;
 }
 
