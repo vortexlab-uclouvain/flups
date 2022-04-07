@@ -40,11 +40,9 @@ class SwitchTopoX {
     explicit SwitchTopoX(const int shift[3], Topology *topo_in, Topology *topo_out, H3LPR::Profiler *prof);
     virtual ~SwitchTopoX(){};
 
+    // abstract functions
     virtual void setup();
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
-
-    // abstract functions
-
     virtual void execute(opt_double_ptr v, const int sign) const = 0;
     virtual void disp() const                                    = 0;
 

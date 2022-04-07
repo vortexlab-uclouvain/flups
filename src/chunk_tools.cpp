@@ -1,5 +1,3 @@
-
-
 #include "chunk_tools.hpp"
 
 void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* chunks) {
@@ -25,7 +23,8 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     topo_in->cmpt_intersect_id(shift, topo_out, topoi_start, topoi_end);
 
     n_chunks[0] = 1;
-    int srank[3], erank[3] for (int id = 0; id < 3; ++id) {
+    int srank[3], erank[3];
+    for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
         // the ending point is taken with -1 to be sure to include the end rank
         srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id]);

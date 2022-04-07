@@ -53,14 +53,15 @@ size_t SwitchTopoX::get_bufMemSize() const {
     // nultiply by the number of blocks
     size_t i2o_total = 0;
     for (int ib = 0; ib < i2o_nchunks_; ib++) {
-        total += get_ChunkMemSize(nf, i2o_chunks_ + ib) * ((size_t)topo_in_->lda());
+        i2o_total += get_ChunkMemSize(nf, i2o_chunks_ + ib) * ((size_t)topo_in_->lda());
     }
-    size_t o = 0;
+    size_t o2i_total = 0;
     for (int ib = 0; ib < o2i_nchunks_; ib++) {
-        total += get_ChunkMemSize(nf, o2i_chunks_ + ib) * ((size_t)topo_out_->lda());
+        o2i_total += get_ChunkMemSize(nf, o2i_chunks_ + ib) * ((size_t)topo_out_->lda());
     }
+    
     // return the total size
-    return total;
+    return std::max(i2o_total, o2i_total);
     //--------------------------------------------------------------------------
     END_FUNC;
 }

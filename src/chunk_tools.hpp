@@ -13,7 +13,7 @@ typedef struct
 
 void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* chunks);
 
-void void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk, double* data);
+void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk, double* data);
 
 /**
  * @brief returns the memory size (padded to a multiple of alignment) of a MemChunk
