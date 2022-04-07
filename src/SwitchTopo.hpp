@@ -147,11 +147,11 @@ static inline int gcd(int a, int b) {
 }
 
 /**
- * @brief translate a list of ranks of size size from inComm to outComm
- * 
- * ranks are replaced with their new values.
- * 
- * @param size 
+ * @brief translate a list of ranks of size size from inComm to outComm (in place!)
+ *
+ * ranks are replaced with their new values in the output communicator
+ *
+ * @param size
  * @param ranks a list of ranks expressed in the inComm
  * @param inComm input communicator
  * @param outComm output communicator
@@ -161,24 +161,25 @@ inline static void translate_ranks(int size, int* ranks, MPI_Comm inComm, MPI_Co
 
     int comp;
     MPI_Comm_compare(inComm, outComm, &comp);
-    FLUPS_CHECK(size!=0,"size cant be 0.");
-
-    int* tmprnks = (int*) m_calloc(size*sizeof(int));
-    std::memcpy(tmprnks,ranks,size*sizeof(int));
+    FLUPS_CHECK(size != 0, "size cant be 0.");
 
     int err;
     if (comp != MPI_IDENT) {
+        int* tmprnks = (int*)m_calloc(size * sizeof(int));
+        std::memcpy(tmprnks, ranks, size * sizeof(int));
+
         MPI_Group group_in, group_out;
         err = MPI_Comm_group(inComm, &group_in);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group in");
+        FLUPS_CHECK(err == MPI_SUCCESS, "wrong group in");
         err = MPI_Comm_group(outComm, &group_out);
-        FLUPS_CHECK(err==MPI_SUCCESS,"wrong group out");
+        FLUPS_CHECK(err == MPI_SUCCESS, "wrong group out");
 
         err = MPI_Group_translate_ranks(group_in, size, tmprnks, group_out, ranks);
         FLUPS_CHECK(err == MPI_SUCCESS, "Could not find a correspondance between incomm and outcomm.");
+
+        m_free(tmprnks);
     }
 
-    m_free(tmprnks);
     END_FUNC;
 }
 

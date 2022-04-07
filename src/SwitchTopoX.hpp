@@ -1,19 +1,9 @@
 #ifndef SWITCHTOPOX_HPP_
 #define SWITCHTOPOX_HPP_
 
-#include <mpi.h>
 #include "Topology.hpp"
+#include "chunk_tools.hpp"
 #include "defines.hpp"
-
-typedef struct
-{
-    const int istart[3];  //!< local start index for the memory chunk (012 indexing)
-    const int isize[3];   // !< local size for the memory chunks (012 indexing)
-
-    const int dest_rank;  //!< destination ranks
-    const int tag;        //!< tag to be used
-
-} MemChunk;
 
 /**
  * @brief More efficient implementation of the SwitchTopo
@@ -21,20 +11,21 @@ typedef struct
  */
 class SwitchTopoX {
    protected:
+    const int i2o_shift_[3];  //!< position of the (0,0,0) of topo_in_ in topo_out_
+    const int o2i_shift_[3];  //!< position of the (0,0,0) of topo_out_ in topo_in_
+
+    const Topology *topo_in_  = NULL; /**<@brief input topology  */
+    const Topology *topo_out_ = NULL; /**<@brief  output topology */
+
     MPI_Comm inComm_  = NULL; /**<@brief the reference input communicator */
     MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
     MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
 
-    const int shift_[3];  //!< position of the (0,0,0) of topo_in_ in topo_out_
-
-    const int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
-    const int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology
+    int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
+    int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology
 
     MemChunk *i2o_chunks_;  //!< the local chunks of memory in the output topology
     MemChunk *o2i_chunks_;  //!< the local chunks of memory in the output topology
-
-    const Topology *topo_in_  = NULL; /**<@brief input topology  */
-    const Topology *topo_out_ = NULL; /**<@brief  output topology */
 
     opt_double_ptr *sendBuf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *recvBuf_ = NULL; /**<@brief The recv buffer for MPI recv */
@@ -42,59 +33,27 @@ class SwitchTopoX {
     fftw_plan *i2o_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the output topo
     fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
 
-    Profiler *prof_    = NULL;
-    int       iswitch_ = -1;
+    H3LPR::Profiler *prof_    = NULL;
+    int              iswitch_ = -1;
 
    public:
-    explicit SwitchTopoX();
+    explicit SwitchTopoX(const int shift[3], Topology *topo_in, Topology *topo_out, H3LPR::Profiler *prof);
     virtual ~SwitchTopoX(){};
 
-    virtual void setup()                                                                    = 0;
-    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)            = 0;
-    virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
-    virtual void disp() const                                                               = 0;
+    virtual void setup();
+    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
 
-    /**
-     * @brief return the buffer size for one proc = number of blocks * blocks memory size * lda component
-     *
-     * @return size_t
-     */
-    inline size_t get_bufMemSize() const {
-        // the nf is the maximum between in and out
-        const int nf = std::max(topo_in_->nf(), topo_out_->nf());
-        // nultiply by the number of blocks
-        size_t total = 0;
-        for (int ib = 0; ib < in_chunks_; ib++) {
-            total += get_ChunkMemSize(nf, ichunks_ + ib) * ((size_t)topo_in_->lda());
-        }
-        for (int ib = 0; ib < on_chunks_; ib++) {
-            total += get_ChunkMemSize(nf, ochunks_ + ib) * ((size_t)topo_in_->lda());
-        }
-        // return the total size
-        return total;
-    };
+    // abstract functions
+
+    virtual void execute(opt_double_ptr v, const int sign) const = 0;
+    virtual void disp() const                                    = 0;
+
+    size_t get_bufMemSize() const;
 
    protected:
-    void Chunk_Setup();
     void SubCom_SplitComm();
-    void SubCom_UpdateRanks(const int n_chunks, MemChunk *chunks);
-    setup_subComm_(const int nBlock, const int lda, int *blockSize[3], int *destRank, int **count, int **start);
-
-    /**
-     * @brief returns the memory size (!NOT padded!) of a MemChunk
-     * 
-     * @param nf 
-     * @param chunk 
-     * @return size_t 
-     */
-    inline size_t get_ChunkMemSize(const int nf, const MemChunk *chunk) {
-        //----------------------------------------------------------------------
-        const size_t total      = (size_t)(chunk->isize[0]) * (size_t)(chunk->isize[1]) * (size_t)(chunk->isize[2]) * (size_t)(nf);
-        // size_t alignDelta = ((total * sizeof(double)) % FLUPS_ALIGNMENT == 0) ? 0 : (FLUPS_ALIGNMENT - (total * sizeof(double)) % FLUPS_ALIGNMENT) / sizeof(double);
-        // return total + alignDelta;
-        return total;
-        //----------------------------------------------------------------------
-    }
-}
+    void SubCom_UpdateRanks();
+    // setup_subComm_(const int nBlock, const int lda, int *blockSize[3], int *destRank, int **count, int **start);
+};
 
 #endif  // SWITCHTOPOX_HPP_

@@ -270,7 +270,7 @@ inline static void ranksplit(const int rank, const int axproc[3], const int npro
  * 
  * @param rankd the rank in XYZ format
  * @param topo the topology
- * @return int 
+ * @return int the rank ID in the communicator of the Topology
  */
 inline static int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
