@@ -10,17 +10,17 @@
  */
 typedef struct
 {
-    int iaxis;  //!< the principal axis in the input topology
-    int oaxis;  //!< the principal axis in the output topology
+    int axis;       //!< the principal axis in the "input" topology, where the chunk is defined
+    int istart[3];  //!< local start index for the memory chunk (012 indexing), in the "input" topology
+    int isize[3];   // !< local size for the memory chunks (012 indexing), in the "input" topology
 
-    int istart[3];  //!< local start index for the memory chunk (012 indexing)
-    int isize[3];   // !< local size for the memory chunks (012 indexing)
-
-    int dest_rank;  //!< destination ranks in the output topology
+    int dest_rank;  //!< destination ranks in the destination topology
+    int dest_axis;  //!< the principal axis in the destination topology
 
     fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
 
     size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
+    size_t         nf;           //!< the number of double per data (1 if real, 2 if complex)
     size_t         size_padded;  //!< padded size for the data ptr
     opt_double_ptr data;         //!< the pointer to the data in the buffer
 
@@ -28,6 +28,10 @@ typedef struct
 
 void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* chunks);
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
+void DoShuffleChunk(MemChunk* chunk);
+
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
+void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
 
 /**
  * @brief returns the memory size (padded to a multiple of alignment) of a MemChunk

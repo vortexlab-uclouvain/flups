@@ -57,14 +57,16 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     cchunk->isize[id]  = m_min(topoo_end - shift[id], topoi_end[id]) - cchunk->istart[id];
 
                     // get the destination rank, no translation is required here as we imposed identical communicators
-                    cchunk->dest_rank = rankindex(irank, topo_out);
-
+                    cchunk->dest_rank   = rankindex(irank, topo_out);
                     cchunk->nda         = topo_in->lda();
                     cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
 
                     // fill the axis
-                    cchunk->iaxis = topo_in->axis();
-                    cchunk->oaxis = topo_out->axis();
+                    cchunk->axis      = topo_in->axis();
+                    cchunk->dest_axis = topo_out->axis();
+                    cchunk->nda       = topo_in->lda();
+                    cchunk->nf        = topo_in->nf();
+                    FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 }
 
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
@@ -88,6 +90,8 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
  * @param chunk the chunk that will store the plan
  */
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
     // enable the multithreading for this plan
     fftw_plan_with_nthreads(omp_get_max_threads());
 
@@ -101,14 +105,16 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     dims[1].is = 1;
     dims[1].os = 1;
 
-    int iaxis[3] = {chunk->iaxis, (chunk->iaxis + 1) % 3, (chunk->iaxis + 2) % 3};
-    int oaxis[3] = {chunk->oaxis, (chunk->oaxis + 1) % 3, (chunk->oaxis + 2) % 3};
+    // the chunk arrives in its destination topology and must be shuffled into its correct topology
+    // (after reception we are not shuffled yet!)
+    int iaxis[3] = {chunk->dest_axis, (chunk->dest_axis + 1) % 3, (chunk->dest_axis + 2) % 3};
+    int oaxis[3] = {chunk->axis, (chunk->axis + 1) % 3, (chunk->axis + 2) % 3};
 
     // note: this is a bit magical and I forgot the exact why we do that
     // loop over the input axis and update the dim[0] and dim[1] data structures accordingly
     for (int id = 0; id < 3; id++) {
         // if the axis we are currently viewing is not the output axis, update the size and the input stride
-        if (iaxis[id] != chunk->oaxis) {
+        if (iaxis[id] != oaxis[0]) {
             // input dimension, change the stride
             dims[0].is = dims[0].is * chunk->isize[iaxis[id]];
             // output dimension change the size
@@ -119,7 +125,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     }
     // loop over the output axis and update the
     for (int id = 0; id < 3; id++) {
-        if (oaxis[id] != chunk->iaxis) {
+        if (oaxis[id] != iaxis[0]) {
             dims[0].n  = dims[0].n * chunk->isize[oaxis[id]];
             dims[1].os = dims[1].os * chunk->isize[oaxis[id]];
         } else {
@@ -141,4 +147,106 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
         chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
         // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     }
+    //--------------------------------------------------------------------------
+    END_FUNC;
 }
+
+void DoShuffleChunk(MemChunk* chunk) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // only the master call the fftw_execute which is executed in multithreading
+    for (int ida = 0; ida < chunk->nda; ++ida) {
+        opt_double_ptr data_ptr = chunk->data + ida * chunk->size_padded;
+        if (chunk->nf == 1) {
+            // we execute it on the different directions of the field but the memory has the same properties (alignement, lenght, etc)
+            fftw_execute_r2r(chunk->shuffle, data_ptr, data_ptr);
+        } else {
+            fftw_execute_dft(chunk->shuffle, (opt_complex_ptr)(data_ptr), (opt_complex_ptr)(data_ptr));
+        }
+    }
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief Copy the memory from the chunk to the data pointer
+ *
+ * This function uses the memcpy algorithm, which should be the fastest memory copy possible
+ * ex of the libc implementation (v2.31)
+ *  https://sourceware.org/git/?p=glibc.git;a=blob;f=string/memcpy.c;h=2cb4c76515f476f36a9a8d5dd258ea98e36792b2;hb=9ea3686266dca3f004ba874745a4087a89682617
+ *
+ * the alignement is automatically performed and exploited, there is not need to do it by hand
+ *
+ * @param topo the topology in which the chunk and the data are located, must be the input topo of the chunk
+ * @param chunk the chunk of memory to copy
+ * @param data the vector of data corresponding to the current memory
+ */
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
+    BEGIN_FUNC;
+    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
+    //--------------------------------------------------------------------------
+    // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
+    const int nf         = chunk->nf;
+    const int ax0        = chunk->axis;
+    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+    const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
+
+    // get the indexes to copy
+    const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
+
+#pragma omp parallel proc_bind(close)
+    for (int lia = 0; lia < chunk->nda; ++lia) {
+        // get the starting address for the chunk, taking into account the padding
+        opt_double_ptr src_data = chunk->data + chunk->size_padded * lia;
+        opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
+
+        // the chunk must be aligned all the time
+        FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned");
+
+#pragma omp for schedule(static)
+        for (int il = 0; il < n_loop; ++il) {
+            const void* __restrict vsrc = src_data + collapsedIndex(ax0, 0, il, chunk->isize, nf);
+            void* __restrict vtrg       = trg_data + collapsedIndex(ax0, 0, il, nmem, nf);
+            memcpy(vtrg, vsrc, nmax_byte);
+        }
+    }
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk) {
+    BEGIN_FUNC;
+    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
+    //--------------------------------------------------------------------------
+    // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
+    const int nf         = chunk->nf;
+    const int ax0        = chunk->axis;
+    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+    const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
+
+    // get the indexes to copy
+    const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
+
+#pragma omp parallel proc_bind(close)
+    for (int lia = 0; lia < chunk->nda; ++lia) {
+        // get the starting address for the chunk, taking into account the padding
+        opt_double_ptr trg_data = chunk->data + chunk->size_padded * lia;
+        opt_double_ptr src_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
+
+        // we alwas know that the chunk memory is aligned
+        FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned");
+
+#pragma omp for schedule(static)
+        for (int il = 0; il < n_loop; ++il) {
+            const void* __restrict vsrc = src_data + collapsedIndex(ax0, 0, il, chunk->isize, nf);
+            void* __restrict vtrg       = trg_data + collapsedIndex(ax0, 0, il, nmem, nf);
+            memcpy(vtrg, vsrc, nmax_byte);
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+

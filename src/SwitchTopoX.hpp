@@ -42,12 +42,12 @@ class SwitchTopoX {
 
     // abstract functions
     virtual void setup();
-    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
-    virtual void execute(opt_double_ptr v, const int sign) const = 0;
-    virtual void disp() const                                    = 0;
+    // virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
+    virtual void execute(opt_double_ptr data, const int sign) const = 0;
+    virtual void disp() const                                       = 0;
 
     // size_t get_bufMemSize() const;
-    size_t get_bufMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const;
+    size_t get_bufMemSize(const size_t lda, const int nchunks, const MemChunk *chunks) const;
 
    protected:
     void SubCom_SplitComm();

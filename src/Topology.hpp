@@ -294,7 +294,6 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param i0
  * @param i1 
  * @param i2 
- * @param lia leading index of array
  * @param axtrg the target FRI
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
