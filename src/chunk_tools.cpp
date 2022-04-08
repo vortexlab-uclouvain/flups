@@ -135,10 +135,10 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
     if (!iscomplex) {
-        chunk->shuffle[0] = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FFTW_FLAG);
-        FLUPS_CHECK(chunk->shuffle[0] != NULL, "Plan has not been setup");
+        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FFTW_FLAG);
+        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     } else {
-        chunk->shuffle[0] = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
-        FLUPS_CHECK(chunk->shuffle[0] != NULL, "Plan has not been setup");
+        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
+        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     }
 }

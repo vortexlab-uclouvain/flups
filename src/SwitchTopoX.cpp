@@ -8,6 +8,7 @@ SwitchTopoX::SwitchTopoX(const int shift[3], Topology* topo_in, Topology* topo_o
     : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out) {
     BEGIN_FUNC;
     FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
+    FLUPS_CHECK(topo_in->lda() == topo_out->lda(), "The two topos must both be complex or both real");
     //--------------------------------------------------------------------------
 #ifndef NDEBUG
     // TG: I have removed the different inComm and outComm support as its not clear to me how to properly do that
@@ -18,6 +19,31 @@ SwitchTopoX::SwitchTopoX(const int shift[3], Topology* topo_in, Topology* topo_o
     MPI_Comm_compare(inComm_, outComm_, &comp);
     FLUPS_CHECK(comp == MPI_IDENT, "we do NOT support different communicators in and out for the moment");
 #endif
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+SwitchTopoX::~SwitchTopoX() {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // deallocate the plans
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        // the shuffle happens in the "out" topology
+        fftw_destroy_plan(i2o_chunks_[ic].shuffle);
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        // the shuffle happens in the "in" topology
+        fftw_destroy_plan(o2i_chunks_[ic].shuffle);
+    }
+
+    // free the buffers
+    m_free(send_buf_);
+    m_free(recv_buf_);
+
+    // free the MemChunks
+    m_free(i2o_chunks_);
+    m_free(o2i_chunks_);
+
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -66,17 +92,17 @@ void SwitchTopoX::setup() {
 
     // get the ranks of everybody in all communicators
     MPI_Request subrank_rqst;
-    int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
-    MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_,&subrank_rqst);
+    int*        subRanks = reinterpret_cast<int*>(m_calloc(worldsize * sizeof(int)));
+    MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_, &subrank_rqst);
     //..........................................................................
     // init the shuffle, this might take some time
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
-        PlanShuffleChunk(topo_out_->nf() == 2, i2o_chunks_+ic);
+        PlanShuffleChunk(topo_out_->nf() == 2, i2o_chunks_ + ic);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
         // the shuffle happens in the "in" topology
-        PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_+ic);
+        PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_ + ic);
     }
 
     //..........................................................................

@@ -38,7 +38,7 @@ class SwitchTopoX {
 
    public:
     explicit SwitchTopoX(const int shift[3], Topology *topo_in, Topology *topo_out, H3LPR::Profiler *prof);
-    virtual ~SwitchTopoX(){};
+    virtual ~SwitchTopoX();
 
     // abstract functions
     virtual void setup();

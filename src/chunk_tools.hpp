@@ -18,7 +18,7 @@ typedef struct
 
     int dest_rank;  //!< destination ranks in the output topology
 
-    fftw_plan* shuffle;  //!< the shuffle plan used by FFTW to reorder data
+    fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
 
     size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
     size_t         size_padded;  //!< padded size for the data ptr
