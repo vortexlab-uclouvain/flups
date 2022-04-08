@@ -27,8 +27,8 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
         // the ending point is taken with -1 to be sure to include the end rank
-        srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id]);
-        erank[id] = topo_out->cmpt_rank_fromid(topoi_end[id] - 1 + shift[id]);
+        srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id],id);
+        erank[id] = topo_out->cmpt_rank_fromid(topoi_end[id] - 1 + shift[id],id);
 
         // accumulate the number of chunks over the dimensions
         // both ranks are included!
@@ -58,6 +58,13 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
 
                     // get the destination rank, no translation is required here as we imposed identical communicators
                     cchunk->dest_rank = rankindex(irank, topo_out);
+
+                    cchunk->nda         = topo_in->lda();
+                    cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
+
+                    // fill the axis
+                    cchunk->iaxis = topo_in->axis();
+                    cchunk->oaxis = topo_out->axis();
                 }
 
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
@@ -77,10 +84,10 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
  *
  * initilizing mutliple plans will rely on the wisdom of FFTW as soon as no fftw_cleanup is called
  *
- * @param nf the maximum nf between
- * @param chunk
+ * @param iscomplex indicate if the input topo or the output topo is complex
+ * @param chunk the chunk that will store the plan
  */
-void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk, double* data) {
+void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     // enable the multithreading for this plan
     fftw_plan_with_nthreads(omp_get_max_threads());
 
@@ -94,39 +101,44 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk, double* data) {
     dims[1].is = 1;
     dims[1].os = 1;
 
-    int iaxis[3] = {topo_in->axis(), (topo_in->axis() + 1) % 3, (topo_in->axis() + 2) % 3};
-    int oaxis[3] = {topo_out->axis(), (topo_out->axis() + 1) % 3, (topo_out->axis() + 2) % 3};
+    int iaxis[3] = {chunk->iaxis, (chunk->iaxis + 1) % 3, (chunk->iaxis + 2) % 3};
+    int oaxis[3] = {chunk->oaxis, (chunk->oaxis + 1) % 3, (chunk->oaxis + 2) % 3};
 
-    // compute the size and the stride of the array
+    // note: this is a bit magical and I forgot the exact why we do that
+    // loop over the input axis and update the dim[0] and dim[1] data structures accordingly
     for (int id = 0; id < 3; id++) {
-        if (iaxis[id] != topo_out->axis()) {
-            dims[1].n  = dims[1].n * bSize[iaxis[id]];
-            dims[0].is = dims[0].is * bSize[iaxis[id]];
+        // if the axis we are currently viewing is not the output axis, update the size and the input stride
+        if (iaxis[id] != chunk->oaxis) {
+            // input dimension, change the stride
+            dims[0].is = dims[0].is * chunk->isize[iaxis[id]];
+            // output dimension change the size
+            dims[1].n = dims[1].n * chunk->isize[iaxis[id]];
         } else {
             break;
         }
     }
+    // loop over the output axis and update the
     for (int id = 0; id < 3; id++) {
-        if (oaxis[id] != topo_in->axis()) {
-            dims[0].n  = dims[0].n * bSize[oaxis[id]];
-            dims[1].os = dims[1].os * bSize[oaxis[id]];
+        if (oaxis[id] != chunk->iaxis) {
+            dims[0].n  = dims[0].n * chunk->isize[oaxis[id]];
+            dims[1].os = dims[1].os * chunk->isize[oaxis[id]];
         } else {
             break;
         }
     }
     // display some info
-    FLUPS_INFO_3("shuffle: setting up the shuffle form %d to %d", topo_in->axis(), topo_out->axis());
-    FLUPS_INFO_3("shuffle: nf = %d, blocksize = %d %d %d", nf, bSize[0], bSize[1], bSize[2]);
-    FLUPS_INFO_3("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
-    FLUPS_INFO_3("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
+    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d", chunk->iaxis, chunk->oaxis);
+    FLUPS_INFO("shuffle: iscomplex = %d, blocksize = %d %d %d", iscomplex, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
+    FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
+    FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
     if (!iscomplex) {
-        *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
-        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
+        chunk->shuffle[0] = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FFTW_FLAG);
+        FLUPS_CHECK(chunk->shuffle[0] != NULL, "Plan has not been setup");
     } else {
-        *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
-        FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
+        chunk->shuffle[0] = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
+        FLUPS_CHECK(chunk->shuffle[0] != NULL, "Plan has not been setup");
     }
 }

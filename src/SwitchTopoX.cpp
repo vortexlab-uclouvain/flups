@@ -7,6 +7,7 @@ using namespace std;
 SwitchTopoX::SwitchTopoX(const int shift[3], Topology* topo_in, Topology* topo_out, H3LPR::Profiler* prof)
     : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out) {
     BEGIN_FUNC;
+    FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
     //--------------------------------------------------------------------------
 #ifndef NDEBUG
     // TG: I have removed the different inComm and outComm support as its not clear to me how to properly do that
@@ -31,9 +32,72 @@ void SwitchTopoX::setup() {
     PopulateChunk(i2o_shift_, topo_in_, topo_out_, &i2o_nchunks_, i2o_chunks_);
     PopulateChunk(o2i_shift_, topo_out_, topo_in_, &o2i_nchunks_, o2i_chunks_);
 
-    // compute the subcomm
+    //..........................................................................
+    // get the buffer sizes: send lives in the input topo, recv in the output one
+    size_t send_buff_size = get_bufMemSize(topo_in_->lda(), i2o_nchunks_, i2o_chunks_);
+    size_t recv_buff_size = get_bufMemSize(topo_out_->lda(), o2i_nchunks_, o2i_chunks_);
+
+    send_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
+    recv_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
+
+    // assign the chunks with the relevant memory address
+    size_t size_counter = 0;
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        FLUPS_CHECK(i2o_chunks_[ic].size_padded > 0 && i2o_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        i2o_chunks_[ic].data = send_buf_ + size_counter;
+        // update the counter
+        size_counter += i2o_chunks_[ic].size_padded * i2o_chunks_[ic].nda;
+    }
+    size_counter = 0;
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        FLUPS_CHECK(o2i_chunks_[ic].size_padded > 0 && o2i_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        o2i_chunks_[ic].data = recv_buf_ + size_counter;
+        size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
+    }
+
+    //..........................................................................
+    // compute the subcomm and start the gather of each rank
     SubCom_SplitComm();
-    SubCom_UpdateRanks();
+
+    int inrank, subrank, worldsize;
+    MPI_Comm_size(inComm_, &worldsize);
+    MPI_Comm_rank(subcomm_, &subrank);
+    MPI_Comm_rank(inComm_, &inrank);
+
+    // get the ranks of everybody in all communicators
+    MPI_Request subrank_rqst;
+    int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
+    MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_,&subrank_rqst);
+    //..........................................................................
+    // init the shuffle, this might take some time
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        // the shuffle happens in the "out" topology
+        PlanShuffleChunk(topo_out_->nf() == 2, i2o_chunks_+ic);
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        // the shuffle happens in the "in" topology
+        PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_+ic);
+    }
+
+    //..........................................................................
+    // finish the rank assignement
+    MPI_Status subrank_status;
+    MPI_Wait(&subrank_rqst,&subrank_status);
+    // replace the old ranks by the newest ones
+    for (int ic = 0; ic < i2o_nchunks_; ++ic) {
+        // get the destination rank in the old inComm_
+        const int in_dest_rank = i2o_chunks_[ic].dest_rank;
+        // replace by the one in the subcommunicator
+        i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ++ic) {
+        // get the destination rank in the old inComm_
+        const int in_dest_rank = o2i_chunks_[ic].dest_rank;
+        // replace by the one in the subcommunicator
+        o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+    }
+    // free the allocated array
+    m_free(subRanks);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -45,23 +109,17 @@ void SwitchTopoX::setup() {
  *
  * @return size_t
  */
-size_t SwitchTopoX::get_bufMemSize() const {
+size_t SwitchTopoX::get_bufMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // the nf is the maximum between in and out
     const int nf = std::max(topo_in_->nf(), topo_out_->nf());
     // nultiply by the number of blocks
-    size_t i2o_total = 0;
-    for (int ib = 0; ib < i2o_nchunks_; ib++) {
-        i2o_total += get_ChunkMemSize(nf, i2o_chunks_ + ib) * ((size_t)topo_in_->lda());
+    size_t total = 0;
+    for (int ib = 0; ib < nchunks; ib++) {
+        total += chunks[ib].size_padded *  chunks[ib].nda;
     }
-    size_t o2i_total = 0;
-    for (int ib = 0; ib < o2i_nchunks_; ib++) {
-        o2i_total += get_ChunkMemSize(nf, o2i_chunks_ + ib) * ((size_t)topo_out_->lda());
-    }
-    
-    // return the total size
-    return std::max(i2o_total, o2i_total);
+    return total * lda;
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -180,40 +238,40 @@ void SwitchTopoX::SubCom_SplitComm() {
     END_FUNC;
 }
 
-/**
- * @brief Update the ranks on the i2o and o2i chunk arrays given the new subcom
- * 
- */
-void SwitchTopoX::SubCom_UpdateRanks() {
-    BEGIN_FUNC;
-    //--------------------------------------------------------------------------
-    int inrank, subrank, worldsize;
-    MPI_Comm_size(inComm_, &worldsize);
-    MPI_Comm_rank(subcomm_, &subrank);
-    MPI_Comm_rank(inComm_, &inrank);
+// /**
+//  * @brief start the rank update 
+//  * 
+//  */
+// void SwitchTopoX::SubCom_UpdateRanks_Start() {
+//     BEGIN_FUNC;
+//     //--------------------------------------------------------------------------
+//     int inrank, subrank, worldsize;
+//     MPI_Comm_size(inComm_, &worldsize);
+//     MPI_Comm_rank(subcomm_, &subrank);
+//     MPI_Comm_rank(inComm_, &inrank);
 
-    // get the ranks of everybody in all communicators
-    int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
-    MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_);
+//     // get the ranks of everybody in all communicators
+//     int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
+//     MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_);
 
-    // replace the old ranks by the newest ones
-    for (int ic = 0; ic < i2o_nchunks_; ++ic) {
-        // get the destination rank in the old inComm_
-        const int in_dest_rank = i2o_chunks_[ic].dest_rank;
-        // replace by the one in the subcommunicator
-        i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
-    }
-    for (int ic = 0; ic < o2i_nchunks_; ++ic) {
-        // get the destination rank in the old inComm_
-        const int in_dest_rank = o2i_chunks_[ic].dest_rank;
-        // replace by the one in the subcommunicator
-        o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
-    }
-    // free the allocated array
-    m_free(subRanks);
-    //--------------------------------------------------------------------------
-    END_FUNC;
-}
+//     // replace the old ranks by the newest ones
+//     for (int ic = 0; ic < i2o_nchunks_; ++ic) {
+//         // get the destination rank in the old inComm_
+//         const int in_dest_rank = i2o_chunks_[ic].dest_rank;
+//         // replace by the one in the subcommunicator
+//         i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+//     }
+//     for (int ic = 0; ic < o2i_nchunks_; ++ic) {
+//         // get the destination rank in the old inComm_
+//         const int in_dest_rank = o2i_chunks_[ic].dest_rank;
+//         // replace by the one in the subcommunicator
+//         o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+//     }
+//     // free the allocated array
+//     m_free(subRanks);
+//     //--------------------------------------------------------------------------
+//     END_FUNC;
+// }
 
 // /**
 //  * @brief compute the start and count arrays needed for the all to all communication

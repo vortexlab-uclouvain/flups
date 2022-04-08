@@ -27,8 +27,8 @@ class SwitchTopoX {
     MemChunk *i2o_chunks_;  //!< the local chunks of memory in the output topology
     MemChunk *o2i_chunks_;  //!< the local chunks of memory in the output topology
 
-    opt_double_ptr *sendBuf_ = NULL; /**<@brief The send buffer for MPI send */
-    opt_double_ptr *recvBuf_ = NULL; /**<@brief The recv buffer for MPI recv */
+    opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
+    opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
 
     fftw_plan *i2o_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the output topo
     fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
@@ -46,11 +46,12 @@ class SwitchTopoX {
     virtual void execute(opt_double_ptr v, const int sign) const = 0;
     virtual void disp() const                                    = 0;
 
-    size_t get_bufMemSize() const;
+    // size_t get_bufMemSize() const;
+    size_t get_bufMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const;
 
    protected:
     void SubCom_SplitComm();
-    void SubCom_UpdateRanks();
+    // void SubCom_UpdateRanks();
     // setup_subComm_(const int nBlock, const int lda, int *blockSize[3], int *destRank, int **count, int **start);
 };
 
