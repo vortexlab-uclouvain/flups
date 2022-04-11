@@ -64,7 +64,7 @@ void SwitchTopoX::setup() {
     size_t recv_buff_size = get_bufMemSize(topo_out_->lda(), o2i_nchunks_, o2i_chunks_);
 
     send_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
-    recv_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
+    recv_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
 
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
