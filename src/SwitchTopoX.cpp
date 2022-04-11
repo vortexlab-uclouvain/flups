@@ -5,7 +5,7 @@
 using namespace std;
 
 SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof)
-    : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out) {
+    : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out), inComm_(topo_in->get_comm()), outComm_(topo_out->get_comm()) {
     BEGIN_FUNC;
     FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
     FLUPS_CHECK(topo_in->lda() == topo_out->lda(), "The two topos must both be complex or both real");
@@ -16,7 +16,7 @@ SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, cons
     // supporting it would be cool though!
     // in order to do so, we need to improse a convention on which communicator is used for the communication
     int comp;
-    MPI_Comm_compare(inComm_, outComm_, &comp);
+    MPI_Comm_compare(topo_in->get_comm(), topo_out->get_comm(), &comp);
     FLUPS_CHECK(comp == MPI_IDENT, "we do NOT support different communicators in and out for the moment");
 #endif
     //--------------------------------------------------------------------------
@@ -66,6 +66,7 @@ void SwitchTopoX::setup() {
  * @param recvData 
  */
 void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
+    BEGIN_FUNC;
     //..........................................................................
     send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
     recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
@@ -85,9 +86,13 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
         size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
     }
 
+    FLUPS_INFO("memory addresses have been assigned");
+
     //..........................................................................
     // compute the subcomm and start the gather of each rank
     SubCom_SplitComm();
+
+    FLUPS_INFO("reset the different ranks");
 
     int inrank, subrank, worldsize;
     MPI_Comm_size(inComm_, &worldsize);
@@ -98,6 +103,8 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     MPI_Request subrank_rqst;
     int*        subRanks = reinterpret_cast<int*>(m_calloc(worldsize * sizeof(int)));
     MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_, &subrank_rqst);
+
+    FLUPS_INFO("allocate the shuffles");
     //..........................................................................
     // init the shuffle, this might take some time
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
@@ -109,6 +116,7 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
         PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_ + ic);
     }
 
+    FLUPS_INFO("finish the rank reset");
     //..........................................................................
     // finish the rank assignement
     MPI_Status subrank_status;
