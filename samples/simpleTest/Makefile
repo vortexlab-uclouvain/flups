@@ -34,10 +34,11 @@ FLUPSDIR := ../../
 #-----------------------------------------------------------------------------
 PREFIX ?= ./
 NAME := simple_test
-FLUPS_LIBNAME := -lflups_nb
+FLUPS_LIBNAME := -lflups_agg
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
+TARGET_EXE_MPI_AGGRESSIVE := $(NAME)_agg
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -45,6 +46,12 @@ SRC_DIR := ./
 OBJ_DIR := ./build
 
 #-----------------------------------------------------------------------------
+#---- FLUPS
+FLUPS_INC ?= ../../include
+FLUPS_LIB ?= ../../lib
+INC += -I$(FLUPS_INC)
+LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
+
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
@@ -58,12 +65,6 @@ HDF5_LIB ?= /usr/lib
 HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
-
-#---- FLUPS
-FLUPS_INC ?= ../../include
-FLUPS_LIB ?= ../../lib
-INC += -I$(FLUPS_INC)
-LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
 
 
 #---- H3LPR
@@ -90,7 +91,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_NB)
+default: $(TARGET_EXE_MPI_AGGRESSIVE)
 
 all: default
 
@@ -98,6 +99,9 @@ $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ $(LIB) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+
+$(TARGET_EXE_MPI_AGGRESSIVE): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
 
 install: $(TARGET_EXE_A2A) 

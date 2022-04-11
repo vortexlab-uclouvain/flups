@@ -4,6 +4,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst,
               const int n_recv_rqst, MPI_Request *recv_rqst,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem);
 
+
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
     BEGIN_FUNC;
@@ -102,6 +103,30 @@ void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const{
     END_FUNC;
 }
 
+
+void SwitchTopoX_nb::disp() const {
+    BEGIN_FUNC;
+    FLUPS_INFO("------------------------------------------");
+    FLUPS_INFO("## Topo Swticher MPI");
+    FLUPS_INFO("--- INPUT");
+    FLUPS_INFO("  - input axis = %d", topo_in_->axis());
+    FLUPS_INFO("  - input local = %d %d %d", topo_in_->nloc(0), topo_in_->nloc(1), topo_in_->nloc(2));
+    FLUPS_INFO("  - input global = %d %d %d", topo_in_->nglob(0), topo_in_->nglob(1), topo_in_->nglob(2));
+    // FLUPS_INFO("  - istart = %d %d %d", istart_[0], istart_[1], istart_[2]);
+    // FLUPS_INFO("  - iend = %d %d %d", iend_[0], iend_[1], iend_[2]);
+    FLUPS_INFO("--- OUTPUT");
+    FLUPS_INFO("  - output axis = %d", topo_out_->axis());
+    FLUPS_INFO("  - output local = %d %d %d", topo_out_->nloc(0), topo_out_->nloc(1), topo_out_->nloc(2));
+    FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
+    // FLUPS_INFO("  - ostart = %d %d %d", ostart_[0], ostart_[1], ostart_[2]);
+    // FLUPS_INFO("  - oend = %d %d %d", oend_[0], oend_[1], oend_[2]);
+    FLUPS_INFO("--- Chunks");
+    // FLUPS_INFO("  - nByBlock  = %d %d %d", nByBlock_[0], nByBlock_[1], nByBlock_[2]);
+    FLUPS_INFO("  - i2o n chunks = %d", i2o_nchunks_);
+    FLUPS_INFO("  - o2i n chunks = %d", o2i_nchunks_);
+    FLUPS_INFO("------------------------------------------");
+}
+
 /**
  * @brief process to the Send/Recv operation to go from topo_in to topo_out
  * 
@@ -175,3 +200,4 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     //--------------------------------------------------------------------------
     END_FUNC;
 }
+
