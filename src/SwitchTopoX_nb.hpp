@@ -13,7 +13,7 @@ class SwitchTopoX_nb : public SwitchTopoX {
     explicit SwitchTopoX_nb(const int shift[3], Topology* topo_in, Topology* topo_out, H3LPR::Profiler* prof);
     ~SwitchTopoX_nb();
 
-    virtual void setup();
+    virtual void setup() override;
     virtual void execute(opt_double_ptr data, const int sign) const override;
     virtual void disp() const override;
 };

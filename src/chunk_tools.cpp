@@ -133,7 +133,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
         }
     }
     // display some info
-    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d", chunk->iaxis, chunk->oaxis);
+    FLUPS_INFO("shuffle: setting up the shuffle form %d to %d", chunk->axis, chunk->dest_axis);
     FLUPS_INFO("shuffle: iscomplex = %d, blocksize = %d %d %d", iscomplex, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
     FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
