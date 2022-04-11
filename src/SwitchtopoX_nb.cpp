@@ -1,9 +1,8 @@
 #include "SwitchTopoX_nb.hpp"
 
-void SendRecv(const int n_send_rqst, MPI_Request *send_rqst,
-              const int n_recv_rqst, MPI_Request *recv_rqst,
+void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
+              const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem);
-
 
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -82,27 +81,26 @@ SwitchTopoX_nb::~SwitchTopoX_nb(){
 
 /**
  * @brief Send and receive the non-blocking calls, overlaping with the shuffle execution
- * 
- * @param v 
- * @param sign 
+ *
+ * @param v
+ * @param sign
  */
-void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const{
+void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     if (sign == FLUPS_FORWARD) {
-        SendRecv(i2o_nchunks_, i2o_send_rqst_,
-                 o2i_nchunks_, i2o_recv_rqst_,
-                 topo_in_, topo_out_,v);
+        SendRecv(i2o_nchunks_, i2o_send_rqst_, i2o_chunks_,
+                 o2i_nchunks_, i2o_recv_rqst_, o2i_chunks_,
+                 topo_in_, topo_out_, v);
     } else {
-        SendRecv(o2i_nchunks_, o2i_send_rqst_,
-                 o2i_nchunks_, o2i_recv_rqst_,
-                 topo_out_, topo_in_,v);
+        SendRecv(o2i_nchunks_, o2i_send_rqst_, o2i_chunks_,
+                 o2i_nchunks_, o2i_recv_rqst_, i2o_chunks_,
+                 topo_out_, topo_in_, v);
     }
-   
+
     //--------------------------------------------------------------------------
     END_FUNC;
 }
-
 
 void SwitchTopoX_nb::disp() const {
     BEGIN_FUNC;
@@ -129,23 +127,22 @@ void SwitchTopoX_nb::disp() const {
 
 /**
  * @brief process to the Send/Recv operation to go from topo_in to topo_out
- * 
+ *
  * The indexing of the requests and the chunks is the same
- * 
- * @param n_send_rqst 
- * @param send_rqst 
- * @param send_chunks 
- * @param n_recv_rqst 
- * @param recv_rqst 
- * @param recv_chunks 
- * @param topo_in 
- * @param topo_out 
- * @param mem 
+ *
+ * @param n_send_rqst
+ * @param send_rqst
+ * @param send_chunks
+ * @param n_recv_rqst
+ * @param recv_rqst
+ * @param recv_chunks
+ * @param topo_in
+ * @param topo_out
+ * @param mem
  */
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const Topology *topo_in, const Topology *topo_out,
-              opt_double_ptr mem) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     const int nmem_in[3]  = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
@@ -200,4 +197,3 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     //--------------------------------------------------------------------------
     END_FUNC;
 }
-
