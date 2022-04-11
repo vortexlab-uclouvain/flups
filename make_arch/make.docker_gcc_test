@@ -1,31 +1,26 @@
 CXX = mpic++
 CC = mpicc
 
-OPTS += #-DVERBOSE #-DPB_DBG
+OPTS += -DMPI_AGGRESSIVE #-DVERBOSE #-DPB_DBG
 
-#CXXFLAGS := -O3 -g -fopenmp #-fsanitize=undefined -fsanitize=address
-#LDFLAGS := -fopenmp -lstdc++ -lm #-fsanitize=undefined -fsanitize=address
-
-CXXFLAGS := -O3 -std=c++17 -fopenmp  -Wno-format-security -DPROF #-DNDEBUG
-CCFLAGS := -O3 -std=c99 -fopenmp -Wno-format-security #-DNDEBUG
+CXXFLAGS := -O3 -std=c++17 -fopenmp #-DNDEBUG
+CCFLAGS := -O3 -std=c99 -fopenmp
 LDFLAGS += -fopenmp -lstdc++ -lm
 
-## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
-#FFTW_DIR  :=  /usr/local/fftw
-#FFTW_LIB := ${FFTW_DIR}/lib
-#FFTW_INC := ${FFTW_DIR}/include
-FFTW_LIB := /usr/lib/x86_64-linux-gnu
+## FFTW3
+FFTW_DIR  :=  /usr/local/fftw
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
 
-## Specify the location of HDF5 (by default, assumed to be /usr/lib/)
+## HDF5
 HDF5_INC := /usr/include/hdf5/openmpi
-HDF5_LIB := /usr/lib/x86_64-linux-gnu
-HDF5_LIBNAME := -lhdf5_openmpi
-
+HDF5_LIB := /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+HDF5_LIBNAME := -lhdf5
 
 ## H3LPR
-H3lPR_DIR := ./h3lpr/
-H3lPR_INC = ${H3lPR_DIR}/include/
-H3lPR_LIB = ${H3lPR_DIR}/lib/
+H3LPR_DIR := /soft/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/
 
 
 ## Specify the location of Googletest library (by default, assumed to be /usr/lib/)
