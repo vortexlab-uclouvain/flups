@@ -10,7 +10,7 @@ class SwitchTopoX_nb : public SwitchTopoX {
     MPI_Request* o2i_recv_rqst_ = NULL;  //!< MPI recv requests
 
    public:
-    explicit SwitchTopoX_nb(const int shift[3], Topology* topo_in, Topology* topo_out, H3LPR::Profiler* prof);
+    explicit SwitchTopoX_nb(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
     ~SwitchTopoX_nb();
 
     virtual void setup() override;

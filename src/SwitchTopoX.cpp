@@ -4,7 +4,7 @@
 
 using namespace std;
 
-SwitchTopoX::SwitchTopoX(const int shift[3], Topology* topo_in, Topology* topo_out, H3LPR::Profiler* prof)
+SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof)
     : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out) {
     BEGIN_FUNC;
     FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
@@ -37,8 +37,8 @@ SwitchTopoX::~SwitchTopoX() {
     }
 
     // free the buffers
-    m_free(send_buf_);
-    m_free(recv_buf_);
+    // m_free(send_buf_);
+    // m_free(recv_buf_);
 
     // free the MemChunks
     m_free(i2o_chunks_);
@@ -57,14 +57,18 @@ void SwitchTopoX::setup() {
     //--------------------------------------------------------------------------
     PopulateChunk(i2o_shift_, topo_in_, topo_out_, &i2o_nchunks_, i2o_chunks_);
     PopulateChunk(o2i_shift_, topo_out_, topo_in_, &o2i_nchunks_, o2i_chunks_);
+}
 
+/**
+ * @brief Set the up buffers object and plan the fftw shuffle 
+ * 
+ * @param sendData 
+ * @param recvData 
+ */
+void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
     //..........................................................................
-    // get the buffer sizes: send lives in the input topo, recv in the output one
-    size_t send_buff_size = get_bufMemSize(topo_in_->lda(), i2o_nchunks_, i2o_chunks_);
-    size_t recv_buff_size = get_bufMemSize(topo_out_->lda(), o2i_nchunks_, o2i_chunks_);
-
-    send_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
-    recv_buf_ = reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
+    send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
+    recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
 
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
@@ -135,7 +139,7 @@ void SwitchTopoX::setup() {
  *
  * @return size_t
  */
-size_t SwitchTopoX::get_bufMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
+size_t SwitchTopoX::get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // the nf is the maximum between in and out
@@ -148,6 +152,25 @@ size_t SwitchTopoX::get_bufMemSize(const size_t lda, const int nchunks, const Me
     return total * lda;
     //--------------------------------------------------------------------------
     END_FUNC;
+}
+
+/**
+ * @brief returns the communication buffer as the max between i2o and o2i
+ *
+ * @warning The size ensures that the start of every chunk is aligned (if the correctly offset)
+ *
+ * @return size_t
+ */
+size_t SwitchTopoX::get_bufMemSize() const {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // get the buffer sizes: send lives in the input topo, recv in the output one
+    size_t send_buff_size = get_ChunkArraysMemSize(topo_in_->lda(), i2o_nchunks_, i2o_chunks_);
+    size_t recv_buff_size = get_ChunkArraysMemSize(topo_out_->lda(), o2i_nchunks_, o2i_chunks_);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+    
+    return std::max(send_buff_size, recv_buff_size);
 }
 
 /**

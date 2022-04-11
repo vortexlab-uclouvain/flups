@@ -7,6 +7,7 @@ info: logo
 	$(info compiler = $(shell $(CXX) --version))
 	$(info compil. flags = $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD)
 	$(info linker flags = -shared $(LDFLAGS))
+	$(info compil. options = $(OPTS))
 	$(info using arch file = $(ARCH_FILE) )
 	$(info LGF path = $(LGF_PATH) )
 	$(info ------------)

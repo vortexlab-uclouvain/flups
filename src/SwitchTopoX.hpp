@@ -37,17 +37,17 @@ class SwitchTopoX {
     int              iswitch_ = -1;
 
    public:
-    explicit SwitchTopoX(const int shift[3], Topology *topo_in, Topology *topo_out, H3LPR::Profiler *prof);
+    explicit SwitchTopoX(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof);
     virtual ~SwitchTopoX();
 
     // abstract functions
     virtual void setup();
-    // virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
+    virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
     virtual void execute(opt_double_ptr data, const int sign) const = 0;
     virtual void disp() const                                       = 0;
 
-    // size_t get_bufMemSize() const;
-    size_t get_bufMemSize(const size_t lda, const int nchunks, const MemChunk *chunks) const;
+    size_t get_bufMemSize() const;
+    size_t get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk *chunks) const;
 
    protected:
     void SubCom_SplitComm();

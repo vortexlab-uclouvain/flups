@@ -4,8 +4,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst,
               const int n_recv_rqst, MPI_Request *recv_rqst,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem);
 
-SwitchTopoX_nb::SwitchTopoX_nb(const int shift[3], Topology *topo_in, Topology *topo_out, H3LPR::Profiler *prof)
-    : SwitchTopoX(shift, topo_in, topo_out, prof) {
+SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
+    : SwitchTopoX(topo_in, topo_out, shift, prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // nothing special to do here

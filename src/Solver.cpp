@@ -565,7 +565,11 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
+#ifdef FLUPS_MPI_AGGRESSIVE
+void Solver::delete_switchtopos_(SwitchTopoX *switchtopo[3]) {
+#else
 void Solver::delete_switchtopos_(SwitchTopo *switchtopo[3]) {
+#endif
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -601,7 +605,11 @@ void Solver::delete_topologies_(Topology *topo[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
+#ifdef FLUPS_MPI_AGGRESSIVE
+void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopoX *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+#else
 void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
+#endif
     BEGIN_FUNC;
 
     // @Todo: check that plan_forward_ exists before doing plan_green_ !
@@ -670,19 +678,27 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
+#ifdef FLUPS_MPI_AGGRESSIVE
+                switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
+#else
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
+#endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
+#ifdef FLUPS_MPI_AGGRESSIVE
+                switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
+#else
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
+#endif
 #endif
             }
             // #ifdef PERF_VERBOSE
@@ -734,10 +750,14 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 // it shouldn't be different from 0 for this case since we are doing green, but safety first
                 planmap[ip + 1]->get_fieldstart(fieldstart);
                 // we do the link between topomap[ip] and the current_topo
+#ifdef FLUPS_MPI_AGGRESSIVE
+                switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
+#else
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
 #else
                 switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
+#endif
 #endif
                 switchtopo[ip + 1]->disp();
             }
@@ -786,7 +806,11 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
  * @param send_buff 
  * @param recv_buff 
  */
+#ifdef FLUPS_MPI_AGGRESSIVE
+void Solver::allocate_switchTopo_(const int ntopo, SwitchTopoX **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+#else
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+#endif
     BEGIN_FUNC;
     size_t max_mem = 0;
 
@@ -819,7 +843,12 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     END_FUNC;
 }
+
+#ifdef FLUPS_MPI_AGGRESSIVE
+void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+#else 
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
+#endif
     if (*send_buff != NULL) {
         m_free(*send_buff);
         (*send_buff) = NULL;
@@ -1504,6 +1533,7 @@ void Solver::do_mult(double *data, const SolverType type) {
  * @param n_nodes 
  * @param order 
  */
+#ifndef FLUPS_MPI_AGGRESSIVE
 void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order) {
     int comm_size;
     int comm_rank;
@@ -1771,6 +1801,7 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     }
 #endif
 }
+#endif
 
 
 #if DEBUG_ST
