@@ -49,8 +49,8 @@ void SwitchTopoX_nb::setup() {
         size_t         count  = cchunk->size_padded * cchunk->nda;
 
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %ld", count, std::numeric_limits<int>::max());
-        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, i2o_recv_rqst_ + ir);
-        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, o2i_send_rqst_ + ir);
+        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, i2o_recv_rqst_ + ir);
+        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, o2i_send_rqst_ + ir);
     }
 
     //--------------------------------------------------------------------------
