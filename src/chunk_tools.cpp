@@ -1,6 +1,6 @@
 #include "chunk_tools.hpp"
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* chunks) {
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* &chunks) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // NOT NEEDED as we imposed identical communicators
@@ -55,20 +55,18 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     // make sure that the chunks belongs to the topo_in
                     cchunk->istart[id] = m_max(topoo_start - shift[id], topoi_start[id]);
                     cchunk->isize[id]  = m_min(topoo_end - shift[id], topoi_end[id]) - cchunk->istart[id];
-
-                    // get the destination rank, no translation is required here as we imposed identical communicators
-                    cchunk->dest_rank   = rankindex(irank, topo_out);
-                    cchunk->nda         = topo_in->lda();
-                    cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
-
-                    // fill the axis
-                    cchunk->axis      = topo_in->axis();
-                    cchunk->dest_axis = topo_out->axis();
-                    cchunk->nda       = topo_in->lda();
-                    cchunk->nf        = topo_in->nf();
-                    FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 }
+                // get the destination rank, no translation is required here as we imposed identical communicators
+                cchunk->dest_rank = rankindex(irank, topo_out);
+                cchunk->nda = (size_t)topo_in->lda();
+                cchunk->nf = (size_t)topo_in->nf();
+                cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
 
+                // fill the axis
+                cchunk->axis = topo_in->axis();
+                cchunk->dest_axis = topo_out->axis();
+
+                FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
 
                 // increasee the chunk counter

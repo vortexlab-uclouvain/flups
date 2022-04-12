@@ -26,7 +26,7 @@ typedef struct
 
 } MemChunk;
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* chunks);
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* &chunks);
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
 void DoShuffleChunk(MemChunk* chunk);
 
