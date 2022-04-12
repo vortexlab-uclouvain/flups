@@ -171,7 +171,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     MPI_Startall(n_recv_rqst, recv_rqst);
 
     // while we still have to send or recv something, we continue
-    while (send_cntr < n_send_rqst && recv_cntr < n_recv_rqst) {
+    while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst)) {
         // if we have some requests to recv, test it
         if (recv_cntr < n_recv_rqst) {
             int n_completed;
@@ -193,6 +193,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             send_cntr += 1;
         }
     }
+    // we need to officially close the send requests
+    MPI_Waitall(n_send_rqst,send_rqst,MPI_STATUSES_IGNORE);
 
     // m_free(completed_status);
     m_free(completed_id);
