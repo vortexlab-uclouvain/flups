@@ -1,6 +1,6 @@
 #include "chunk_tools.hpp"
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk* &chunks) {
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk **chunks) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // NOT NEEDED as we imposed identical communicators
@@ -34,7 +34,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         // both ranks are included!
         n_chunks[0] *= (erank[id] - srank[id] + 1);
     }
-    chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
+    *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
 
     //--------------------------------------------------------------------------
     /** - fill the chunks */
@@ -44,7 +44,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         for (int ir1 = srank[1]; ir1 <= erank[1]; ++ir1) {
             for (int ir0 = srank[0]; ir0 <= erank[0]; ++ir0) {
                 // get the current chunk
-                MemChunk* cchunk = chunks + chunk_counter;
+                MemChunk* cchunk = *chunks + chunk_counter;
                 // store the current rank in a XYZ format
                 const int irank[3] = {ir0, ir1, ir2};
                 for (int id = 0; id < 3; ++id) {

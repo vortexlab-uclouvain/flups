@@ -24,8 +24,8 @@ class SwitchTopoX {
     int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
     int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology
 
-    MemChunk *i2o_chunks_;  //!< the local chunks of memory in the output topology
-    MemChunk *o2i_chunks_;  //!< the local chunks of memory in the output topology
+    MemChunk *i2o_chunks_ = NULL;  //!< the local chunks of memory in the output topology
+    MemChunk *o2i_chunks_ = NULL;  //!< the local chunks of memory in the output topology
 
     opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
@@ -41,7 +41,7 @@ class SwitchTopoX {
     virtual ~SwitchTopoX();
 
     // abstract functions
-    virtual void setup();
+    void setup();
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
     virtual void execute(opt_double_ptr data, const int sign) const = 0;
     virtual void disp() const                                       = 0;

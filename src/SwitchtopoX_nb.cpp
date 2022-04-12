@@ -13,11 +13,11 @@ SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out
     END_FUNC;
 }
 
-void SwitchTopoX_nb::setup() {
+void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // first setup the basic stuffs
-    this->SwitchTopoX::setup();
+    this->SwitchTopoX::setup_buffers(sendData, recvData);
 
     int sub_rank;
     MPI_Comm_rank(subcomm_, &sub_rank);
@@ -42,12 +42,12 @@ void SwitchTopoX_nb::setup() {
         MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, i2o_send_rqst_ + ir);
         MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, o2i_recv_rqst_ + ir);
     }
+
     // here we go for the output topo and the associated chunks
     for (int ir = 0; ir < o2i_nchunks_; ++ir) {
         MemChunk      *cchunk = o2i_chunks_ + ir;
         opt_double_ptr buf    = cchunk->data;
         size_t         count  = cchunk->size_padded * cchunk->nda;
-
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
         MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, i2o_recv_rqst_ + ir);
         MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, o2i_send_rqst_ + ir);
@@ -160,7 +160,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         DoShuffleChunk(chunk);
         CopyChunk2Data(chunk, nmem_out, mem);
     };
-
     //..........................................................................
     int         send_cntr        = 0;
     int         recv_cntr        = 0;

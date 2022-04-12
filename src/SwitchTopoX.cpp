@@ -55,8 +55,27 @@ SwitchTopoX::~SwitchTopoX() {
 void SwitchTopoX::setup() {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    PopulateChunk(i2o_shift_, topo_in_, topo_out_, &i2o_nchunks_, i2o_chunks_);
-    PopulateChunk(o2i_shift_, topo_out_, topo_in_, &o2i_nchunks_, o2i_chunks_);
+    // The input topo may have been reset to real, even if this switchtopo is a complex2complex.
+    // We create a tmp input topo which is complex if needed, for the computation of start and end.
+    bool isC2C = topo_out_->isComplex();
+    int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
+    for (int i = 0; i < 3; i++){
+        tmp_nglob[i] = topo_in_->nglob(i);
+        tmp_nproc[i] = topo_in_->nproc(i);
+        tmp_axproc[i] = topo_in_->axproc(i);
+    }
+    const Topology *topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, isC2C, tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
+
+    // Populate the arrays of memory chunks
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
+
+    delete(topo_in_tmp);
+
+    // Split the communication according to the destination of each chunk in the MPI_COMM_WORLD
+    SubCom_SplitComm();
+    //--------------------------------------------------------------------------
+    END_FUNC;
 }
 
 /**
@@ -90,10 +109,7 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
 
     //..........................................................................
     // compute the subcomm and start the gather of each rank
-    SubCom_SplitComm();
-
-    FLUPS_INFO("reset the different ranks");
-
+    // SubCom_SplitComm();
     int inrank, subrank, worldsize;
     MPI_Comm_size(inComm_, &worldsize);
     MPI_Comm_rank(subcomm_, &subrank);
@@ -104,7 +120,6 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     int*        subRanks = reinterpret_cast<int*>(m_calloc(worldsize * sizeof(int)));
     MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_, &subrank_rqst);
 
-    FLUPS_INFO("allocate the shuffles");
     //..........................................................................
     // init the shuffle, this might take some time
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
@@ -116,7 +131,6 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
         PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_ + ic);
     }
 
-    FLUPS_INFO("finish the rank reset");
     //..........................................................................
     // finish the rank assignement
     MPI_Status subrank_status;
@@ -150,12 +164,11 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
 size_t SwitchTopoX::get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    // the nf is the maximum between in and out
-    const int nf = std::max(topo_in_->nf(), topo_out_->nf());
     // nultiply by the number of blocks
     size_t total = 0;
     for (int ib = 0; ib < nchunks; ib++) {
-        total += chunks[ib].size_padded *  chunks[ib].nda;
+        FLUPS_CHECK(chunks[ib].nda == lda, "The number of component given must be equal to the one of the chunks --> %d vs %d", chunks[ib].nda, lda );
+        total += chunks[ib].size_padded;
     }
     return total * lda;
     //--------------------------------------------------------------------------
@@ -190,9 +203,10 @@ size_t SwitchTopoX::get_bufMemSize() const {
  *
  */
 void SwitchTopoX::SubCom_SplitComm() {
-    //--------------------------------------------------------------------------
     BEGIN_FUNC;
+    //--------------------------------------------------------------------------
     // get my rank and use-it as the initial color
+    FLUPS_INFO("Get my rank");
     int comm_size, rank;
     MPI_Comm_rank(inComm_, &rank);
     MPI_Comm_size(inComm_, &comm_size);
@@ -265,6 +279,7 @@ void SwitchTopoX::SubCom_SplitComm() {
         MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
         iter++;
     }
+
     // if we failed to create the subcom, uses the default one
     if (n_left > 0) {
         subcomm_ = inComm_;
@@ -291,7 +306,7 @@ void SwitchTopoX::SubCom_SplitComm() {
     // free the vectors
     m_free(colors);
     m_free(inMyGroup);
-
+    //--------------------------------------------------------------------------
     END_FUNC;
 }
 

@@ -79,26 +79,8 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - Create the timer */
     //-------------------------------------------------------------------------
-    // if (prof != NULL) {
     prof_ = prof;
-    // } else {
-    //     prof_ = NULL;
-    // }
-    // if (prof_ != NULL) prof_->create("init", "root");
-    // if (prof_ != NULL) prof_->create("setup", "root");
-    // if (prof_ != NULL) prof_->create("alloc_data", "setup");
-    // if (prof_ != NULL) prof_->create("alloc_plans", "setup");
-    // if (prof_ != NULL) prof_->create("green", "setup");
-    // if (prof_ != NULL) prof_->create("green_plan", "green");
-    // if (prof_ != NULL) prof_->create("green_func", "green");
-    // if (prof_ != NULL) prof_->create("green_final", "green");
-    // if (prof_ != NULL) prof_->create("solve", "root");
-    // if (prof_ != NULL) prof_->create("copy", "solve");
-    // if (prof_ != NULL) prof_->create("fftw", "solve");
-    // if (prof_ != NULL) prof_->create("domagic", "solve");
     m_profStarti(prof_, "init");
-
-    
 
     //-------------------------------------------------------------------------
     /** - store the meshsize, the lda and the orderDiff */
@@ -188,6 +170,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     const bool isOk = is2D && (isDir1 || isDir2 || isDir3);
     FLUPS_CHECK((isOk || !is2D), "In 2D, at least one of the direction must be equal to 1");
 #endif
+
     //-------------------------------------------------------------------------
     /** - Initialise the topos, the plans and the SwitchTopos */
     //-------------------------------------------------------------------------
@@ -812,6 +795,7 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopoX **switchtopo, opt
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #endif
     BEGIN_FUNC;
+    //-------------------------------------------------------------------------
     size_t max_mem = 0;
 
     // setup the communication. During this step, the size of the buffers required by each switchtopo might change.
@@ -841,6 +825,7 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
         } 
     }
+    //-------------------------------------------------------------------------
     END_FUNC;
 }
 
