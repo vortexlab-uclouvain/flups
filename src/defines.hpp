@@ -92,14 +92,10 @@
 // VERBOSITY LEVELS
 //=============================================================================
 #if VERBOSE>=2
-#define BEGIN_FUNC              \
-    {                           \
-        (m_begin_def("FLUPS")); \
-    }
-#define END_FUNC             \
-    {                        \
-        (END_FUNC("FLUPS")); \
-    }
+#define BEGIN_FUNC  m_begin_def("FLUPS")
+    
+#define END_FUNC m_end_def("FLUPS")
+
 #else
 #define BEGIN_FUNC \
     {              \
