@@ -164,8 +164,9 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     int         send_cntr        = 0;
     int         recv_cntr        = 0;
     int        *completed_id     = reinterpret_cast<int *>(m_calloc(n_recv_rqst * sizeof(int)));
-    MPI_Status *completed_status = reinterpret_cast<MPI_Status *>(m_calloc(n_recv_rqst * sizeof(MPI_Status)));
+    // MPI_Status *completed_status = reinterpret_cast<MPI_Status *>(m_calloc(n_recv_rqst * sizeof(MPI_Status)));
 
+    FLUPS_INFO("starting %d recv request",n_recv_rqst);
     // start all the recv request
     MPI_Startall(n_recv_rqst, recv_rqst);
 
@@ -174,7 +175,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we have some requests to recv, test it
         if (recv_cntr < n_recv_rqst) {
             int n_completed;
-            MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, completed_status);
+            MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
 
             // for each of the completed request, treat it
             for (int id = 0; id < n_completed; ++id) {
@@ -188,10 +189,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // perform one of the send
         if (send_cntr < n_send_rqst) {
             send_my_rqst(send_chunks + send_cntr, send_rqst + send_cntr);
+            // increment the counter
+            send_cntr += 1;
         }
     }
 
-    m_free(completed_status);
+    // m_free(completed_status);
     m_free(completed_id);
     //--------------------------------------------------------------------------
     END_FUNC;
