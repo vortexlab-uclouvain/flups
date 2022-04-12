@@ -227,6 +227,8 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
+    FLUPS_INFO("Copying %d * %d = %ld bytes", chunk->isize[ax[0]], nf, nmax_byte);
+
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
@@ -238,8 +240,10 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
 
 #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
-            const void* __restrict vsrc = src_data + collapsedIndex(ax0, 0, il, chunk->isize, nf);
-            void* __restrict vtrg       = trg_data + collapsedIndex(ax0, 0, il, nmem, nf);
+            FLUPS_INFO("loop %d: collapsed index src = %ld", il, collapsedIndex(ax0, 0, il, nmem, nf));
+            FLUPS_INFO("loop %d: collapsed index trg = %ld", il, collapsedIndex(ax0, 0, il, chunk->isize, nf));
+            const void* __restrict vsrc = src_data + collapsedIndex(ax0, 0, il, nmem, nf);
+            void* __restrict vtrg       = trg_data + collapsedIndex(ax0, 0, il, chunk->isize, nf);
             memcpy(vtrg, vsrc, nmax_byte);
         }
     }
