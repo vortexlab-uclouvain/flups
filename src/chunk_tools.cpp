@@ -55,9 +55,13 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     // make sure that the chunks belongs to the topo_in
                     cchunk->istart[id] = m_max(topoo_start - shift[id], topoi_start[id]);
                     cchunk->isize[id]  = m_min(topoo_end - shift[id], topoi_end[id]) - cchunk->istart[id];
+
+                    // we have to now switch the start to the local indexing:
+                    cchunk->istart[id] = cchunk->istart[id] - topo_in->cmpt_start_id(id);
+                    FLUPS_CHECK(cchunk->istart[id] >= 0, "the start id = %d should be >= 0", cchunk->istart[id]);
                 }
                 // get the destination rank, no translation is required here as we imposed identical communicators
-                cchunk->dest_rank = rankindex(irank, topo_out);
+                cchunk->dest_rank   = rankindex(irank, topo_out);
                 cchunk->nda = (size_t)topo_in->lda();
                 cchunk->nf = (size_t)topo_in->nf();
                 cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
@@ -231,6 +235,10 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
+    FLUPS_CHECK((chunk->istart[0] + chunk->isize[0]) <= nmem[0],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[0], chunk->isize[0], nmem[0]);
+    FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[1], chunk->isize[1], nmem[1]);
+    FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[2], chunk->isize[2], nmem[2]);
+
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
@@ -238,7 +246,11 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         opt_double_ptr src_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // we alwas know that the chunk memory is aligned
-        FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned");
+        FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned, size_padded = %ld",chunk->size_padded);
+
+        FLUPS_INFO("copy %d %d %d from data to chunk",chunk->isize[0],chunk->isize[1],chunk->isize[2]);
+        FLUPS_INFO("copy %ld bytes in %d loops",nmax_byte,n_loop);
+        FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
 #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
@@ -248,6 +260,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // get the starting adddress for the memcpy
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
+            FLUPS_INFO("offset src = %ld and trg = %ld",localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0),localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0));
             memcpy(vtrg, vsrc, nmax_byte);
         }
     }
