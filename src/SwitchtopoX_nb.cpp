@@ -94,7 +94,7 @@ void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
                  topo_in_, topo_out_, v);
     } else {
         SendRecv(o2i_nchunks_, o2i_send_rqst_, o2i_chunks_,
-                 o2i_nchunks_, o2i_recv_rqst_, i2o_chunks_,
+                 i2o_nchunks_, o2i_recv_rqst_, i2o_chunks_,
                  topo_out_, topo_in_, v);
     }
 
