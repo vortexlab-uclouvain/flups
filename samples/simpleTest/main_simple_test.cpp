@@ -2,9 +2,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <limits>
+#include <omp.h>
 #include "mpi.h"
 #include "flups.h"
+
+
+#include <cufft.h>
+#include <cuda_runtime.h>
 
 void print_res(double *A, const FLUPS_Topology* topo);
 
@@ -19,7 +24,7 @@ int main(int argc, char *argv[])  {
     //-------------------------------------------------------------------------
     //Definition of the problem
     //-------------------------------------------------------------------------
-    const int     nglob[3] = {9, 9, 9};
+    const int     nglob[3] = {256, 256, 256};
     const int     nproc[3] = {1, 1, 1};
     const double  L[3]     = {1., 1., 1.};
 
@@ -41,9 +46,12 @@ int main(int argc, char *argv[])  {
     // create a real topology
     FLUPS_Topology *topo      = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
 
+    const FLUPS_CenterType ctype[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
+    // const FLUPS_CenterType ctype[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+
 
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L, NOD);
+    FLUPS_Solver *mysolver = flups_init(topo, mybc, h, L, NOD, &ctype[0]);
     flups_set_greenType(mysolver,CHAT_2);
     // flups_set_greenType(mysolver, HEJ_2);
     flups_setup(mysolver, true);
@@ -67,7 +75,7 @@ int main(int argc, char *argv[])  {
     const int ax0     = flups_topo_get_axis(topo);
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
-    const double shift = 0.5 * TEST_CELL_CENTERED;
+    const double shift = 0.5 * (ctype[0] == CELL_CENTER);
 
     const double cos_cons = 2.0 * M_PI ;
     
@@ -92,9 +100,12 @@ int main(int argc, char *argv[])  {
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
+    double start = omp_get_wtime();
     for (int is = 0; is < 1; is++) {
         flups_solve(mysolver, field, rhs, STD);
     }
+    double end = omp_get_wtime();
+    printf("Work took %f seconds\n", end - start);
 
     printf("The errrooooor isss \n ");
     printf("ax0 = %d nmeme = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], flups_topo_get_nloc(topo,ax0), flups_topo_get_nloc(topo,ax1), flups_topo_get_nloc(topo,ax2));
@@ -111,13 +122,13 @@ int main(int argc, char *argv[])  {
                 // err = std::max(err, abs(field[id] - cos(cos_cons* x)));
                 err = std::max(err, abs(field[id] - sin(cos_cons * x)));
                 // err = std::max(err, abs(field[id] - id));
-                printf("%e \t",abs(field[id] - sin(cos_cons* x)) );
+                // printf("%e \t",abs(field[id] - sin(cos_cons* x)) );
                 // printf("%e \t", field[id] - cos(cos_cons* x))
                 // rhs[id] = cos(2.0 * M_PI * 3.0 * x); // sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
             }
-            printf("\n");
+            // printf("\n");
         }
-        printf("\n \n");
+        // printf("\n \n");
     }
 
     printf("Error == %e \n", err);

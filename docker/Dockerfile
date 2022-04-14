@@ -1,11 +1,14 @@
-FROM ubuntu:18.04
+FROM gilponcelet/gpu-benchmarks
 
+
+USER root
+WORKDIR /
 
 # RUN echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 #RUN apt update
 #RUN apt upgrade -y
 RUN apt -y update && apt install -y \
-make git g++ libhdf5-mpi-dev libfftw3-dev libopenmpi-dev openmpi-bin python3.7 linux-libc-dev vim wget unzip cmake
+make git g++ libhdf5-mpi-dev libfftw3-dev libopenmpi-dev openmpi-bin linux-libc-dev vim wget unzip cmake
 #valgrind
 
 #METIS:
@@ -22,8 +25,8 @@ RUN cd /googletest &&\
 RUN rm -rf /googletest
 
 
-VOLUME ["/etc/gitlab-runner"]
+# VOLUME ["/etc/gitlab-runner"]
 
-RUN useradd -ms /bin/bash validator
-USER validator
-WORKDIR /home/validator
+# RUN useradd -ms /bin/bash validator
+USER dev
+WORKDIR /home/dev
