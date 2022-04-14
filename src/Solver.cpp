@@ -1352,12 +1352,19 @@ void Solver::do_FFT(double *data, const int sign){
 
     if (sign == FLUPS_FORWARD) {
         for (int ip = 0; ip < ndim_; ip++) {
+
+            if(ip==0){
+                FLUPS_print_data(topo_phys_, mydata);
+            }else{
+                FLUPS_print_data(topo_hat_[ip-1], mydata);
+            }
             // go to the correct topo
             switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
 #if DEBUG_ST
             copydata_(topo_hat_[ip], datad_[ip+1]);
             FLUPS_print_data(topo_hat_[ip], mydata);  
 #else            
+            FLUPS_print_data(topo_hat_[ip], mydata);
             // run the FFT
             m_profStarti(prof_, "fftw");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1367,7 +1374,7 @@ void Solver::do_FFT(double *data, const int sign){
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
-            // FLUPS_print_data(topo_hat_[ip], mydata);            
+            FLUPS_print_data(topo_hat_[ip], mydata);            
             // FLUPS_CHECK(false, "Stop there for a minute");
 #endif
         }

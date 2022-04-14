@@ -132,17 +132,20 @@ class Topology {
      * global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
      * Since we use integral division, we only take the right inequality to compute the 
      * rank associated with a global id
+     * 
+     * if the global id requested is the last point in the domain, the rank returned is the last rank in the domain
      *
      * @param global_id the scalar id of the point considered
      * @param id the direction of interest
-     * @return int 
+     * @return int the rank hosting the global_id, the rank is considered to be a valid rank in the topo!
      */
-    inline int cmpt_rank_fromid(const int global_id, const int id) const{
-        const int nproc_g0 = nglob_[id]%nproc_[id]; // number of procs that have a +1 in their unkowns
-        const int nbyproc = nglob_[id]/nproc_[id]; // the number of unknowns in the integer division
-        const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
-        return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
-        
+    inline int cmpt_rank_fromid(const int global_id, const int id) const {
+        const int nproc_g0  = nglob_[id] % nproc_[id];                       // number of procs that have a +1 in their unkowns
+        const int nbyproc   = nglob_[id] / nproc_[id];                       // the number of unknowns in the integer division
+        const int global_g0 = nproc_g0 * (nbyproc + 1);                      // the number of unknowns in the first group of procs
+        const int rank_g0   = global_id / (nbyproc + 1);                     // rank id if the global index is below global_g0
+        const int rank_g1   = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
+        return (global_id < global_g0) ? rank_g0 : m_min(rank_g1, nproc_[id] - 1);
         // return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;
     }
 

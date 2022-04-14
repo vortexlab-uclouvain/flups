@@ -67,7 +67,9 @@ void SwitchTopoX::setup() {
     const Topology *topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, isC2C, tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
 
     // Populate the arrays of memory chunks
+    FLUPS_INFO("I2O chunks");
     PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    FLUPS_INFO("O2I chunks");
     PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
 
     delete(topo_in_tmp);

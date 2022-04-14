@@ -24,6 +24,7 @@
  */
 
 #include "Topology.hpp"
+#include "hdf5_io.hpp"
 
 /**
  * @brief Construct a new Topology
@@ -85,7 +86,7 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
     //-------------------------------------------------------------------------
     cmpt_sizes();
 
-    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2]);
+    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2],nglob_[0],nglob_[1],nglob_[2]);
     END_FUNC;
 }
 
@@ -152,14 +153,13 @@ Topology::~Topology() {}
  *
  * @param shift the shift between the 2 topos: current topo in (0,0,0) = other topo in (shift)
  * @param other the other topology
- * @param start the start index to use in the current topo
- * @param end the end index to use in the current topo
+ * @param start the start index to use in the current topo (in the global indexing!)
+ * @param end the end index to use in the current topo (in the global indexing!)
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
     FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
     //--------------------------------------------------------------------------
-
     for (int id = 0; id < 3; id++) {
         // get the maximum index in the other topology, minimum is 0 by definition
         const int onglob = other->nglob(id);

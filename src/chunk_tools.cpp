@@ -15,6 +15,32 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     FLUPS_CHECK(err == MPI_SUCCESS, "wrong group out");
     */
 
+    FLUPS_INFO("topo-in: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",
+               topo_in->nf(),
+               topo_in->axis(),
+               topo_in->nloc(0),
+               topo_in->nloc(1),
+               topo_in->nloc(2),
+               topo_in->nmem(0),
+               topo_in->nmem(1),
+               topo_in->nmem(2),
+               topo_in->nglob(0),
+               topo_in->nglob(1),
+               topo_in->nglob(2));
+
+    FLUPS_INFO("topo-out: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",
+               topo_out->nf(),
+               topo_out->axis(),
+               topo_out->nloc(0),
+               topo_out->nloc(1),
+               topo_out->nloc(2),
+               topo_out->nmem(0),
+               topo_out->nmem(1),
+               topo_out->nmem(2),
+               topo_out->nglob(0),
+               topo_out->nglob(1),
+               topo_out->nglob(2));
+
     //--------------------------------------------------------------------------
     /** - get the number of chunks to build */
     //--------------------------------------------------------------------------
@@ -22,22 +48,32 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     int topoi_start[3], topoi_end[3];
     topo_in->cmpt_intersect_id(shift, topo_out, topoi_start, topoi_end);
 
+    FLUPS_INFO("topoi_start = %d %d %d - topoi_end = %d %d %d",
+               topoi_start[0], topoi_start[1], topoi_start[2],
+               topoi_end[0], topoi_end[1], topoi_end[2]);
     n_chunks[0] = 1;
     int srank[3], erank[3];
     for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
+        // the starting point is always properly defined
+        srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id], id);
         // the ending point is taken with -1 to be sure to include the end rank
-        srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id],id);
-        erank[id] = topo_out->cmpt_rank_fromid(topoi_end[id] - 1 + shift[id],id);
-
+        // unless start = end, then we just use the start id
+        if (topoi_end[id] > topoi_start[id]) {
+            erank[id] = topo_out->cmpt_rank_fromid(topoi_end[id] - 1 + shift[id], id);
+        } else {
+            erank[id] = srank[id] - 1;
+        }
         // accumulate the number of chunks over the dimensions
         // both ranks are included!
-        n_chunks[0] *= (erank[id] - srank[id] + 1);
+        const int n_ranks = (erank[id] - srank[id] + 1);
+        n_chunks[0] *= m_max(n_ranks, 0);
     }
+    FLUPS_INFO("sranks = %d %d %d - eranks = %d %d %d -> nchunks = %d", srank[0], srank[1], srank[2], erank[0], erank[1], erank[2], n_chunks[0]);
     *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
 
     //--------------------------------------------------------------------------
-    /** - fill the chunks */
+    /** - fill the chunks only if we have some chunks */
     //--------------------------------------------------------------------------
     int chunk_counter = 0;
     for (int ir2 = srank[2]; ir2 <= erank[2]; ++ir2) {
@@ -52,6 +88,8 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     const int topoo_start = topo_out->cmpt_start_id_from_rank(irank[id], id);
                     const int topoo_end   = topo_out->cmpt_start_id_from_rank(irank[id] + 1, id);
 
+                    FLUPS_INFO("chunk in dim %d topoo_start = %d, topoo_end=%d", id, topoo_start, topoo_end);
+
                     // make sure that the chunks belongs to the topo_in
                     cchunk->istart[id] = m_max(topoo_start - shift[id], topoi_start[id]);
                     cchunk->isize[id]  = m_min(topoo_end - shift[id], topoi_end[id]) - cchunk->istart[id];
@@ -59,15 +97,16 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     // we have to now switch the start to the local indexing:
                     cchunk->istart[id] = cchunk->istart[id] - topo_in->cmpt_start_id(id);
                     FLUPS_CHECK(cchunk->istart[id] >= 0, "the start id = %d should be >= 0", cchunk->istart[id]);
+                    FLUPS_CHECK(cchunk->isize[id] > 0, "The size of the chunk is %d which is not expecte", cchunk->isize[id]);
                 }
                 // get the destination rank, no translation is required here as we imposed identical communicators
                 cchunk->dest_rank   = rankindex(irank, topo_out);
-                cchunk->nda = (size_t)topo_in->lda();
-                cchunk->nf = (size_t)topo_in->nf();
+                cchunk->nda         = (size_t)topo_in->lda();
+                cchunk->nf          = (size_t)topo_in->nf();
                 cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
 
                 // fill the axis
-                cchunk->axis = topo_in->axis();
+                cchunk->axis      = topo_in->axis();
                 cchunk->dest_axis = topo_out->axis();
 
                 FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());

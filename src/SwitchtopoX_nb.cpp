@@ -150,12 +150,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     //..........................................................................
     auto send_my_rqst = [=](MemChunk *chunk, MPI_Request *request) {
+        FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
         CopyData2Chunk(nmem_in, mem, chunk);
         // start the request
         MPI_Start(request);
     };
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
+        FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
         DoShuffleChunk(chunk);
         CopyChunk2Data(chunk, nmem_out, mem);
@@ -179,6 +181,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
             // for each of the completed request, treat it
             for (int id = 0; id < n_completed; ++id) {
+                FLUPS_INFO("recving request %d/%d", recv_cntr + id, n_recv_rqst);
                 const int rqst_id = completed_id[id];
                 recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
             }
@@ -188,6 +191,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
         // perform one of the send
         if (send_cntr < n_send_rqst) {
+            FLUPS_INFO("sending request %d/%d",send_cntr,n_send_rqst);
             send_my_rqst(send_chunks + send_cntr, send_rqst + send_cntr);
             // increment the counter
             send_cntr += 1;
