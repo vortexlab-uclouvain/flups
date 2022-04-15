@@ -50,7 +50,8 @@ OBJ_DIR := ./build
 FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
-LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
+LIB_NB = -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB)
+LIB_AGG = -L$(FLUPS_LIB) -lflups_agg -Wl,-rpath,$(FLUPS_LIB)
 
 #---- FFTW
 FFTW_INC ?= /usr/include
@@ -91,7 +92,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_MPI_AGGRESSIVE)
+default: $(TARGET_EXE_MPI_AGGRESSIVE) $(TARGET_EXE_NB)
 
 all: default
 
@@ -102,7 +103,7 @@ $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
 
 $(TARGET_EXE_MPI_AGGRESSIVE): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_AGG) $(LIB)
 
 install: $(TARGET_EXE_A2A) 
 	mkdir -p $(PREFIX)/bin
@@ -118,10 +119,9 @@ clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_EXE_MPI_AGGRESSIVE)
 	
-destroy:
-	rm -f $(TARGET_EXE_A2A)
-	rm -f $(TARGET_EXE_NB)
+destroy: clean 
 	rm -f $(OBJ_DIR)/*
 	
 info:
