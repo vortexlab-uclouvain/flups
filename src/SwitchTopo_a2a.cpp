@@ -140,6 +140,14 @@ void SwitchTopo_a2a::init_blockInfo_(const Topology* topo_in, const Topology* to
     int mshift[3] = {-shift_[0], -shift_[1], -shift_[2]};
     topo_out->cmpt_intersect_id(mshift, topo_in, ostart, oend);
 
+    // Rewrite it in the local reference
+    for(int id = 0; id < 3; id++){
+        istart[id] -= topo_in->cmpt_start_id(id);
+        ostart[id] -= topo_out->cmpt_start_id(id);
+        iend[id] -= topo_in->cmpt_start_id(id);
+        oend[id] -= topo_out->cmpt_start_id(id);
+    }
+
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------
@@ -307,7 +315,7 @@ void SwitchTopo_a2a::setup() {
     int rankworld;
     MPI_Comm_rank(inComm, &rankworld);
     // we display important information for the performance
-    string name = "./prof/SwitchTopo_" + std::to_string(topo_in_->axis()) + "to" + std::to_string(topo_out_->axis()) + "rank_" + std::to_string(rankworld) + ".txt";
+    std::string name = "./prof/SwitchTopo_" + std::to_string(topo_in_->axis()) + "to" + std::to_string(topo_out_->axis()) + "rank_" + std::to_string(rankworld) + ".txt";
     FILE* file = fopen(name.c_str(),"a+");
     if(file != NULL){
         fprintf(file,"============================================================\n");
