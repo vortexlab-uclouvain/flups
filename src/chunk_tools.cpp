@@ -288,7 +288,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned, size_padded = %ld",chunk->size_padded);
 
         FLUPS_INFO("copy %d %d %d from data to chunk",chunk->isize[0],chunk->isize[1],chunk->isize[2]);
-        FLUPS_INFO("copy %ld bytes in %d loops",nmax_byte,n_loop);
+        FLUPS_INFO("copy %zu bytes in %zu loops",nmax_byte,n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
 #pragma omp for schedule(static)
