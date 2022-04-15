@@ -153,8 +153,8 @@ Topology::~Topology() {}
  *
  * @param shift the shift between the 2 topos: current topo in (0,0,0) = other topo in (shift)
  * @param other the other topology
- * @param start the start index to use in the current topo (in the global indexing!)
- * @param end the end index to use in the current topo (in the global indexing!)
+ * @param start the start index to use in the current topo (in the local indexing!)
+ * @param end the end index to use in the current topo (in the local indexing!)
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
@@ -170,9 +170,9 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
 
         // enforces the bounds
         // if the start_global_id is negative, we have offset the start index
-        start[id] = this->cmpt_start_id(id) - m_min(start_global_id, 0);
+        start[id] = -m_min(start_global_id, 0);
         // if the end_global_id is bigger than onglob we have to offset the end
-        end[id] = this->cmpt_start_id(id) + this->nloc(id) - m_max(end_global_id - onglob, 0);
+        end[id] = this->nloc(id) - m_max(end_global_id - onglob, 0);
     }
     //--------------------------------------------------------------------------
     END_FUNC;

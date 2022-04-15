@@ -141,14 +141,6 @@ void SwitchTopo_nb::init_blockInfo_(const Topology* topo_in, const Topology* top
     int mshift[3] = {-shift_[0], -shift_[1], -shift_[2]};
     topo_out->cmpt_intersect_id(mshift, topo_in, ostart, oend);
 
-    // Rewrite it in the local reference
-    for(int id = 0; id < 3; id++){
-        istart[id] -= topo_in->cmpt_start_id(id);
-        ostart[id] -= topo_out->cmpt_start_id(id);
-        iend[id] -= topo_in->cmpt_start_id(id);
-        oend[id] -= topo_out->cmpt_start_id(id);
-    }
-
     //-------------------------------------------------------------------------
     /** - get the block size as the GCD of the memory among every process between send and receive */
     //-------------------------------------------------------------------------

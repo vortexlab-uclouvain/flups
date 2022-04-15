@@ -45,22 +45,24 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     /** - get the number of chunks to build */
     //--------------------------------------------------------------------------
     // get the real start and end index that will exist in both topologies
-    int topoi_start[3], topoi_end[3];
-    topo_in->cmpt_intersect_id(shift, topo_out, topoi_start, topoi_end);
+    int topoi_gstart[3], topoi_gend[3];
+    topo_in->cmpt_intersect_id(shift, topo_out, topoi_gstart, topoi_gend);
+    // Put them in the global reference frame to compute the number of rank spanned by the intersection of topos
+    for(int id = 0; id < 3; ++id){
+        topoi_gstart[id] += topo_in->cmpt_start_id(id);
+        topoi_gend[id]   += topo_in->cmpt_start_id(id);
+    }
 
-    FLUPS_INFO("topoi_start = %d %d %d - topoi_end = %d %d %d",
-               topoi_start[0], topoi_start[1], topoi_start[2],
-               topoi_end[0], topoi_end[1], topoi_end[2]);
     n_chunks[0] = 1;
     int srank[3], erank[3];
     for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
         // the starting point is always properly defined
-        srank[id] = topo_out->cmpt_rank_fromid(topoi_start[id] + shift[id], id);
+        srank[id] = topo_out->cmpt_rank_fromid(topoi_gstart[id] + shift[id], id);
         // the ending point is taken with -1 to be sure to include the end rank
         // unless start = end, then we just use the start id
-        if (topoi_end[id] > topoi_start[id]) {
-            erank[id] = topo_out->cmpt_rank_fromid(topoi_end[id] - 1 + shift[id], id);
+        if (topoi_gend[id] > topoi_gstart[id]) {
+            erank[id] = topo_out->cmpt_rank_fromid(topoi_gend[id] - 1 + shift[id], id);
         } else {
             erank[id] = srank[id] - 1;
         }
@@ -84,18 +86,23 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 // store the current rank in a XYZ format
                 const int irank[3] = {ir0, ir1, ir2};
                 for (int id = 0; id < 3; ++id) {
-                    // get the start and end index in topo OUT
+                    // get the start and end index of the topo OUT and the topo IN in the global reference
                     const int topoo_start = topo_out->cmpt_start_id_from_rank(irank[id], id);
                     const int topoo_end   = topo_out->cmpt_start_id_from_rank(irank[id] + 1, id);
 
                     FLUPS_INFO("chunk in dim %d topoo_start = %d, topoo_end=%d", id, topoo_start, topoo_end);
-
+                    
+                    // Compute the start and end of the chunk in the global frame of reference
                     // make sure that the chunks belongs to the topo_in
-                    cchunk->istart[id] = m_max(topoo_start - shift[id], topoi_start[id]);
-                    cchunk->isize[id]  = m_min(topoo_end - shift[id], topoi_end[id]) - cchunk->istart[id];
+                    const int cchunk_gstart = m_max(topoo_start - shift[id], topoi_gstart[id]);
+                    const int cchunk_gend = m_min(topoo_end - shift[id], topoi_gend[id]);
+                    
+                    // The chunk start in the current topo must be in the local frame of the input topo
+                    cchunk->istart[id] = cchunk_gstart - topo_in->cmpt_start_id(id);
+                    cchunk->isize[id]  = cchunk_gend - cchunk_gstart; 
 
-                    // we have to now switch the start to the local indexing:
-                    cchunk->istart[id] = cchunk->istart[id] - topo_in->cmpt_start_id(id);
+                    // // we have to now switch the start to the local indexing:
+                    // cchunk->istart[id] = cchunk->istart[id];
                     FLUPS_CHECK(cchunk->istart[id] >= 0, "the start id = %d should be >= 0", cchunk->istart[id]);
                     FLUPS_CHECK(cchunk->isize[id] > 0, "The size of the chunk is %d which is not expecte", cchunk->isize[id]);
                 }
