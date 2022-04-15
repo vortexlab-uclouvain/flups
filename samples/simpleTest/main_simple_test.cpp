@@ -93,7 +93,9 @@ int main(int argc, char *argv[])  {
     //-------------------------------------------------------------------------
     /** - solve the equation */
     //-------------------------------------------------------------------------
-    for (int is = 0; is < 1; is++) {
+    int nsolve = 100;
+    for (int is = 0; is < nsolve; is++) {
+        m_log("Iteration %d/%d", is, nsolve);
         flups_solve(mysolver, field, rhs, STD);
     }
 

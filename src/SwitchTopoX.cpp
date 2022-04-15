@@ -5,7 +5,7 @@
 using namespace std;
 
 SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof)
-    : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out), inComm_(topo_in->get_comm()), outComm_(topo_out->get_comm()) {
+    : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out), inComm_(topo_in->get_comm()), outComm_(topo_out->get_comm()), prof_(prof) {
     BEGIN_FUNC;
     FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
     FLUPS_CHECK(topo_in->lda() == topo_out->lda(), "The two topos must both be complex or both real");
@@ -19,6 +19,7 @@ SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, cons
     MPI_Comm_compare(topo_in->get_comm(), topo_out->get_comm(), &comp);
     FLUPS_CHECK(comp == MPI_IDENT, "we do NOT support different communicators in and out for the moment");
 #endif
+    idswitchtopo_ = topo_out->axproc(topo_out->axis());
     //--------------------------------------------------------------------------
     END_FUNC;
 }

@@ -2,7 +2,7 @@
 
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem);
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
 
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -88,15 +88,17 @@ SwitchTopoX_nb::~SwitchTopoX_nb(){
 void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
+    m_profStarti(prof_, "Switchtopo%d", idswitchtopo_);
     if (sign == FLUPS_FORWARD) {
         SendRecv(i2o_nchunks_, i2o_send_rqst_, i2o_chunks_,
                  o2i_nchunks_, i2o_recv_rqst_, o2i_chunks_,
-                 topo_in_, topo_out_, v);
+                 topo_in_, topo_out_, v, prof_);
     } else {
         SendRecv(o2i_nchunks_, o2i_send_rqst_, o2i_chunks_,
                  i2o_nchunks_, o2i_recv_rqst_, i2o_chunks_,
-                 topo_out_, topo_in_, v);
+                 topo_out_, topo_in_, v, prof_);
     }
+    m_profStopi(prof_, "Switchtopo%d", idswitchtopo_);
 
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -118,10 +120,10 @@ void SwitchTopoX_nb::disp() const {
     FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
     // FLUPS_INFO("  - ostart = %d %d %d", ostart_[0], ostart_[1], ostart_[2]);
     // FLUPS_INFO("  - oend = %d %d %d", oend_[0], oend_[1], oend_[2]);
-    FLUPS_INFO("--- Chunks");
-    // FLUPS_INFO("  - nByBlock  = %d %d %d", nByBlock_[0], nByBlock_[1], nByBlock_[2]);
-    FLUPS_INFO("  - i2o n chunks = %d", i2o_nchunks_);
-    FLUPS_INFO("  - o2i n chunks = %d", o2i_nchunks_);
+    // FLUPS_INFO("--- Chunks");
+    // // FLUPS_INFO("  - nByBlock  = %d %d %d", nByBlock_[0], nByBlock_[1], nByBlock_[2]);
+    // FLUPS_INFO("  - i2o n chunks = %d", i2o_nchunks_);
+    // FLUPS_INFO("  - o2i n chunks = %d", o2i_nchunks_);
     FLUPS_INFO("------------------------------------------");
 }
 
@@ -142,7 +144,7 @@ void SwitchTopoX_nb::disp() const {
  */
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     const int nmem_in[3]  = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
@@ -152,14 +154,18 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
+        m_profStarti(prof, "Copy data 2 chunk");
         CopyData2Chunk(nmem_in, mem, chunk);
+        m_profStopi(prof, "Copy data 2 chunk");
         // start the request
         MPI_Start(request);
     };
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
+        m_profStarti(prof, "Do Shuffle Chunk");
         DoShuffleChunk(chunk);
+        m_profStopi(prof, "Do Shuffle Chunk");
         // CopyChunk2Data(chunk, nmem_out, mem);
     };
     //..........................................................................
@@ -201,9 +207,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     MPI_Waitall(n_send_rqst, send_rqst, MPI_STATUSES_IGNORE);
 
     // once all the send has been done we can overwrite the received info
+    m_profStarti(prof, "Copy Chunk 2 data ");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
         CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
     }
+    m_profStopi(prof, "Copy Chunk 2 data ");
 
     // m_free(completed_status);
     m_free(completed_id);

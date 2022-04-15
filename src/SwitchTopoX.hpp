@@ -34,7 +34,7 @@ class SwitchTopoX {
     fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
 
     H3LPR::Profiler *prof_    = NULL;
-    int              iswitch_ = -1;
+    int              idswitchtopo_ = -1;
 
    public:
     explicit SwitchTopoX(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof);
