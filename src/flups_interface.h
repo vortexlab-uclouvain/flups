@@ -28,9 +28,11 @@
  * @brief FFTW planner flag
  * 
  */
+#ifndef DAILY
 #define FFTW_FLAG FFTW_PATIENT
-
-
+#else
+#define FFTW_FLAG FFTW_ESTIMATE
+#endif
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS
