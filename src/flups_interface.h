@@ -28,7 +28,7 @@
  * @brief FFTW planner flag
  * 
  */
-#ifndef DAILY
+#ifdef NDEBUG
 #define FFTW_FLAG FFTW_PATIENT
 #else
 #define FFTW_FLAG FFTW_ESTIMATE

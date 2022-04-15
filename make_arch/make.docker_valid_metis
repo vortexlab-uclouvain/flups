@@ -1,12 +1,24 @@
 CXX = mpic++
 CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align -fopenmp  -DPROF -DHAVE_METIS -DREORDER_RANKS -DDEV_SIMULATE_GRAPHCOMM
 LDFLAGS += -fopenmp
-FFTW_LIB := /usr/lib/x86_64-linux-gnu
-HDF5_INC := /usr/include/hdf5/openmpi
-HDF5_LIB := /usr/lib/x86_64-linux-gnu
+
 METIS_INC := /metis-5.1.0/include
 METIS_LIB := /metis-5.1.0/lib
-HDF5_LIBNAME := -lhdf5_openmpi
+
+## FFTW3
+FFTW_DIR  :=  /usr/local/fftw
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+
+## HDF5
+HDF5_INC := /usr/include/hdf5/openmpi
+HDF5_LIB := /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+HDF5_LIBNAME := -lhdf5
+
+## H3LPR
+H3LPR_DIR := /soft/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/
 
 ## H3LPR
 H3LPR_DIR := /soft/h3lpr/
