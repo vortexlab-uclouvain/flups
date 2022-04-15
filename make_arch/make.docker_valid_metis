@@ -7,3 +7,8 @@ HDF5_LIB := /usr/lib/x86_64-linux-gnu
 METIS_INC := /metis-5.1.0/include
 METIS_LIB := /metis-5.1.0/lib
 HDF5_LIBNAME := -lhdf5_openmpi
+
+## H3LPR
+H3LPR_DIR := /soft/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/
