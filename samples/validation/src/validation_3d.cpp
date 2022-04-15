@@ -368,7 +368,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     }
 
 #ifdef PROF
-    flups_profiler_disp(prof, "solve");
+    flups_profiler_disp(prof);
 #endif
     flups_profiler_free(prof);
 
