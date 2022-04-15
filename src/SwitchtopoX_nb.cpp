@@ -160,7 +160,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
         DoShuffleChunk(chunk);
-        CopyChunk2Data(chunk, nmem_out, mem);
+        // CopyChunk2Data(chunk, nmem_out, mem);
     };
     //..........................................................................
     int         send_cntr        = 0;
@@ -198,7 +198,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         }
     }
     // we need to officially close the send requests
-    MPI_Waitall(n_send_rqst,send_rqst,MPI_STATUSES_IGNORE);
+    MPI_Waitall(n_send_rqst, send_rqst, MPI_STATUSES_IGNORE);
+
+    // once all the send has been done we can overwrite the received info
+    for (int ic = 0; ic < n_recv_rqst; ++ic) {
+        CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
+    }
 
     // m_free(completed_status);
     m_free(completed_id);
