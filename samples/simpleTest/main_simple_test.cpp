@@ -24,8 +24,8 @@ int main(int argc, char *argv[])  {
     //-------------------------------------------------------------------------
     // Definition of the problem
     //-------------------------------------------------------------------------
-    bool is_node = false;
-    const int nglob[3] = {6, 6, 6};
+    bool is_node = true;
+    const int nglob[3] = {9, 9, 9};
     const int nproc[3] = {1, 1, comm_size};
     const double L[3] = {1., 1., 1.};
     const double h[3] = {L[0] / (nglob[0] - is_node), L[1] / (nglob[1] - is_node), L[2] / (nglob[2] - is_node)};  
@@ -120,10 +120,10 @@ int main(int argc, char *argv[])  {
         }
     }
 
-    m_log("Printing results");
-    printf("[test %d] Error computation - end %d %d %d ", rank,flups_topo_get_nloc(topo,ax0) - is_last_topo[0], flups_topo_get_nloc(topo,ax1) - is_last_topo[1], flups_topo_get_nloc(topo,ax2) - is_last_topo[2] );
-    std::string arg_name = (argc == 2) ? argv[1] : "default";
-    print_res(field, topo, "data/sol_" + arg_name) ;
+    //m_log("Printing results");
+    //printf("[test %d] Error computation - end %d %d %d ", rank,flups_topo_get_nloc(topo,ax0) - is_last_topo[0], flups_topo_get_nloc(topo,ax1) - is_last_topo[1], flups_topo_get_nloc(topo,ax2) - is_last_topo[2] );
+    //std::string arg_name = (argc == 2) ? argv[1] : "default";
+    //print_res(field, topo, "data/sol_" + arg_name) ;
 
     // --------------------------------------------------------------------------
     // Local error 

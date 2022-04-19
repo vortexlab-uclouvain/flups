@@ -367,10 +367,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         flups_solve(mysolver, field, rhs,STD);
     }
 
-#ifdef PROF
     flups_profiler_disp(prof);
-#endif
-    flups_profiler_free(prof);
 
 #ifdef DUMP_DBG
     // write the source term and the solution
@@ -465,6 +462,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_free(rhs);
     flups_free(field);
     flups_cleanup(mysolver);
+    flups_profiler_free(prof);
     flups_topo_free(topo);
 
     for (int id = 0; id < 3; id++) {
