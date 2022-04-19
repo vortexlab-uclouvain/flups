@@ -33,6 +33,7 @@ NAME := flups
 # executable naming
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
+TARGET_EXE_MPI_AGG := $(NAME)_validation_agg
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -94,11 +95,13 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 ################################################################################
 default: all
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_MPI_AGG)
 
 all2all: $(TARGET_EXE_A2A)
 
 nonblocking: $(TARGET_EXE_NB)
+
+nonblocking_aggressive: $(TARGET_EXE_MPI_AGG)
 
 $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
@@ -106,14 +109,19 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
+$(TARGET_EXE_MPI_AGG): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_agg -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_EXE_MPI_AGG)
 
 destroy:
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_EXE_MPI_AGG)
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib

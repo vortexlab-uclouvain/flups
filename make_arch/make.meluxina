@@ -1,0 +1,28 @@
+CXX = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.1-GCC-10.3.0/bin/mpic++ 
+CC = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.1-GCC-10.3.0/bin/mpicc 
+# set the flag (optimisation or not) 
+## For debugging: 
+# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG 
+## For profiling: 
+# CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF 
+## For production: 
+CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros 
+CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros 
+LDFLAGS = -fopenmp #-lstc++ 
+#---------------------------------------------------------   
+# DEPENDENCES DIRECTORIES  
+#---------------------------------------------------------  
+  
+## FFTW3  
+FFTW_DIR  := /apps/USE/easybuild/staging/2021.1/software/FFTW/3.3.10-gompi-2021a  
+FFTW_LIB := /apps/USE/easybuild/staging/2021.1/software/FFTW/3.3.10-gompi-2021a/lib  
+FFTW_INC := /apps/USE/easybuild/staging/2021.1/software/FFTW/3.3.10-gompi-2021a/include  
+  
+## HDF5  
+HDF5_DIR  := /apps/USE/easybuild/staging/2021.1/software/HDF5/1.12.1-gompi-2021a  
+HDF5_LIB := /apps/USE/easybuild/staging/2021.1/software/HDF5/1.12.1-gompi-2021a/lib  
+HDF5_INC := /apps/USE/easybuild/staging/2021.1/software/HDF5/1.12.1-gompi-2021a/include  
+  
+##H3LPR  
+H3LPR_INC := /home/users/u100156/soft//include/  
+H3LPR_LIB := /home/users/u100156/soft//lib/  
