@@ -32,11 +32,13 @@ int main(int argc, char *argv[])  {
 
     // FLUPS_BoundaryType* mybc[3][2] = {{EVEN, EVEN}, {EVEN, EVEN}, {EVEN, EVEN}};
 
-    FLUPS_BoundaryType *mybc[3][2];
-    for (int id = 0; id < 3; id++) {
-        for (int is = 0; is < 2; is++) {
-            mybc[id][is]    = (FLUPS_BoundaryType *)flups_malloc(sizeof(int) * 1);
-            mybc[id][is][0] = PER;
+    FLUPS_BoundaryType* mybc[3][2];
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            for (int lda = 0; lda < 3; lda++) {
+                mybc[id][is][lda] = PER;
+            }
         }
     }
 
@@ -44,7 +46,7 @@ int main(int argc, char *argv[])  {
     /** - Initialize FLUPS */
     //-------------------------------------------------------------------------
     // create a real topology
-    FLUPS_Topology *topo      = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Topology *topo      = flups_topo_new(0, 3, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
 
     const FLUPS_CenterType ctype[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
     // const FLUPS_CenterType ctype[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
@@ -85,12 +87,18 @@ int main(int argc, char *argv[])  {
                 double       x     = (istart[ax0] + i0) * h[ax0];
                 double       y     = (istart[ax1] + i1) * h[ax1];
                 double       z     = (istart[ax2] + i2) * h[ax2];
-                const size_t id    = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
-                // second derivative of a cosine
-                // rhs[id] = - (cos_cons) * (cos_cons) * cos(cos_cons * x);
-                // rhs[id] = - ( cos_cons * cos_cons ) * sin(cos_cons * x); // * sin(cos_cons * y) * sin(cos_cons * z);
+
+                // dim 1
+                size_t id    = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
                 rhs[id] = -(cos_cons * cos_cons) * sin(cos_cons * x);
-                // printf("% \t", rhs[id]);
+                
+                // dim 2
+                id    = flups_locID(0, i0, i1, i2, 1, 0, nmem, 1);
+                rhs[id] = -(cos_cons * cos_cons) * sin(cos_cons * x);
+
+                // dim 3
+                id    = flups_locID(0, i0, i1, i2, 2, 0, nmem, 1);
+                rhs[id] = -(cos_cons * cos_cons) * sin(cos_cons * x);
             }
             // printf("\n");
         }
@@ -110,25 +118,26 @@ int main(int argc, char *argv[])  {
     printf("The errrooooor isss \n ");
     printf("ax0 = %d nmeme = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], flups_topo_get_nloc(topo,ax0), flups_topo_get_nloc(topo,ax1), flups_topo_get_nloc(topo,ax2));
     double err = std::numeric_limits<double>::lowest();
-    for (int i2 = 1; i2 < flups_topo_get_nloc(topo,ax2) -1   ; i2++) {
-        for (int i1 = 1; i1 < flups_topo_get_nloc(topo,ax1) -1; i1++) {
-            for (int i0 = 1; i0 < flups_topo_get_nloc(topo,ax0)-1; i0++) {
+    for (int i2 = 1; i2 < flups_topo_get_nloc(topo,ax2) - 1; i2++) {
+        for (int i1 = 1; i1 < flups_topo_get_nloc(topo,ax1) - 1; i1++) {
+            for (int i0 = 1; i0 < flups_topo_get_nloc(topo,ax0) - 1; i0++) {
                 double       x     = (istart[ax0] + i0) * h[ax0];
-                // double       y     = (istart[1] + i1) * h[1];
-                // double       z     = (istart[2] + i2) * h[2];
-                const size_t id    = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
-                
-                // Gaussian
-                // err = std::max(err, abs(field[id] - cos(cos_cons* x)));
+                double       y     = (istart[ax1] + i1) * h[ax1];
+                double       z     = (istart[ax2] + i2) * h[ax2];
+
+                // dim 1
+                size_t id    = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
                 err = std::max(err, abs(field[id] - sin(cos_cons * x)));
-                // err = std::max(err, abs(field[id] - id));
-                // printf("%e \t",abs(field[id] - sin(cos_cons* x)) );
-                // printf("%e \t", field[id] - cos(cos_cons* x))
-                // rhs[id] = cos(2.0 * M_PI * 3.0 * x); // sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
+
+                // dim 2
+                id    = flups_locID(0, i0, i1, i2, 1, 0, nmem, 1);
+                err = std::max(err, abs(field[id] - sin(cos_cons * x)));
+
+                // dim 1
+                id    = flups_locID(0, i0, i1, i2, 2, 0, nmem, 1);
+                err = std::max(err, abs(field[id] - sin(cos_cons * x)));
             }
-            // printf("\n");
         }
-        // printf("\n \n");
     }
 
     printf("Error == %e \n", err);
