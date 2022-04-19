@@ -23,15 +23,12 @@ COMPILEJOB_ID=$(sbatch --parsable ${FLUPS_DIR}/samples/validation/run/meluxina_c
 ## Create what's needed for the scaling
 SCRATCH_A2A=${SCRATCH_DIR}/flups_a2a_simulations/
 mkdir -p ${SCRATCH_A2A}/prof 
-cp ${FLUPS_DIR}/samples/validation/flups_validation_a2a ${SCRATCH_A2A}
 
 SCRATCH_NB=${SCRATCH_DIR}/flups_nb_simulations/
 mkdir -p ${SCRATCH_NB}/prof 
-cp ${FLUPS_DIR}/samples/validation/flups_validation_nb ${SCRATCH_NB}
 
 SCRATCH_AGG=${SCRATCH_DIR}/flups_agg_simulations/
 mkdir -p ${SCRATCH_AGG}/prof 
-cp ${FLUPS_DIR}/samples/validation/flups_validation_agg ${SCRATCH_AGG}
 
 
 ## 1 Node == 256 CPUS -> 1*64 = 64
