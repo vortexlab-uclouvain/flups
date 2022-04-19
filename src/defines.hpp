@@ -38,8 +38,10 @@
 #include "h3lpr/profiler.hpp"
 
 
-#ifdef MPI_AGGRESSIVE
+#ifndef COMM_DPREC
 #define FLUPS_MPI_AGGRESSIVE 1
+#else
+#define FLUPS_MPI_AGGRESSIVE 0
 #endif
 
 //=============================================================================
@@ -91,9 +93,7 @@
 //=============================================================================
 #if VERBOSE>=2
 #define BEGIN_FUNC  m_begin_def("FLUPS")
-    
 #define END_FUNC m_end_def("FLUPS")
-
 #else
 #define BEGIN_FUNC \
     {              \

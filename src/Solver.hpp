@@ -33,7 +33,7 @@
 #include "green_functions.hpp"
 #include "hdf5_io.hpp"
 
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
 #include "SwitchTopoX_nb.hpp"
 #else
 #include "SwitchTopo.hpp"
@@ -142,7 +142,7 @@ class Solver {
     Topology*      topo_phys_     = NULL;
     Topology*      topo_hat_[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
 
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
     SwitchTopoX*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
 #else    
     SwitchTopo*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
@@ -164,7 +164,7 @@ class Solver {
     FFTW_plan_dim* plan_green_[3];                            /**< @brief map containing the plan for the Green's function */
     Topology*      topo_green_[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
 
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
     SwitchTopoX*    switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
 #else
     SwitchTopo*    switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
@@ -181,7 +181,7 @@ class Solver {
      * @{
      */
     void allocate_data_(const Topology *const topo[3], const Topology *topo_phys, double **data);
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
     void delete_switchtopos_(SwitchTopoX* switchtopo[3]);
 #else
     void delete_switchtopos_(SwitchTopo* switchtopo[3]);
@@ -194,7 +194,7 @@ class Solver {
      * 
      * @{
      */
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
     void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopoX* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
 #else
     void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
@@ -208,7 +208,7 @@ class Solver {
      * 
      * @{
      */
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
     void allocate_switchTopo_(const int ntopo, SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
     void deallocate_switchTopo_(SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    
 #else    

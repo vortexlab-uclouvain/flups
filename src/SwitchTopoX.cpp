@@ -304,6 +304,14 @@ void SwitchTopoX::SubCom_SplitComm() {
             MPI_Comm_split(inComm_, mycolor, rank, &subcomm_);
             std::string commname = "comm-" + std::to_string(mycolor);
             MPI_Comm_set_name(subcomm_, commname.c_str());
+
+            // apply some fancy parameters to allow faster MPI calls
+            MPI_Info info;
+            MPI_Info_create(&info);
+            MPI_Info_set(info, "mpi_assert_exact_length", "true");
+            MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
+            MPI_Comm_set_info(subcomm_, info);
+            MPI_Info_free(&info);
         }
     }
     // free the vectors
@@ -312,154 +320,3 @@ void SwitchTopoX::SubCom_SplitComm() {
     //--------------------------------------------------------------------------
     END_FUNC;
 }
-
-// /**
-//  * @brief start the rank update 
-//  * 
-//  */
-// void SwitchTopoX::SubCom_UpdateRanks_Start() {
-//     BEGIN_FUNC;
-//     //--------------------------------------------------------------------------
-//     int inrank, subrank, worldsize;
-//     MPI_Comm_size(inComm_, &worldsize);
-//     MPI_Comm_rank(subcomm_, &subrank);
-//     MPI_Comm_rank(inComm_, &inrank);
-
-//     // get the ranks of everybody in all communicators
-//     int* subRanks = (int*)m_calloc(worldsize * sizeof(int));
-//     MPI_Allgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_);
-
-//     // replace the old ranks by the newest ones
-//     for (int ic = 0; ic < i2o_nchunks_; ++ic) {
-//         // get the destination rank in the old inComm_
-//         const int in_dest_rank = i2o_chunks_[ic].dest_rank;
-//         // replace by the one in the subcommunicator
-//         i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
-//     }
-//     for (int ic = 0; ic < o2i_nchunks_; ++ic) {
-//         // get the destination rank in the old inComm_
-//         const int in_dest_rank = o2i_chunks_[ic].dest_rank;
-//         // replace by the one in the subcommunicator
-//         o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
-//     }
-//     // free the allocated array
-//     m_free(subRanks);
-//     //--------------------------------------------------------------------------
-//     END_FUNC;
-// }
-
-// /**
-//  * @brief compute the start and count arrays needed for the all to all communication
-//  *
-//  * @param comm the communicator to use
-//  * @param nBlock the number of block
-//  * @param lda leading dimension of array
-//  * @param blockSize the block sizes
-//  * @param destRank the destination rank of each block
-//  * @param count the count array
-//  * @param start the start array
-//  */
-// void SwitchTopo::cmpt_start_and_count_(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start) {
-//     BEGIN_FUNC;
-//     const int nf = std::max(topo_in_->nf(),topo_out_->nf());
-//     int size;
-//     MPI_Comm_size(comm, &size);
-//     // count the number of blocks to each process
-//     (*count) = (int*)m_calloc(size * sizeof(int));
-//     (*start) = (int*)m_calloc(size * sizeof(int));
-//     std::memset((*count), 0, size * sizeof(int));
-//     std::memset((*start), 0, size * sizeof(int));
-
-//     // count the number of blocks per rank
-//     for (int ib = 0; ib < nBlock; ib++) {
-//         // get the size per block
-//         const int blockMem = get_blockMemSize(ib,nf,blockSize);
-//         (*count)[destRank[ib]] += blockMem * lda;
-//     }
-//     // compute the start indexes
-//     if (start != NULL) {
-//         (*start)[0] = 0;
-//         for (int ir = 1; ir < size; ir++) {
-//             (*start)[ir] = (*start)[ir - 1] + (*count)[ir - 1];
-//         }
-//     }
-
-//     END_FUNC;
-// }
-
-/**
- * @brief setup the suffle plan to do the reordering of the indexes inside a block array form the axis of topo_in to topo_out
- *
- * The 3D array is split into a rectangular 2D array:
- * - the dimension of the current FRI
- * - the dimension of the targeted FRI
- *
- * The last dimension is aggregated with eather the current FRI or the targeted, whichever comes on its left
- * e.g.:
- * - if the shuffle is between 2 and 1, the default order is then 2 0 1, hence the dimensions will be (2 * 0) x (1)
- * - if the suffle is between 1 and 2, the  default order is then 1 2 0, hence the dimensions will be (1) x (2 * 0)
- * - if the suffle is between 0 and 1, the  default order is then 1 2 0, hence the dimensions will be (0) x (1 * 2)
- *
- * @param bSize the block size
- * @param topo_in the topo_in with the current axis
- * @param topo_out the topo_out with the desired axis
- * @param data the data on which to apply the transformation
- * @param shuffle the suffle plan
- */
-// void SwitchTopoX::setup_shuffle_(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle) {
-//     BEGIN_FUNC;
-
-//     // the nf will always be the max of both topologies !!
-//     const int nf = std::max(topo_in->nf(), topo_out->nf());
-
-//     // enable the multithreading for this plan
-//     fftw_plan_with_nthreads(omp_get_max_threads());
-
-//     fftw_iodim dims[2];
-//     // dim[0] = dimension of the targeted FRI (FFTW-convention)
-//     dims[0].n  = 1;
-//     dims[0].is = 1;
-//     dims[0].os = 1;
-//     // dim[1] = dimension of the current FRI (FFTW-convention)
-//     dims[1].n  = 1;
-//     dims[1].is = 1;
-//     dims[1].os = 1;
-
-//     int iaxis[3] = {topo_in->axis(), (topo_in->axis() + 1) % 3, (topo_in->axis() + 2) % 3};
-//     int oaxis[3] = {topo_out->axis(), (topo_out->axis() + 1) % 3, (topo_out->axis() + 2) % 3};
-
-//     // compute the size and the stride of the array
-//     for (int id = 0; id < 3; id++) {
-//         if (iaxis[id] != topo_out->axis()) {
-//             dims[1].n  = dims[1].n * bSize[iaxis[id]];
-//             dims[0].is = dims[0].is * bSize[iaxis[id]];
-//         } else {
-//             break;
-//         }
-//     }
-//     for (int id = 0; id < 3; id++) {
-//         if (oaxis[id] != topo_in->axis()) {
-//             dims[0].n  = dims[0].n * bSize[oaxis[id]];
-//             dims[1].os = dims[1].os * bSize[oaxis[id]];
-//         } else {
-//             break;
-//         }
-//     }
-//     // display some info
-//     FLUPS_INFO_3("shuffle: setting up the shuffle form %d to %d", topo_in->axis(), topo_out->axis());
-//     FLUPS_INFO_3("shuffle: nf = %d, blocksize = %d %d %d", nf, bSize[0], bSize[1], bSize[2]);
-//     FLUPS_INFO_3("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
-//     FLUPS_INFO_3("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
-
-//     // plan the real or complex plan
-//     // the nf is driven by the OUT topology ALWAYS
-//     if (nf == 1) {
-//         *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
-//         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
-//     } else if (nf == 2) {
-//         *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
-//         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
-//     }
-
-//     END_FUNC;
-// }

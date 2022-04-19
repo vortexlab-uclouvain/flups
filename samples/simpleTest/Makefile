@@ -34,11 +34,11 @@ FLUPSDIR := ../../
 #-----------------------------------------------------------------------------
 PREFIX ?= ./
 NAME := simple_test
-FLUPS_LIBNAME := -lflups_agg
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
-TARGET_EXE_MPI_AGGRESSIVE := $(NAME)_agg
+TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
+TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -50,8 +50,7 @@ OBJ_DIR := ./build
 FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
-LIB_NB = -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB)
-LIB_AGG = -L$(FLUPS_LIB) -lflups_agg -Wl,-rpath,$(FLUPS_LIB)
+# LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
 
 #---- FFTW
 FFTW_INC ?= /usr/include
@@ -94,16 +93,19 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 ################################################################################
 default: $(TARGET_EXE_MPI_AGGRESSIVE) $(TARGET_EXE_NB)
 
-all: default
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ $(LIB) $(LIB)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_NB) $(LIB)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
-$(TARGET_EXE_MPI_AGGRESSIVE): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB_AGG) $(LIB)
+$(TARGET_EXE_DPREC_A2A): $(OBJ)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
+
+$(TARGET_EXE_DPREC_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 install: $(TARGET_EXE_A2A) 
 	mkdir -p $(PREFIX)/bin
@@ -119,7 +121,8 @@ clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_EXE_MPI_AGGRESSIVE)
+	rm -f $(TARGET_EXE_DPREC_A2A)
+	rm -f $(TARGET_EXE_DPREC_NB)
 	
 destroy: clean 
 	rm -f $(OBJ_DIR)/*

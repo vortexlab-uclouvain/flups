@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.default
+ARCH_FILE ?= make_arch/make.docker_gcc
 
 include $(ARCH_FILE)
 
@@ -38,7 +38,8 @@ NAME := flups
 # library naming
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
 TARGET_LIB_NB  := build/lib$(NAME)_nb
-TARGET_LIB_AGGRESSIVE  := build/lib$(NAME)_agg
+TARGET_LIB_DPREC_A2A := build/lib$(NAME)_dprec_a2a
+TARGET_LIB_DPREC_NB  := build/lib$(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -97,7 +98,8 @@ API := $(wildcard $(SRC_DIR)/*.h)
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
-OBJ_AGGRESSIVE := $(SRC:%.cpp=$(OBJ_DIR)/mpiaggressive_%.o)
+OBJ_DPREC_A2A := $(SRC:%.cpp=$(OBJ_DIR)/dprec_a2a_%.o)
+OBJ_DPREC_NB := $(SRC:%.cpp=$(OBJ_DIR)/dprec_nb_%.o)
 IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
@@ -107,8 +109,11 @@ $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
-$(OBJ_DIR)/mpiaggressive_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DMPI_AGGRESSIVE $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+$(OBJ_DIR)/dprec_nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+
+$(OBJ_DIR)/dprec_a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
@@ -116,7 +121,7 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 ################################################################################
 default: 
 	@$(MAKE) info 
-	@$(MAKE) lib_static 
+	@$(MAKE) lib_static
 
 # for the validation, do a static lib
 validation: install_static
@@ -125,17 +130,19 @@ validation: install_static
 test : install_static
 
 # compile static and dynamic lib
-all: lib_static lib_dynamic lib_agressive
+all: lib_static lib_dynamic
 
 all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
+all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
+
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
 
-aggressive: $(TARGET_LIB_AGGRESSIVE).a $(TARGET_LIB_AGGRESSIVE).so
+nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so
 
-lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_AGGRESSIVE).a
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
 
-lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_AGGRESSIVE).so
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
 
 lib: lib_static
 
@@ -145,17 +152,23 @@ $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_AGGRESSIVE).so: $(OBJ_AGGRESSIVE)
+$(TARGET_LIB_DPREC_A2A).so: $(OBJ_DEPREC_A2A)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_DPREC_NB).so: $(OBJ_DEPREC_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $@  $^  
+	ar rvs $@  $^
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $@  $^  
+	ar rvs $@  $^
 
-$(TARGET_LIB_AGGRESSIVE).a: $(OBJ_AGGRESSIVE)
-	ar rvs $@  $^  
+$(TARGET_LIB_DPREC_A2A).a: $(OBJ_DEPREC_A2A)
+	ar rvs $@  $^
+
+$(TARGET_LIB_DPREC_NB).a: $(OBJ_DEPREC_NB)
+	ar rvs $@  $^
 
 preproc: $(IN)
 
@@ -164,7 +177,8 @@ install_dynamic: lib_dynamic
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_AGGRESSIVE).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
@@ -173,7 +187,8 @@ install_static: lib_static
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
-	@cp $(TARGET_LIB_AGGRESSIVE).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).a $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
@@ -187,16 +202,18 @@ test:
 
 clean:
 	@rm -f $(OBJ_DIR)/*.o
-	@rm -f $(TARGET_LIB_A2A)*
-	@rm -f $(TARGET_LIB_NB)*
-	@rm -f $(TARGET_LIB_AGGRESSIVE)*
+	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
+	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
+	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
+	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
 
 destroy:
 	@rm -rf $(OBJ_DIR)/*.o
 	@rm -rf $(OBJ_DIR)/*.d
-	@rm -rf $(TARGET_LIB_A2A)
-	@rm -rf $(TARGET_LIB_NB)
-	@rm -rf $(TARGET_LIB_AGGRESSIVE)
+	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
+	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
+	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
+	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
 	@rm -rf $(OBJ_DIR)/*
 	@rm -rf include
 	@rm -rf lib

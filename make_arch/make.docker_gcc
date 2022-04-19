@@ -6,7 +6,7 @@ CC = mpicc
 
 # Set the options 
 #OPTS=  -DVERBOSE 
-OPTS=  -DMPI_AGGRESSIVE -DPROF -DVERBOSE 
+#OPTS=  -DMPI_AGGRESSIVE -DPROF -DVERBOSE 
 
 # set the flag (optimisation or not)
 ## For debugging:

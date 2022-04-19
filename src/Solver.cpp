@@ -563,7 +563,7 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
  * 
  * @param switchtopo 
  */
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::delete_switchtopos_(SwitchTopoX *switchtopo[3]) {
 #else
 void Solver::delete_switchtopos_(SwitchTopo *switchtopo[3]) {
@@ -603,7 +603,7 @@ void Solver::delete_topologies_(Topology *topo[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopoX *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
 #else
 void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
@@ -676,7 +676,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
 #if defined(COMM_NONBLOCK)
@@ -689,7 +689,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
             } else {
                 // create the switchtopoMPI to change topology
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
 #if defined(COMM_NONBLOCK)
@@ -748,7 +748,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 // it shouldn't be different from 0 for this case since we are doing green, but safety first
                 planmap[ip + 1]->get_fieldstart(fieldstart);
                 // we do the link between topomap[ip] and the current_topo
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
 #else
 #if defined(COMM_NONBLOCK)
@@ -804,7 +804,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
  * @param send_buff 
  * @param recv_buff 
  */
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopoX **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #else
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
@@ -844,7 +844,7 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     END_FUNC;
 }
 
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #else 
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
@@ -1393,6 +1393,7 @@ void Solver::do_FFT(double *data, const int sign){
     } 
     else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = ndim_-1; ip >= 0; ip--) {
+            FLUPS_print_data(topo_hat_[ip], mydata);
 #if !(DEBUG_ST)
             m_profStarti(prof_, "fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);

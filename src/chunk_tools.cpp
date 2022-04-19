@@ -243,7 +243,21 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
-#pragma omp parallel proc_bind(close)
+    FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
+    FLUPS_INFO("nf = %d",nf);
+    if (nf == 2) {
+        for (int id2 = 0; id2 < chunk->isize[ax[2]]; ++id2) {
+            for (int id1 = 0; id1 < chunk->isize[ax[1]]; ++id1) {
+                for (int id0 = 0; id0 < chunk->isize[ax[0]]; ++id0) {
+                    const int id = localIndex(ax[0], id0, id1, id2, ax0, chunk->isize, nf, 0);
+                    printf("(%f %f)", chunk->data[id], chunk->data[id + 1]);
+                }
+                printf("\n");
+            }
+        }
+    }
+
+// #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr src_data = chunk->data + chunk->size_padded * lia;
@@ -252,7 +266,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         // the chunk must be aligned all the time
         FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned");
 
-#pragma omp for schedule(static)
+// #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
             const int i2 = il / (chunk->isize[ax[1]]);
@@ -285,7 +299,24 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[1], chunk->isize[1], nmem[1]);
     FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[2], chunk->isize[2], nmem[2]);
 
-#pragma omp parallel proc_bind(close)
+
+    //  FLUPS_INFO("copying from data chunk");
+    //  FLUPS_INFO("nf = %d", nf);
+    //  if (nf == 2) {
+    //      for (int id2 = 0; id2 < chunk->isize[ax[2]]; ++id2) {
+    //          for (int id1 = 0; id1 < chunk->isize[ax[1]]; ++id1) {
+    //              printf("reading in x, %d %d", listart[1] + id1, listart[2] + id2);
+    //              for (int id0 = 0; id0 < chunk->isize[ax[0]]; ++id0) {
+    //                  const int id = localIndex(ax[0], listart[0] + id0, listart[1] + id1, listart[2] + id2, ax0, nmem, nf, 0);
+    //                  printf("(%f %f)", data[id], data[id + 1]);
+    //              }
+    //              printf("\n");
+    //          }
+    //      }
+    //  }
+
+    // somehow the multithreaded program does not collect the right data...
+// #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr trg_data = chunk->data + chunk->size_padded * lia;
@@ -293,12 +324,12 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
 
         // we alwas know that the chunk memory is aligned
         FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned, size_padded = %ld",chunk->size_padded);
-
+        FLUPS_INFO("pointers are %p and %p",trg_data,src_data);
         FLUPS_INFO("copy %d %d %d from data to chunk",chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         FLUPS_INFO("copy %zu bytes in %zu loops",nmax_byte,n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-#pragma omp for schedule(static)
+// #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
             const int i2                  = il / (chunk->isize[ax[1]]);
@@ -307,7 +338,22 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
             FLUPS_INFO("offset src = %ld and trg = %ld",localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0),localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0));
-            memcpy(vtrg, vsrc, nmax_byte);
+            std::memcpy(vtrg, vsrc, nmax_byte);
+        }
+    }
+
+    FLUPS_INFO("copying into chunk");
+    FLUPS_INFO("nf = %d",nf);
+    if (nf == 2) {
+        for (int id2 = 0; id2 < chunk->isize[ax[2]]; ++id2) {
+            for (int id1 = 0; id1 < chunk->isize[ax[1]]; ++id1) {
+                printf("reading in x, %d %d",id1,id2);
+                for (int id0 = 0; id0 < chunk->isize[ax[0]]; ++id0) {
+                    const int id = localIndex(ax[0], id0, id1, id2, ax0, chunk->isize, nf, 0);
+                    printf("(%f %f)", chunk->data[id], chunk->data[id + 1]);
+                }
+                printf("\n");
+            }
         }
     }
     //--------------------------------------------------------------------------
