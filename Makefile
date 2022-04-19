@@ -27,6 +27,8 @@ ARCH_FILE ?= make_arch/make.docker_clang
 
 include $(ARCH_FILE)
 
+# Default to FFTW backend
+OPTS ?= -DFLUPS_FFTW_BACKEND
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 #ifndef BACKEND_HPP
 #define BACKEND_HPP
 
-#define FLUPS_FFTW_BACKEND
 
 #if defined(FLUPS_FFTW_BACKEND)
 #include "fftw3.h"

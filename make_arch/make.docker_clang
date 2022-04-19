@@ -1,15 +1,15 @@
 CXX = clang++
 CC = clang
 
-OPTS += #-DVERBOSE #-DPB_DBG
-
-CXXFLAGS := -O3 -std=c++17 -Wno-format-security -DPROF -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include
-CCFLAGS  := -O3 -std=c99   -Wno-format-security        -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include
-LDFLAGS  := -lstdc++ -lm -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx -pthread 
+## Compile & linker flags
+CXXFLAGS := -g -O3 -fopenmp -std=c++17 -Wno-format-security -DPROF -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include
+CCFLAGS  := -g -O3 -fopenmp -std=c99   -Wno-format-security        -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include
+LDFLAGS  :=    -O3 -fopenmp -lstdc++ -lm -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx -pthread 
 
 ## GPU-related stuff
-CXXFLAGS += -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda
-LDFLAGS  += -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda
+OPTS     += -DFLUPS_CUDA_BACKEND
+CXXFLAGS += -fopenmp-targets=nvptx64-nvidia-cuda
+LDFLAGS  += -fopenmp-targets=nvptx64-nvidia-cuda
 
 ## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
 #FFTW_DIR  :=  /usr/local/fftw

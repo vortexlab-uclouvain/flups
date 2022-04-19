@@ -14,7 +14,7 @@
 void print_res(double *A, const FLUPS_Topology* topo);
 
 int main(int argc, char *argv[])  {    
-    printf("Starting...\n");
+    printf("Starting test on %d device...\n", omp_get_num_devices());
     MPI_Init(&argc, &argv);
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;

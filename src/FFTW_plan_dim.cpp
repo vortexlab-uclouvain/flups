@@ -568,6 +568,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     const size_t onmax       = howmany_ * lda_;
     const size_t fftw_stride = (size_t)fftw_stride_;
     const size_t memdim      = topo->memdim();
+    const size_t memsize     = topo->memsize();
     // get the plan pointer
     const flups_plan* plan = plan_;
     const int sign        = sign_;
@@ -576,6 +577,9 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
     //-------------------------------------------------------------------------
     check_dataAlign_(topo,data);
+
+    // Allocate data on the GPU
+    #pragma omp target enter data map(to: data[:memsize])
 
     //-------------------------------------------------------------------------
     /** - run the plan on each FFT  */
@@ -600,9 +604,12 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // get the memory
-                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
+                    int offset = lia*memdim + io*fftw_stride + fftwstart_[lia]; 
                     // execute the plan on it
-                    flups_execute_r2c(plan[lia], (double*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
+                    #pragma omp target data use_device_ptr(data)
+                    {
+                        flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data  + offset));
+                    }
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
@@ -611,9 +618,12 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
-                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
+                    int offset = lia*memdim + io*fftw_stride + fftwstart_[lia];
                     // execute the plan on it
-                    flups_execute_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+                    #pragma omp target data use_device_ptr(data)
+                    {
+                        flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
+                    }
                 }
             }
 
@@ -624,17 +634,19 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 size_t lia = id / howmany;
                 size_t io  = id % howmany;
                 // we access complex info with a fftw_stride real
-                double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
+                int offset = lia*memdim + 2*io*fftw_stride + fftwstart_[lia];
                 // execute the plan on it
-                flups_execute_c2c(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia], sign);
+                 #pragma omp target data use_device_ptr(data)
+                {
+                    flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
+                }
             }
         }
     }
 
-    // Free data on the GPU
-    // cudaDeviceSynchronize();
-    // #pragma omp target update from (data[:memdim*lda_])
-    // #pragma omp target exit data map(delete: data[:memdim*lda_])
+    // Get GPU data & then free it
+    #pragma omp target update from(data[:memsize])
+    #pragma omp target exit data map(delete: data[:memsize])
 
     END_FUNC;
 }
