@@ -489,7 +489,7 @@ double* Solver::setup(const bool changeTopoComm) {
 Solver::~Solver() {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
-    m_profStarti(prof_, "Clean up");
+    // m_profStarti(prof_, "Clean up");
     // for Green
     if (green_ != NULL) m_free(green_);
     // delete the plans
@@ -522,7 +522,7 @@ Solver::~Solver() {
     //cleanup
     fftw_cleanup_threads();
     fftw_cleanup();
-    m_profStopi(prof_, "Clean up");
+    // m_profStopi(prof_, "Clean up");
     //-------------------------------------------------------------------------
     END_FUNC;
 }
