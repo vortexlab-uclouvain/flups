@@ -37,6 +37,7 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     // Chunks are organised by rank -> First chunks in the array correspond to the 
     // first rank in the sub comm. We can fill the array of displacement in the same 
     // loop than the array of count.
+    FLUPS_CHECK( i2o_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", cchunk->dest_rank, i2o_nchunks_, sub_size);
     int cdisp = 0;
     for (int ic = 0; ic < i2o_nchunks_; ++ic){
         MemChunk *cchunk = i2o_chunks_ + ic;
@@ -49,6 +50,7 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
         cdisp += count;
     }
 
+    FLUPS_CHECK( o2i_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", cchunk->dest_rank, i2o_nchunks_, sub_size);
     cdisp = 0;
     for (int ic = 0; ic < o2i_nchunks_; ++ic){
         MemChunk *cchunk = o2i_chunks_ + ic;
