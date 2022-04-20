@@ -109,6 +109,11 @@ int main(int argc, char *argv[])  {
         is_last_topo[id] = (istart[id] + flups_topo_get_nloc(topo,(flups_topo_get_axis(topo) + id)%3) == nglob[id]);
     }
 
+    if((0 == flups_topo_get_nloc(topo,ax2) - is_last_topo[2]) || (0 == flups_topo_get_nloc(topo,ax1) - is_last_topo[1]) || (0 == flups_topo_get_nloc(topo,ax1) - is_last_topo[0])){
+        printf("[test - %d] You don't have enough points to fill in all the procs - my error (rank %d) is set to 0 by default \n ", rank, rank);
+        err = 0.0;
+    }
+
     for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2) - is_last_topo[2] ; i2++) {
         for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1) - is_last_topo[1] ; i1++) {
             for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0) - is_last_topo[0]; i0++) {
