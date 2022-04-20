@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_gcc_test
+ARCH_FILE ?= make_arch/make.docker_gcc
 include ../../$(ARCH_FILE)
 
 ################################################################################
@@ -33,7 +33,8 @@ NAME := flups
 # executable naming
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
-TARGET_EXE_MPI_AGG := $(NAME)_validation_agg
+TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
+TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -44,6 +45,11 @@ OBJ_DIR := ./build
 INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
+#---- FLUPS
+FLUPS_INC ?= ../../include
+FLUPS_LIB ?= ../../lib
+INC += -I$(FLUPS_INC)
+
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
@@ -58,10 +64,6 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
-#---- FLUPS
-FLUPS_INC ?= ../../include
-FLUPS_LIB ?= ../../lib
-INC += -I$(FLUPS_INC)
 
 #---- METIS
 #check if HAVE_METIS
@@ -90,38 +92,42 @@ OBJ := $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 
 ################################################################################
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
+	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: all
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_MPI_AGG)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 all2all: $(TARGET_EXE_A2A)
 
 nonblocking: $(TARGET_EXE_NB)
 
-nonblocking_aggressive: $(TARGET_EXE_MPI_AGG)
+nonblocking_deprec: $(TARGET_EXE_DPREC_NB)
+
+all2all_deprec: $(TARGET_EXE_DPREC_A2A)
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
-$(TARGET_EXE_MPI_AGG): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_agg -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+$(TARGET_EXE_DPREC_A2A): $(OBJ)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
+
+$(TARGET_EXE_DPREC_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_EXE_MPI_AGG)
+	rm -f $(TARGET_EXE_DPREC_A2A)
+	rm -f $(TARGET_EXE_DPREC_NB)
 
-destroy:
-	rm -f $(TARGET_EXE_A2A)
-	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_EXE_MPI_AGG)
+destroy: clean 
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib
