@@ -146,7 +146,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        m_profStarti(prof, "Copy data 2 chunk");
+        
         CopyData2Chunk(nmem_in, mem, chunk);
         m_profStopi(prof, "Copy data 2 chunk");
         // start the request
@@ -171,6 +171,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     MPI_Startall(n_recv_rqst, recv_rqst);
 
     // while we still have to send or recv something, we continue
+    m_profStarti(prof, "send/recv");
     while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst)) {
         // if we have some requests to recv, test it
         if (recv_cntr < n_recv_rqst) {
@@ -179,9 +180,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
             // for each of the completed request, treat it
             for (int id = 0; id < n_completed; ++id) {
+                m_profStarti(prof, "shuffle");
                 FLUPS_INFO("recving request %d/%d", recv_cntr + id, n_recv_rqst);
                 const int rqst_id = completed_id[id];
                 recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
+                m_profStopi(prof, "shuffle");
             }
             // increment the counter
             recv_cntr += n_completed;
@@ -190,20 +193,23 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // perform one of the send
         if (send_cntr < n_send_rqst) {
             FLUPS_INFO("sending request %d/%d",send_cntr,n_send_rqst);
+            m_profStarti(prof, "copy data 2 chunk");
             send_my_rqst(send_chunks + send_cntr, send_rqst + send_cntr);
+            m_profStopi(prof, "copy data 2 chunk");
             // increment the counter
             send_cntr += 1;
         }
     }
+    m_profStarti(prof, "send/recv");
     // we need to officially close the send requests
     MPI_Waitall(n_send_rqst, send_rqst, MPI_STATUSES_IGNORE);
 
     // once all the send has been done we can overwrite the received info
-    m_profStarti(prof, "Copy Chunk 2 data ");
+    m_profStarti(prof, "copy chunk 2 data");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
         CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
     }
-    m_profStopi(prof, "Copy Chunk 2 data ");
+    m_profStopi(prof, "copy chunk 2 data");
 
     // m_free(completed_status);
     m_free(completed_id);

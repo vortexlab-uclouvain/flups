@@ -215,8 +215,8 @@ class Solver {
 #else    
     void allocate_switchTopo_(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
     void deallocate_switchTopo_(SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    
-    void reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order);
 #endif
+    void reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order);
     /**@} */
 
     /**

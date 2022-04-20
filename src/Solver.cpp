@@ -283,7 +283,9 @@ double* Solver::setup(const bool changeTopoComm) {
     /** - Build the new comm based on that graph using metis if available, graph_topo if not */
     //-------------------------------------------------------------------------
     MPI_Comm graph_comm;
+
 #ifndef HAVE_METIS
+    // without the METIS lib we use the MPI_Dist_graph_create to obtain a new rank
     MPI_Dist_graph_create_adjacent(topo_phys_->get_comm(), worldsize, sources, sourcesW,
                                    worldsize, dests, destsW,
                                    MPI_INFO_NULL, 1, &graph_comm);
@@ -346,14 +348,14 @@ double* Solver::setup(const bool changeTopoComm) {
 
     m_free(outRanks);
 #endif
-//end simulate_graph
+    // end simulate_graph
 
-    
-    //writing reordering to console
+    // writing reordering to console in debug mode
+#ifndef NDEBUG
     int newrank;
     MPI_Comm_rank(graph_comm, &newrank);
     printf("[MPI ORDER] %i : %i \n", rank, newrank);
-    
+#endif
 
 #else
     //Use METIS to find a smart partition of the graph
@@ -1565,7 +1567,6 @@ void Solver::do_mult(double *data, const SolverType type) {
  * @param n_nodes 
  * @param order 
  */
-#ifndef FLUPS_MPI_AGGRESSIVE
 void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order) {
     int comm_size;
     int comm_rank;
@@ -1833,7 +1834,6 @@ void Solver::reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *des
     }
 #endif
 }
-#endif
 
 
 #if DEBUG_ST

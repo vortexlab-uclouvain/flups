@@ -122,7 +122,6 @@ void Topology::cmpt_sizes() {
  */
 void Topology::change_comm(MPI_Comm comm) {
     BEGIN_FUNC;
-
     //-------------------------------------------------------------------------
     /** - Store the new communicator  */
     //-------------------------------------------------------------------------
