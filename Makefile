@@ -138,7 +138,7 @@ all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
 
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
 
-nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so
+nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so 
 
 lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
 
@@ -152,10 +152,10 @@ $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_DPREC_A2A).so: $(OBJ_DEPREC_A2A)
+$(TARGET_LIB_DPREC_A2A).so: $(OBJ_DPREC_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_DPREC_NB).so: $(OBJ_DEPREC_NB)
+$(TARGET_LIB_DPREC_NB).so: $(OBJ_DPREC_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
@@ -164,10 +164,10 @@ $(TARGET_LIB_A2A).a: $(OBJ_A2A)
 $(TARGET_LIB_NB).a: $(OBJ_NB)
 	ar rvs $@  $^
 
-$(TARGET_LIB_DPREC_A2A).a: $(OBJ_DEPREC_A2A)
+$(TARGET_LIB_DPREC_A2A).a: $(OBJ_DPREC_A2A)
 	ar rvs $@  $^
 
-$(TARGET_LIB_DPREC_NB).a: $(OBJ_DEPREC_NB)
+$(TARGET_LIB_DPREC_NB).a: $(OBJ_DPREC_NB)
 	ar rvs $@  $^
 
 preproc: $(IN)
