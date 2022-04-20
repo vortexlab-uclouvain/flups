@@ -257,7 +257,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     //         }
     //     }
 
-// #pragma omp parallel proc_bind(close)
+#pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr src_data = chunk->data + chunk->size_padded * lia;
@@ -266,7 +266,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         // the chunk must be aligned all the time
         FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned");
 
-// #pragma omp for schedule(static)
+#pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
             const int i2 = il / (chunk->isize[ax[1]]);
@@ -299,8 +299,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[1], chunk->isize[1], nmem[1]);
     FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2],"istart = %d + size = %d must be smaller than the local size %d",chunk->istart[2], chunk->isize[2], nmem[2]);
 
-    // somehow the multithreaded program does not collect the right data...
-// #pragma omp parallel proc_bind(close)
+#pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr trg_data = chunk->data + chunk->size_padded * lia;
@@ -313,7 +312,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_INFO("copy %zu bytes in %zu loops",nmax_byte,n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-// #pragma omp for schedule(static)
+#pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
             const int i2                  = il / (chunk->isize[ax[1]]);
