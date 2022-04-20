@@ -36,8 +36,6 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     // this is the loop over the input topo and the associated chunks
     // Chunks are organised by rank so we loop over them and compute the counts
     // there is only one chunk per cpu so the displacement is obvious
-    FLUPS_CHECK(i2o_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", i2o_nchunks_, sub_size);
-    int cdisp = 0;
     for (int ic = 0; ic < i2o_nchunks_; ++ic) {
         MemChunk *cchunk = i2o_chunks_ + ic;
         size_t    count  = cchunk->size_padded * cchunk->nda;
@@ -45,30 +43,23 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
 
         // add the a number of data to the destination rank
         i2o_count_[drank] = count;
-        i2o_disp_[drank]  = cdisp;
-        cdisp += count;
+        i2o_disp_[drank]  = cchunk->data - sendData;
 
         // do some sanity checks to make sure everything is coherent and that the chunk will write at the correct memory location
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
         FLUPS_CHECK(drank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", drank, sub_size);
-        FLUPS_CHECK((cchunk->data - sendData) == i2o_disp_[drank], "the displacement registered for the a2a must be identical to the pointer offset assigned: %ld vs %ld", (cchunk->data - sendData), i2o_disp_[drank]);
     }
-
-    FLUPS_CHECK(o2i_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", i2o_nchunks_, sub_size);
-    cdisp = 0;
     for (int ic = 0; ic < o2i_nchunks_; ++ic) {
         MemChunk *cchunk = o2i_chunks_ + ic;
         size_t    count  = cchunk->size_padded * cchunk->nda;
         int       drank  = cchunk->dest_rank;
 
         o2i_count_[drank] = count;
-        o2i_disp_[drank]  = cdisp;
-        cdisp += count;
+        o2i_disp_[drank]  = (cchunk->data - recvData);
 
         // again here we check that the chunk will write at the correct memory location
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
         FLUPS_CHECK(drank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", drank, sub_size);
-        FLUPS_CHECK((cchunk->data - recvData) == o2i_disp_[drank], "the displacement registered for the a2a must be identical to the pointer offset assigned: %ld vs %ld", (cchunk->data - recvData), o2i_disp_[drank]);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
