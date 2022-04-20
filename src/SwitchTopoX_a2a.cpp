@@ -34,35 +34,42 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
 
     //..........................................................................
     // this is the loop over the input topo and the associated chunks
-    // Chunks are organised by rank -> First chunks in the array correspond to the 
-    // first rank in the sub comm. We can fill the array of displacement in the same 
-    // loop than the array of count.
-    FLUPS_CHECK( i2o_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", cchunk->dest_rank, i2o_nchunks_, sub_size);
+    // Chunks are organised by rank so we loop over them and compute the counts
+    // there is only one chunk per cpu so the displacement is obvious
+    FLUPS_CHECK(i2o_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", i2o_nchunks_, sub_size);
     int cdisp = 0;
-    for (int ic = 0; ic < i2o_nchunks_; ++ic){
+    for (int ic = 0; ic < i2o_nchunks_; ++ic) {
         MemChunk *cchunk = i2o_chunks_ + ic;
-        size_t count = cchunk->size_padded * cchunk->nda;
-        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        FLUPS_CHECK(cchunk->dest_rank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", cchunk->dest_rank, sub_size);
-        FLUPS_CHECK(cchunk->dest_rank == ic, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ic);
-        i2o_count_[cchunk->dest_rank] = count;
-        i2o_disp_[cchunk->dest_rank]  = cdisp;
+        size_t    count  = cchunk->size_padded * cchunk->nda;
+        int       drank  = cchunk->dest_rank;
+
+        // add the a number of data to the destination rank
+        i2o_count_[drank] = count;
+        i2o_disp_[drank]  = cdisp;
         cdisp += count;
+
+        // do some sanity checks to make sure everything is coherent and that the chunk will write at the correct memory location
+        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+        FLUPS_CHECK(drank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", drank, sub_size);
+        FLUPS_CHECK((cchunk->data - sendData) == i2o_disp_[drank], "the displacement registered for the a2a must be identical to the pointer offset assigned: %ld vs %ld", (cchunk->data - sendData), i2o_disp_[drank]);
     }
 
-    FLUPS_CHECK( o2i_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", cchunk->dest_rank, i2o_nchunks_, sub_size);
+    FLUPS_CHECK(o2i_nchunks_ == sub_size, "Number of chunk should be equal to the number of rank in the communication %d vs %d", i2o_nchunks_, sub_size);
     cdisp = 0;
-    for (int ic = 0; ic < o2i_nchunks_; ++ic){
+    for (int ic = 0; ic < o2i_nchunks_; ++ic) {
         MemChunk *cchunk = o2i_chunks_ + ic;
-        size_t count = cchunk->size_padded * cchunk->nda;
-        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        FLUPS_CHECK(cchunk->dest_rank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", cchunk->dest_rank, sub_size);
-        FLUPS_CHECK(cchunk->dest_rank == ic, "Destination rank of the chunk should correspond to the rank indexing %d vs %d", cchunk->dest_rank, ic);
-        o2i_count_[cchunk->dest_rank] = count;
-        o2i_disp_[cchunk->dest_rank]  = cdisp;
+        size_t    count  = cchunk->size_padded * cchunk->nda;
+        int       drank  = cchunk->dest_rank;
+
+        o2i_count_[drank] = count;
+        o2i_disp_[drank]  = cdisp;
         cdisp += count;
+
+        // again here we check that the chunk will write at the correct memory location
+        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+        FLUPS_CHECK(drank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", drank, sub_size);
+        FLUPS_CHECK((cchunk->data - recvData) == o2i_disp_[drank], "the displacement registered for the a2a must be identical to the pointer offset assigned: %ld vs %ld", (cchunk->data - recvData), o2i_disp_[drank]);
     }
-    
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -144,45 +151,56 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
     const int nmem_in[3]  = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
     const int nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
 
-    int sub_rank, sub_size; 
+    int sub_rank, sub_size;
     MPI_Comm_rank(subcomm, &sub_rank);
     MPI_Comm_size(subcomm, &sub_size);
     //..........................................................................
     auto set_sendbuf = [=](MemChunk *chunk) {
-        FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
+        FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        m_profStarti(prof, "Copy data 2 chunk");
         CopyData2Chunk(nmem_in, mem, chunk);
-        m_profStopi(prof, "Copy data 2 chunk");
     };
 
     auto complete_recv = [=](MemChunk *chunk) {
-        FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
+        FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // shuffle the data
-        m_profStarti(prof, "Do Shuffle Chunk");
         DoShuffleChunk(chunk);
-        m_profStopi(prof, "Do Shuffle Chunk");
-        m_profStarti(prof, "Copy Chunk 2 data ");
         CopyChunk2Data(chunk, nmem_out, mem);
-        m_profStopi(prof, "Copy Chunk 2 data ");
     };
     //..........................................................................
     // Prepare the send buffer
-    for(int ir = 0; ir < sub_size; ++ir){
-        MemChunk *cchunk = send_chunks + ir;
-        FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
-        set_sendbuf(cchunk);
+    {
+        m_profStarti(prof, "copy data 2 chunk");
+        int count = 0;
+        for (int ir = 0; ir < sub_size; ++ir) {
+            // we might have nothing to send to that rank in the subcomm
+            if (count_send[ir] > 0) {
+                MemChunk *cchunk = send_chunks + count;
+                FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
+                set_sendbuf(cchunk);
+                count += 1;
+            }
+        }
+        m_profStopi(prof, "copy data 2 chunk");
     }
 
-    m_profStarti(prof, "All2All");
+    m_profStarti(prof, "all2all");
     MPI_Alltoallv(send_buf, count_send, disp_send, MPI_DOUBLE, recv_buf, count_recv, disp_recv, MPI_DOUBLE, subcomm);
-    m_profStopi(prof, "All2All");
+    m_profStopi(prof, "all2all");
 
-    // Copy back the recveived data 
-    for(int ir = 0; ir < sub_size; ++ir){
-        MemChunk *cchunk = recv_chunks + ir;
-        FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
-        complete_recv(cchunk);
+    // Copy back the recveived data
+    {
+        m_profStarti(prof, "shuffle and copy chunk 2 data ");
+        int count = 0;
+        for (int ir = 0; ir < sub_size; ++ir) {
+            if (count_recv[ir] > 0) {
+                MemChunk *cchunk = recv_chunks + count;
+                FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
+                complete_recv(cchunk);
+                count += 1;
+            }
+        }
+        m_profStopi(prof, "shuffle and copy chunk 2 data ");
     }
 
     //--------------------------------------------------------------------------
