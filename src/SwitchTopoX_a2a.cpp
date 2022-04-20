@@ -181,7 +181,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
 
     // Copy back the recveived data
     {
-        m_profStarti(prof, "shuffle and copy chunk 2 data ");
+        m_profStarti(prof, "shuffle and copy chunk 2 data");
         int count = 0;
         for (int ir = 0; ir < sub_size; ++ir) {
             if (count_recv[ir] > 0) {
@@ -191,7 +191,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
                 count += 1;
             }
         }
-        m_profStopi(prof, "shuffle and copy chunk 2 data ");
+        m_profStopi(prof, "shuffle and copy chunk 2 data");
     }
 
     //--------------------------------------------------------------------------
