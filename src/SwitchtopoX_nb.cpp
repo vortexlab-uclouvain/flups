@@ -112,18 +112,10 @@ void SwitchTopoX_nb::disp() const {
     FLUPS_INFO("  - input axis = %d", topo_in_->axis());
     FLUPS_INFO("  - input local = %d %d %d", topo_in_->nloc(0), topo_in_->nloc(1), topo_in_->nloc(2));
     FLUPS_INFO("  - input global = %d %d %d", topo_in_->nglob(0), topo_in_->nglob(1), topo_in_->nglob(2));
-    // FLUPS_INFO("  - istart = %d %d %d", istart_[0], istart_[1], istart_[2]);
-    // FLUPS_INFO("  - iend = %d %d %d", iend_[0], iend_[1], iend_[2]);
     FLUPS_INFO("--- OUTPUT");
     FLUPS_INFO("  - output axis = %d", topo_out_->axis());
     FLUPS_INFO("  - output local = %d %d %d", topo_out_->nloc(0), topo_out_->nloc(1), topo_out_->nloc(2));
     FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
-    // FLUPS_INFO("  - ostart = %d %d %d", ostart_[0], ostart_[1], ostart_[2]);
-    // FLUPS_INFO("  - oend = %d %d %d", oend_[0], oend_[1], oend_[2]);
-    // FLUPS_INFO("--- Chunks");
-    // // FLUPS_INFO("  - nByBlock  = %d %d %d", nByBlock_[0], nByBlock_[1], nByBlock_[2]);
-    // FLUPS_INFO("  - i2o n chunks = %d", i2o_nchunks_);
-    // FLUPS_INFO("  - o2i n chunks = %d", o2i_nchunks_);
     FLUPS_INFO("------------------------------------------");
 }
 

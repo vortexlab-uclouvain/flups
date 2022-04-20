@@ -677,26 +677,42 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
 #if (FLUPS_MPI_AGGRESSIVE)
+
+#if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+#endif
+
+#else // deprecated - still there for comparison purpose
+
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
+
 #endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
 #if (FLUPS_MPI_AGGRESSIVE)
+
+#if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
+#else                
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+#endif 
+
+#else // deprecated - still there for comparison purpose
+
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
                 switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
+
 #endif
             }
             // #ifdef PERF_VERBOSE
@@ -749,8 +765,15 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 planmap[ip + 1]->get_fieldstart(fieldstart);
                 // we do the link between topomap[ip] and the current_topo
 #if (FLUPS_MPI_AGGRESSIVE)
+
+#if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
 #else
+                switchtopo[ip + 1] = new SwitchTopoX_a2a(topomap[ip], current_topo, fieldstart, NULL);
+#endif 
+
+#else
+
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
 #else
@@ -1393,7 +1416,6 @@ void Solver::do_FFT(double *data, const int sign){
     } 
     else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
         for (int ip = ndim_-1; ip >= 0; ip--) {
-            FLUPS_print_data(topo_hat_[ip], mydata);
 #if !(DEBUG_ST)
             m_profStarti(prof_, "fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
