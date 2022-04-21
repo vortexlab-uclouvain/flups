@@ -33,8 +33,8 @@ NAME := flups
 # executable naming
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
-TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
-TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
+TARGET_EXE_DPREC_A2A := $(NAME)_validation_dprec_a2a
+TARGET_EXE_DPREC_NB := $(NAME)_validation_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build

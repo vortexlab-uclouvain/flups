@@ -1,5 +1,5 @@
-CXX = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.1-GCC-10.3.0/bin/mpic++ 
-CC = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.1-GCC-10.3.0/bin/mpicc 
+CXX = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.3-GCC-10.3.0/bin/mpic++ 
+CC = /apps/USE/easybuild/staging/2021.1/software/OpenMPI/4.1.3-GCC-10.3.0/bin/mpicc 
 # set the flag (optimisation or not) 
 ## For debugging: 
 # CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG 
@@ -24,5 +24,5 @@ HDF5_LIB := /apps/USE/easybuild/staging/2021.1/software/HDF5/1.12.1-gompi-2021a/
 HDF5_INC := /apps/USE/easybuild/staging/2021.1/software/HDF5/1.12.1-gompi-2021a/include  
   
 ##H3LPR  
-H3LPR_INC := /home/users/u100156/soft//include/  
-H3LPR_LIB := /home/users/u100156/soft//lib/  
+H3LPR_INC := /home/users/u100156/soft/include/  
+H3LPR_LIB := /home/users/u100156/soft/lib/  
