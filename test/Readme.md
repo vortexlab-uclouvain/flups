@@ -19,4 +19,30 @@ The heart of the tests is composed by two classes: the `AnalyticalField` and the
 
   2. The `BaseConvergenceTest` is the main class of those tests. It inherits from the `testing::TestWithParam<int>` class of the Google library and implements all the function needed to perform a convergence test: the creation of the domain and of the solver, the computation of the RHS (based on an `AnalyticalField`), the solve itself, the computation of the error and of the convergence order. The templated parameter correspond to the id of a certain combination of boundary conditions. The `BaseConvergenceTest` performs the tests using the 8 different kernels. If one of the kernel does not have the right convergence order, the test fails. 
 
-  Since we can have two different types of data location, either cell-centred or node-centred, we have two classes that inherites from the `BaseConvergenceTest` : the `NodeConvergenceTest` and the `CellConvergenceTest`. The difference between those class is the problem definition, i.e. the definition of the number of points and the defition of the grid spacing. Those classes instantiate the two test suites. 
+Since we can have two different types of data location, either cell-centred or node-centred, we have two classes that inherites from the `BaseConvergenceTest` : the `NodeConvergenceTest` and the `CellConvergenceTest`. The difference between those class is the problem definition, i.e. the definition of the number of points and the defition of the grid spacing. Those classes instantiate the two test suites. 
+
+## Compilation 
+Those tests depends on the Google test library. You should install it using :
+```shell
+ git clone https://github.com/google/googletest.git
+ cd /googletest
+ cmake . -DCMAKE_INSTALL_PREFIX=/soft/googletest
+ make install -j
+ rm -rf /googletest
+ ```
+Then, you should add the location of the library in your ARCH_FILE:
+```shell 
+## Specify the location of Googletest library (by default, assumed to be /usr/lib/)
+GTEST_INC := /soft/googletest/include
+GTEST_LIB := /soft/googletest/lib
+```
+
+You can launch the test using 
+```shell
+mpirun -n 8 ./flups_test_a2a 
+```
+
+You can select a certain test using 
+```shell 
+mpirun -n 8 ./flups_test_a2a --gtest_filters=Node*/1 
+```
