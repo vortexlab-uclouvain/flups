@@ -55,12 +55,12 @@ using flups_complex = cufftDoubleComplex;
 
 // Allocation functions
 inline flups_plan flups_plan_r2c_1d(int n, double *in, flups_complex *out) {
-   cufftHandle plan;
+    cufftHandle plan;
     cufftPlan1d(&plan, n, CUFFT_D2Z, 1);
     return plan; 
 }
 
-inline flups_plan flups_plan_c2r_1d(int n, flups_complex *in, double *out) {                                          \
+inline flups_plan flups_plan_c2r_1d(int n, flups_complex *in, double *out) {
     cufftHandle plan;
     cufftPlan1d(&plan, n, CUFFT_Z2D, 1);
     return plan;
@@ -73,15 +73,18 @@ inline flups_plan flups_plan_c2c_1d(int n, flups_complex *in, flups_complex *out
 }
 
 // Execute functions
-inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {                            \
+inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
+    #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2Z(plan, in, out, sign);
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
+    #pragma omp target data use_device_ptr(in, out)
     cufftExecD2Z(plan, in, out);
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
+    #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2D(plan, in, out);
 }
 

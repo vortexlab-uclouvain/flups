@@ -591,9 +591,9 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             size_t lia = id / howmany;
             size_t io  = id % howmany;
             // get the memory
-            double* mydata = (double*)data + lia * memdim + io * fftw_stride;
+            int offset = lia*memdim + io*fftw_stride + fftwstart_[lia];
             // execute the plan on it
-            flups_execute_r2r(plan[lia], (double*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia], sign);
+            flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset), sign);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
@@ -606,10 +606,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // get the memory
                     int offset = lia*memdim + io*fftw_stride + fftwstart_[lia]; 
                     // execute the plan on it
-                    #pragma omp target data use_device_ptr(data)
-                    {
-                        flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data  + offset));
-                    }
+                    flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data  + offset));
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
@@ -620,10 +617,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
                     int offset = lia*memdim + io*fftw_stride + fftwstart_[lia];
                     // execute the plan on it
-                    #pragma omp target data use_device_ptr(data)
-                    {
-                        flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
-                    }
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
                 }
             }
 
@@ -636,10 +630,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 // we access complex info with a fftw_stride real
                 int offset = lia*memdim + 2*io*fftw_stride + fftwstart_[lia];
                 // execute the plan on it
-                 #pragma omp target data use_device_ptr(data)
-                {
-                    flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
-                }
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
             }
         }
     }
