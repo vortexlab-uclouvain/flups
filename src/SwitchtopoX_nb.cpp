@@ -146,18 +146,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        
         CopyData2Chunk(nmem_in, mem, chunk);
-        m_profStopi(prof, "Copy data 2 chunk");
         // start the request
         MPI_Start(request);
     };
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
-        m_profStarti(prof, "Do Shuffle Chunk");
         DoShuffleChunk(chunk);
-        m_profStopi(prof, "Do Shuffle Chunk");
         // CopyChunk2Data(chunk, nmem_out, mem);
     };
     //..........................................................................
@@ -200,10 +196,13 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             send_cntr += 1;
         }
     }
-    m_profStarti(prof, "send/recv");
+    m_profStopi(prof, "send/recv");
+    
     // we need to officially close the send requests
+    m_profStarti(prof, "Wait all");
     MPI_Waitall(n_send_rqst, send_rqst, MPI_STATUSES_IGNORE);
-
+    m_profStopi(prof, "Wait all");
+    
     // once all the send has been done we can overwrite the received info
     m_profStarti(prof, "copy chunk 2 data");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
