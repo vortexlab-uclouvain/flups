@@ -11,9 +11,12 @@
 
 ## Load modules 
 module use /apps/USE/easybuild/staging/2021.1/modules/all
-module load OpenMPI/4.1.3-GCC-10.3.0 
+## First load the librairies relying on the old version of OpenMPI
 module load HDF5/1.12.1-gompi-2021a
 module load FFTW/3.3.10-gompi-2021a 
+
+## Then load the latest version of OpenMPI
+module load OpenMPI/4.1.3-GCC-10.3.0 
 
 ## Compile H3LPR
 cd ${H3LPR_DIR}
@@ -27,6 +30,7 @@ cd -
 
 
 ## Compile Flups 
+## Warning -- Only the static librairies are installed as we move the executable of place.. 
 cd ${FLUPS_DIR} 
 echo "CXX = ${EBROOTOPENMPI}/bin/mpic++ " > make_arch/make.meluxina
 echo "CC = ${EBROOTOPENMPI}/bin/mpicc " >> make_arch/make.meluxina
@@ -58,11 +62,10 @@ echo "H3LPR_INC := ${H3LPR_DIR}/include/  " >> make_arch/make.meluxina
 echo "H3LPR_LIB := ${H3LPR_DIR}/lib/  " >> make_arch/make.meluxina
 
 ARCH_FILE=make_arch/make.meluxina make install_static -j
-ARCH_FILE=make_arch/make.meluxina make install_dynamic -j
 cd - 
 
 
 ## Compile the validation testcase
 cd ${FLUPS_DIR}/samples/validation
-ARCH_FILE=make_arch/make.meluxina make -j 
+ARCH_FILE=make_arch/make.meluxina make all -j 
 cd -
