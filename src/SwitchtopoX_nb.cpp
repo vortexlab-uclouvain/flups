@@ -197,12 +197,16 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         }
     }
     m_profStopi(prof, "send/recv");
-    
+
     // we need to officially close the send requests
     m_profStarti(prof, "Wait all");
     MPI_Waitall(n_send_rqst, send_rqst, MPI_STATUSES_IGNORE);
     m_profStopi(prof, "Wait all");
-    
+
+    // reset the memory to 0.0 as we do inplace computations
+    const size_t reset_size = topo_out->memsize();
+    std::memset(mem, 0, reset_size * sizeof(double));
+
     // once all the send has been done we can overwrite the received info
     m_profStarti(prof, "copy chunk 2 data");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
