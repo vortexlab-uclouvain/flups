@@ -9,9 +9,11 @@
 
 #--------------------------------------------------------
 module use /apps/USE/easybuild/staging/2021.1/modules/all
-module load OpenMPI/4.1.3-GCC-10.3.0 
+## First load the librairies relying on the old version of OpenMPI
 module load HDF5/1.12.1-gompi-2021a
 module load FFTW/3.3.10-gompi-2021a 
+## Then load the latest version of OpenMPI
+module load OpenMPI/4.1.3-GCC-10.3.0
 
 cd ${SCRATCH_FLUPS}
 cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
