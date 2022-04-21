@@ -179,6 +179,10 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
     MPI_Alltoallv(send_buf, count_send, disp_send, MPI_DOUBLE, recv_buf, count_recv, disp_recv, MPI_DOUBLE, subcomm);
     m_profStopi(prof, "all2all");
 
+    // reset the memory to 0.0 as we do inplace computations
+    const size_t reset_size = topo_out->memsize();
+    std::memset(mem, 0, reset_size * sizeof(double));
+
     // Copy back the recveived data
     {
         m_profStarti(prof, "shuffle and copy chunk 2 data");
