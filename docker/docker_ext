@@ -8,6 +8,10 @@ RUN cd /googletest &&\
 RUN rm -rf /googletest
 
 #-------------------------------------------------------------------------------
+RUN apt-get -y update && apt-get install -y openssh-client git
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan git.immc.ucl.ac.be github.com >> ~/.ssh/known_hosts
+
+#-------------------------------------------------------------------------------
 ### h3lpr
 RUN --mount=type=ssh git clone git@github.com:van-Rees-Lab/h3lpr.git
 RUN cd /h3lpr &&\
