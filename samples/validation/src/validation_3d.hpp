@@ -36,11 +36,14 @@
 
 #include "mpi.h"
 #include "h3lpr/profiler.hpp"
+#include "h3lpr/macros.hpp"
 #include "flups.h"
 
-#define MANUFACTURED_SOLUTION
-// #define DUMP_DBG
 
+#define MANUFACTURED_SOLUTION
+
+#define m_assert(format, ...) m_assert_def("validation", format, ##__VA_ARGS__); 
+#define m_log(format, ...) m_log_def("validation", format, ##__VA_ARGS__)
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
