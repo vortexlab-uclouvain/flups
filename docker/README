@@ -1,12 +1,13 @@
+# Building the container
+
 # build image for VS Code
 
 ```bash
-hpccm --recipe docker.py > Dockerfile_daily
-cat docker_ext >> Dockerfile_daily
+hpccm --recipe docker1.py > Dockerfile_daily && cat docker_ext >> Dockerfile_daily
 
-docker build -f Dockerfile_daily -t vanreeslab/flups_daily:v0.0 .
+docker build --ssh default -f Dockerfile_daily -t vanreeslab/flups_daily:v0.1 .
 docker login
-docker push vanreeslab/flups_daily:v0.0
+docker push vanreeslab/flups_daily:v0.1
 ```
 
 
