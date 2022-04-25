@@ -13,13 +13,12 @@ where <p align="center"><img src="https://latex.codecogs.com/gif.latex?  \phi_{r
 The analytical solutions are detailed in the FLUPS paper. 
 
 ## Implementation notes 
-The heart of the tests is composed by two classes: the `AnalyticalField` and the `BaseConvergenceTest`. 
+The heart of the tests is composed by two classes: the `AnalyticalField` and the `ConvergenceTest`. 
 
   1. The `AnalyticalField` stores the analytical expression for the RHS and the solution based on a set of boundary conditions. In other words, given the bcs in a certain direction, it stores and provides the 1D analytical solution (a(x), b(y) and c(z) in the previous paragraph) and their second derivatives. 
 
-  2. The `BaseConvergenceTest` is the main class of those tests. It inherits from the `testing::TestWithParam<int>` class of the Google library and implements all the function needed to perform a convergence test: the creation of the domain and of the solver, the computation of the RHS (based on an `AnalyticalField`), the solve itself, the computation of the error and of the convergence order. The templated parameter correspond to the id of a certain combination of boundary conditions. The `BaseConvergenceTest` performs the tests using the 8 different kernels. If one of the kernel does not have the right convergence order, the test fails. 
+  2. The `ConvergenceTest` is the main class of those tests. It inherits from the `testing::TestWithParam<int>` class of the Google library and implements all the function needed to perform a convergence test: the creation of the domain and of the solver, the computation of the RHS (based on an `AnalyticalField`), the solve itself, the computation of the error and of the convergence order. The templated parameters are: the location of the data (cell-centred (test number 0 to 5999) or node-centred (test number 6000 to 11 999), a specific kernel and the combination of the boundary conditions. The `ConvergenceTest` performs the tests using 6 different kernels. If one of the kernel does not have the right convergence order, the test fails. 
 
-Since we can have two different types of data location, either cell-centred or node-centred, we have two classes that inherites from the `BaseConvergenceTest` : the `NodeConvergenceTest` and the `CellConvergenceTest`. The difference between those class is the problem definition, i.e. the definition of the number of points and the defition of the grid spacing. Those classes instantiate the two test suites. 
 
 ## Compilation 
 Those tests depends on the Google test library. You should install it using :
@@ -44,5 +43,10 @@ mpirun -n 8 ./flups_test_a2a
 
 You can select a certain test using 
 ```shell 
-mpirun -n 8 ./flups_test_a2a --gtest_filters=Node*/1 
+mpirun -n 8 ./flups_test_a2a --gtest_filter=FlupsValidation/ConvergenceTest.AllBoundaryConditions/0-11999
+```
+
+All the tests can be listed using 
+```shell 
+./flups_test_a2a --gtest_list_tests
 ```
