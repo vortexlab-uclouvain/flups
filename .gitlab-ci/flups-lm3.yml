@@ -61,15 +61,31 @@ run lm3:
     - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      export REPORT=xml:node_report.xml
-      export TYPE=NODE
-      export TESTS=NodeCentered/NodeConvergenceTest.AllBoundaryConditions &&
+      export REPORT=xml:node_nb_report.xml
+      export TYPE=NODE_NB
+      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions &&
+      export EXEC=flups_test_nb
       sbatch run_test.sh"
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      export REPORT=xml:cell_report.xml
-      export TYPE=CELL
-      export TESTS=CellCentered/CellConvergenceTest.AllBoundaryConditions &&
+      export REPORT=xml:node_a2a_report.xml
+      export TYPE=NODE_A2A
+      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions &&
+      export EXEC=flups_test_a2a
+      sbatch run_test.sh" 
+    - > 
+      ssh lm3 "cd ${PATH2RUN}/ && 
+      export REPORT=xml:cell_nb_report.xml
+      export TYPE=CELL_NB
+      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions &&
+      export EXEC=flups_test_nb
+      sbatch run_test.sh"
+    - > 
+      ssh lm3 "cd ${PATH2RUN}/ && 
+      export REPORT=xml:cell_a2a_report.xml
+      export TYPE=CELL_A2A
+      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions &&
+      export EXEC=flups_test_a2a
       sbatch run_test.sh"
 
 
@@ -81,19 +97,23 @@ check result lm3:
   rules:
    - if: ($CI_OPEN_MERGE_REQUESTS)
      when: delayed
-     start_in: 120 minutes
+     start_in: 300 minutes
    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
      when: delayed
-     start_in: 120 minutes
+     start_in: 300 minutes
   
   artifacts: 
     paths: 
-      - node_report.xml
-      - cell_report.xml
+      - node_a2a_report.xml
+      - node_nb_report.xml
+      - cell_a2a_report.xml
+      - cell_nb_report.xml
     reports:
         junit: 
-          - node_report.xml
-          - cell_report.xml
+          - node_a2a_report.xml
+          - node_nb_report.xml
+          - cell_a2a_report.xml
+          - cell_nb_report.xml
     when: always
   needs: [run lm3]
   dependencies:
@@ -102,11 +122,15 @@ check result lm3:
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_*") ]]; then echo "The Node test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_*") ]]; then echo "The Cell test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_A2A_*") ]]; then echo "The all2all Node test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_NB_*") ]]; then echo "The non blocking Node test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_A2A_*") ]]; then echo "The all2all Cell test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_NB_*") ]]; then echo "The non blocking Cell test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f node_report.xml && if [[ $(grep "<failure" node_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
-    - test -f cell_report.xml && if [[ $(grep "<failure" cell_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - test -f node_a2a_report.xml && if [[ $(grep "<failure" node_a2a_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    - test -f node_nb_report.xml && if [[ $(grep "<failure" node_nb_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    - test -f cell_a2a_report.xml && if [[ $(grep "<failure" cell_a2a_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - test -f cell_nb_report.xml && if [[ $(grep "<failure" cell_nb_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
     # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
 
   retry:                              # Retry -- Relaunch the Job

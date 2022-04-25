@@ -9,6 +9,7 @@
 #define ZERO_TOL 1000.0 * std::numeric_limits<double>::epsilon() 
 #define N_TEST 128
 
+// Specific log function for the test library 
 #define test_log(format, ...)                              \
     ({                                                     \
         int test_log_rank_;                                \
@@ -21,7 +22,7 @@
         }                                                  \
     })
 
-// List of all the compatible boundary conditions
+// List of all the compatible boundary conditions for 1 direction
 static const std::array<FLUPS_BoundaryType,2> EV_EV = {EVEN, EVEN};
 static const std::array<FLUPS_BoundaryType,2> OD_OD = {ODD, ODD};
 static const std::array<FLUPS_BoundaryType,2> UN_UN = {UNB, UNB};
@@ -48,7 +49,7 @@ class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterTyp
                                                                 std::array<FLUPS_BoundaryType,2> > >{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {2, 2, 2};
+    const int    nproc_[3]  = {4, 4, 4};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
@@ -57,7 +58,7 @@ protected:
     FLUPS_CenterType center_type_[3];
     double           shift_;
     
-    void        SetUp() override{
+    void SetUp() override {
         //--------------------------------------------------------------------
         // Node or cell center
         for(int idim = 0; idim < 3; ++idim){
@@ -65,9 +66,11 @@ protected:
         }        
         shift_ = (std::get<0>(GetParam()) == CELL_CENTER) ? 0.5 : 0.0;
 
+        //..........................................
         // Kernel 
         green_ = std::get<1>(GetParam());
         
+        //..........................................
         // Boundary conditions
         for(int idim = 0; idim < 3; ++idim ){
             for(int ibc = 0; ibc < 2; ++ibc){
@@ -86,6 +89,7 @@ protected:
         *(mybc_[2][0]) = std::get<4>(GetParam())[0];
         *(mybc_[2][1]) = std::get<4>(GetParam())[1];
 
+        //..........................................
         test_log("===========================================================");
         test_log("TESTING: data type = %s; kernel = %s and bc = %d %d - %d %d - %d %d", 
         (center_type_[0] == NODE_CENTER)? "node-centred" : "cell-centred", kname[(int)green_].c_str(),
@@ -94,7 +98,7 @@ protected:
         //--------------------------------------------------------------------
     };
 
-    void TearDown() override{
+    void TearDown() override {
         //--------------------------------------------------------------------
         for(int idim = 0; idim < 3; ++idim ){
             for(int ibc = 0; ibc < 2; ++ibc){
@@ -234,18 +238,20 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     //--------------------------------------------------------------------
 }
 
+// Instantiate the test for cell-centred data
 INSTANTIATE_TEST_SUITE_P(CellValidation,
                          ConvergenceTest,
                          testing::Combine(testing::Values(CELL_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_0), 
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10,HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
 
+// Instantiate the test for node-centred data
 INSTANTIATE_TEST_SUITE_P(NodeValidation,
                          ConvergenceTest,
                          testing::Combine(testing::Values(NODE_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_0),
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10,HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
