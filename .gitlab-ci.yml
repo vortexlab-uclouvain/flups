@@ -9,7 +9,7 @@ workflow:
     - if: '$CI_COMMIT_BRANCH'                                          # Trigger a pipeline when there is a push event 
 
 default :
-  image : vanreeslab/murphy:v1.15
+  image : vanreeslab/flups:v1.0
   before_script :
     - OMP_NUM_THREADS=1
     #--------------------------------------------------------------------------
