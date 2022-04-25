@@ -237,7 +237,7 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
 INSTANTIATE_TEST_SUITE_P(CellValidation,
                          ConvergenceTest,
                          testing::Combine(testing::Values(CELL_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8), 
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_0), 
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_SUITE_P(CellValidation,
 INSTANTIATE_TEST_SUITE_P(NodeValidation,
                          ConvergenceTest,
                          testing::Combine(testing::Values(NODE_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8),
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
