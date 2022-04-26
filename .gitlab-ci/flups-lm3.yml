@@ -86,33 +86,33 @@ run lm3:
     - ssh lm3 mkdir -p ${PATH2RUN}/
     - scp flups_test_nb lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
     - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
-    - > 
-      ssh lm3 "cd ${PATH2RUN}/ && 
+    - >
+      ssh lm3 "cd ${PATH2RUN}/ &&
       export REPORT=xml:node_nb_report.xml
       export TYPE=NODE_NB
-      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions &&
-      export EXEC=flups_test_nb
+      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions 
+      export EXEC=flups_test_nb &&
       sbatch run_test.sh"
-    - > 
+    - >
       ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:node_a2a_report.xml
       export TYPE=NODE_A2A
-      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions &&
-      export EXEC=flups_test_a2a
+      export TESTS=NodeValidation/ConvergenceTest.AllBoundaryConditions
+      export EXEC=flups_test_a2a &&
       sbatch run_test.sh" 
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:cell_nb_report.xml
       export TYPE=CELL_NB
-      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions &&
-      export EXEC=flups_test_nb
+      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions 
+      export EXEC=flups_test_nb &&
       sbatch run_test.sh"
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
       export REPORT=xml:cell_a2a_report.xml
       export TYPE=CELL_A2A
-      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions &&
-      export EXEC=flups_test_a2a
+      export TESTS=CellValidation/ConvergenceTest.AllBoundaryConditions 
+      export EXEC=flups_test_a2a &&
       sbatch run_test.sh"
 
 
