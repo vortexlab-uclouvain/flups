@@ -41,11 +41,11 @@ compil lm3 :
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$H3LPR_SSHKEY")
     - echo $H3LPRKH >> ~/.ssh/known_hosts
-    # Trying to change the key
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$SSHKEY")
     - git clone git@github.com:van-Rees-Lab/h3lpr.git
     - tar -czf h3lpr_src.tar.gz --exclude=h3lpr/.git* h3lpr && du -sh h3lpr_src.tar.gz
+    # Trying to change the key before sending the data to lm3 
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSHKEY")
     - scp h3lpr_src.tar.gz lm3:${PATH2BIN}_${TAG}
     - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/h3lpr_src.tar.gz -C ${PATH2BIN}_${TAG}/
     - rm -rf h3lpr 
