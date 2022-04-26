@@ -12,7 +12,7 @@ cd $1
 
 cd h3lpr
 PREFIX=$1/soft/ \
-CXX=${H3LPR_MPICXX} CC =${H3LPR_MPICC}\
+CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
 CXXFLAGS=${H3LPR_CXXFLAGS} LDFLAGS=${H3LPR_LDFLAGS} \ 
 make install -j 
 cd .. 
