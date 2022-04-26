@@ -9,7 +9,7 @@ export H3LPR_CXXFLAGS="-O3 -g -ggdb -fopenmp -DCOLOR_PROF"
 export H3LPR_LDFLAGS="-fopenmp -lstdc++ -lm"
 
 cd $1 
-git clone git@github.com:van-Rees-Lab/h3lpr.git
+
 cd h3lpr
 PREFIX=$1/soft/ \
 CXX=${H3LPR_MPICXX} CC =${H3LPR_MPICC}\

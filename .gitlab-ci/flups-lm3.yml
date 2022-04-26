@@ -30,17 +30,25 @@ compil lm3 :
     # send the tar on LM3
     - scp flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
     - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
-    - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
+    - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
     
     # Go on lm3 and compile all the libraries
     - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Flups"
     
     # Add the git config needed for h3lpr
-    - ssh lm3 "echo "Host github.com-h3lpr" > ~/.ssh/config"
-    - ssh lm3 "echo "   Hostname github.com" >> ~/.ssh/config"
-    
+    - echo "Host github.com-h3lpr" >> ~/.ssh/config=
+    - echo "  Hostname github.com"  >> ~/.ssh/config
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$H3LPR_SSHKEY")
+    - git clone git@github.com:van-Rees-Lab/h3lpr.git
+    - tar -czf h3lpr_src.tar.gz --exclude=h3lpr/.git* h3lpr && du -sh h3lpr_src.tar.gz
+    - scp h3lpr_src.tar.gz lm3:${PATH2BIN}_${TAG}
+    - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/h3lpr_src.tar.gz -C ${PATH2BIN}_${TAG}/
+    - rm -rf h3lpr 
+    - rm -rf h3lpr_src.tar.gz
+
     # Compile the librairies
-    - ssh lm3 "eval $(ssh-agent -s) && ssh-add <(echo "${H3LPR_SSHKEY}") && ${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh" #make the executable, and test if the file was created
+    - ssh lm3 "${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh" #make the executable, and test if the file was created
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
     
     # Download the artifacts
