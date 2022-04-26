@@ -12,10 +12,11 @@ export H3LPR_PREFIX="${1}/soft"
 cd $1 
 
 cd h3lpr
-CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
-CXXFLAGS=${H3LPR_CXXFLAGS} LDFLAGS=${H3LPR_LDFLAGS} \
-PREFIX=${H3LPR_PREFIX} \
-make install -j 
+ARCH_FILE=make_arch/make.default \
+    CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
+    CXXFLAGS=${H3LPR_CXXFLAGS} LDFLAGS=${H3LPR_LDFLAGS} \
+    PREFIX=${H3LPR_PREFIX} \
+    make install -j 
 cd .. 
 rm -rf h3lpr
 
@@ -26,10 +27,11 @@ export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
 export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
 export FLUPS_LDFLAGS="-fopenmp -lstdc++"
 
-CC=${FLUPS_MPICC} CXX=${FLUPS_MPICXX} \
-CXXFLAGS=${FLUPS_CXXFLAGS} CCFLAGS=${FLUPS_CCFLAGS} LDFLAGS=${FLUPS_LDFLAGS} \
-HDF5_DIR=${HDF5_DIR} FFTW_DIR=${EBROOTFFTW} H3LPR_DIR=$1/soft/ \
-make -C $1 install -j 4
+ARCH_FILE=make_arch/make.default \
+    CC=${FLUPS_MPICC} CXX=${FLUPS_MPICXX} \
+    CXXFLAGS=${FLUPS_CXXFLAGS} CCFLAGS=${FLUPS_CCFLAGS} LDFLAGS=${FLUPS_LDFLAGS} \
+    HDF5_DIR=${HDF5_DIR} FFTW_DIR=${EBROOTFFTW} H3LPR_DIR=$1/soft/ \
+    make -C $1 install -j 4
 
 FILE1=libflups_a2a.a
 if test -f "$1/lib/$FILE1"; then
