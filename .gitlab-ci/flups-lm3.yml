@@ -36,7 +36,7 @@ compil lm3 :
     - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Flups"
     
     # Add the git config needed for h3lpr
-    - echo "Host github.com-h3lpr" >> ~/.ssh/config=
+    - echo "Host github.com-h3lpr" >> ~/.ssh/config
     - echo "  Hostname github.com"  >> ~/.ssh/config
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$H3LPR_SSHKEY")
