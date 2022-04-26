@@ -12,7 +12,7 @@ export FLUPS_LDFLAGS="-fopenmp -lstdc++"
 # Clone and compile google source test 
 git clone https://github.com/google/googletest.git $1/googletest/
 cd $1/googletest/
-cmake . -DCMAKE_INSTALL_PREFIX=$1/googletest-lib -D CMAKE_C_COMPILER=mpicc -D CMAKE_CXX_COMPILER=mpicxx
+cmake . -DCMAKE_INSTALL_PREFIX=$1/soft -D CMAKE_C_COMPILER=mpicc -D CMAKE_CXX_COMPILER=mpicxx
 make install -j
 cd $1 
 rm -rf /googletest;
@@ -23,15 +23,18 @@ rm -rf /googletest;
 # echo "GTEST_INC := $1/googletest-lib/include/" >> make_arch/make.lm3_gtest
 
 # Export the variables needed for the gtest library
-export FLUPS_GTEST_INC=$1/googletest-lib/include/
-export FLUPS_GTEST_LIB=$1/googletest-lib/lib64/
+export FLUPS_GTEST_INC=$1/soft/include/
+export FLUPS_GTEST_LIB=$1/soft/lib64/
 
+export FLUPS_H3LPR_INC=$1/soft/include/
+export FLUPS_H3LPR_LIB=$1/soft/lib/
 
 # Compile the tests 
 cd $1/test/
 CC=${FLUPS_MPICC} CXX=${FLUPS_MPICXX} \
     CXXFLAGS=${FLUPS_CXXFLAGS} CCFLAGS=${FLUPS_CCFLAGS} LDFLAGS=${FLUPS_LDFLAGS} \
-    HDF5_DIR=${HDF5_DIR} FFTW_DIR=${EBROOTFFTW} \
+    HDF5_DIR=${HDF5_DIR} FFTW_DIR=${EBROOTFFTW}  \
+    H3LPR_INC=${FLUPS_H3LPR_INC} H3LPR_LIB=${FLUPS_H3LPR_LIB} \
     GTEST_INC=${FLUPS_GTEST_INC} GTEST_LIB=${FLUPS_GTEST_LIB} \
     make -j 
 

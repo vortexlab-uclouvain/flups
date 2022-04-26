@@ -25,3 +25,7 @@ HDF5_INC := ${HDF5_DIR}/include
 ## Specify the location of Googletest library (by default, assumed to be /usr/lib/)
 GTEST_INC := /soft/googletest/include
 GTEST_LIB := /soft/googletest/lib
+
+## H3LPR
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/

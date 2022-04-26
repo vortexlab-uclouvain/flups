@@ -53,9 +53,11 @@ for bcx in BC1 :
 
              #Launching test
             if(bcz == ["9","9"]):
-                r = subprocess.run(["./flups_validation_nb"] +["--center"] + [str(centerType)] +["-res"] + ["8"] + ["8"] + ["1"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+                str_bc = str(bcx[0]) + "," +str(bcx[1]) + "," + str(bcy[0]) + "," + str(bcy[1]) + "," + str(bcz[0]) + "," + str(bcz[1]) 
+                r = subprocess.run(["./flups_validation_nb"] +["--center="+str(centerType)] + ["--res=8,8,1"] + ["--bc="+ str_bc], capture_output=True)
             else:
-                r = subprocess.run(["./flups_validation_nb"] + ["--center"] + [str(centerType)] +["-res"] + ["8"] + ["8"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+                str_bc = str(bcx[0]) + "," +str(bcx[1]) + "," + str(bcy[0]) + "," + str(bcy[1]) + "," + str(bcz[0]) + "," + str(bcz[1]) 
+                r = subprocess.run(["./flups_validation_nb"] + ["--center="+str(centerType)] + ["--res=8,8,8"]  + ["--bc=" + str_bc], capture_output=True)
             
             if r.returncode != 0 :
                 print("test %i  ( "%i + centername + " - BCs : " + code + ") failed with error code ",r.returncode)

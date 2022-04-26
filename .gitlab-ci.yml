@@ -27,6 +27,7 @@ default :
     - echo "  ProxyCommand ssh gwceci -W %h:%p 2> /dev/null" >> ~/.ssh/config
     # you could replace the ProxyCommand with ProxyJump but it's less supported so we keep the good old ProxyCommand
     # - echo "  ProxyJump $SSHUSER@gwceci.cism.ucl.ac.be" >> ~/.ssh/config
+    
     #--------------------------------------------------------------------------
     #register the key and the know_hosts for the coming calls
     - eval $(ssh-agent -s)
@@ -34,6 +35,8 @@ default :
     - echo $LM3KH >> ~/.ssh/known_hosts
     - echo $GWKH >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
+
+
     #--------------------------------------------------------------------------
     # verify that we have a key and everything needed
     - ssh-add -L
