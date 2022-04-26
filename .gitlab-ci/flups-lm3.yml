@@ -40,6 +40,7 @@ compil lm3 :
     - echo "  Hostname github.com"  >> ~/.ssh/config
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$H3LPR_SSHKEY")
+    - echo $H3LPRKH >> ~/.ssh/known_hosts
     - git clone git@github.com:van-Rees-Lab/h3lpr.git
     - tar -czf h3lpr_src.tar.gz --exclude=h3lpr/.git* h3lpr && du -sh h3lpr_src.tar.gz
     - scp h3lpr_src.tar.gz lm3:${PATH2BIN}_${TAG}
