@@ -7,11 +7,12 @@ export H3LPR_MPICXX=mpic++
 export H3LPR_MPICC=mpicc
 export H3LPR_CXXFLAGS="-O3 -g -ggdb -fopenmp -DCOLOR_PROF"
 export H3LPR_LDFLAGS="-fopenmp -lstdc++ -lm"
+export H3LPR_PREFIX="${1}/soft"
 
 cd $1 
 
 cd h3lpr
-PREFIX=$1/soft/ \
+PREFIX=${H3LPR_PREFIX} \
 CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
 CXXFLAGS=${H3LPR_CXXFLAGS} LDFLAGS=${H3LPR_LDFLAGS} \ 
 make install -j 
