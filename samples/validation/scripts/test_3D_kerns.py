@@ -28,15 +28,15 @@ else:
     centername = 'CellCenter'
 
 #List of combinations of some boundary conditions in 3 direction:
-BCs = [ ["4,","4,","4,","4,","4,","4"],
-        ["4,","4,","0,","4,","4,","4"],
-        ["4,","1,","1,","4,","4,","4"],
-        ["4,","1,","4,","4,","4,","4"],
-        ["4,","0,","1,","4,","4,","4"],
-        ["4,","0,","1,","4,","4,","1"],
-        ["3,","3,","3,","3,","3,","3"],
-        ["4,","0,","1,","4,","9,","9"],
-        ["3,","3,","3,","3,","9,","9"]]
+BCs = [ ["4","4","4","4","4","4"],
+        ["4","4","0","4","4","4"],
+        ["4","1","1","4","4","4"],
+        ["4","1","4","4","4","4"],
+        ["4","0","1","4","4","4"],
+        ["4","0","1","4","4","1"],
+        ["3","3","3","3","3","3"],
+        ["4","0","1","4","9","9"],
+        ["3","3","3","3","9","9"]]
 
 Kernels = ['0','1','2','3','4','5','6','7']
 
@@ -55,7 +55,7 @@ for bcs in BCs :
 
         code = ''.join(bcs)
 
-        if(kern == '7' and bcs == ["4,","0,","1,","4,","9,","9"] ) : 
+        if(kern == '7' and bcs == ["4","0","1","4","9","9"] ) : 
             print("skip kernel 7 and 2dirunbounded... unsupported error due to inherent approximation.")
             continue
 
@@ -63,11 +63,11 @@ for bcs in BCs :
         # if ((kern=='1' and (bcs==["4","4","4","4","4","4"] or bcs==["3","3","3","3","9","9"])) or (kern != '1') ):
             # Launching test
             #+ ["-oversubscribe"]
-        if(bcs[4:6] == ["9,","9"]):
-            str_bcs=str(bcs[0])+str(bcs[1])+str(bcs[2])+str(bcs[3])+str(bcs[4])+str(bcs[5]) 
+        if(bcs[4:6] == ["9","9"]):
+            str_bcs = str(bcs[0]) + "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + [" --np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + [" --res=16,16,1"] + [" --nres=1"] + [" --bc="+str_bcs], capture_output=True)
         else:
-            str_bcs=str(bcs[0])+str(bcs[1])+str(bcs[2])+str(bcs[3])+str(bcs[4])+str(bcs[5]) 
+            str_bcs = str(bcs[0])+ "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,16"] + ["--nres=1"] + ["--bc="+ str_bcs], capture_output=True)
         
         if r.returncode != 0 :
