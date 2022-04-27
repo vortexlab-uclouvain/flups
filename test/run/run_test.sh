@@ -3,7 +3,7 @@
 #SBATCH --job-name=flups_auto_test
 #SBATCH --time=2:30:00 # hh:mm:ss
 #
-#SBATCH --ntasks=8
+#SBATCH --ntasks=64
 #SBATCH --mem-per-cpu=4000 # megabytes 
 #SBATCH --partition=debug
 #
@@ -13,7 +13,7 @@
 BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
 SCRATCH=.
 
-EXEC=flups_test_nb
+#EXEC=flups_test_nb
 
 #------------------------------------------------------------------------------
 module purge
@@ -31,11 +31,7 @@ echo "    >looking here: ${BIN_DIR}/${EXEC}"
 echo "    > scratch dir = ${SCRATCH}"
 echo "--------------------------------------------------------------------"
 
-#create the scratch dir
-mkdir -p ${SCRATCH}
-
-# copy the exec in it
-cp -r ${BIN_DIR}/${EXEC} ${SCRATCH}
+#Go to the scratch dir
 cd ${SCRATCH}
 
 #------------------------------------------------------------------------------
