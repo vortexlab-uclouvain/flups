@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});
-    auto arg_nres   = parser.GetValues<int, 3>("--res", "the number of unknowns each direction", {32, 32, 32});
+    auto arg_nres   = parser.GetValues<int, 3>("--res", "the number of unknowns each direction", {16, 16, 16});
     auto arg_L = parser.GetValues<double, 3>("--dom", "the size of the domain each direction", {1., 1., 1.});
     auto arg_bc = parser.GetValues<int, 6>("--bc",
                                            "Bxl Bxr Byl Byr Bzl Bzr : the boundary conditions in x/y/z on each side l/r. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded", {4, 4, 4, 4, 4, 4});
