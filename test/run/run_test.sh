@@ -1,19 +1,14 @@
 #!/bin/bash
 # Submission script for Lemaitre3 
 #SBATCH --job-name=flups_auto_test
-#SBATCH --time=2:30:00 # hh:mm:ss
+#SBATCH --time=5:50:00 # hh:mm:ss
 #
 #SBATCH --ntasks=8
 #SBATCH --mem-per-cpu=4000 # megabytes 
-#SBATCH --partition=batch
+#SBATCH --partition=debug
 #
 #SBATCH --comment=flups
 #SBATCH --profile=all
-
-#BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
-#SCRATCH=.
-
-#EXEC=flups_test_nb
 
 #------------------------------------------------------------------------------
 module purge
@@ -29,9 +24,6 @@ echo "      WELCOME ON LM3!! "
 echo "    > running ${EXEC} "
 echo "    > command =m mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${TYPE}_$SLURM_JOB_ID"
 echo "--------------------------------------------------------------------"
-
-#Go to the scratch dir
-#cd ${SCRATCH}
 
 #------------------------------------------------------------------------------
 # run the simulation
