@@ -3,15 +3,15 @@
 #SBATCH --job-name=flups_auto_test
 #SBATCH --time=2:30:00 # hh:mm:ss
 #
-#SBATCH --ntasks=64
+#SBATCH --ntasks=8
 #SBATCH --mem-per-cpu=4000 # megabytes 
 #SBATCH --partition=batch
 #
 #SBATCH --comment=flups
 #SBATCH --profile=all
 
-BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
-SCRATCH=.
+#BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
+#SCRATCH=.
 
 #EXEC=flups_test_nb
 
@@ -26,13 +26,12 @@ module load CMake/3.18.4-GCCcore-10.2.0
 
 echo "--------------------------------------------------------------------"
 echo "      WELCOME ON LM3!! "
-echo "    > runing ${EXEC} "
-echo "    >looking here: ${BIN_DIR}/${EXEC}"
-echo "    > scratch dir = ${SCRATCH}"
+echo "    > running ${EXEC} "
+echo "    > command =m mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${TYPE}_$SLURM_JOB_ID"
 echo "--------------------------------------------------------------------"
 
 #Go to the scratch dir
-cd ${SCRATCH}
+#cd ${SCRATCH}
 
 #------------------------------------------------------------------------------
 # run the simulation
