@@ -65,10 +65,10 @@ for bcs in BCs :
             #+ ["-oversubscribe"]
         if(bcs[4:6] == ["9,","9"]):
             str_bcs=str(bcs[0])+str(bcs[1])+str(bcs[2])+str(bcs[3])+str(bcs[4])+str(bcs[5]) 
-            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + [" --np=1,2,1"] + ["--kernel="+str(kernel)] + ["--center=" + str(centerType)] + [" --res=16,16,1"] + [" --nres=1"] + [" --bc="+str_bcs], capture_output=True)
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + [" --np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + [" --res=16,16,1"] + [" --nres=1"] + [" --bc="+str_bcs], capture_output=True)
         else:
             str_bcs=str(bcs[0])+str(bcs[1])+str(bcs[2])+str(bcs[3])+str(bcs[4])+str(bcs[5]) 
-            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kernel)] + ["--center=" + str(centerType)] + ["--res=16,16,16"] + ["--nres=1"] + ["--bc="+ str_bcs], capture_output=True)
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,16"] + ["--nres=1"] + ["--bc="+ str_bcs], capture_output=True)
         
         if r.returncode != 0 :
             print("test %i ( "%i + centername + " - BCs : " + code + "with kernel "+kern+") failed with error code ",r.returncode)
