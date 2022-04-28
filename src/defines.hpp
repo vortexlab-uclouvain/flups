@@ -38,16 +38,9 @@
 #include "h3lpr/profiler.hpp"
 
 
-#ifndef COMM_DPREC
-#define FLUPS_MPI_AGGRESSIVE 1
-#else
-#define FLUPS_MPI_AGGRESSIVE 0
-#endif
-
 //=============================================================================
 // Debug
 //=============================================================================
-// #if DEBUG_ST
 #define FLUPS_print_data(topo, data)                                                                                                               \
     ({                                                                                                                                             \
         const int    ax0     = topo->axis();                                                                                                       \
@@ -69,7 +62,6 @@
             printf("\n");                                                                                                                          \
         }                                                                                                                                          \
     })
-// #endif
 
 //=============================================================================
 // WARNINGS

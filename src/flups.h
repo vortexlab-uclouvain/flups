@@ -43,9 +43,6 @@ extern "C"{
 #define MAX(a,b) a>b?a:b
 #endif
 
-#ifdef PB_DBG
-#define DEBUG_ST 1 
-#endif
 
 
 typedef struct Solver   FLUPS_Solver;
@@ -86,6 +83,15 @@ void* flups_malloc(size_t size);
  * @param data the data to be freed
  */
 void flups_free(void* data);
+
+
+/**
+ * @brief writes the file flups.info used for tracking of the results, bookkeeping etc
+ * 
+ * @param argc 
+ * @param argv 
+ */
+void flups_info(int argc, char** argv);
 
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory.

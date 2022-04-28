@@ -45,6 +45,51 @@ void flups_free(void* data){
     m_free(data);
 }
 
+
+/**
+ * @brief writes the file murphy.info used for tracking of the results, bookkeeping etc
+ */
+void flups_info(int argc, char** argv) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        std::string filename(argv[0]);
+        // remove the "./" that might be in it
+        filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end());
+        filename.erase(std::remove(filename.begin(), filename.end(), '/'), filename.end());
+        filename += ".info";
+        FILE* file = fopen(filename.c_str(), "w+");
+        fprintf(file, "FLUPS \n");
+        fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
+        fprintf(file, "- defines:\n");
+        fprintf(file, "\tFFTW_FLAG = %d\n", FFTW_FLAG);
+        fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
+#ifdef FLUPS_MPI_AGGRESSIVE
+        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
+#else
+        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? no\n");
+#endif
+#ifndef NDEBUG
+        fprintf(file, "\tNDEBUG ? no\n");
+#else
+        fprintf(file, "\tNDEBUG ? yes\n");
+#endif
+        fprintf(file, "- argument list:\n");
+        for (int i = 1; i < argc; ++i) {
+            fprintf(file, "\t%s\n", argv[i]);
+        }
+        fclose(file);
+    }
+    FLUPS_INFO("-------------------------------------------------------------------");
+    FLUPS_INFO("MURPHY - (c) MIT");
+#ifdef FLUPS_MPI_AGGRESSIVE
+    FLUPS_INFO("commit = %s - MPI aggressive", M_GIT_COMMIT);
+#else
+    FLUPS_INFO("commit = %s - MPI non-aggressive", M_GIT_COMMIT);
+#endif
+    FLUPS_INFO("-------------------------------------------------------------------");
+}
+
 //***********************************************************************
 // * TOPOLOGIES
 // **********************************************************************/
@@ -213,10 +258,6 @@ void flups_profiler_disp(H3LPR::Profiler* p) {
     m_profDisp(p);
 }
 
-// void flups_profiler_disp(H3LPR::Profiler* p, const char* name) {
-//     const std::string myname(name);
-//     p->Disp(myname);
-// }
 
 //**********************************************************************
 //  HDF5

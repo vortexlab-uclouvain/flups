@@ -33,6 +33,20 @@
 #else
 #define FFTW_FLAG FFTW_ESTIMATE
 #endif
+
+#ifndef COMM_DPREC
+#define FLUPS_MPI_AGGRESSIVE 1
+#else
+#define FLUPS_MPI_AGGRESSIVE 0
+#endif
+
+// register the current git commit for tracking purpose
+#ifdef GIT_COMMIT
+#define FLUPS_GIT_COMMIT GIT_COMMIT
+#else
+#define FLUPS_GIT_COMMIT "?"
+#endif
+
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS

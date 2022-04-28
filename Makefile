@@ -32,6 +32,8 @@ include $(ARCH_FILE)
 #-----------------------------------------------------------------------------
 # Do not show GNU makefile command and info 
 #.SILENT:
+# git commit
+GIT_COMMIT ?= $(shell git describe --always --dirty)
 
 PREFIX ?= ./
 NAME := flups
@@ -103,20 +105,24 @@ OBJ_DPREC_NB := $(SRC:%.cpp=$(OBJ_DIR)/dprec_nb_%.o)
 IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
+# mandatory flags
+M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
+
+################################################################################
 $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/dprec_nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/dprec_a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -E $< -o $@
 
 ################################################################################
 default: 

@@ -103,6 +103,7 @@ int main(int argc, char *argv[]) {
     
     //..........................................................................
     // Display
+    flups_info(argc, argv);
     if (rank == 0) {
         printf("I will run with:\n");
         printf("  --nprocs: %d,%d,%d\n", arg_nprocs[0], arg_nprocs[1], arg_nprocs[2]);
