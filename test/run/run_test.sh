@@ -13,10 +13,11 @@
 #------------------------------------------------------------------------------
 module purge
 
-module load OpenMPI/4.0.5-GCC-10.2.0
-module load FFTW/3.3.8-gompi-2020b
-module load HDF5/1.10.7-gompi-2020b
-module load CMake/3.18.4-GCCcore-10.2.0
+module load releases/2021b
+module load OpenMPI/4.1.2-GCC-11.2.0
+module load FFTW/3.3.10-gompi-2021b
+module load HDF5/1.12.1-gompi-2021b
+module load CMake/3.21.1-GCCcore-11.2.0
 #------------------------------------------------------------------------------
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
