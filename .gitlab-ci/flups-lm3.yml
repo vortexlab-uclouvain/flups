@@ -70,7 +70,7 @@ compil lm3 :
     # Compilation of the tests
     # Compile the Google test librairies
     - echo -e "\e[0Ksection_start:`date +%s`:my_third_section[collapsed=true]\r\e[0KCompilation of Google tests"
-    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG}
+    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG} ${LIBDIR}
     - echo -e "\e[0Ksection_end:`date +%s`:my_third_section\r\e[0K"
     
     #Download the artifacts
