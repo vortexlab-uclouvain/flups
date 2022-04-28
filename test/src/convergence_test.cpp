@@ -49,7 +49,7 @@ class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterTyp
                                                                 std::array<FLUPS_BoundaryType,2> > >{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {2, 2, 2};
+    const int    nproc_[3]  = {2, 2, 4};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
