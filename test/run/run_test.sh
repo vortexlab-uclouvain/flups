@@ -19,6 +19,8 @@ module load HDF5/1.10.7-gompi-2020b
 module load CMake/3.18.4-GCCcore-10.2.0
 #------------------------------------------------------------------------------
 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
+
 echo "--------------------------------------------------------------------"
 echo "      WELCOME ON LM3!! "
 echo "    > running ${EXEC} "

@@ -59,7 +59,7 @@ compil lm3 :
     #-----------------------------------------------------
     # Compilation of all the libraries
     # Go on lm3 and Compile all the librairies
-    - ssh lm3 "${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh" #make the executable, and test if the file was created
+    - ssh lm3 "${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${LIBDIR}" #make the executable, and test if the file was created
     - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
     
     # Download the artifacts
@@ -70,7 +70,7 @@ compil lm3 :
     # Compilation of the tests
     # Compile the Google test librairies
     - echo -e "\e[0Ksection_start:`date +%s`:my_third_section[collapsed=true]\r\e[0KCompilation of Google tests"
-    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG} ${PATH2BIN}_${TAG}/scripts/flups_loadmodule_lm3.sh
+    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG}
     - echo -e "\e[0Ksection_end:`date +%s`:my_third_section\r\e[0K"
     
     #Download the artifacts
@@ -100,16 +100,16 @@ run lm3:
     - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - >
       ssh lm3 "cd ${PATH2RUN}/ &&
-      sbatch --export=REPORT='xml:node_nb_report.xml',TYPE='NODE_NB',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh "
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_nb_report.xml',TYPE='NODE_NB',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh "
     - >
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=REPORT='xml:node_a2a_report.xml',TYPE='NODE_A2A',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_a2a_report.xml',TYPE='NODE_A2A',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=REPORT='xml:cell_nb_report.xml',TYPE='CELL_NB',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_nb_report.xml',TYPE='CELL_NB',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh" 
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=REPORT='xml:cell_a2a_report.xml',TYPE='CELL_A2A',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_a2a_report.xml',TYPE='CELL_A2A',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
 
 
 
