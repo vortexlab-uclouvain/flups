@@ -1,6 +1,7 @@
 #!/bin/bash
-source ./scripts/flups_loadmodule_lm3.sh
+cd $1 
 
+source $1/scripts/flups_loadmodule_lm3.sh
 
 ## Download and compile h3lpr
 export H3LPR_MPICXX=mpic++
@@ -8,8 +9,6 @@ export H3LPR_MPICC=mpicc
 export H3LPR_CXXFLAGS="-O3 -g -ggdb -fopenmp -DCOLOR_PROF"
 export H3LPR_LDFLAGS="-fopenmp -lstdc++ -lm"
 export H3LPR_PREFIX="${2}"
-
-cd $1 
 
 cd h3lpr
 CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
