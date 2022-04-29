@@ -100,16 +100,16 @@ run lm3:
     - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - >
       ssh lm3 "cd ${PATH2RUN}/ &&
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_nb_report.xml',TYPE='NODE_NB',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh "
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_high_report.xml',TYPE='NODE_NB',TESTS='NodeHighOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh "
     - >
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_a2a_report.xml',TYPE='NODE_A2A',TESTS='NodeValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_loworder_report.xml',TYPE='NODE_A2A',TESTS='NodeLowOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_nb_report.xml',TYPE='CELL_NB',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_highorder_report.xml',TYPE='CELL_NB',TESTS='CellHighOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh" 
     - > 
       ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_a2a_report.xml',TYPE='CELL_A2A',TESTS='CellValidation/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
+      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_loworder_report.xml',TYPE='CELL_A2A',TESTS='CellLowOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
 
 
 

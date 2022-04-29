@@ -7,7 +7,6 @@
 #include "analytical_field.hpp"
 
 #define ZERO_TOL 1000.0 * std::numeric_limits<double>::epsilon() 
-#define N_TEST 128
 
 // Specific log function for the test library 
 #define test_log(format, ...)                              \
@@ -43,16 +42,17 @@ static const std::string  kname[8]   = {"CHAT_2", "LGF_2", "HEJ_2", "HEJ_4", "HE
  * However, the function to compute the number of points must be overwritten
  * 
  */
-class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterType, FLUPS_GreenType,
+class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterType, int, FLUPS_GreenType,
                                                                 std::array<FLUPS_BoundaryType,2>, 
                                                                 std::array<FLUPS_BoundaryType,2>, 
                                                                 std::array<FLUPS_BoundaryType,2> > >{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {2, 4, 4};
+    const int    nproc_[3]  = {2, 2, 4};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
+    int N_test_; 
     FLUPS_BoundaryType *mybc_[3][2];
     FLUPS_GreenType green_;
     FLUPS_CenterType center_type_[3];
@@ -67,8 +67,12 @@ protected:
         shift_ = (std::get<0>(GetParam()) == CELL_CENTER) ? 0.5 : 0.0;
 
         //..........................................
+        // Resolution
+        N_test_ = std::get<1>(GetParam());
+
+        //..........................................
         // Kernel 
-        green_ = std::get<1>(GetParam());
+        green_ = std::get<2>(GetParam());
         
         //..........................................
         // Boundary conditions
@@ -78,16 +82,16 @@ protected:
             }
         }
         // x boundary condition
-        *(mybc_[0][0]) = std::get<2>(GetParam())[0];
-        *(mybc_[0][1]) = std::get<2>(GetParam())[1];
+        *(mybc_[0][0]) = std::get<3>(GetParam())[0];
+        *(mybc_[0][1]) = std::get<3>(GetParam())[1];
         
         // y boundary condition
-        *(mybc_[1][0]) = std::get<3>(GetParam())[0];
-        *(mybc_[1][1]) = std::get<3>(GetParam())[1];
+        *(mybc_[1][0]) = std::get<4>(GetParam())[0];
+        *(mybc_[1][1]) = std::get<4>(GetParam())[1];
         
         // z boundary condition
-        *(mybc_[2][0]) = std::get<4>(GetParam())[0];
-        *(mybc_[2][1]) = std::get<4>(GetParam())[1];
+        *(mybc_[2][0]) = std::get<5>(GetParam())[0];
+        *(mybc_[2][1]) = std::get<5>(GetParam())[1];
 
         //..........................................
         test_log("===========================================================");
@@ -132,7 +136,7 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         //  Definition of the problem
         int nglob[3]; double h[3];
         for (int dir = 0; dir < 3; dir++) {
-            nglob[dir] = (i+1) * N_TEST + (NODE_CENTER == center_type_[0]);                  // Need to have an additional data if we have node-centred data
+            nglob[dir] = (i+1) * N_test_ + (NODE_CENTER == center_type_[0]);                  // Need to have an additional data if we have node-centred data
             h[dir] = L_[dir] / (nglob[dir] - (NODE_CENTER == center_type_[0])); 
          }
         
@@ -238,20 +242,40 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     //--------------------------------------------------------------------
 }
 
+//...........................................................................................................................................................
 // Instantiate the test for cell-centred data
-INSTANTIATE_TEST_SUITE_P(CellValidation,
+INSTANTIATE_TEST_SUITE_P(CellLowOrder,
                          ConvergenceTest,
-                         testing::Combine(testing::Values(CELL_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10,HEJ_0),
+                         testing::Combine(testing::Values(CELL_CENTER), testing::Values(64), 
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
 
-// Instantiate the test for node-centred data
-INSTANTIATE_TEST_SUITE_P(NodeValidation,
+
+INSTANTIATE_TEST_SUITE_P(CellHighOrder,
                          ConvergenceTest,
-                         testing::Combine(testing::Values(NODE_CENTER),
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10,HEJ_0),
+                         testing::Combine(testing::Values(CELL_CENTER), testing::Values(128),
+                                          testing::Values(HEJ_6, HEJ_8, HEJ_10, HEJ_0),
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
+
+
+//...........................................................................................................................................................
+// Instantiate the test for node-centred data
+INSTANTIATE_TEST_SUITE_P(NodeLowOrder,
+                         ConvergenceTest,
+                         testing::Combine(testing::Values(NODE_CENTER), testing::Values(64),
+                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4),
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
+
+INSTANTIATE_TEST_SUITE_P(NodeHighOrder,
+                         ConvergenceTest,
+                         testing::Combine(testing::Values(NODE_CENTER), testing::Values(128),
+                                          testing::Values(HEJ_6, HEJ_8, HEJ_10, HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
