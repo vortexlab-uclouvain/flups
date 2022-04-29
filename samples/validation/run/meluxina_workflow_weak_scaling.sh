@@ -2,8 +2,8 @@
 
 ## ID of the submission -- Needed to differentiate the submissions 
 SUBMISSION_NAME=weak_scal_test
-CODE_VERSION='a2a nb dprec_a2a dprec_nb'
-# CODE_VERSION='nb'
+#CODE_VERSION='a2a nb dprec_a2a dprec_nb'
+CODE_VERSION='dprec_nb'
 
 ## Definition of the directories 
 SCRATCH_DIR=/project/scratch/p200053/${SUBMISSION_NAME}  
@@ -57,7 +57,7 @@ do
     export L_X=$(echo "$(( ($i) ))")
 	  
     # -------------------------------------------
-    # All 2 All 
+    # Loop on the provided version 
     # -------------------------------------------
     for version in ${CODE_VERSION}
     do 
