@@ -83,9 +83,9 @@ void flups_info(int argc, char** argv) {
     FLUPS_INFO("-------------------------------------------------------------------");
     FLUPS_INFO("MURPHY - (c) MIT");
 #ifdef FLUPS_MPI_AGGRESSIVE
-    FLUPS_INFO("commit = %s - MPI aggressive", M_GIT_COMMIT);
+    FLUPS_INFO("commit = %s - MPI aggressive", FLUPS_GIT_COMMIT);
 #else
-    FLUPS_INFO("commit = %s - MPI non-aggressive", M_GIT_COMMIT);
+    FLUPS_INFO("commit = %s - MPI non-aggressive", FLUPS_GIT_COMMIT);
 #endif
     FLUPS_INFO("-------------------------------------------------------------------");
 }
