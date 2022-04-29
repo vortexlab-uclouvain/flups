@@ -3,7 +3,7 @@
 #SBATCH --job-name=flups_auto_test
 #SBATCH --time=5:50:00 # hh:mm:ss
 #
-#SBATCH --ntasks=16
+#SBATCH --ntasks=32
 #SBATCH --mem-per-cpu=4000 # megabytes 
 #SBATCH --partition=debug
 #
