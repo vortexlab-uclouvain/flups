@@ -239,6 +239,8 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         test_log(" The choosen kernel is %s has an order of %2.0f. You obtained a convergence of %2.3f", kname[(int)green_].c_str(), expected_order, computed_order);
         ASSERT_GE(computed_order, 0.9*expected_order);
     }
+
+    test_log("Tests are over ");
     //--------------------------------------------------------------------
 }
 
