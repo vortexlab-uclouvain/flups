@@ -97,19 +97,9 @@ run lm3:
     - ssh lm3 mkdir -p ${PATH2RUN}/
     - scp flups_test_nb lm3:${PATH2RUN}/  
     - scp flups_test_a2a lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
-    - scp -r test/run/run_test.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
-    - >
-      ssh lm3 "cd ${PATH2RUN}/ &&
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_highorder_report.xml',TYPE='NODE_HighOrder',TESTS='NodeHighOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh "
-    - >
-      ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:node_loworder_report.xml',TYPE='NODE_LowOrder',TESTS='NodeLowOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
-    - > 
-      ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_highorder_report.xml',TYPE='CELL_HighOrder',TESTS='CellHighOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_nb' run_test.sh" 
-    - > 
-      ssh lm3 "cd ${PATH2RUN}/ && 
-      sbatch --export=LIBPATH=${LIBDIR},REPORT='xml:cell_loworder_report.xml',TYPE='CELL_LowOrder',TESTS='CellLowOrder/ConvergenceTest.AllBoundaryConditions',EXEC='flups_test_a2a' run_test.sh" 
+    - scp -r test/run/test_run.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - scp -r test/run/test_workflow.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - ssh lm3 "cd ${PATH2RUN}/ && ./test_workflow.sh ${LIBDIR}"
 
 
 
@@ -127,16 +117,42 @@ check result lm3:
   
   artifacts: 
     paths: 
-      - node_highorder_report.xml
-      - node_loworder_report.xml
-      - cell_highorder_report.xml
-      - cell_loworder_report.xml
+      - Node_CHAT2_report.xml
+      - Node_LGF2_report.xml
+      - Node_HEJ2_report.xml
+      - Node_HEJ4_report.xml
+      - Node_HEJ6_report.xml
+      - Node_HEJ8_report.xml
+      - Node_HEJ10_report.xml
+      - Node_HEJ0_report.xml
+      - Cell_CHAT2_report.xml
+      - Cell_LGF2_report.xml
+      - Cell_HEJ2_report.xml
+      - Cell_HEJ4_report.xml
+      - Cell_HEJ6_report.xml
+      - Cell_HEJ8_report.xml
+      - Cell_HEJ10_report.xml
+      - Cell_HEJ0_report.xml
+
     reports:
         junit: 
-          - node_highorder_report.xml
-          - node_loworder_report.xml
-          - cell_highorder_report.xml
-          - cell_loworder_report.xml
+          - Node_CHAT2_report.xml
+          - Node_LGF2_report.xml
+          - Node_HEJ2_report.xml
+          - Node_HEJ4_report.xml
+          - Node_HEJ6_report.xml
+          - Node_HEJ8_report.xml
+          - Node_HEJ10_report.xml
+          - Node_HEJ0_report.xml
+          - Cell_CHAT2_report.xml
+          - Cell_LGF2_report.xml
+          - Cell_HEJ2_report.xml
+          - Cell_HEJ4_report.xml
+          - Cell_HEJ6_report.xml
+          - Cell_HEJ8_report.xml
+          - Cell_HEJ10_report.xml
+          - Cell_HEJ0_report.xml
+
     when: always
   needs: [run lm3]
   dependencies:
@@ -145,15 +161,13 @@ check result lm3:
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_LowOrder_*") ]]; then echo "The low order node test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/NODE_HighOrder_*") ]]; then echo "The high order node test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_LowOrder_*") ]]; then echo "The low order cell test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/CELL_HighOrder_*") ]]; then echo "The high order cell test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/Node_*") ]]; then echo "At least one of the node test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/Cell_*") ]]; then echo "At least one of the cell test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f node_highorder_report.xml && if [[ $(grep "<failure" node_highorder_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
-    - test -f node_loworder_report.xml && if [[ $(grep "<failure" node_loworder_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
-    - test -f cell_highorder_report.xml && if [[ $(grep "<failure" cell_highorder_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
-    - test -f cell_loworder_report.xml && if [[ $(grep "<failure" cell_loworder_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - if [[ $(grep "<failure" Node_*.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    # - test -f node_loworder_report.xml && if [[ $(grep "<failure" node_loworder_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    # - test -f cell_highorder_report.xml && if [[ $(grep "<failure" cell_highorder_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - if [[ $(grep "<failure" Cell_*.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
     # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
 
   retry:                              # Retry -- Relaunch the Job

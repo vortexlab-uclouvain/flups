@@ -1,7 +1,7 @@
 #!/bin/bash
 # Submission script for Lemaitre3 
 #SBATCH --job-name=flups_auto_test
-#SBATCH --time=5:50:00 # hh:mm:ss
+#SBATCH --time=2:30:00 # hh:mm:ss
 #
 #SBATCH --ntasks=16
 #SBATCH --mem-per-cpu=4000 # megabytes 
@@ -25,9 +25,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
 echo "--------------------------------------------------------------------"
 echo "      WELCOME ON LM3!! "
 echo "    > running ${EXEC} "
-echo "    > command =m mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${TYPE}_$SLURM_JOB_ID"
+echo "    > command = mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID"
 echo "--------------------------------------------------------------------"
 
 #------------------------------------------------------------------------------
 # run the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${TYPE}_$SLURM_JOB_ID
+mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID
