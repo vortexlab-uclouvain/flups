@@ -33,18 +33,67 @@
 #include "green_functions.hpp"
 #include "hdf5_io.hpp"
 
+#if (FLUPS_MPI_AGGRESSIVE)
+#include "SwitchTopoX_nb.hpp"
+#include "SwitchTopoX_a2a.hpp"
+#else
 #include "SwitchTopo.hpp"
 #include "SwitchTopo_a2a.hpp"
 #include "SwitchTopo_nb.hpp"
+#endif
 
-#include "Profiler.hpp"
 #include "omp.h"
 
 #ifdef HAVE_METIS
 #include "metis.h"
 #endif
 
-using namespace std;
+// using namespace std;
+
+/**
+ * @brief smartly determines in which order the FFTs will be executed
+ * 
+ * @param plan the list of plan, which will be reordered
+ */
+static int sort_plans(FFTW_plan_dim *plan[3]) {
+    BEGIN_FUNC;
+    int id_min, val_min = INT_MAX;
+    int priority[3];
+    for (int id = 0; id < 3; id++) {
+        priority[id] = plan[id]->type();
+        if (priority[id] < val_min) {
+            id_min  = id;
+            val_min = priority[id];
+        }
+    }
+    if (id_min == 0) {
+        if (priority[1] > priority[2]) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
+        }
+    } else {
+        // do the sort by hand...
+        int            temp_priority = priority[id_min];
+        FFTW_plan_dim *temp_plan     = plan[id_min];
+        plan[id_min]                 = plan[0];
+        plan[0]                      = temp_plan;
+        priority[id_min]             = priority[0];
+        priority[0]                  = temp_priority;
+
+        // printf("priority now = %d %d %d -> idim = %d",plan[0]->type(), plan[1]->type(),plan[2]->type());
+
+        if (priority[1] > priority[2]) {
+            FFTW_plan_dim *temp_plan = plan[2];
+            plan[2]                  = plan[1];
+            plan[1]                  = temp_plan;
+        }
+    }
+
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
+    END_FUNC;
+    return id_min;
+}
 
 /**
  * @brief The Poisson solver
@@ -59,36 +108,43 @@ using namespace std;
  * The memory alignement follows the rules explained on the mainpage.
  * Yet, a transposition of the data is required to perfom the transfroms in the correct order.
  * For an element (ix,iy,iz) its tranposed location is computed as\code{.cpp}
- * const size_t id_transposed = iz*_dim_multfact[2] + iy*_dim_multfact[1] + ix*_dim_multfact[0] + _offset;
+ * const size_t id_transposed = iz*dim_multfact_[2] + iy*dim_multfact_[1] + ix*dim_multfact_[0] + offset_;
  * \endcode
  *  
  * 
  */
 class Solver {
    protected:
-    int            _lda           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
-    int            _ndim          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int            _fftwalignment = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    FLUPS_DiffType _odiff         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
-    double         _normfact      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double         _volfact       = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double         _hgrid[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double*        _data          = NULL;  /**< @brief data pointer to the transposed memory */
+    int            lda_           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
+    int            ndim_          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
+    int            fftwalignment_ = 0;     /**< @brief alignement assumed by the FFTW Solver  */
+    DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    double         normfact_      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
+    double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
+    double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
+    double*        data_          = NULL;  /**< @brief data pointer to the transposed memory */
+    
 
     /**
      * @name Forward and backward 
      * transforms related objects
      */
     /**@{ */
-    FFTW_plan_dim* _plan_forward[3];       /**< @brief map containing the plans for the forward fft transforms */
-    FFTW_plan_dim* _plan_backward[3];      /**< @brief map containing the plans for the backward fft transforms */
-    FFTW_plan_dim* _plan_backward_diff[3]; /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* plan_forward_[3];       /**< @brief map containing the plans for the forward fft transforms */
+    FFTW_plan_dim* plan_backward_[3];      /**< @brief map containing the plans for the backward fft transforms */
+    FFTW_plan_dim* plan_backward_diff_[3]; /**< @brief map containing the plans for the backward fft transforms */
 
-    Topology*      _topo_phys     = NULL;
-    Topology*      _topo_hat[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
-    SwitchTopo*    _switchtopo[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
-    opt_double_ptr _sendBuf       = NULL;               /**<@brief The send buffer for _switchtopo */
-    opt_double_ptr _recvBuf       = NULL;               /**<@brief The recv buffer for _switchtopo */
+    Topology*      topo_phys_     = NULL;
+    Topology*      topo_hat_[3]   = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
+
+#if (FLUPS_MPI_AGGRESSIVE)
+    SwitchTopoX*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+#else    
+    SwitchTopo*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
+#endif    
+
+    opt_double_ptr sendBuf_       = NULL;               /**<@brief The send buffer for switchtopo_ */
+    opt_double_ptr recvBuf_       = NULL;               /**<@brief The recv buffer for switchtopo_ */
     /**@} */
 
     /**
@@ -96,17 +152,22 @@ class Solver {
      * 
      */
     /**@{ */
-    double    _alphaGreen = 2.0;    /**< @brief regularization parameter for HEJ_* Green's functions */
-    double*   _green      = NULL;   /**< @brief data pointer to the transposed memory for Green */
-    GreenType _typeGreen  = CHAT_2; /**< @brief the type of Green's function */
+    double    alphaGreen_ = 2.0;    /**< @brief regularization parameter for HEJ_* Green's functions */
+    double*   green_      = NULL;   /**< @brief data pointer to the transposed memory for Green */
+    GreenType typeGreen_  = CHAT_2; /**< @brief the type of Green's function */
 
-    FFTW_plan_dim* _plan_green[3];                            /**< @brief map containing the plan for the Green's function */
-    Topology*      _topo_green[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
-    SwitchTopo*    _switchtopo_green[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+    FFTW_plan_dim* plan_green_[3];                            /**< @brief map containing the plan for the Green's function */
+    Topology*      topo_green_[3]       = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
+
+#if (FLUPS_MPI_AGGRESSIVE)
+    SwitchTopoX*    switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+#else
+    SwitchTopo*    switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
+#endif
     /**@} */
 
     // time the solve
-    Profiler* _prof = NULL;
+    H3LPR::Profiler* prof_ = NULL;
 
    protected:
     /**
@@ -114,9 +175,13 @@ class Solver {
      * 
      * @{
      */
-    void _allocate_data(const Topology *const topo[3], const Topology *topo_phys, double **data);
-    void _delete_switchtopos(SwitchTopo* switchtopo[3]);
-    void _delete_topologies(Topology* topo[3]);
+    void allocate_data_(const Topology *const topo[3], const Topology *topo_phys, double **data);
+#if (FLUPS_MPI_AGGRESSIVE)
+    void delete_switchtopos_(SwitchTopoX* switchtopo[3]);
+#else
+    void delete_switchtopos_(SwitchTopo* switchtopo[3]);
+#endif
+    void delete_topologies_(Topology* topo[3]);
     /**@}  */
 
     /**
@@ -124,10 +189,13 @@ class Solver {
      * 
      * @{
      */
-    void _sort_plans(FFTW_plan_dim* plan[3]);
-    void _init_plansAndTopos(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
-    void _allocate_plans(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
-    void _delete_plans(FFTW_plan_dim* planmap[3]);
+#if (FLUPS_MPI_AGGRESSIVE)
+    void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopoX* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
+#else
+    void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
+#endif
+    void allocate_plans_(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
+    void delete_plans_(FFTW_plan_dim* planmap[3]);
     /**@} */
 
     /**
@@ -135,9 +203,14 @@ class Solver {
      * 
      * @{
      */
-    void _allocate_switchTopo(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
-    void _deallocate_switchTopo(SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
-    void _reorder_metis(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order);
+#if (FLUPS_MPI_AGGRESSIVE)
+    void allocate_switchTopo_(const int ntopo, SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
+    void deallocate_switchTopo_(SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    
+#else    
+    void allocate_switchTopo_(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
+    void deallocate_switchTopo_(SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    
+#endif
+    void reorder_metis_(MPI_Comm comm, int *sources, int *sourcesW, int *dests, int *destsW, int *order);
     /**@} */
 
     /**
@@ -158,14 +231,14 @@ class Solver {
      * 
      * @{
      */
-    void _cmptGreenFunction(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
-    void _cmptGreenSymmetry(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
-    void _scaleGreenFunction(const Topology* topo, double* data, bool killModeZero);
-    void _finalizeGreenFunction(Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* planmap[3]);
+    void cmptGreenFunction_(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
+    void cmptGreenSymmetry_(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
+    void scaleGreenFunction_(const Topology* topo, double* data, bool killModeZero);
+    void finalizeGreenFunction_(Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* planmap[3]);
     /**@} */
 
    public:
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
     ~Solver();
 
     double* setup(const bool changeTopoComm);
@@ -180,8 +253,8 @@ class Solver {
      */
     size_t get_allocSize() {
         size_t size_tot = 1;
-        for (int id = 0; id < _ndim; id++) {
-            size_tot = std::max(_topo_hat[id]->memsize(), size_tot);
+        for (int id = 0; id < ndim_; id++) {
+            size_tot = std::max(topo_hat_[id]->memsize(), size_tot);
         }
         return size_tot;
     };
@@ -195,10 +268,10 @@ class Solver {
      */
     void get_spectralInfo(double kfact[3], double koffset[3], double symstart[3]) {
         for (int ip = 0; ip < 3; ip++) {
-            const int dimID = _plan_forward[ip]->dimID();
-            kfact[dimID]    = _plan_forward[ip]->kfact();
-            symstart[dimID] = _plan_forward[ip]->symstart();
-            koffset[dimID]  = _plan_forward[ip]->koffset();
+            const int dimID = plan_forward_[ip]->dimID();
+            kfact[dimID]    = plan_forward_[ip]->kfact();
+            symstart[dimID] = plan_forward_[ip]->symstart();
+            koffset[dimID]  = plan_forward_[ip]->koffset();
         }
     }
 
@@ -207,7 +280,7 @@ class Solver {
      * 
      * @{
      */
-    void solve(double *field, double *rhs,const FLUPS_SolverType type);
+    void solve(double *field, double *rhs,const SolverType type);
     /**@} */
 
     /**
@@ -217,7 +290,7 @@ class Solver {
      */
     void do_copy(const Topology *topo, double *data, const int sign );
     void do_FFT(double *data, const int sign);
-    void do_mult(double *data,const FLUPS_SolverType type);
+    void do_mult(double *data,const SolverType type);
     /**@} */
 
     /**
@@ -225,8 +298,8 @@ class Solver {
      * 
      * @{
      */
-    void set_GreenType(const GreenType type) { _typeGreen = type; }
-    void set_alpha(const double alpha) { _alphaGreen = alpha; }
+    void set_GreenType(const GreenType type) { typeGreen_ = type; }
+    void set_alpha(const double alpha) { alphaGreen_ = alpha; }
     /**@} */
 };
 
@@ -272,10 +345,10 @@ class Solver {
 
 //     FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
 //     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
-//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 //     }
 //     if(comm_size>8 && (n1==1||n2==1)){
-//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
 //         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
 //         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
 //         //We could prevent this to happen by doing something like:
@@ -310,10 +383,10 @@ static inline void pencil_nproc_hint(const int id, int nproc[3], const int comm_
     nproc[id_hint]  = comm_size / nproc[sharedID];
 
     FLUPS_INFO("My proc repartition in this topo is %d %d %d",nproc[0],nproc[1],nproc[2]);
-    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0] * nproc[1] * nproc[2] == comm_size, "the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
 
     if(comm_size>8 && (nproc[sharedID]==1||nproc[id_hint]==1)){
-        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id, LOCATION);
+        FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
     }
 }
 

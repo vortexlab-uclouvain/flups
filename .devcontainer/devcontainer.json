@@ -7,7 +7,7 @@
 	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 	// "dockerFile": "docker/Dockerfile",
 	// Rather use an image from DockerHub, first download it or build it
-	"image": "immc/flups-valid:v0.4",
+	"image": "vanreeslab/flups:v1.0",
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"terminal.integrated.shell.linux": null
@@ -15,7 +15,9 @@
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
 		"ms-vscode.cpptools",
-		"cschlosser.doxdocgen"
+		"cschlosser.doxdocgen",
+		"notskm.clang-tidy",
+		"vadimcn.vscode-lldb"
 	]
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],

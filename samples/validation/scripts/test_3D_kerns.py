@@ -1,8 +1,33 @@
 import subprocess
+import sys
 from check_res import check_res
 
-#List of combinations of some boundary conditions in 3 direction:
+## Check which type of center you try to test
+try:
+    arg = sys.argv[1]
+except IndexError:
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You didn't choose any center type. ")
+    print("By default, we will test Cell centered data")
+    arg = 1
 
+
+if(int(arg) == 0):
+    print("We will test Node centered data")
+    centerType = int(arg)
+    centername = 'NodeCenter'
+elif(int(arg) == 1): 
+    print("We will test Cell centered data")
+    centerType = int(arg)
+    centername = 'CellCenter'
+else: 
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You choose a center type which is not supported. ")
+    print("By default, we will test Cell centered data")
+    centerType = 1
+    centername = 'CellCenter'
+
+#List of combinations of some boundary conditions in 3 direction:
 BCs = [ ["4","4","4","4","4","4"],
         ["4","4","0","4","4","4"],
         ["4","1","1","4","4","4"],
@@ -39,12 +64,14 @@ for bcs in BCs :
             # Launching test
             #+ ["-oversubscribe"]
         if(bcs[4:6] == ["9","9"]):
-            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["1"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+            str_bcs = str(bcs[0]) + "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,1"] + ["--nres=1"] + ["--bc="+str_bcs], capture_output=True)
         else:
-            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["-np"] + ["1"] + ["2"] + ["1"] + ["-k"] + [kern] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-nres"] + ["1"] + ["-bc"] + bcs, capture_output=True)
+            str_bcs = str(bcs[0])+ "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
+            r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,16"] + ["--nres=1"] + ["--bc="+ str_bcs], capture_output=True)
         
         if r.returncode != 0 :
-            print("test %i (BCs : "%i + code + "with kernel "+kern+") failed with error code ",r.returncode)
+            print("test %i ( "%i + centername + " - BCs : " + code + "with kernel "+kern+") failed with error code ",r.returncode)
             print("=================================== STDOUT =============================================" )
             print(r.stdout.decode())
             print("=================================== STDERR =============================================" )
@@ -54,13 +81,14 @@ for bcs in BCs :
             continue
 
         #Checking for exactness of results
-        n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen='+ kern +'.txt')
+        print('validation_3d_' + centername + '_' +code+'_typeGreen='+ kern +'.txt')
+        n_mistake = check_res(i,'validation_3d_' + centername + '_' +code+'_typeGreen='+ kern +'.txt')
 
         if n_mistake==0:
-            print("test %i (BCs : "%i + code + " and k="+ kern+ ") succeeded")
+            print("test %i ( "%i + centername + " - BCs : " + code + " and k="+ kern+ ") succeeded")
             n_success += 1    
         else:
-            print("test %i (BCs : "%i + code + " and k="+ kern+ ") failed with wrong values.")
+            print("test %i ( "%i + centername + " - BCs : " + code + " and k="+ kern+ ") failed with wrong values.")
             print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n")
             n_failure += 1
         # else:

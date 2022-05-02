@@ -37,9 +37,15 @@ int main(int argc, char *argv[]) {
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
-    FLUPS_BoundaryType mybc[3][2] = {PER, PER,
-                                            PER, PER,
-                                            PER, PER};
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+
+    FLUPS_BoundaryType* mybc[3][2];
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            mybc[id][is][0] = PER;
+        }
+    }
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2]){
         printf("Invalid number of procs\n");
@@ -58,7 +64,7 @@ int main(int argc, char *argv[]) {
 
     
     // solver creation and init
-    FLUPS_Solver *mysolver = flups_init(topoIn, &mybc, h, L, NONE);
+    FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L, NOD, center_type);
     flups_set_greenType(mysolver,CHAT_2);
     double* solFLU = flups_setup(mysolver, true);
 
@@ -216,6 +222,13 @@ int main(int argc, char *argv[]) {
     flups_topo_free(topoIn);
     flups_topo_free(topoSpec);
     flups_cleanup(mysolver);
+
+    for(int id=0; id<3; id++){
+        for(int is=0; is<2; is++){
+            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
+            flups_free(mybc[id][is]);
+        }
+    }
     
     MPI_Finalize();
 }

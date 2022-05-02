@@ -46,6 +46,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
         for(int is=0; is<2; is++){
@@ -70,7 +72,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L, order, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, order, center_type, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -321,9 +323,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         flups_solve(mysolver, field, rhs, ROT);
     }
 
-#ifdef PROF
-    flups_profiler_disp(prof, "solve");
-#endif
+
+    flups_profiler_disp(prof);
     flups_profiler_free(prof);
 
 #ifdef DUMP_DBG

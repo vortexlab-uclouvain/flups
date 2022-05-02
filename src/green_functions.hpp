@@ -46,7 +46,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
  * @param [out] data the data where we store the 
  */
-static void _lgf_readfile(const int greendim, int* N, double** data) {
+static void lgf_readfile_(const int greendim, int* N, double** data) {
     BEGIN_FUNC;
 
     // some defined parameters:
@@ -59,7 +59,7 @@ static void _lgf_readfile(const int greendim, int* N, double** data) {
         (*N) = 32;
         sprintf(lgfname, "%s/LGF_2d_sym_acc12_%d.ker", path, (*N));
     } else {
-        FLUPS_ERROR("Greendim = %d is not available in this version", greendim, LOCATION);
+        FLUPS_CHECK(false, "Greendim = %d is not available in this version", greendim);
     }
 
     // open the file
@@ -72,12 +72,12 @@ static void _lgf_readfile(const int greendim, int* N, double** data) {
     if (lgf_file != NULL) {
         // allocate the data
         const int size = (*N) * (*N) * (*N);
-        (*data) = (double *)flups_malloc(sizeof(double) * size);
+        (*data) = (double *)m_calloc(sizeof(double) * size);
         fread((*data), sizeof(double), size, lgf_file);
         // close the file
         fclose(lgf_file);
     } else {
-        FLUPS_ERROR("unable to read file %s", lgfname, LOCATION);
+        FLUPS_CHECK(false, "unable to read file %s", lgfname);
     }
     END_FUNC;
 }

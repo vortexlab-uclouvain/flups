@@ -27,6 +27,7 @@
 #include <iostream>
 
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
 #include "flups.h"
 #include <iostream>
 #include <cstring>

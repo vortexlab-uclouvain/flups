@@ -30,114 +30,32 @@
 #define FLUPS_H
 
 #include "mpi.h"
+#include "flups_interface.h"
 
 #ifdef __cplusplus
 #include <cmath>
 #include <iostream>
-extern "C" {
+extern "C"{
 #define MAX(a,b) std::max(a,b)
 #else
+
 #include "stdlib.h"
 #define MAX(a,b) a>b?a:b
 #endif
 
-//=============================================================================
-/**
- * @name STRUCTURES AND DEFINITIONS
- * @{
- */
-//=============================================================================
 
-/**
- * @brief List of supported boundary conditions
- * 
- * The boundary condition can be EVEN, ODD, PERiodic or UNBounded.
- */
-enum FLUPS_BoundaryType {
-    EVEN = 0, /**< EVEN boundary condition = zero flux  */
-    ODD  = 1, /**< ODD boundary condition = zero value */
-    PER  = 3, /**< PERiodic boundary conditions */
-    UNB  = 4,  /**< UNBounded boundary condition */
-    NONE = 9 /**< No boundary condition = dimension not used */
-};
-
-/**
- * @brief The type of Green's function used for the Poisson solver
- * 
- */
-enum FLUPS_GreenType {
-    CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2, /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3, /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4, /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
-    HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
-    HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
-    HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
-};
-
-/**
- * @brief The type of possible solvers
- * 
- * When solving for Biot-Savart, the Green's kernel \f$ G \f$ in Fourier space is adapted so that the Fourier
- * transform of the solution is obtained as
- *      \f[ \hat{\phi} = \hat{K} \times \hat{f} \f]
- * where \f$ \hat{K} \f$ is the spectral equivalent of the gradient of \f$ G \f$. Indeed,
- * the derivation is performed directly in Fourier space, according to the parameter @ref FLUPS_DiffType.
- */
-enum FLUPS_SolverType {
-    STD = 0, /**< @brief the standard poisson solver: \f$ \nabla^2(\phi) = (rhs) \f$ */
-    ROT = 1 /**< @brief the Bio-Savart poisson solver: \f$ \nabla^2(\phi) = \nabla \times (rhs) \f$ */
-};
-
-/**
- * @brief The type of derivative to be used with @ref FLUPS_SolverType ROT.
- *  
- */
-enum FLUPS_DiffType {
-    NOD = 0, /**< @brief Default parameter to be used with the STD type solve */
-    SPE = 1, /**< @brief Spectral derivation, \f$ \hat{K} = i \, k \, \hat{G} \f$ */
-    FD2 = 2 /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
-};
-
-/**
- * @brief to be used as "sign" for all of the FORWARD tranform
- * 
- */
-#define FLUPS_FORWARD -1  // equivalent to FFTW_FORWARD
-
-/**
- * @brief to be used as "sign" for all of the BACKWARD tranform
- * 
- */
-#define FLUPS_BACKWARD 1  // equivalen to FFTW_BACKWARD
-
-/**
- * @brief to be used as "sign" for all of the BACKWARD tranform
- * 
- */
-#define FLUPS_BACKWARD_DIFF 2
-
-/**
- * @brief Memory alignment in bytes.
- * 
- */
-#define FLUPS_ALIGNMENT 16
-
-/**
- * @brief FFTW planner flag
- * 
- */
-#define FFTW_FLAG FFTW_PATIENT
 
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
-typedef struct Profiler FLUPS_Profiler;
 
-typedef enum FLUPS_BoundaryType FLUPS_BoundaryType;
-typedef enum FLUPS_GreenType    FLUPS_GreenType;
-typedef enum FLUPS_SolverType   FLUPS_SolverType;
-typedef enum FLUPS_DiffType     FLUPS_DiffType;
+struct FLUPS_Profiler;
+typedef struct FLUPS_Profiler FLUPS_Profiler;
+
+typedef enum BoundaryType FLUPS_BoundaryType;
+typedef enum GreenType    FLUPS_GreenType;
+typedef enum SolverType   FLUPS_SolverType;
+typedef enum DiffType     FLUPS_DiffType;
+typedef enum CenterType   FLUPS_CenterType;
 
 /**@} */
 
@@ -165,6 +83,15 @@ void* flups_malloc(size_t size);
  * @param data the data to be freed
  */
 void flups_free(void* data);
+
+
+/**
+ * @brief writes the file flups.info used for tracking of the results, bookkeeping etc
+ * 
+ * @param argc 
+ * @param argv 
+ */
+void flups_info(int argc, char** argv);
 
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory.
@@ -398,6 +325,28 @@ size_t flups_topo_get_locsize(const FLUPS_Topology* t);
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
+
+/**
+* @brief compute the rank associated to a scalar global id
+* The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality 
+* global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
+* Since we use integral division, we only take the right inequality to compute the 
+* rank associated with a global id
+*
+* @param global_id the scalar id of the point considered
+* @param id the direction of interest
+* @return int 
+*/
+int flups_topo_cmpt_rank_fromid(const FLUPS_Topology* t, const int global_id, const int id);
+
+/**
+ * @name Functions to compute the starting index of each rank of the topology
+ * 
+ * @param id the id for one component
+ */
+int flups_topo_cmpt_start_id_from_rank(const FLUPS_Topology* t, const int rank_id, const int id);
+
+
 /**
  * @brief returns the MPI-communicator of the topology
  * 
@@ -405,6 +354,28 @@ size_t flups_topo_get_memsize(const FLUPS_Topology* t);
  * @param comm the communicator
  */
 MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
+
+
+
+/**
+ * @brief split the rank into rank per dimensions based on information from a topology
+ * 
+ * axproc is not used if comm is of type MPI_CART.
+ * 
+ * @param topo the target topology
+ * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
+ * @param rankd the rank per dimension in XYZ format
+ */
+void flups_topo_ranksplit(const FLUPS_Topology* t, const int rank, int rankd[3]);
+
+/**
+ * @brief get the rank from the rank per dimension
+ * 
+ * @param rankd the rank in XYZ format
+ * @param topo the topology
+ * @return int 
+ */
+int flups_topo_rankindex(const FLUPS_Topology *topo, const int rankd[3]);
 
 /**@} */
 
@@ -424,13 +395,13 @@ MPI_Comm flups_topo_get_comm(FLUPS_Topology* t);
  * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
-FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff);
+FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3]);
 /**
  * @brief Same as @ref flups_init, with a profiler for the timing of the code (if compiled with PROF, if not, it will not use the profiler).
  * 
  * @param prof 
  */
-FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, FLUPS_Profiler* prof);
+FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof);
 
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
@@ -564,6 +535,8 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
  */
 void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
+
+int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], FLUPS_BoundaryType* bc[3][2], const FLUPS_CenterType center_type[3]);
 /**@} */
 
 
@@ -597,14 +570,14 @@ void            flups_profiler_free(FLUPS_Profiler* p);
  * 
  * @param p 
  */
-void            flups_profiler_disp_root(FLUPS_Profiler* p);
+void            flups_profiler_disp(FLUPS_Profiler* p);
 /**
- * @brief display the profiler using "name" as reference
- * 
- * @param p 
- * @param name 
- */
-void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
+//  * @brief display the profiler using "name" as reference
+//  * 
+//  * @param p 
+//  * @param name 
+//  */
+// void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 
 /**@} */
 
@@ -624,6 +597,9 @@ void            flups_profiler_disp(FLUPS_Profiler* p,const char name[]);
 void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const double *data);
 
 /**@} */
+
+void flups_print_data(const FLUPS_Topology *topo, double* data);
+
 
 #ifdef __cplusplus
 }

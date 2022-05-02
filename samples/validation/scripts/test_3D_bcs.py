@@ -1,6 +1,32 @@
 import subprocess
 import csv
+import sys 
 from check_res import check_res
+
+## Check which type of center you try to test
+try:
+    arg = sys.argv[1]
+except IndexError:
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You didn't choose any center type. ")
+    print("By default, we will test Cell centered data")
+    arg = 1
+
+
+if(int(arg) == 0):
+    print("We will test Node centered data")
+    centerType = int(arg)
+    centername = 'NodeCenter'
+elif(int(arg) == 1): 
+    print("We will test Cell centered data")
+    centerType = int(arg)
+    centername = 'CellCenter'
+else: 
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You choose a center type which is not supported. ")
+    print("By default, we will test Cell centered data")
+    centerType = 1
+    centername = 'CellCenter'
 
 #List of combinations of boundary conditions in 1 direction:
 BC1s = [["0"],["1"],["4"]]
@@ -25,14 +51,16 @@ for bcx in BC1 :
             i+=1
             code = bcx[0] + bcx[1] + bcy[0] + bcy[1] + bcz[0] + bcz[1]
 
-            #Launching test
+             #Launching test
             if(bcz == ["9","9"]):
-                r = subprocess.run(["./flups_validation_nb"] + ["-res"] + ["8"] + ["8"] + ["1"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+                str_bc = str(bcx[0]) + "," +str(bcx[1]) + "," + str(bcy[0]) + "," + str(bcy[1]) + "," + str(bcz[0]) + "," + str(bcz[1]) 
+                r = subprocess.run(["./flups_validation_nb"] +["--center="+str(centerType)] + ["--res=8,8,1"] + ["--bc="+ str_bc], capture_output=True)
             else:
-                r = subprocess.run(["./flups_validation_nb"] + ["-res"] + ["8"] + ["8"] + ["8"] + ["-bc"] + bcx + bcy + bcz, capture_output=True)
+                str_bc = str(bcx[0]) + "," +str(bcx[1]) + "," + str(bcy[0]) + "," + str(bcy[1]) + "," + str(bcz[0]) + "," + str(bcz[1]) 
+                r = subprocess.run(["./flups_validation_nb"] + ["--center="+str(centerType)] + ["--res=8,8,8"]  + ["--bc=" + str_bc], capture_output=True)
             
             if r.returncode != 0 :
-                print("test %i (BCs : "%i + code + ") failed with error code ",r.returncode)
+                print("test %i  ( "%i + centername + " - BCs : " + code + ") failed with error code ",r.returncode)
                 print("=================================== STDOUT =============================================" )
                 print(r.stdout.decode())
                 print("=================================== STDERR =============================================" )
@@ -41,14 +69,13 @@ for bcx in BC1 :
                 print("=================================== ====== =============================================\n" )
                 continue
 
-            #Checking for exactness of results
-            n_mistake = check_res(i,'validation_3d_'+code+'_typeGreen=0.txt')
-
+             #Checking for exactness of results
+            n_mistake = check_res(i,'validation_3d_' + centername + '_' + code +'_typeGreen=0.txt')
             if n_mistake==0:
-                print("test %i (BCs : "%i + code + ") succeeded")
+                print("test %i ( "%i + centername + " - BCs : " + code + ") succeeded")
                 n_success += 1    
             else:
-                print("test %i (BCs : "%i + code + ") failed with wrong values.")
+                print("test %i ( "%i + centername + " - BCs : " + code + ") failed with wrong values.")
                 print("/!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ -- /!\ \n" )
                 n_failure += 1
 

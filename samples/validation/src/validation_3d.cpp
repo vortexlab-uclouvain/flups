@@ -24,6 +24,7 @@
  */
 
 #include "validation_3d.hpp"
+
 #include "omp.h"
 
 
@@ -47,11 +48,21 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
-    const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
 
-    const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+    const bool is_cell = myCase.center_type[0] == CELL_CENTER; 
+    const double fact = (double) (!is_cell);
+
+    const int nglob[3] = {myCase.nglob[0] + (int)fact, myCase.nglob[1] + (int)fact,
+                          (myCase.nglob[2] == 1) ? 1 : myCase.nglob[2] + (int)fact};
+    const double h[3] = {L[0] / (nglob[0] - fact), L[1] / (nglob[1] - fact),
+                         nglob[2] == 1 ? 1 : L[2] / (nglob[2] - fact)};
+
+    FLUPS_CenterType center_type[3];
+    for (int i = 0; i < 3; i++) {
+            center_type[i] = myCase.center_type[i];
+    }
 
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
@@ -88,7 +99,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver *  mysolver;
-    mysolver = flups_init_timed(topo, mybc, h, L, NOD, prof);
+    mysolver = flups_init_timed(topo, mybc, h, L, NOD, center_type, prof);
 
     flups_set_greenType(mysolver, typeGreen);
     flups_setup(mysolver, true);
@@ -144,20 +155,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
                     centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
                     centerPos[2] = orig[2] + ((j2 != 0) && (mybc[2][(j2 + 1) / 2] != PER) ? (1.0 - center[2]) * L[2] : (center[2] * L[2]));
 
-                    // printf("CENTER HERE IS: %d,%d,%d -- %lf,%lf,%lf -- %lf,%lf,%lf ++ %lf,%lf,%lf ** %lf\n",j0,j1,j2,orig[0],orig[1],orig[2],centerPos[0],centerPos[1],centerPos[2],\
-                    ( (j0!=0)&&(mybc[0][(j0+1)/2]!=PER )) ? (1.0-center[0])*L[0] : (center[0]*L[0]),\
-                    ( (j1!=0)&&(mybc[1][(j1+1)/2]!=PER )) ? (1.0-center[1])*L[1] : (center[1]*L[1]),\
-                    ( (j2!=0)&&(mybc[2][(j2+1)/2]!=PER )) ? (1.0-center[2])*L[2] : (center[2]*L[2]), sign);
-
                     for (int i2 = 0; i2 < topo->nloc(2); i2++) {
                         for (int i1 = 0; i1 < topo->nloc(1); i1++) {
                             for (int i0 = 0; i0 < topo->nloc(0); i0++) {
-                                double       x    = (istart[0] + i0 + 0.5) * h[0] - centerPos[0];
-                                double       y    = (istart[1] + i1 + 0.5) * h[1] - centerPos[1];
-                                double       z    = (istart[2] + i2 + 0.5) * h[2] - centerPos[2];
-                                double       rho2 = (x * x + y * y + z * z) * oosigma2;
-                                double       rho  = sqrt(rho2);
-                                const size_t id   = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
+                                const double shift = 0.5;
+                                double       x     = (istart[0] + i0 + shift) * h[0] - centerPos[0];
+                                double       y     = (istart[1] + i1 + shift) * h[1] - centerPos[1];
+                                double       z     = (istart[2] + i2 + shift) * h[2] - centerPos[2];
+                                double       rho2  = (x * x + y * y + z * z) * oosigma2;
+                                double       rho   = sqrt(rho2);
+                                const size_t id    = flups_locID(0, i0, i1, i2, lia, 0, nmem, 2);
 
                                 // Gaussian
                                 rhs[id] -= sign * c_1o4pi * oosigma3 * sqrt(2.0 / M_PI) * exp(-rho2 * 0.5);
@@ -278,7 +285,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             } else {
                 manuRHS[dir] = &fZero;
                 manuSol[dir] = &fCst;
-                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
             }
         }
 
@@ -297,15 +304,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             const int ax2     = (ax0 + 2) % 3;
             const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
 
-            printf("for dim %d, we use the sign = %f %f %f\n",lia,params[0].sign[0],params[1].sign[0],params[2].sign[0]);
+            // printf("for dim %d, we use the sign = %f %f %f\n",lia,params[0].sign[0],params[1].sign[0],params[2].sign[0]);
 
             for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                         const size_t id   = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
-                        const double x[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                             (istart[ax1] + i1 + 0.5) * h[ax1],
-                                             (istart[ax2] + i2 + 0.5) * h[ax2]};
+                        const double shift = is_cell ? 0.5: 0.0;
+                        const double x[3] = {(istart[ax0] + i0 + shift) * h[ax0],
+                                             (istart[ax1] + i1 + shift) * h[ax1],
+                                             (istart[ax2] + i2 + shift) * h[ax2]};
 
                         // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
                         // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
@@ -359,10 +367,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         flups_solve(mysolver, field, rhs,STD);
     }
 
-#ifdef PROF
-    flups_profiler_disp(prof, "solve");
-#endif
-    flups_profiler_free(prof);
+    flups_profiler_disp(prof);
 
 #ifdef DUMP_DBG
     // write the source term and the solution
@@ -419,8 +424,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
     char   filename[512];
     string folder = "./data";
+    string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
 
-    sprintf(filename, "%s/%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
@@ -456,6 +462,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_free(rhs);
     flups_free(field);
     flups_cleanup(mysolver);
+    flups_profiler_free(prof);
     flups_topo_free(topo);
 
     for (int id = 0; id < 3; id++) {

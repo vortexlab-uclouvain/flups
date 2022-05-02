@@ -1,0 +1,162 @@
+compil lm3 :
+  tags:
+    - vanreeslab
+  stage: build
+  rules:
+    - if: ($CI_OPEN_MERGE_REQUESTS)
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+  artifacts: 
+    paths: 
+      - libflups_a2a.a
+      - libflups_nb.a
+      - flups_test_a2a
+      - flups_test_nb
+    when: on_success
+  when: manual
+  allow_failure: false
+  script :
+    # first check that the libraries are here:
+    # create the runing directory
+    - export PATH2BIN=$PATH2DIR/flups_auto_build/
+    - TAG=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 10` #generate a random tag to name the directory
+    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}
+    - ssh lm3 mkdir -p ${PATH2BIN}_${TAG}
+    - ssh lm3 chmod 700 ${PATH2BIN}_${TAG}
+    # compress the whole current repo, more robust with scp
+    - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KArchive and send the src on lm3"
+    - tar -czf flups_src.tar.gz --exclude=flups_src.tar.gz * && du -sh flups_src.tar.gz
+    # send the tar on LM3
+    - scp flups_src.tar.gz lm3:${PATH2BIN}_${TAG}
+    - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/flups_src.tar.gz -C ${PATH2BIN}_${TAG}/
+    - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
+    #-----------------------------------------------------
+    # Retrieve the sources of H3LPR
+    # Add the git config needed for h3lpr    
+    - echo -e "\e[0Ksection_start:`date +%s`:my_second_section[collapsed=true]\r\e[0KCompilation of Flups"
+    - echo "Host github.com-h3lpr" >> ~/.ssh/config
+    - echo "  Hostname github.com"  >> ~/.ssh/config
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$H3LPR_SSHKEY")
+    - echo $H3LPRKH >> ~/.ssh/known_hosts
+    - git clone git@github.com:van-Rees-Lab/h3lpr.git
+    - cd h3lpr && git checkout origin/dev-make-static && cd - 
+    - tar -czf h3lpr_src.tar.gz h3lpr && du -sh h3lpr_src.tar.gz
+    # Change the key before sending the data to lm3 
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSHKEY")
+    # Send the h3lpr library to lm3
+    - scp h3lpr_src.tar.gz lm3:${PATH2BIN}_${TAG}
+    - ssh lm3 tar -xzf ${PATH2BIN}_${TAG}/h3lpr_src.tar.gz -C ${PATH2BIN}_${TAG}/
+    # Clean the local repo 
+    - rm -rf h3lpr 
+    - rm -rf h3lpr_src.tar.gz
+    #-----------------------------------------------------
+    # Compilation of all the libraries
+    # Go on lm3 and Compile all the librairies
+    - ssh lm3 "${PATH2BIN}_${TAG}/scripts/flups_auto_build_lm3.sh ${PATH2BIN}_${TAG} ${LIBDIR}" #make the executable, and test if the file was created
+    - echo -e "\e[0Ksection_end:`date +%s`:my_second_section\r\e[0K"
+    # Download the artifacts
+    - scp lm3:${PATH2BIN}_${TAG}/lib/libflups_a2a.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - scp lm3:${PATH2BIN}_${TAG}/lib/libflups_nb.a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    #-----------------------------------------------------
+    # Compilation of the tests
+    # Compile the Google test librairies
+    - echo -e "\e[0Ksection_start:`date +%s`:my_third_section[collapsed=true]\r\e[0KCompilation of Google tests"
+    - ssh lm3 ${PATH2BIN}_${TAG}/scripts/flups_gtest_build_lm3.sh ${PATH2BIN}_${TAG} ${LIBDIR}
+    - echo -e "\e[0Ksection_end:`date +%s`:my_third_section\r\e[0K"
+    #Download the artifacts
+    - scp lm3:${PATH2BIN}_${TAG}/test/flups_test_a2a . #we must download the EXE back to the test machine, so that the runner can archive it as an artifact !
+    - scp lm3:${PATH2BIN}_${TAG}/test/flups_test_nb . #we must download the EXE back to the test machine, so that the runner can archive
+    # Clean the files 
+    - echo "Done with compilation."
+    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}/
+  
+
+run lm3:
+  tags:
+    - vanreeslab
+  stage: deploy_cluster
+  rules:
+   - if: ($CI_OPEN_MERGE_REQUESTS)
+   - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+  needs: [compil lm3]
+  dependencies:
+    - compil lm3 
+  script:
+    - ssh lm3 rm -f ${PATH2RUN}/*
+    - ssh lm3 mkdir -p ${PATH2RUN}/
+    - scp flups_test_nb lm3:${PATH2RUN}/  
+    - scp flups_test_a2a lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
+    - scp -r test/run/test_run.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - scp -r test/run/test_workflow.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - ssh lm3 "cd ${PATH2RUN}/ && ./test_workflow.sh ${LIBDIR}"
+
+
+
+check result lm3:
+  tags:
+    - vanreeslab
+  stage: deploy_cluster
+  rules:
+   - if: ($CI_OPEN_MERGE_REQUESTS)
+     when: delayed
+     start_in: 400 minutes
+   - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+     when: delayed
+     start_in: 400 minutes 
+  artifacts: 
+    paths: 
+      - Node_CHAT2_report.xml
+      - Node_LGF2_report.xml
+      - Node_HEJ2_report.xml
+      - Node_HEJ4_report.xml
+      - Node_HEJ6_report.xml
+      - Node_HEJ8_report.xml
+      - Node_HEJ10_report.xml
+      - Node_HEJ0_report.xml
+      - Cell_CHAT2_report.xml
+      - Cell_LGF2_report.xml
+      - Cell_HEJ2_report.xml
+      - Cell_HEJ4_report.xml
+      - Cell_HEJ6_report.xml
+      - Cell_HEJ8_report.xml
+      - Cell_HEJ10_report.xml
+      - Cell_HEJ0_report.xml
+    reports:
+        junit: 
+          - Node_CHAT2_report.xml
+          - Node_LGF2_report.xml
+          - Node_HEJ2_report.xml
+          - Node_HEJ4_report.xml
+          - Node_HEJ6_report.xml
+          - Node_HEJ8_report.xml
+          - Node_HEJ10_report.xml
+          - Node_HEJ0_report.xml
+          - Cell_CHAT2_report.xml
+          - Cell_LGF2_report.xml
+          - Cell_HEJ2_report.xml
+          - Cell_HEJ4_report.xml
+          - Cell_HEJ6_report.xml
+          - Cell_HEJ8_report.xml
+          - Cell_HEJ10_report.xml
+          - Cell_HEJ0_report.xml
+    when: always
+  needs: [run lm3]
+  dependencies:
+      - run lm3                    
+  script :
+    - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
+    - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
+    - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/Node_*") ]]; then echo "At least one of the node test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/Cell_*") ]]; then echo "At least one of the cell test did not execute till the end."; exit 1; fi
+    - scp lm3:${PATH2RUN}/*.xml .
+    - if [[ $(grep "<failure" Node_*.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    # - test -f node_loworder_report.xml && if [[ $(grep "<failure" node_loworder_report.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
+    # - test -f cell_highorder_report.xml && if [[ $(grep "<failure" cell_highorder_report.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    - if [[ $(grep "<failure" Cell_*.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
+    # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
+  retry:                              # Retry -- Relaunch the Job
+    max: 2                            # Limited to 2 (because of gitlab)
+    when:                             # If the failure is not known or if it's a timeout failure
+      - stuck_or_timeout_failure

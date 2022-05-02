@@ -35,7 +35,7 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 #include "Topology.hpp"
-#include "Profiler.hpp"
+// #include "h3lpr/profiler.hpp"
 #include "SwitchTopo.hpp"
 
 /**
@@ -54,21 +54,21 @@
  */
 class SwitchTopo_a2a : public SwitchTopo {
    protected:
-    bool _is_all2all = false; /**<@brief is the call an alltoall or an alltoall_v */
+    bool is_all2all_ = false; /**<@brief is the call an alltoall or an alltoall_v */
 
-    int *_i2o_count = NULL; /**<@brief count argument of the all_to_all_v for input to output */
-    int *_o2i_count = NULL; /**<@brief count argument of the all_to_all_v for output to input */
-    int *_i2o_start = NULL; /**<@brief start argument of the all_to_all_v for input to output */
-    int *_o2i_start = NULL; /**<@brief start argument of the all_to_all_v for output to input */
+    int *i2o_count_ = NULL; /**<@brief count argument of the all_to_all_v for input to output */
+    int *o2i_count_ = NULL; /**<@brief count argument of the all_to_all_v for output to input */
+    int *i2o_start_ = NULL; /**<@brief start argument of the all_to_all_v for input to output */
+    int *o2i_start_ = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
-    opt_double_ptr _sendBufG = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
-    opt_double_ptr _recvBufG = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
+    opt_double_ptr sendBufG_ = NULL; /**<@brief pointer to the globally allocated memory for the send buffers */
+    opt_double_ptr recvBufG_ = NULL; /**<@brief pointer to the globally allocated memory for the recv buffers */
 
-    void _init_blockInfo(const Topology* topo_in, const Topology* topo_out);
-    void _free_blockInfo();
+    void init_blockInfo_(const Topology* topo_in, const Topology* topo_out);
+    void free_blockInfo_();
 
    public:
-    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], Profiler *prof);
+    SwitchTopo_a2a(const Topology *topo_input, const Topology *topo_output, const int shift[3], H3LPR::Profiler *prof);
     ~SwitchTopo_a2a();
 
     void setup_buffers(opt_double_ptr sendBuf, opt_double_ptr recvBuf) ;
