@@ -10,3 +10,8 @@ FFTW_INC := ${FFTW_DIR}/include
 HDF5_DIR := /soft/hdf5-1.10.5-intel_2019.5
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
+
+## H3LPR
+H3LPR_DIR := /soft/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/

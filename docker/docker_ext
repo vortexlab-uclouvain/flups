@@ -1,0 +1,32 @@
+## this file is added at the end of the dockerfile
+
+#Google test
+RUN git clone https://github.com/google/googletest.git
+RUN cd /googletest &&\
+    cmake . -DCMAKE_INSTALL_PREFIX=/soft/googletest &&\
+    make install -j
+RUN rm -rf /googletest
+
+#-------------------------------------------------------------------------------
+RUN apt-get -y update && apt-get install -y openssh-client git
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan git.immc.ucl.ac.be github.com >> ~/.ssh/known_hosts
+
+#-------------------------------------------------------------------------------
+### h3lpr
+RUN --mount=type=ssh git clone git@github.com:van-Rees-Lab/h3lpr.git
+RUN cd /h3lpr &&\
+    echo "CXX = mpic++" > make_arch/make.temp &&\
+    echo "CC = mpicc" >> make_arch/make.temp &&\
+    echo "CXXFLAGS := -O3 -std=c++17 -fopenmp -DCOLOR_PROF " >> make_arch/make.temp  &&\
+    echo "CCFLAGS := -O3 -std=c99 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp &&\
+    echo "LDFLAGS += -fopenmp -lstdc++ -lm" >> make_arch/make.temp &&\
+    echo "GTEST_INC = /soft/googletest/include" >> make_arch/make.temp &&\
+    echo "GTEST_LIB = /soft/googletest/lib" >> make_arch/make.temp &&\
+    ARCH_FILE=make_arch/make.temp PREFIX=/soft/h3lpr make install -j4 &&\
+    rm -rf /h3lpr
+
+# add a user
+RUN useradd -ms /bin/bash flups
+USER flups
+
+# end of file

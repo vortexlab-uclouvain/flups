@@ -24,6 +24,7 @@
  */
 
 #include "validation_3d.hpp"
+
 #include "omp.h"
 
 
@@ -284,7 +285,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             } else {
                 manuRHS[dir] = &fZero;
                 manuSol[dir] = &fCst;
-                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.", LOCATION);
+                // FLUPS_ERROR("I don''t know how to generate an analytical solution for this combination of BC.");
             }
         }
 
@@ -366,10 +367,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         flups_solve(mysolver, field, rhs,STD);
     }
 
-#ifdef PROF
-    flups_profiler_disp(prof, "solve");
-#endif
-    flups_profiler_free(prof);
+    flups_profiler_disp(prof);
 
 #ifdef DUMP_DBG
     // write the source term and the solution
@@ -464,6 +462,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_free(rhs);
     flups_free(field);
     flups_cleanup(mysolver);
+    flups_profiler_free(prof);
     flups_topo_free(topo);
 
     for (int id = 0; id < 3; id++) {

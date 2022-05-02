@@ -323,9 +323,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         flups_solve(mysolver, field, rhs, ROT);
     }
 
-#ifdef PROF
-    flups_profiler_disp(prof, "solve");
-#endif
+
+    flups_profiler_disp(prof);
     flups_profiler_free(prof);
 
 #ifdef DUMP_DBG

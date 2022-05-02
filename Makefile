@@ -34,12 +34,16 @@ OPTS ?= -DFLUPS_FFTW_BACKEND
 #-----------------------------------------------------------------------------
 # Do not show GNU makefile command and info 
 #.SILENT:
+# git commit
+GIT_COMMIT ?= $(shell git describe --always --dirty)
 
 PREFIX ?= ./
 NAME := flups
 # library naming
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
 TARGET_LIB_NB  := build/lib$(NAME)_nb
+TARGET_LIB_DPREC_A2A := build/lib$(NAME)_dprec_a2a
+TARGET_LIB_DPREC_NB  := build/lib$(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -81,6 +85,13 @@ ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
 	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
 endif
 
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory
@@ -98,22 +109,34 @@ API := $(wildcard $(SRC_DIR)/*.h)
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
+OBJ_DPREC_A2A := $(SRC:%.cpp=$(OBJ_DIR)/dprec_a2a_%.o)
+OBJ_DPREC_NB := $(SRC:%.cpp=$(OBJ_DIR)/dprec_nb_%.o)
 IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
+# mandatory flags
+M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
+
+################################################################################
 $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
+
+$(OBJ_DIR)/dprec_nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
+
+$(OBJ_DIR)/dprec_a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -E $< -o $@
+	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -E $< -o $@
 
 ################################################################################
 default: 
 	@$(MAKE) info 
-	@$(MAKE) lib_static 
+	@$(MAKE) lib_static
 
 # for the validation, do a static lib
 validation: install_static
@@ -126,11 +149,15 @@ all: lib_static lib_dynamic
 
 all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
+all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
+
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
 
-lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a
+nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so 
 
-lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
+
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
 
 lib: lib_static
 
@@ -140,11 +167,23 @@ $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
+$(TARGET_LIB_DPREC_A2A).so: $(OBJ_DPREC_A2A)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_DPREC_NB).so: $(OBJ_DPREC_NB)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $@  $^  
+	ar rvs $@  $^
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $@  $^  
+	ar rvs $@  $^
+
+$(TARGET_LIB_DPREC_A2A).a: $(OBJ_DPREC_A2A)
+	ar rvs $@  $^
+
+$(TARGET_LIB_DPREC_NB).a: $(OBJ_DPREC_NB)
+	ar rvs $@  $^
 
 preproc: $(IN)
 
@@ -153,6 +192,8 @@ install_dynamic: lib_dynamic
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
@@ -161,6 +202,8 @@ install_static: lib_static
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).a $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
@@ -174,14 +217,18 @@ test:
 
 clean:
 	@rm -f $(OBJ_DIR)/*.o
-	@rm -f $(TARGET_LIB_A2A)*
-	@rm -f $(TARGET_LIB_NB)*
+	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
+	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
+	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
+	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
 
 destroy:
 	@rm -rf $(OBJ_DIR)/*.o
 	@rm -rf $(OBJ_DIR)/*.d
-	@rm -rf $(TARGET_LIB_A2A)
-	@rm -rf $(TARGET_LIB_NB)
+	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
+	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
+	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
+	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
 	@rm -rf $(OBJ_DIR)/*
 	@rm -rf include
 	@rm -rf lib

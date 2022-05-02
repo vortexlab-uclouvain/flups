@@ -24,6 +24,7 @@
  */
 
 #include "Topology.hpp"
+#include "hdf5_io.hpp"
 
 /**
  * @brief Construct a new Topology
@@ -51,7 +52,7 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
     MPI_Comm_size(comm_,&comm_size);
     MPI_Comm_rank(comm_,&rank);
 
-    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size, LOCATION);
+    FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size);
 
     //-------------------------------------------------------------------------
     /** - get memory axis and complex information  */
@@ -85,7 +86,7 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
     //-------------------------------------------------------------------------
     cmpt_sizes();
 
-    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2]);
+    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2],nglob_[0],nglob_[1],nglob_[2]);
     END_FUNC;
 }
 
@@ -121,7 +122,6 @@ void Topology::cmpt_sizes() {
  */
 void Topology::change_comm(MPI_Comm comm) {
     BEGIN_FUNC;
-
     //-------------------------------------------------------------------------
     /** - Store the new communicator  */
     //-------------------------------------------------------------------------
@@ -149,29 +149,31 @@ Topology::~Topology() {}
 
 /**
  * @brief compute the starting and ending ids for the current topo in order to be inside the other topology's bounds
- * 
+ *
  * @param shift the shift between the 2 topos: current topo in (0,0,0) = other topo in (shift)
  * @param other the other topology
- * @param start the start index to use in the current topo
- * @param end the end index to use in the current topo
+ * @param start the start index to use in the current topo (in the local indexing!)
+ * @param end the end index to use in the current topo (in the local indexing!)
  */
 void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int start[3], int end[3]) const {
     BEGIN_FUNC;
-    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real", LOCATION);
-
+    FLUPS_CHECK(this->isComplex() == other->isComplex(), "The two topo have to be both complex or real");
+    //--------------------------------------------------------------------------
     for (int id = 0; id < 3; id++) {
+        // get the maximum index in the other topology, minimum is 0 by definition
         const int onglob = other->nglob(id);
 
-        start[id] = 0;
-        end[id]   = 0;
-        // for the input configuration
-        for (int i = 0; i < nloc_[id]; ++i) {
-            // get the global id in the other topology
-            int oid_global = cmpt_start_id(id) + i + shift[id];
-            if (oid_global <= 0) start[id] = i;
-            if (oid_global < onglob) end[id] = i + 1;
-        }
+        // we try to get the first point
+        const int start_global_id = shift[id] + this->cmpt_start_id(id);
+        const int end_global_id   = shift[id] + this->cmpt_start_id(id) + this->nloc(id);
+
+        // enforces the bounds
+        // if the start_global_id is negative, we have offset the start index
+        start[id] = -m_min(start_global_id, 0);
+        // if the end_global_id is bigger than onglob we have to offset the end
+        end[id] = this->nloc(id) - m_max(end_global_id - onglob, 0);
     }
+    //--------------------------------------------------------------------------
     END_FUNC;
 }
 
@@ -204,7 +206,7 @@ void Topology::disp_rank() {
     BEGIN_FUNC;
 #ifdef DUMP_DBG
     // we only focus on the real size = local size
-    double* rankdata = (double*)flups_malloc(sizeof(double) * this->locsize() * 2);
+    double* rankdata = (double*)m_calloc(sizeof(double) * this->locsize() * 2);
     int     rank, rank_new;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_rank(comm_, &rank_new);
@@ -226,7 +228,7 @@ void Topology::disp_rank() {
         hdf5_dump(this, name, rankdata);
         this->switch2real();
     }
-    flups_free(rankdata);
+    m_free(rankdata);
 #endif
     END_FUNC;
 }

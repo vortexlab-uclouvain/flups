@@ -1,0 +1,322 @@
+#include "SwitchTopoX.hpp"
+
+#include "h3lpr/macros.hpp"
+
+using namespace std;
+
+SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof)
+    : i2o_shift_{shift[0], shift[1], shift[2]}, o2i_shift_{-shift[0], -shift[1], -shift[2]}, topo_in_(topo_in), topo_out_(topo_out), inComm_(topo_in->get_comm()), outComm_(topo_out->get_comm()), prof_(prof) {
+    BEGIN_FUNC;
+    FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "The two topos must both be complex or both real");
+    FLUPS_CHECK(topo_in->lda() == topo_out->lda(), "The two topos must both be complex or both real");
+    //--------------------------------------------------------------------------
+#ifndef NDEBUG
+    // TG: I have removed the different inComm and outComm support as its not clear to me how to properly do that
+    // also, I cannot think about any situation where it would be useful.
+    // supporting it would be cool though!
+    // in order to do so, we need to improse a convention on which communicator is used for the communication
+    int comp;
+    MPI_Comm_compare(topo_in->get_comm(), topo_out->get_comm(), &comp);
+    FLUPS_CHECK(comp == MPI_IDENT, "we do NOT support different communicators in and out for the moment");
+#endif
+    idswitchtopo_ = topo_out->axproc(topo_out->axis());
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+SwitchTopoX::~SwitchTopoX() {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // deallocate the plans
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        // the shuffle happens in the "out" topology
+        fftw_destroy_plan(i2o_chunks_[ic].shuffle);
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        // the shuffle happens in the "in" topology
+        fftw_destroy_plan(o2i_chunks_[ic].shuffle);
+    }
+
+    // free the buffers
+    // m_free(send_buf_);
+    // m_free(recv_buf_);
+
+    // free the MemChunks
+    m_free(i2o_chunks_);
+    m_free(o2i_chunks_);
+
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief Setup the chunks and the subcommunicator for the communications
+ *
+ */
+void SwitchTopoX::setup() {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // The input topo may have been reset to real, even if this switchtopo is a complex2complex.
+    // We create a tmp input topo which is complex if needed, for the computation of start and end.
+    bool isC2C = topo_out_->isComplex();
+    int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
+    for (int i = 0; i < 3; i++){
+        tmp_nglob[i] = topo_in_->nglob(i);
+        tmp_nproc[i] = topo_in_->nproc(i);
+        tmp_axproc[i] = topo_in_->axproc(i);
+    }
+    const Topology *topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, isC2C, tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
+
+    // Populate the arrays of memory chunks
+    FLUPS_INFO("I2O chunks");
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    FLUPS_INFO("O2I chunks");
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
+
+    delete(topo_in_tmp);
+
+    // Split the communication according to the destination of each chunk in the MPI_COMM_WORLD
+    SubCom_SplitComm();
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief Set the up buffers object and plan the fftw shuffle 
+ * 
+ * @param sendData 
+ * @param recvData 
+ */
+void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
+    BEGIN_FUNC;
+    //..........................................................................
+    send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
+    recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
+
+    // assign the chunks with the relevant memory address
+    size_t size_counter = 0;
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        FLUPS_CHECK(i2o_chunks_[ic].size_padded > 0 && i2o_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        i2o_chunks_[ic].data = send_buf_ + size_counter;
+        // update the counter
+        size_counter += i2o_chunks_[ic].size_padded * i2o_chunks_[ic].nda;
+    }
+    size_counter = 0;
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        FLUPS_CHECK(o2i_chunks_[ic].size_padded > 0 && o2i_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        o2i_chunks_[ic].data = recv_buf_ + size_counter;
+        size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
+    }
+
+    FLUPS_INFO("memory addresses have been assigned");
+
+    //..........................................................................
+    // compute the subcomm and start the gather of each rank
+    // SubCom_SplitComm();
+    int inrank, subrank, worldsize;
+    MPI_Comm_size(inComm_, &worldsize);
+    MPI_Comm_rank(subcomm_, &subrank);
+    MPI_Comm_rank(inComm_, &inrank);
+
+    // get the ranks of everybody in all communicators
+    MPI_Request subrank_rqst;
+    int*        subRanks = reinterpret_cast<int*>(m_calloc(worldsize * sizeof(int)));
+    MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_, &subrank_rqst);
+
+    //..........................................................................
+    // init the shuffle, this might take some time
+    for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        // the shuffle happens in the "out" topology
+        PlanShuffleChunk(topo_out_->nf() == 2, i2o_chunks_ + ic);
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        // the shuffle happens in the "in" topology
+        PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_ + ic);
+    }
+
+    //..........................................................................
+    // finish the rank assignement
+    MPI_Status subrank_status;
+    MPI_Wait(&subrank_rqst,&subrank_status);
+    // replace the old ranks by the newest ones
+    for (int ic = 0; ic < i2o_nchunks_; ++ic) {
+        // get the destination rank in the old inComm_
+        const int in_dest_rank = i2o_chunks_[ic].dest_rank;
+        // replace by the one in the subcommunicator
+        i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+    }
+    for (int ic = 0; ic < o2i_nchunks_; ++ic) {
+        // get the destination rank in the old inComm_
+        const int in_dest_rank = o2i_chunks_[ic].dest_rank;
+        // replace by the one in the subcommunicator
+        o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+    }
+    // free the allocated array
+    m_free(subRanks);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief returns the communication buffer as the max between i2o and o2i
+ *
+ * @warning The size ensures that the start of every chunk is aligned (if the correctly offset)
+ *
+ * @return size_t
+ */
+size_t SwitchTopoX::get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // nultiply by the number of blocks
+    size_t total = 0;
+    for (int ib = 0; ib < nchunks; ib++) {
+        FLUPS_CHECK(chunks[ib].nda == lda, "The number of component given must be equal to the one of the chunks --> %zu vs %zu", chunks[ib].nda, lda );
+        total += chunks[ib].size_padded;
+    }
+    return total * lda;
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief returns the communication buffer as the max between i2o and o2i
+ *
+ * @warning The size ensures that the start of every chunk is aligned (if the correctly offset)
+ *
+ * @return size_t
+ */
+size_t SwitchTopoX::get_bufMemSize() const {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // get the buffer sizes: send lives in the input topo, recv in the output one
+    size_t send_buff_size = get_ChunkArraysMemSize(topo_in_->lda(), i2o_nchunks_, i2o_chunks_);
+    size_t recv_buff_size = get_ChunkArraysMemSize(topo_out_->lda(), o2i_nchunks_, o2i_chunks_);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+    
+    return std::max(send_buff_size, recv_buff_size);
+}
+
+/**
+ * @brief split the inComm_ communicator into subcomms
+ *
+ * We here find the colors of the comm, i.e. ranks communicating together have the same color.
+ * Once the color are known, we divide the current communicator into subcomms.
+ *
+ *
+ */
+void SwitchTopoX::SubCom_SplitComm() {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    // get my rank and use-it as the initial color
+    FLUPS_INFO("Get my rank");
+    int comm_size, rank;
+    MPI_Comm_rank(inComm_, &rank);
+    MPI_Comm_size(inComm_, &comm_size);
+
+    //-------------------------------------------------------------------------
+    /** - Set the starting color and determine who I wish to get in my group */
+    //-------------------------------------------------------------------------
+    // allocate colors and inMyGroup array
+    int*  colors    = (int*)m_calloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)m_calloc(comm_size * sizeof(bool));
+
+    for (int ir = 0; ir < comm_size; ir++) {
+        inMyGroup[ir] = false;
+    }
+    inMyGroup[rank] = true;
+
+    // do a first pass and give a color + who is in my group
+    int mycolor = rank;
+    for (int ib = 0; ib < i2o_nchunks_; ib++) {
+        const int chunk_dest_rank  = i2o_chunks_[ib].dest_rank;
+        mycolor                    = m_min(mycolor, chunk_dest_rank);
+        inMyGroup[chunk_dest_rank] = true;
+    }
+    for (int ib = 0; ib < o2i_nchunks_; ib++) {
+        const int chunk_dest_rank  = o2i_chunks_[ib].dest_rank;
+        mycolor                    = m_min(mycolor, chunk_dest_rank);
+        inMyGroup[chunk_dest_rank] = true;
+    }
+
+    //-------------------------------------------------------------------------
+    /** - count how much ranks are in my group and assumes they don't have the same color as I do */
+    //-------------------------------------------------------------------------
+    int n_left       = 0;  // the global counter of wrong colors
+    int n_wrongColor = 0;  // the local counter of wrong colors
+
+    for (int ir = 0; ir < comm_size; ir++) {
+        if (inMyGroup[ir]) {
+            n_wrongColor += 1;
+        }
+    }
+    // compute among everybody, if we need to continue
+    MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
+
+    //-------------------------------------------------------------------------
+    /** - Among everybody in group, get the minimum color.
+     * The loop is used to force information to travel:
+     * If 0 is in the group of 1 and 1 in the group of 2 and 2 in the group of 3, etc.
+     * we need to spread the color 0 among the group
+     */
+    //-------------------------------------------------------------------------
+    int iter = 0;
+    while (n_left > 0 && iter < comm_size) {
+        // gather the color info from everyone
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, inComm_);
+        // iterate on the proc
+        n_wrongColor = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            // if the rank is in my group and it has not the same color
+            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
+                // we first increment the counter flagging that one is missing
+                n_wrongColor += 1;
+                // then we change the color if we are able to do so....
+                // remove 1 if we are able to solve the color issue <=> my color > colors[ir]
+                n_wrongColor = n_wrongColor - (colors[ir] < mycolor);
+                // changing the color if possible
+                mycolor = m_min(mycolor, colors[ir]);
+            }
+        }
+        // compute among everybody, if we need to continue
+        MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
+        iter++;
+    }
+
+    // if we failed to create the subcom, uses the default one
+    if (n_left > 0) {
+        subcomm_ = inComm_;
+        FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete");
+    } else {
+        // If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+        int sumColor = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            sumColor += colors[ir];
+        }
+        // if nleft = 0 -> everybody is inside the same color = the rank = 0
+        // we do not create a new comm if it is not necessary
+        if (sumColor == 0) {
+            // avoids the creation of a communicator
+            subcomm_ = inComm_;
+            FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise the initial comm");
+        } else {
+            // create the communicator and give a name
+            MPI_Comm_split(inComm_, mycolor, rank, &subcomm_);
+            std::string commname = "comm-" + std::to_string(mycolor);
+            MPI_Comm_set_name(subcomm_, commname.c_str());
+
+            // apply some fancy parameters to allow faster MPI calls
+            MPI_Info info;
+            MPI_Info_create(&info);
+            MPI_Info_set(info, "mpi_assert_exact_length", "true");
+            MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
+            MPI_Comm_set_info(subcomm_, info);
+            MPI_Info_free(&info);
+        }
+    }
+    // free the vectors
+    m_free(colors);
+    m_free(inMyGroup);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}

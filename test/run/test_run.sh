@@ -3,41 +3,31 @@
 #SBATCH --job-name=flups_auto_test
 #SBATCH --time=2:30:00 # hh:mm:ss
 #
-#SBATCH --ntasks=8
+#SBATCH --ntasks=16
 #SBATCH --mem-per-cpu=4000 # megabytes 
 #SBATCH --partition=debug
 #
 #SBATCH --comment=flups
 #SBATCH --profile=all
 
-BIN_DIR=/home/users/v/o/vortexbot/flups_test/flups_auto_test/ 
-SCRATCH=.
-
-EXEC=flups_test_nb
-
 #------------------------------------------------------------------------------
 module purge
 
-module load OpenMPI/4.0.5-GCC-10.2.0
-module load FFTW/3.3.8-gompi-2020b
-module load HDF5/1.10.7-gompi-2020b
-module load CMake/3.18.4-GCCcore-10.2.0
+module load releases/2021b
+module load OpenMPI/4.1.2-GCC-11.2.0
+module load FFTW/3.3.10-gompi-2021b
+module load HDF5/1.12.1-gompi-2021b
+module load CMake/3.21.1-GCCcore-11.2.0
 #------------------------------------------------------------------------------
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
 
 echo "--------------------------------------------------------------------"
 echo "      WELCOME ON LM3!! "
-echo "    > runing ${EXEC} "
-echo "    >looking here: ${BIN_DIR}/${EXEC}"
-echo "    > scratch dir = ${SCRATCH}"
+echo "    > running ${EXEC} "
+echo "    > command = mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID"
 echo "--------------------------------------------------------------------"
-
-#create the scratch dir
-mkdir -p ${SCRATCH}
-
-# copy the exec in it
-cp -r ${BIN_DIR}/${EXEC} ${SCRATCH}
-cd ${SCRATCH}
 
 #------------------------------------------------------------------------------
 # run the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${TYPE}_$SLURM_JOB_ID
+mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID

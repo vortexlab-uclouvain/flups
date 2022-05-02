@@ -10,6 +10,7 @@
 	// "image": "immc/flups-valid:v0.4",
 	// "image": "vanreeslab/flups:v0.5",
 	// "image": "vanreeslab/murphy:v1.10",
+	// "image": "vanreeslab/flups:v1.0",
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"terminal.integrated.shell.linux": null

@@ -40,10 +40,10 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false,"the data cannot be complex", LOCATION);
+    FLUPS_CHECK(isComplex == false,"the data cannot be complex");
 
     //When removing this assert, we have to make sure that the computation of the normfact_ is consistent with 3D data
-    // FLUPS_CHECK(lda_<= 1 ,"For the moment, we can only handle scalar data in node centered simulation", LOCATION);
+    // FLUPS_CHECK(lda_<= 1 ,"For the moment, we can only handle scalar data in node centered simulation");
 
     //-------------------------------------------------------------------------
     /** - check that the BC given for the different component are compatible,
@@ -54,9 +54,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     for (int lia = 1; lia < lda_; lia++) {
         // a boundary condition of type4 = left != right has to be the case for EVERY component
         bool type4 = bc_[0][lia] != bc_[1][lia];
-        if ((type4 && !istype4) || (!type4 && istype4)) {
-            FLUPS_ERROR("one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported", LOCATION);
-        }
+        bool isOk = !((type4 && !istype4) || (!type4 && istype4));
+        FLUPS_CHECK(isOk, "one component has an EVEN-ODD condition, while one of the other uses EVEN-EVEN or ODD-ODD, which is not supported");
     }
 
     //-------------------------------------------------------------------------
@@ -74,7 +73,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
-    kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_     = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
 
     // because of the constrain on the BC, we only the kind argument is linked to the lia
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
@@ -191,7 +190,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type IV
                 }
             } else {
-                FLUPS_ERROR("unable to init the solver required", LOCATION);
+                FLUPS_CHECK(false, "unable to init the solver required");
             }
     }
     END_FUNC;
@@ -211,7 +210,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - sanity checks */
     //-------------------------------------------------------------------------
-    FLUPS_CHECK(isComplex == false, "the data cannot be complex", LOCATION);
+    FLUPS_CHECK(isComplex == false, "the data cannot be complex");
 
     //-------------------------------------------------------------------------
     /** - get the memory details: #fieldstart_ and #isr2c_ */
@@ -234,7 +233,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    kind_     = (fftw_r2r_kind*)flups_malloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_     = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
 
     //-------------------------------------------------------------------------
     /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/
@@ -295,7 +294,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
             } else {
-                FLUPS_ERROR("unable to init the solver required", LOCATION);
+                FLUPS_CHECK(false, "unable to init the solver required");
             }
         }
     }

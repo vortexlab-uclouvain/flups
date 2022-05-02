@@ -24,6 +24,19 @@ RUN cd /googletest &&\
     make install -j
 RUN rm -rf /googletest
 
+# h3lpr
+COPY h3lpr /h3lpr
+RUN cd /h3lpr &&\
+    echo "CXX = mpic++" > make_arch/make.temp &&\
+    echo "CC = mpicc" >> make_arch/make.temp &&\
+    echo "CXXFLAGS := -O3 -std=c++17 -fopenmp -DCOLOR_PROF " >> make_arch/make.temp  &&\
+    echo "CCFLAGS := -O3 -std=c99 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp &&\
+    echo "LDFLAGS += -fopenmp -lstdc++ -lm" >> make_arch/make.temp &&\
+    echo "GTEST_INC = /soft/googletest/include" >> make_arch/make.temp &&\
+    echo "GTEST_LIB = /soft/googletest/lib" >> make_arch/make.temp &&\
+    ARCH_FILE=make_arch/make.temp PREFIX=/soft/h3lpr make install -j4 &&\
+    rm -rf /h3lpr
+
 
 # VOLUME ["/etc/gitlab-runner"]
 

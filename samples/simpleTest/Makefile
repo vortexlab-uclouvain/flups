@@ -33,6 +33,8 @@ NAME := simple_test
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
+TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
+TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -50,6 +52,12 @@ CUDA_LIBNAME ?= -lcudart -lcufft
 INC += -I$(CUDA_INC)
 LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
 
+#---- FLUPS
+FLUPS_INC ?= ../../include
+FLUPS_LIB ?= ../../lib
+INC += -I$(FLUPS_INC)
+# LIB += -L$(FLUPS_LIB) $(FLUPS_LIBNAME) -Wl,-rpath,$(FLUPS_LIB)
+
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
@@ -64,11 +72,6 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
-#---- FLUPS
-FLUPS_INC ?= ../../include
-FLUPS_LIB ?= ../../lib
-INC += -I$(FLUPS_INC)
-
 #---- METIS
 #check if HAVE_METIS
 ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
@@ -77,6 +80,14 @@ ifneq (,$(findstring -DHAVE_METIS,$(CXXFLAGS)))
 	INC+= -I$(METIS_INC)
 	LIB+= -L$(METIS_LIB) -lmetis  -Wl,-rpath,$(METIS_LIB)
 endif
+
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
@@ -92,28 +103,30 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: all
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
-
-all2all: $(TARGET_EXE_A2A)
-
-nonblocking: $(TARGET_EXE_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 $(TARGET_EXE_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 $(TARGET_EXE_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
+
+$(TARGET_EXE_DPREC_A2A): $(OBJ)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
+
+$(TARGET_EXE_DPREC_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-
-destroy:
-	rm -f $(TARGET_EXE_A2A)
-	rm -f $(TARGET_EXE_NB)
+	rm -f $(TARGET_EXE_DPREC_A2A)
+	rm -f $(TARGET_EXE_DPREC_NB)
+	
+destroy: clean 
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib

@@ -22,7 +22,7 @@ validate3D all BCs Centered:
   script:
     - cd ./samples/validation/
     - export OMP_NUM_THREADS=1
-    - python3.7 ./scripts/test_3D_bcs.py 0
+    - python3.8 ./scripts/test_3D_bcs.py 0
   
 validate3D all BCs Cell Centered:
   stage: validation
@@ -37,7 +37,7 @@ validate3D all BCs Cell Centered:
   script:
     - cd ./samples/validation/
     - export OMP_NUM_THREADS=1
-    - python3.7 ./scripts/test_3D_bcs.py 1
+    - python3.8 ./scripts/test_3D_bcs.py 1
 
 # #validation convergence in unbounded for all kernels (parallel)
 validate3D all kernels Node Centered:
@@ -53,7 +53,7 @@ validate3D all kernels Node Centered:
   script:
     - cd ./samples/validation/
     - echo $OMP_NUM_THREADS
-    - python3.7 ./scripts/test_3D_kerns.py 0 
+    - python3.8 ./scripts/test_3D_kerns.py 0 
   
 
 validate3D all kernels Cell Centered:
@@ -69,4 +69,4 @@ validate3D all kernels Cell Centered:
   script:
     - cd ./samples/validation/
     - echo $OMP_NUM_THREADS
-    - python3.7 ./scripts/test_3D_kerns.py 1
+    - python3.8 ./scripts/test_3D_kerns.py 1
