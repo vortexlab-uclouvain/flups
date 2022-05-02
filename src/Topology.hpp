@@ -144,6 +144,7 @@ class Topology {
         const int nbyproc   = nglob_[id] / nproc_[id];                       // the number of unknowns in the integer division
         const int global_g0 = nproc_g0 * (nbyproc + 1);                      // the number of unknowns in the first group of procs
         const int rank_g0   = global_id / (nbyproc + 1);                     // rank id if the global index is below global_g0
+        FLUPS_CHECK((nbyproc > 0), "the case were there is less points in 1 direction than procs in the same direction is not handled by flups");
         const int rank_g1   = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
         return (global_id < global_g0) ? rank_g0 : m_min(rank_g1, nproc_[id] - 1);
         // return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;

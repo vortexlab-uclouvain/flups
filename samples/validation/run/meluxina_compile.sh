@@ -6,8 +6,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=00:10:00
-#SBATCH --output=flups_compile%j.out
-#SBATCH --error=flups_compile%j.err
+#SBATCH --output=%x.out
+#SBATCH --error=%x.err
 
 ## Load modules 
 # module use /apps/USE/easybuild/staging/2021.1/modules/all
@@ -37,14 +37,11 @@ cd -
 cd ${FLUPS_DIR} 
 echo "CXX = ${EBROOTOPENMPI}/bin/mpic++ " > make_arch/make.meluxina
 echo "CC = ${EBROOTOPENMPI}/bin/mpicc " >> make_arch/make.meluxina
-echo "# set the flag (optimisation or not) " >> make_arch/make.meluxina
-echo "## For debugging: " >> make_arch/make.meluxina
-echo "# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG " >> make_arch/make.meluxina
-echo "## For profiling: " >> make_arch/make.meluxina
-echo "# CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF " >> make_arch/make.meluxina
 echo "## For production: " >> make_arch/make.meluxina
 echo "CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
 echo "CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
+# echo "CXXFLAGS := -O0 -std=c++17 " >> make_arch/make.meluxina
+# echo "CCFLAGS := -O0 -std=c99 " >> make_arch/make.meluxina
 echo "LDFLAGS = -fopenmp #-lstc++ " >> make_arch/make.meluxina
 echo "#---------------------------------------------------------   " >> make_arch/make.meluxina
 echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.meluxina

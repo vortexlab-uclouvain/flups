@@ -96,8 +96,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string     name = "validation_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string     name = "validation_nx" + std::to_string((int)(nglob[0])) + "_ny" + std::to_string((int)(nglob[1])) + "_nz" + std::to_string((int)(nglob[2])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
+    
+    m_profStart(prof, "Validation--Init-Flups");
     FLUPS_Solver *  mysolver;
     mysolver = flups_init_timed(topo, mybc, h, L, NOD, center_type, prof);
 
@@ -107,10 +109,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     // update the comm and the rank
     comm = flups_topo_get_comm(topo);
     MPI_Comm_rank(comm, &rank);
+    m_profStop(prof, "Validation--Init-Flups");
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
     //-------------------------------------------------------------------------
+    m_profStart(prof, "Validation--Init-RHS");
     double *rhs   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *sol   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *field = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
@@ -350,6 +354,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     }
 
 #endif
+    m_profStop(prof, "Validation--Init-RHS");
+
 
 #ifdef DUMP_DBG
     char msg[512];
@@ -364,7 +370,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     /** - solve the equations */
     //-------------------------------------------------------------------------
     for (int is = 0; is < nSolve; is++) {
+        m_profStart(prof, "Validation--Solve");
         flups_solve(mysolver, field, rhs,STD);
+        m_profStop(prof, "Validation--Solve");
     }
 
     flups_profiler_disp(prof);

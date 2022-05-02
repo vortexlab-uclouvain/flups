@@ -3,9 +3,10 @@
 #SBATCH --partition=cpu
 #SBATCH --qos=default
 #SBATCH --ntasks-per-node=256
+#SBATCH --contiguous
 #SBATCH --time=00:30:00
-#SBATCH --output=flups_OpenMPI5.0.0.%j.out
-#SBATCH --error=flups_OpenMPI5.0.0.%j.err
+#SBATCH --output=%x.out
+#SBATCH --error=%x.err
 
 #--------------------------------------------------------
 # module use /apps/USE/easybuild/staging/2021.1/modules/all
