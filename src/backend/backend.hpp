@@ -2,6 +2,13 @@
 #define BACKEND_HPP
 
 
+struct flups_fft_arch {
+    int dim;
+    int howmany;
+    int stride;
+};
+
+
 #if defined(FLUPS_FFTW_BACKEND)
 #include "fftw3.h"
 
@@ -10,16 +17,16 @@ using flups_plan    = fftw_plan;
 using flups_complex = fftw_complex;
 
 // Allocation functions
-inline flups_plan flups_plan_r2c_1d(int n, double *in, flups_complex *out) {
-    return fftw_plan_dft_r2c_1d(n, in, out, FFTW_FLAG);
+inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
+    return fftw_plan_dft_r2c_1d(arch.dim, in, out, FFTW_FLAG);
 }
 
-inline flups_plan flups_plan_c2r_1d(int n, flups_complex *in, double *out) {                                          \
-    return fftw_plan_dft_c2r_1d(n, in, out, FFTW_FLAG);
+inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {                                          \
+    return fftw_plan_dft_c2r_1d(arch.dim, in, out, FFTW_FLAG);
 }
 
-inline flups_plan flups_plan_c2c_1d(int n, flups_complex *in, flups_complex *out, int sign) {
-    return fftw_plan_dft_1d(n, in, out, sign, FFTW_FLAG);
+inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
+    return fftw_plan_dft_1d(arch.dim, in, out, sign, FFTW_FLAG);
 }
 
 // Execute functions
@@ -54,21 +61,21 @@ using flups_plan    = cufftHandle;
 using flups_complex = cufftDoubleComplex;
 
 // Allocation functions
-inline flups_plan flups_plan_r2c_1d(int n, double *in, flups_complex *out) {
+inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     cufftHandle plan;
-    cufftPlan1d(&plan, n, CUFFT_D2Z, 1);
+    cufftPlan1d(&plan, arch.dim, CUFFT_D2Z, arch.howmany);
     return plan; 
 }
 
-inline flups_plan flups_plan_c2r_1d(int n, flups_complex *in, double *out) {
+inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     cufftHandle plan;
-    cufftPlan1d(&plan, n, CUFFT_Z2D, 1);
+    cufftPlan1d(&plan, arch.dim, CUFFT_Z2D, arch.howmany);
     return plan;
 }
 
-inline flups_plan flups_plan_c2c_1d(int n, flups_complex *in, flups_complex *out, int sign) {
+inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     cufftHandle plan;
-    cufftPlan1d(&plan, n, CUFFT_Z2Z, 1);
+    cufftPlan1d(&plan, arch.dim, CUFFT_Z2Z, arch.howmany);
     return plan;
 }
 
@@ -76,16 +83,19 @@ inline flups_plan flups_plan_c2c_1d(int n, flups_complex *in, flups_complex *out
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
     #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2Z(plan, in, out, sign);
+    cudaDeviceSynchronize();
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
     #pragma omp target data use_device_ptr(in, out)
     cufftExecD2Z(plan, in, out);
+    cudaDeviceSynchronize();
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
     #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2D(plan, in, out);
+    cudaDeviceSynchronize();
 }
 
 inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign) {

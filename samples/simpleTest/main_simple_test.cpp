@@ -141,6 +141,7 @@ int main(int argc, char *argv[])  {
     }
 
     printf("Error == %e \n", err);
+    printf("Done test on %d device !\n", omp_get_num_devices());
     //SOL
     
 

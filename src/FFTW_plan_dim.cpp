@@ -273,7 +273,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     // for (int lia = 0; lia < lda_; lia++) {
     //     if (topo->nf() == 1) {
     //         fftw_stride_ = memsize[dimID_];
-    //         plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FFTW_FLAG);
+    //         plan_[lia]   = fftw_plan_r2r(n_in_[lia], data, data, kind_[lia], FFTW_FLAG);
 
     //     } else if (topo->nf() == 2) {
     //         fftw_stride_ = memsize[dimID_] * topo->nf();
@@ -343,6 +343,12 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
 
     // allocate the plan
     plan_ =(flups_plan*) flups_malloc(sizeof(flups_plan) * lda_);
+
+    // Plan details
+    flups_fft_arch arch;
+    arch.dim = n_in_[0];
+    arch.howmany = howmany_;
+    arch.stride = fftw_stride_;
        
     if (isr2c_) {
         FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo",LOCATION);
@@ -367,9 +373,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = flups_plan_r2c_1d(n_in_[0], data, (flups_complex*)data);
+            plan_[0] = flups_plan_r2c(arch, data, (flups_complex*)data);
         } else {
-            plan_[0] = flups_plan_c2r_1d(n_in_[0], (flups_complex*)data, data);
+            plan_[0] = flups_plan_c2r(arch, (flups_complex*)data, data);
         }
 
     } else {
@@ -392,7 +398,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
-        plan_[0] = flups_plan_c2c_1d(n_in_[0], (flups_complex*)data, (flups_complex*)data, sign_);
+        plan_[0] = flups_plan_c2c(arch, (flups_complex*)data, (flups_complex*)data, sign_);
     }
 
     // the plan is the same in every other direction
@@ -599,6 +605,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
         if (isr2c_) {
             if (sign_ == FLUPS_FORWARD) {  // DFT - R2C
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage", LOCATION);
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
@@ -608,8 +615,18 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // execute the plan on it
                     flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data  + offset));
                 }
+#else
+                for (int lia = 0; lia < lda_; lia++) {
+                    // get the memory offset
+                    int offset = lia*memdim + fftwstart_[lia];
+                    // execute the plan
+                    flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data + offset));
+                }
+#endif
+
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
@@ -619,10 +636,19 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // execute the plan on it
                     flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
                 }
+#else
+                for (int lia = 0; lia < lda_; lia++) {
+                    // get the memory offset
+                    int offset = lia*memdim + fftwstart_[lia];
+                    // execute the plan
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
+                }
+#endif
             }
 
         } else {  // DFT
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage", LOCATION);
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(sign, plan, data, fftw_stride, onmax, howmany, memdim)
             for (size_t id = 0; id < onmax; id++) {
                 size_t lia = id / howmany;
@@ -630,8 +656,17 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 // we access complex info with a fftw_stride real
                 int offset = lia*memdim + 2*io*fftw_stride + fftwstart_[lia];
                 // execute the plan on it
+                #pragma omp target data use_device_ptr(data)
                 flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
             }
+#else
+            for (int lia = 0; lia < lda_; lia++) {
+                // get the memory offset
+                int offset = lia*memdim + fftwstart_[lia];
+                // execute the plan
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
+            }
+#endif
         }
     }
 
