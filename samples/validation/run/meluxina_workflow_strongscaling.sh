@@ -6,7 +6,7 @@
 
 OMPIVERSION=4.1.3
 # CODE_VERSION='nb a2a'
-CODE_VERSION='a2a'
+CODE_VERSION='nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
