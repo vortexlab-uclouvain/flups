@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_gcc
+ARCH_FILE ?= make_arch/make.default
 
 include $(ARCH_FILE)
 
