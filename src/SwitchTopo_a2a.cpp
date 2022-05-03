@@ -776,19 +776,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     }
                 }
             }
-
-#ifndef NDEBUG
-            for (int id = 0; id < id_max; id++){
-                // get the id from a small modulo
-                const int i2 = id / iBlockSize[iax1][bid];
-                const int i1 = id % iBlockSize[iax1][bid];
-                double* __restrict dataloc = sendBuf[bid] + lia * blockSize + id * nmax ;
-                // do the check
-                for (size_t i0 = 0; i0 < nmax; i0++){
-                    FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
-                }
-            }
-#endif
         }
     }
     
@@ -954,18 +941,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     }
                 }
             }
-
-#ifndef NDEBUG
-            for (int id = 0; id < id_max; id++){
-                const int i2 = id / oBlockSize[oax1][bid];
-                const int i1 = id % oBlockSize[oax1][bid];
-                double *__restrict vloc = my_v + localIndex(oax0, 0, i1, i2, oax0, onmem, nf, 0);
-                // do the check
-                for (size_t i0 = 0; i0 < nmax; i0++){
-                    FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
-                }
-            }
-#endif
         }
     }
 
