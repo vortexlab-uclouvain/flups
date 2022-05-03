@@ -86,7 +86,7 @@ SwitchTopoX_a2a::~SwitchTopoX_a2a(){
 void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    m_profStarti(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     if (sign == FLUPS_FORWARD) {
         All2Allv(i2o_chunks_, i2o_count_, i2o_disp_,
                  o2i_chunks_, o2i_count_, o2i_disp_,
@@ -98,7 +98,7 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
                  recv_buf_, send_buf_, subcomm_,
                  topo_out_, topo_in_, v, prof_);
     }
-    m_profStopi(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
     END_FUNC;
 }
