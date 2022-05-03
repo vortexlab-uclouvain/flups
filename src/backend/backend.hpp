@@ -5,7 +5,7 @@
 struct flups_fft_arch {
     int dim;
     int howmany;
-    int stride;
+    int dist;
 };
 
 
@@ -21,7 +21,7 @@ inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex 
     return fftw_plan_dft_r2c_1d(arch.dim, in, out, FFTW_FLAG);
 }
 
-inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {                                          \
+inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     return fftw_plan_dft_c2r_1d(arch.dim, in, out, FFTW_FLAG);
 }
 
@@ -30,7 +30,7 @@ inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_c
 }
 
 // Execute functions
-inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {                            \
+inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
     fftw_execute_dft(plan, in, out);
 }
 
@@ -62,20 +62,31 @@ using flups_complex = cufftDoubleComplex;
 
 // Allocation functions
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
+    FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     cufftHandle plan;
-    cufftPlan1d(&plan, arch.dim, CUFFT_D2Z, arch.howmany);
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist,
+                  &arch.dim, 1, arch.dist / 2,
+                  CUFFT_D2Z, arch.howmany);
     return plan; 
 }
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
+    FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     cufftHandle plan;
-    cufftPlan1d(&plan, arch.dim, CUFFT_Z2D, arch.howmany);
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist / 2,
+                  &arch.dim, 1, arch.dist,
+                  CUFFT_Z2D, arch.howmany);
     return plan;
 }
 
 inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     cufftHandle plan;
-    cufftPlan1d(&plan, arch.dim, CUFFT_Z2Z, arch.howmany);
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist,
+                  &arch.dim, 1, arch.dist,
+                  CUFFT_Z2Z, arch.howmany);
     return plan;
 }
 

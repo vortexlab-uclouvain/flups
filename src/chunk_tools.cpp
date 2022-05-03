@@ -320,7 +320,6 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // get the starting adddress for the memcpy
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            FLUPS_INFO("offset src = %ld and trg = %ld",localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0),localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0));
             std::memcpy(vtrg, vsrc, nmax_byte);
         }
     }

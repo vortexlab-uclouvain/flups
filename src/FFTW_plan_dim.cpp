@@ -348,7 +348,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     flups_fft_arch arch;
     arch.dim = n_in_[0];
     arch.howmany = howmany_;
-    arch.stride = fftw_stride_;
+    arch.dist = fftw_stride_;
        
     if (isr2c_) {
         FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo");
