@@ -7,9 +7,9 @@ CCFLAGS  := -g -O3 -fopenmp -std=c99   -Wno-format-security        -I/usr/lib/x8
 LDFLAGS  :=    -O3 -fopenmp -lstdc++ -lm -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx -pthread 
 
 ## GPU-related stuff
-OPTS     += -DFLUPS_FFTW_BATCH_BACKEND  # -DVERBOSE=1
-CXXFLAGS += -fopenmp-targets=nvptx64-nvidia-cuda
-LDFLAGS  += -fopenmp-targets=nvptx64-nvidia-cuda
+OPTS     += -DFLUPS_FFTW_BATCH_BACKEND
+# CXXFLAGS += -fopenmp-targets=nvptx64-nvidia-cuda
+# LDFLAGS  += -fopenmp-targets=nvptx64-nvidia-cuda
 
 ## Specify the location of FFTW3 (by default, assumed to be /usr/lib/)
 #FFTW_DIR  :=  /usr/local/fftw
