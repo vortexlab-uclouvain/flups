@@ -301,6 +301,16 @@ class Solver {
     void set_GreenType(const GreenType type) { typeGreen_ = type; }
     void set_alpha(const double alpha) { alphaGreen_ = alpha; }
     /**@} */
+
+    /**
+     * @name Print MPI info of the Switchtopos
+     * 
+     */
+    void get_switchtopo_info(){
+        for(int i = 0; i < 3; i++ ){
+            switchtopo_[i]->print_info();
+        }
+    };
 };
 
 // /**

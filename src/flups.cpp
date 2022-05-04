@@ -232,6 +232,10 @@ int flups_hint_proc_repartition(const int lda, const double h[3], const double L
     return hint_proc_repartition(lda, h, L, bc, center_type);
 }
 
+void flups_switchtopo_info(Solver* s){
+    s->get_switchtopo_info();
+}
+
 //**********************************************************************
 //  PROFILER - TIMERS
 //**********************************************************************

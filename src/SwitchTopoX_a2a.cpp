@@ -105,6 +105,7 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
 
 void SwitchTopoX_a2a::disp() const {
     BEGIN_FUNC;
+    //--------------------------------------------------------------------------
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topo Swticher MPI");
     FLUPS_INFO("--- INPUT");
@@ -116,6 +117,8 @@ void SwitchTopoX_a2a::disp() const {
     FLUPS_INFO("  - output local = %d %d %d", topo_out_->nloc(0), topo_out_->nloc(1), topo_out_->nloc(2));
     FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
     FLUPS_INFO("------------------------------------------");
+    //--------------------------------------------------------------------------
+    END_FUNC;
 }
 
 /**

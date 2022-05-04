@@ -537,6 +537,14 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 
 int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], FLUPS_BoundaryType* bc[3][2], const FLUPS_CenterType center_type[3]);
+
+/**
+ * @brief Print information about the SwitchTopo used by a solver
+ * 
+ * 
+ * @param s 
+ */
+void flups_switchtopo_info(FLUPS_Solver* s);
 /**@} */
 
 

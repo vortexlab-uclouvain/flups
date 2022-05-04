@@ -83,6 +83,7 @@ class SwitchTopo {
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData)            = 0;
     virtual void execute(opt_double_ptr v, const int sign) const                            = 0;
     virtual void disp() const                                                               = 0;
+    
 
     /**
      * @brief Get the memory size of a block padded to ensure alignment
@@ -128,6 +129,11 @@ class SwitchTopo {
     };
 
     void add_toGraph(int* sourcesW, int* destsW) const;
+
+    void print_info() const{
+        FLUPS_WARNING("To be implemented in the deprecated version.. ");
+        FLUPS_WARNING("If you want more info about the switch topo recompile with -DPERF_VERBOSE ");
+    };
 
    protected:
     void cmpt_nByBlock_(int istart[3], int iend[3], int ostart[3], int oend[3],int nByBlock[3]);
