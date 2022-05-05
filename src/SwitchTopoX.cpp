@@ -350,11 +350,15 @@ void SwitchTopoX::print_info() const {
     // define the MPI structure used to get the location of the max and the min
     struct{
         size_t val = 0;
-        int rank = 0;
-    } max_size_i2ochunks, min_size_i2ochunks,\
-      max_size_o2ichunks, min_size_o2ichunks,\
-      loc_max_size_i2ochunk, loc_min_size_i2ochunk,\
-      loc_max_size_o2ichunk, loc_min_size_o2ichunk;
+        int   rank = 0;
+    } max_size_i2ochunks, max_size_o2ichunks,\
+      loc_max_size_i2ochunk, loc_max_size_o2ichunk;
+
+    struct{
+        size_t val = std::numeric_limits<size_t>::max();
+        int   rank = 0;
+    }  min_size_i2ochunks,min_size_o2ichunks,\
+      loc_min_size_i2ochunk, loc_min_size_o2ichunk;
 
     for (int ir = 0; ir < i2o_nchunks_; ++ir) {
         MemChunk      *cchunk = i2o_chunks_ + ir;
@@ -364,8 +368,6 @@ void SwitchTopoX::print_info() const {
     }
     loc_max_size_i2ochunk.rank = rank_world;
     loc_min_size_i2ochunk.rank = rank_world;
-
-    printf("rank %d -- loc_max_size_i2ochunk.val = %lu \n", rank_world, loc_max_size_i2ochunk.val);
 
     
     for (int ir = 0; ir < o2i_nchunks_; ++ir) {
