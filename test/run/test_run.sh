@@ -1,11 +1,11 @@
 #!/bin/bash
 # Submission script for Lemaitre3 
 #SBATCH --job-name=flups_auto_test
-#SBATCH --time=2:30:00 # hh:mm:ss
+#SBATCH --time=6:00:00 # hh:mm:ss
 #
-#SBATCH --ntasks=16
+#SBATCH --ntasks=64
 #SBATCH --mem-per-cpu=4000 # megabytes 
-#SBATCH --partition=debug
+#SBATCH --partition=batch
 #
 #SBATCH --comment=flups
 #SBATCH --profile=all
@@ -30,4 +30,4 @@ echo "--------------------------------------------------------------------"
 
 #------------------------------------------------------------------------------
 # run the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC}  --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID
+srun -n ${SLURM_NTASKS} ./${EXEC} --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID
