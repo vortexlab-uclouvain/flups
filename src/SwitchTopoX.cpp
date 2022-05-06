@@ -58,21 +58,25 @@ void SwitchTopoX::setup() {
     //--------------------------------------------------------------------------
     // The input topo may have been reset to real, even if this switchtopo is a complex2complex.
     // We create a tmp input topo which is complex if needed, for the computation of start and end.
-    bool isC2C = topo_out_->isComplex();
     int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
     for (int i = 0; i < 3; i++){
         tmp_nglob[i] = topo_in_->nglob(i);
         tmp_nproc[i] = topo_in_->nproc(i);
         tmp_axproc[i] = topo_in_->axproc(i);
     }
-    const Topology *topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, isC2C, tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
-
+    
+    Topology * topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, topo_in_->isComplex(), tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
+    // If the output topo is complex while the input topo is real, switch the input topo as a complex one 
+    if(topo_out_->isComplex() && !topo_in_->isComplex()){
+        topo_in_tmp->switch2complex();
+    }
+    
     // Populate the arrays of memory chunks
     FLUPS_INFO("I2O chunks");
     PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
     FLUPS_INFO("O2I chunks");
     PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
-
+    
     delete(topo_in_tmp);
 
     // Split the communication according to the destination of each chunk in the MPI_COMM_WORLD
