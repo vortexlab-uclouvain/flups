@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {
                                              "3x(Bxl Bxr Byl Byr Bzl Bzr) : the boundary conditions in x/y/z on each side l/r, 3 times for each component. 0=EVEN, 1=ODD, 3=PERiodic, 4=UNBounded", {9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9});
     
     
+    parser.Finalize();
     
     int *size = (int*) malloc((arg_nsample) * 3 * sizeof(int));
     if (size==NULL){

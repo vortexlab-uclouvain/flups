@@ -5,6 +5,8 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Comm subcomm,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
 
+void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm);
+
 SwitchTopoX_a2a::SwitchTopoX_a2a(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
     BEGIN_FUNC;
@@ -201,6 +203,72 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
         m_profStopi(prof, "shuffle and copy chunk 2 data");
     }
 
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+
+void SwitchTopoX_a2a::print_info() const {
+    BEGIN_FUNC;
+    FLUPS_CHECK(i2o_count_!=NULL, "The setup must be initialised before printring their information");
+    //--------------------------------------------------------------------------
+    // Call the base class
+    SwitchTopoX::print_info();
+
+    // Get MPI information 
+    int world_size;
+    MPI_Comm_size(inComm_, &world_size);
+    int sub_size;
+    MPI_Comm_size(subcomm_, &sub_size);
+
+    // Get filename  
+    std::string filename_forward = "./prof/Nrank_" + std::to_string(world_size)+ "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_forward_messages.txt";
+    PrintCountArr(filename_forward, i2o_count_, sub_size, inComm_);
+    
+    std::string filename_backward = "./prof/Nrank_" + std::to_string(world_size)+ "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_backward_messages.txt";
+    PrintCountArr(filename_backward, o2i_count_, sub_size, inComm_);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+
+}
+
+
+void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm){
+    BEGIN_FUNC;
+    FLUPS_CHECK(count_arr!=NULL, "The setup must be initialised before printring their information");
+    //--------------------------------------------------------------------------
+    // Get MPI information 
+    int world_rank;
+    MPI_Comm_rank(incomm, &world_rank);
+
+    // Create the message for this rank
+    std::string msg = std::string((world_rank == 0) ? "" : "\n") + "rank " + std::to_string(world_rank);
+    for(int i = 0; i < array_size; ++i){
+        msg += " " +  std::to_string((count_arr[i]/1000.0)*sizeof(double));
+    }
+    size_t msg_size = msg.length();
+
+
+    // Open the file using MPI IO functions 
+    FLUPS_INFO("opening file <%s>", filename.c_str());
+
+    MPI_File   mpi_file;     
+    int err = MPI_File_open(incomm, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE | MPI_MODE_EXCL, MPI_INFO_NULL, &mpi_file);
+    FLUPS_CHECK(err == MPI_SUCCESS, "ERROR while opening  <%s>, MPI_File_open failed (error = %d)", filename.c_str(), err);
+
+    // Get the current offset
+    size_t offset_ttl = 0; 
+    FLUPS_CHECK(sizeof(unsigned long) == sizeof(size_t), "The mpi type should correspond to the standard size");
+    MPI_Scan(&msg_size, &offset_ttl, 1, MPI_UNSIGNED_LONG, MPI_SUM, incomm);
+
+    // the current position of current proc
+    MPI_Offset offset = offset_ttl - msg_size;
+    MPI_File_seek(mpi_file, offset, MPI_SEEK_SET);
+
+    MPI_Status status;
+    err = MPI_File_write(mpi_file, msg.c_str(), msg_size, MPI_CHAR, &status);
+
+    MPI_File_close(&mpi_file);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
