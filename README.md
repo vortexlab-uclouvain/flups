@@ -118,6 +118,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
 - `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
+- `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
