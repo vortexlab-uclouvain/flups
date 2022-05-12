@@ -13,3 +13,5 @@ doc/latex
 *.log
 *.txt
 *.code-workspace
+samples/simpleTest/simple_test_a2a
+samples/simpleTest/simple_test_nb
