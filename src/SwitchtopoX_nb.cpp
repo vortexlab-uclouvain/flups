@@ -143,12 +143,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     const int nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
 
     //..........................................................................
-    auto send_my_rqst = [=](MemChunk *chunk, MPI_Request *request) {
+    auto send_my_rqst = [=]( int count, MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        CopyData2Chunk(nmem_in, mem, chunk);
+        for(int ic = 0; ic < count; ++ic){
+            CopyData2Chunk(nmem_in, mem, chunk + ic);
+        }
         // start the request
-        MPI_Start(request);
+        MPI_Startall(count, request);
     };
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
@@ -157,7 +159,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // CopyChunk2Data(chunk, nmem_out, mem);
     };
     //..........................................................................
-    const int send_batch = m_max(MPI_BATCH_SEND, n_send_rqst / 5);
+    const int send_batch = MPI_BATCH_SEND;
     int send_cntr = 0;
     int recv_cntr = 0;
     int *completed_id = reinterpret_cast<int *>(m_calloc(n_recv_rqst * sizeof(int)));
@@ -170,17 +172,13 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profStarti(prof, "send/recv");
     while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst)) {
         // perform a batch of  sends
-        if (send_cntr < n_send_rqst) {
-            const int last_send_id = m_min(n_send_rqst, send_cntr + send_batch);
-            FLUPS_INFO("sending request from %d to %d /%d",send_cntr, last_send_id,n_send_rqst);
-            for(int isend = send_cntr; isend < last_send_id; ++isend){
-                m_profStarti(prof, "copy data 2 chunk");
-                send_my_rqst(send_chunks + send_cntr, send_rqst + send_cntr);
-                m_profStopi(prof, "copy data 2 chunk");
-                // increment the counter
-                send_cntr += 1;
-            }
-        }    
+        int count_send = m_min(n_send_rqst - send_cntr, send_batch);
+        FLUPS_INFO("sending request from %d to %d /%d", send_cntr, send_cntr + count_send, n_send_rqst);
+        m_profStarti(prof, "copy data 2 chunk");
+        send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
+        m_profStopi(prof, "copy data 2 chunk");
+        // increment the counter
+        send_cntr += count_send;
         
         // if we have some requests to recv, test it
         int n_completed = 0;
@@ -189,17 +187,13 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         }
 
         // Maintain the difference between the pending send and receive request to send_bacth
-        if (send_cntr < n_send_rqst) {
-            const int last_send_id = m_min(n_send_rqst, send_cntr + n_completed);
-            FLUPS_INFO("sending request from %d to %d /%d",send_cntr, last_send_id, n_send_rqst);
-            for(int isend = send_cntr; isend < last_send_id; ++isend){
-                m_profStarti(prof, "copy data 2 chunk");
-                send_my_rqst(send_chunks + send_cntr, send_rqst + send_cntr);
-                m_profStopi(prof, "copy data 2 chunk");   
-                // increment the counter
-                send_cntr += 1;
-            }
-        }
+        count_send = m_min(n_send_rqst - send_cntr, n_completed);
+        FLUPS_INFO("sending request from %d to %d /%d", send_cntr, send_cntr + count_send, n_send_rqst);
+        m_profStarti(prof, "copy data 2 chunk");
+        send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
+        m_profStopi(prof, "copy data 2 chunk");   
+        // increment the counter
+        send_cntr += count_send;
         
         // for each of the completed request, treat it
         for (int id = 0; id < n_completed; ++id) {
@@ -210,7 +204,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             m_profStopi(prof, "shuffle");
         }
     
-        // increment the counter
+        // increment the counter of recv request
         recv_cntr += n_completed;
     
 
