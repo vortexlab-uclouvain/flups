@@ -172,7 +172,9 @@ class Topology {
         const int res = nglob_[id] % nproc_[id];                     // residual
         const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
         // if res = 0, stride becomes then inactive
-        return rank_id * b + rank_id / s;
+        // it might happen when requesting out of bound ranks (typically comm_size)
+        // that rank_id/s is bigger than the residual, which is not allowed
+        return rank_id * b + m_min(rank_id / s, res);
 #else
         return (rank_id) * (nglob_[id] / nproc_[id]) + std::min(rank_id, nglob_[id] % nproc_[id]);
 #endif
@@ -190,16 +192,22 @@ class Topology {
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const {
 #if (M_RANK_BALANCE)
-        const int b   = nglob_[id] / nproc_[id];               // baseline
-        const int res = nglob_[id] % nproc_[id];               // residual
-        const int s   = (res > 0) ? (nproc_[id] / res) : (0);  // stride
+        const int b   = nglob_[id] / nproc_[id];                     // baseline
+        const int res = nglob_[id] % nproc_[id];                     // residual
+        const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
 
-        // if the res is 0, setting the stride to 0 is convenient and the gsize is then INT_MAX
-        const int gsize = (res > 0) ? (s * b + 1) : (INT_MAX);  // group size, = 1 if the stride is null
-        const int rank  = m_min(nproc_[id] - 1, (global_id / gsize) * s + (global_id % gsize) / b);
+        // if the res is 0, setting the stride to INT_MAX then the gsize is then INT_MAX
+        const int gsize = (res > 0) ? (s * b + 1) : (INT_MAX);  // group size, = INT_MAX if the stride is null
+        const int gid   = global_id / gsize;                    // group id
+        const int gres  = global_id % gsize;                    // group residual
 
-        FLUPS_CHECK(cmpt_start_id_from_rank(rank, id) <= global_id, "The global id must be bigger than the start id: %d vs %d (nglob = %d, nproc = %d, gid = %d)", cmpt_start_id_from_rank(rank, id), global_id, nglob_[id], nproc_[id], global_id);
-        FLUPS_CHECK(global_id < cmpt_start_id_from_rank(rank + 1, id), "The global id must be smaller than the next start id: %d vs %d (nglob = %d, nproc = %d, gid = %d)", cmpt_start_id_from_rank(rank + 1, id), global_id, nglob_[id], nproc_[id], global_id);
+        // if you query the last point of the last rank on the group
+        // it will return the desired rank + 1 because we use b to divide instead of b+1
+        const int grank = gid * s;
+        const int rrank = m_min(gres / b, s - 1);  // the rrank is bound by s-1, always
+        const int rank  = m_min(m_max(nproc_[id] - 1, 0), grank + rrank);
+        FLUPS_CHECK(cmpt_start_id_from_rank(rank, id) <= global_id, "The global id = %d must be bigger than the start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d) = min(%d, %d * %d + %d)", global_id, rank, cmpt_start_id_from_rank(rank, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize, nproc_[id] - 1, (global_id / gsize), s, (global_id % gsize) / b);
+        FLUPS_CHECK(global_id < cmpt_start_id_from_rank(rank + 1, id), "The global id = %d must be smaller than the next start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d)", global_id, rank, cmpt_start_id_from_rank(rank + 1, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize);
         return rank;
 #else
         const int nproc_g0  = nglob_[id] % nproc_[id];    // number of procs that have a +1 in their unkowns
