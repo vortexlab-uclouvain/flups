@@ -8,7 +8,7 @@ WORKDIR /
 #RUN apt update
 #RUN apt upgrade -y
 RUN apt -y update && apt install -y \
-make git g++ libhdf5-mpi-dev libfftw3-dev libopenmpi-dev openmpi-bin linux-libc-dev vim wget unzip cmake
+make git g++ libhdf5-mpi-dev linux-libc-dev vim wget unzip cmake
 #valgrind
 
 #METIS:

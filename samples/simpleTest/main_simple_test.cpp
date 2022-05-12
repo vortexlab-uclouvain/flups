@@ -19,7 +19,7 @@ int main(int argc, char *argv[])  {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
-    m_log("Starting on %d device...", omp_get_num_devices());
+    m_log("Starting on %d device with %d threads...", omp_get_num_devices(), omp_get_max_threads());
 
     //-------------------------------------------------------------------------
     // Definition of the problem
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])  {
     const int nproc[3] = {1, 1, comm_size};
     const double L[3] = {1., 1., 1.};
     const double h[3] = {L[0] / (nglob[0] - is_node), L[1] / (nglob[1] - is_node), L[2] / (nglob[2] - is_node)};  
-    int nsolve = 10;
+    int nsolve = 1;
 
     FLUPS_CenterType center_type[3]; 
     FLUPS_BoundaryType *mybc[3][2];
@@ -125,11 +125,6 @@ int main(int argc, char *argv[])  {
         }
     }
 
-    //m_log("Printing results");
-    //printf("[test %d] Error computation - end %d %d %d ", rank,flups_topo_get_nloc(topo,ax0) - is_last_topo[0], flups_topo_get_nloc(topo,ax1) - is_last_topo[1], flups_topo_get_nloc(topo,ax2) - is_last_topo[2] );
-    //std::string arg_name = (argc == 2) ? argv[1] : "default";
-    //print_res(field, topo, "data/sol_" + arg_name) ;
-
     // --------------------------------------------------------------------------
     // Local error 
     printf("[test - %d] my error is %e \n", rank, err);
@@ -141,7 +136,7 @@ int main(int argc, char *argv[])  {
     m_log("--------------- Global Error ---------------");
     m_log("The global error == %e", err_glob);
     
-    flups_profiler_disp(prof);
+    // flups_profiler_disp(prof);
 
     //-------------------------------------------------------------------------
     /** - CLEAN */
@@ -158,7 +153,6 @@ int main(int argc, char *argv[])  {
         }
     }
 
-    m_log("Done test on %d device !", omp_get_num_devices());
     MPI_Finalize();
 }
 
