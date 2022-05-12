@@ -99,12 +99,12 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     
                     // The chunk start in the current topo must be in the local frame of the input topo
                     cchunk->istart[id] = cchunk_gstart - topo_in->cmpt_start_id(id);
-                    cchunk->isize[id]  = cchunk_gend - cchunk_gstart; 
+                    cchunk->isize[id]  = cchunk_gend - cchunk_gstart;
 
                     // // we have to now switch the start to the local indexing:
                     // cchunk->istart[id] = cchunk->istart[id];
                     FLUPS_CHECK(cchunk->istart[id] >= 0, "the start id = %d should be >= 0", cchunk->istart[id]);
-                    FLUPS_CHECK(cchunk->isize[id] > 0, "The size of the chunk is %d which is not expecte", cchunk->isize[id]);
+                    FLUPS_CHECK(cchunk->isize[id] > 0, "The size of the chunk is %d = %d - %d which is not expecte", cchunk->isize[id], cchunk_gend, cchunk_gstart);
                 }
                 // get the destination rank, no translation is required here as we imposed identical communicators
                 cchunk->dest_rank   = rankindex(irank, topo_out);
