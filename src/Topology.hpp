@@ -66,7 +66,7 @@
  * the rank is then:
  *      group_id * S + local_group_id/B
  */
-#define F_RANK_BALANCE 1
+#define M_RANK_BALANCE 1
 
 /**
  * @brief Class Topology
@@ -138,7 +138,7 @@ class Topology {
      * @return int
      */
     inline int cmpt_nbyproc(const int id) const {
-#if (F_RANK_BALANCE)
+#if (M_RANK_BALANCE)
         const int start = cmpt_start_id_from_rank(rankd_[id], id);
         const int end   = cmpt_start_id_from_rank(rankd_[id] + 1, id);
         return (end - start);
@@ -153,7 +153,7 @@ class Topology {
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
-#if (F_RANK_BALANCE)
+#if (M_RANK_BALANCE)
         return cmpt_start_id_from_rank(rankd_[id], id);
 #else
         return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
@@ -162,11 +162,12 @@ class Topology {
 
     /**
      * @name Functions to compute the starting index of each rank of the topology
+     * more details can be found in the documentation of the M_RANK_BALANCE define
      *
      * @param id the id for one component
      */
     inline int cmpt_start_id_from_rank(const int rank_id, const int id) const {
-#if (F_RANK_BALANCE)
+#if (M_RANK_BALANCE)
         const int b   = nglob_[id] / nproc_[id];                     // baseline
         const int res = nglob_[id] % nproc_[id];                     // residual
         const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
@@ -179,12 +180,7 @@ class Topology {
 
     /**
      * @brief compute the rank associated to a scalar global id
-     * The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality
-     * global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
-     *
-     * The left equality comes from the the floor happening in the integer division.
-     * Since we use integer division, we only take the right inequality to compute the
-     * rank associated with a global id
+     * more details can be found in the documentation of the M_RANK_BALANCE define
      *
      * if the global id requested is the last point in the domain, the rank returned is the last rank in the domain
      *
@@ -193,12 +189,11 @@ class Topology {
      * @return int the rank hosting the global_id, the rank is considered to be a valid rank in the topo!
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const {
-#if (F_RANK_BALANCE)
-        // const int rank = (nproc_[id] * std::min(global_id + 1, nglob_[id] - 1)) / nglob_[id];
-        // const int rank = m_min((nproc_[id] * (global_id + 1)) / nglob_[id], nproc_[id]-1);
+#if (M_RANK_BALANCE)
         const int b   = nglob_[id] / nproc_[id];               // baseline
         const int res = nglob_[id] % nproc_[id];               // residual
         const int s   = (res > 0) ? (nproc_[id] / res) : (0);  // stride
+
         // if the res is 0, setting the stride to 0 is convenient and the gsize is then INT_MAX
         const int gsize = (res > 0) ? (s * b + 1) : (INT_MAX);  // group size, = 1 if the stride is null
         const int rank  = m_min(nproc_[id] - 1, (global_id / gsize) * s + (global_id % gsize) / b);
