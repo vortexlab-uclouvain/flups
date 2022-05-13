@@ -1,19 +1,16 @@
 #!/bin/sh
 KERNELS='CHAT2 LGF2 HEJ2 HEJ4 HEJ6 HEJ8 HEJ10 HEJ0'
 CENTERS='Node Cell'
-VERSION='nb'
+VERSIONS='nb a2a'
 
 export LIBDIR=$1
 
-for center in ${CENTERS}
+for version in ${VERSIONS}
 do
-    for kernel in ${KERNELS}
-    do 
-        export EXEC_FLUPS=flups_test_${VERSION}
-        export REPORT=xml:${center}_${kernel}_report.xml
-        export FILE_OUT=${center}_${kernel}
-        export TESTS=${center}${kernel}/ConvergenceTest.AllBoundaryConditions
-        echo "Submitting job with command:  sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC_FLUPS} test_run.sh" 
-        sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC_FLUPS} test_run.sh
-    done
+    export EXEC_FLUPS=flups_test_${version}
+    export REPORT=xml:report_test_${version}.xml
+    export FILE_OUT=std_out_${version}
+    export TESTS=AllTest/ConvergenceTest.AllBoundaryConditions
+    echo "Submitting job with command:  sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC_FLUPS} test_run.sh" 
+    sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC_FLUPS} test_run.sh
 done

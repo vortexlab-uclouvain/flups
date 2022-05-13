@@ -716,7 +716,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -736,7 +735,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -756,7 +754,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -775,7 +772,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
 
                     // do the copy -> vectorized
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(vloc[i0]), "You should have finite values ");
                         dataloc[i0] = vloc[i0];
                     }
                 }
@@ -889,7 +885,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -908,7 +903,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -927,7 +921,6 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     FLUPS_ASSUME_ALIGNED(vloc, FLUPS_ALIGNMENT);
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
@@ -944,13 +937,13 @@ void SwitchTopo_a2a::execute(double* v, const int sign) const {
                     const double* __restrict dataloc = recvBuf[bid] + lia * blockSize + id * nmax;
                     // do the copy
                     for (size_t i0 = 0; i0 < nmax; i0++) {
-                        FLUPS_CHECK(std::isfinite(dataloc[i0]), "You should have finite values ");
                         vloc[i0] = dataloc[i0];
                     }
                 }
             }
         }
     }
+
 
     m_profStopi(prof_,"buf2mem%d",iswitch_);
     m_profStopi(prof_,"switch%d",iswitch_);
