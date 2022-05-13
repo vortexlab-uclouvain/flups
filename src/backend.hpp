@@ -1,36 +1,47 @@
 #ifndef BACKEND_HPP
 #define BACKEND_HPP
 
+#include "omp.h"
+#include "flups_interface.h"
 
+// Datatypes
 struct flups_fft_arch {
     int dim;
     int howmany;
+    int stride;
     int dist;
 };
-
 
 #if defined(FLUPS_FFTW_BACKEND)
 #include "fftw3.h"
 
-// Datatypes
+using flups_kind    = fftw_r2r_kind;
 using flups_plan    = fftw_plan;
 using flups_complex = fftw_complex;
 
 // Allocation functions
+inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
+    fftw_plan_with_nthreads(omp_get_max_threads());
+    return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
+                              in, &arch.dim, arch.stride, arch.dist,
+                              out, &arch.dim, arch.stride, arch.dist,
+                              &kind, FFTW_FLAG);
+}
+
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_dft_r2c(1, &arch.dim, arch.howmany,
-                              in, &arch.dim, 1, arch.dist,
-                              out, &arch.dim, 1, arch.dist / 2,
-                              FFTW_FLAG);
+                                  in, &arch.dim, 1, arch.dist,
+                                  out, &arch.dim, 1, arch.dist / 2,
+                                  FFTW_FLAG);
 }
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_dft_c2r(1, &arch.dim, arch.howmany,
-                              in, &arch.dim, 1, arch.dist / 2,
-                              out, &arch.dim, 1, arch.dist,
-                              FFTW_FLAG);
+                                  in, &arch.dim, 1, arch.dist / 2,
+                                  out, &arch.dim, 1, arch.dist,
+                                  FFTW_FLAG);
 }
 
 inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
@@ -64,15 +75,22 @@ inline void flups_destroy_plan(flups_plan plan) {
 }
 
 #elif defined(FLUPS_CUDA_BACKEND)
-#include "omp.h"
 #include "cufft.h"
 #include "cuda_runtime.h"
 
 // Datatypes
+using flups_kind    = fftw_r2r_kind;      // currently unused
 using flups_plan    = cufftHandle;
 using flups_complex = cufftDoubleComplex;
 
 // Allocation functions
+inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
+    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
+    cufftHandle plan;
+    // TODO
+    return plan;
+}
+
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     cufftHandle plan;
@@ -80,7 +98,7 @@ inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex 
                   &arch.dim, 1, arch.dist,
                   &arch.dim, 1, arch.dist / 2,
                   CUFFT_D2Z, arch.howmany);
-    return plan; 
+    return plan;
 }
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
@@ -122,7 +140,7 @@ inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
 }
 
 inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign) {
-    // TODO
+    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
 }
 
 // Cleanup functions

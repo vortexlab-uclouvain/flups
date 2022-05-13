@@ -13,5 +13,8 @@ doc/latex
 *.log
 *.txt
 *.code-workspace
-samples/simpleTest/simple_test_a2a
-samples/simpleTest/simple_test_nb
+
+# Executables
+samples/validation/flups_validation_*
+samples/simpleTest/simple_test_*
+test/flups_test_*

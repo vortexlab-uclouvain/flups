@@ -256,32 +256,31 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     //-------------------------------------------------------------------------
     /** - Compute howmany and the stride to run the loop in the execute  */
     //-------------------------------------------------------------------------
+    // compute howmany
     howmany_ = 1;
     for (int id = 0; id < dimID_; id++) howmany_ *= topo->nloc(id);
     for (int id = dimID_ + 1; id < 3; id++) howmany_ *= topo->nloc(id);
 
+    // compute the stride
+    fftw_stride_ = memsize[dimID_] * topo->nf();
+
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
-    // we make sure to use only 1 thread, the multi-threading is used in the solver, not inside a plan
-    fftw_plan_with_nthreads(1);
-
     // allocate the plan
     plan_ = (flups_plan*) m_calloc(sizeof(flups_plan) * lda_);
 
+    // Plan details
+    flups_fft_arch arch;
+    arch.howmany = howmany_;
+    arch.stride = topo->nf();
+    arch.dist = fftw_stride_;
+        
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
-    // for (int lia = 0; lia < lda_; lia++) {
-    //     if (topo->nf() == 1) {
-    //         fftw_stride_ = memsize[dimID_];
-    //         plan_[lia]   = fftw_plan_r2r(n_in_[lia], data, data, kind_[lia], FFTW_FLAG);
-
-    //     } else if (topo->nf() == 2) {
-    //         fftw_stride_ = memsize[dimID_] * topo->nf();
-    //         plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_[lia]), 1,
-    //                                         data, NULL, topo->nf(), memsize[dimID_] * topo->nf(),
-    //                                         data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FFTW_FLAG);
-    //     }
-    // }
+    for (int lia = 0; lia < lda_; lia++) {
+        arch.dim = n_in_[lia];
+        plan_[lia] = flups_plan_r2r(arch, data, data, kind_[lia]);
+    }
 
     FLUPS_INFO("------------------------------------------");
     if (type_ == SYMSYM) {
@@ -295,11 +294,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     FLUPS_INFO("fftw stride   = %d", fftw_stride_);
     FLUPS_INFO("lda       = %d", lda_);
     FLUPS_INFO(" size n   = %d", n_in_[0]);
-    if (topo->nf() == 1) {
-        FLUPS_INFO("plan created with the simple interface");
-    } else if (topo->nf() == 2) {
-        FLUPS_INFO("plan created with the many interface for non-unit stride)");
-    }
+    FLUPS_INFO("plan created with stride = %d", topo->nf());
     FLUPS_INFO("------------------------------------------");
     END_FUNC;
 }
@@ -348,6 +343,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     flups_fft_arch arch;
     arch.dim = n_in_[0];
     arch.howmany = howmany_;
+    arch.stride = 1;
     arch.dist = fftw_stride_;
        
     if (isr2c_) {
@@ -577,7 +573,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     const size_t memsize     = topo->memsize();
     // get the plan pointer
     const flups_plan* plan = plan_;
-    const int sign        = sign_;
+    const int sign         = sign_;
 
     //-------------------------------------------------------------------------
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */
@@ -592,13 +588,10 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (type_ == SYMSYM || type_ == MIXUNB) {  // R2R
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(sign, plan, data, fftw_stride, onmax, howmany, memdim)
-        for (size_t id = 0; id < onmax; id++) {
-            size_t lia = id / howmany;
-            size_t io  = id % howmany;
-            // get the memory
-            int offset = lia*memdim + io*fftw_stride + fftwstart_[lia];
-            // execute the plan on it
+        for (int lia = 0; lia < lda_; lia++) {
+            // get the memory offset
+            int offset = lia*memdim + fftwstart_[lia];
+            // execute the plan
             flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset), sign);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
