@@ -174,9 +174,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // perform a batch of  sends
         int count_send = m_min(n_send_rqst - send_cntr, send_batch);
         FLUPS_INFO("sending request from %d to %d /%d", send_cntr, send_cntr + count_send, n_send_rqst);
-        m_profStarti(prof, "copy data 2 chunk");
-        send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
-        m_profStopi(prof, "copy data 2 chunk");
+        if (count_send > 0){
+            m_profStarti(prof, "copy data 2 chunk");
+            send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
+            m_profStopi(prof, "copy data 2 chunk");
+        }
         // increment the counter
         send_cntr += count_send;
         
@@ -189,9 +191,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // Maintain the difference between the pending send and receive request to send_bacth
         count_send = m_min(n_send_rqst - send_cntr, n_completed);
         FLUPS_INFO("sending request from %d to %d /%d", send_cntr, send_cntr + count_send, n_send_rqst);
-        m_profStarti(prof, "copy data 2 chunk");
-        send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
-        m_profStopi(prof, "copy data 2 chunk");   
+        if (count_send > 0){
+            m_profStarti(prof, "copy data 2 chunk");
+            send_my_rqst(count_send, send_chunks + send_cntr, send_rqst + send_cntr);
+            m_profStopi(prof, "copy data 2 chunk");
+        }
         // increment the counter
         send_cntr += count_send;
         
