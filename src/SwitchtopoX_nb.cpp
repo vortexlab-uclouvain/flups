@@ -222,9 +222,10 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profInitLeave(prof, "shuffle");
     m_profInitLeave(prof, "self");
 
-    // start all the recv request
-    FLUPS_INFO("starting %d recv request", n_recv_rqst);
-    MPI_Startall(n_other_recv, recv_rqst);
+    // According to the standard 3.1 pg 77, MPI should start all the requests in the array 
+    // so we start all the other request and the self request using the same start. 
+    FLUPS_INFO("starting %d recv request", n_recv_rqst);+   
+    MPI_Startall(n_recv_rqst, recv_rqst);
 
     // Start a first batch of send requests
     send_my_batch(n_other_send, &send_cntr, send_batch, send_chunks, send_rqst);
@@ -233,7 +234,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     if (0 <= self_send_idx) {
         FLUPS_INFO("sending and processing the self request");
         m_profStart(prof, "self");
-        MPI_Start(recv_rqst + self_recv_idx);
+        // MPI_Start(recv_rqst + self_recv_idx);
         send_my_rqst(1, send_chunks + self_send_idx, send_rqst + self_send_idx);
         MPI_Wait(recv_rqst + self_recv_idx, MPI_STATUSES_IGNORE);
         recv_my_rqst(recv_rqst + self_recv_idx, recv_chunks + self_recv_idx);
