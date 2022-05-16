@@ -88,6 +88,8 @@
 #define FLUPS_GIT_COMMIT "?"
 #endif
 
+#define MPI_BATCH_SEND 16
+
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS

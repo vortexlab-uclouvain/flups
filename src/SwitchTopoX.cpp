@@ -69,9 +69,9 @@ void SwitchTopoX::setup() {
 
     // Populate the arrays of memory chunks
     FLUPS_INFO("I2O chunks");
-    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_, &i2o_selfcomm_);
     FLUPS_INFO("O2I chunks");
-    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_, &o2i_selfcomm_);
 
     delete(topo_in_tmp);
 

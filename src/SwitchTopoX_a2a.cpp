@@ -5,6 +5,8 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Comm subcomm,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
 
+void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm);
+
 SwitchTopoX_a2a::SwitchTopoX_a2a(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
     BEGIN_FUNC;
@@ -86,7 +88,7 @@ SwitchTopoX_a2a::~SwitchTopoX_a2a(){
 void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    m_profStarti(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     if (sign == FLUPS_FORWARD) {
         All2Allv(i2o_chunks_, i2o_count_, i2o_disp_,
                  o2i_chunks_, o2i_count_, o2i_disp_,
@@ -98,13 +100,14 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
                  recv_buf_, send_buf_, subcomm_,
                  topo_out_, topo_in_, v, prof_);
     }
-    m_profStopi(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
 void SwitchTopoX_a2a::disp() const {
     BEGIN_FUNC;
+    //--------------------------------------------------------------------------
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topo Swticher MPI");
     FLUPS_INFO("--- INPUT");
@@ -116,6 +119,8 @@ void SwitchTopoX_a2a::disp() const {
     FLUPS_INFO("  - output local = %d %d %d", topo_out_->nloc(0), topo_out_->nloc(1), topo_out_->nloc(2));
     FLUPS_INFO("  - output global = %d %d %d", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
     FLUPS_INFO("------------------------------------------");
+    //--------------------------------------------------------------------------
+    END_FUNC;
 }
 
 /**
@@ -167,7 +172,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
             // we might have nothing to send to that rank in the subcomm
             if (count_send[ir] > 0) {
                 MemChunk *cchunk = send_chunks + count;
-                FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
+                // FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
                 set_sendbuf(cchunk);
                 count += 1;
             }
@@ -190,7 +195,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
         for (int ir = 0; ir < sub_size; ++ir) {
             if (count_recv[ir] > 0) {
                 MemChunk *cchunk = recv_chunks + count;
-                FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
+                // FLUPS_CHECK(cchunk->dest_rank == ir, "Destination rank of the chunk should correspond to the chunk indexing %d vs %d", cchunk->dest_rank, ir);
                 complete_recv(cchunk);
                 count += 1;
             }
