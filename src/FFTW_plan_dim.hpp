@@ -28,7 +28,7 @@
 
 #include "Topology.hpp"
 #include "defines.hpp"
-#include "backend.hpp"
+#include "backend/backend.hpp"
 #include "fftw3.h"
 
 /**

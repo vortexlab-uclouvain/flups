@@ -1,0 +1,83 @@
+#include "omp.h"
+#include "fftw3.h"
+#include "cufft.h"
+#include "defines.hpp"
+#include "cuda_runtime.h"
+
+
+// Datatypes
+struct flups_fft_arch {
+    int dim;
+    int howmany;
+    int stride;
+    int dist;
+};
+
+using flups_kind    = fftw_r2r_kind;      // currently unused
+using flups_plan    = cufftHandle;
+using flups_complex = cufftDoubleComplex;
+
+// Allocation functions
+inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
+    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
+    cufftHandle plan;
+    // TODO
+    return plan;
+}
+
+inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
+    FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
+    cufftHandle plan;
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist,
+                  &arch.dim, 1, arch.dist / 2,
+                  CUFFT_D2Z, arch.howmany);
+    return plan;
+}
+
+inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
+    FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
+    cufftHandle plan;
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist / 2,
+                  &arch.dim, 1, arch.dist,
+                  CUFFT_Z2D, arch.howmany);
+    return plan;
+}
+
+inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
+    cufftHandle plan;
+    cufftPlanMany(&plan, 1, &arch.dim,
+                  &arch.dim, 1, arch.dist,
+                  &arch.dim, 1, arch.dist,
+                  CUFFT_Z2Z, arch.howmany);
+    return plan;
+}
+
+// Execute functions
+inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
+    #pragma omp target data use_device_ptr(in, out)
+    cufftExecZ2Z(plan, in, out, sign);
+    cudaDeviceSynchronize();
+}
+
+inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
+    #pragma omp target data use_device_ptr(in, out)
+    cufftExecD2Z(plan, in, out);
+    cudaDeviceSynchronize();
+}
+
+inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
+    #pragma omp target data use_device_ptr(in, out)
+    cufftExecZ2D(plan, in, out);
+    cudaDeviceSynchronize();
+}
+
+inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign) {
+    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
+}
+
+// Cleanup functions
+inline void flups_destroy_plan(flups_plan plan) {
+    cufftDestroy(plan);
+}
