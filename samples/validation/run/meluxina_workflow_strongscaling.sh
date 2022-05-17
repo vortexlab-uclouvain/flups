@@ -6,7 +6,7 @@
 
 OMPIVERSION=4.1.3
 # CODE_VERSION='nb a2a'
-CODE_VERSION='nb'
+CODE_VERSION='a2a'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -14,7 +14,7 @@ CODE_VERSION='nb'
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=CONSTANT_NNODES_OMPI_${OMPIVERSION}_${TAG}
+SUBMISSION_NAME=CONSTANT_NNODES_PER_OMPI_${OMPIVERSION}_${TAG}
 ## Ceation of the scratch directory
 SCRATCH_DIR=/project/scratch/p200053/${SUBMISSION_NAME}  
 echo "scratch file = ${SCRATCH_DIR}"
@@ -48,13 +48,13 @@ COMPILEJOB_ID=$(sbatch --parsable \
 echo " ------ ... done ! "
 
 ## Create what's needed for the scaling
-echo " ------ Creating directories ..."
-for version in ${CODE_VERSION}
-do
-  echo " directory: ${SCRATCH_DIR}/simulations_${version}/prof created! "
-  mkdir -p ${SCRATCH_DIR}/simulations_${version}/prof 
-done 
-echo " ------ ... done ! "
+# echo " ------ Creating directories ..."
+# for version in ${CODE_VERSION}
+# do
+#   echo " directory: ${SCRATCH_DIR}/simulations_${version} created! "
+#   mkdir -p ${SCRATCH_DIR}/simulations_${version}
+# done 
+# echo " ------ ... done ! "
 
 
 ##-------------------------------------------------------------------------------------------------------------
@@ -64,13 +64,13 @@ export NPROC_X=16
 export NPROC_Y=16
 export NPROC_Z=16
 
-export NNODE=16
+export NNODE=32
 
 
 echo " ------ Submitting Job scripts"
 ## Loop on the number of point we want per direction
-# ntot_dir=(4 8 12 16 24 32 44 64)
-ntot_dir=(4 8 12 16 24 32)
+# ntot_dir=(4)
+ntot_dir=(8 12 16 20 24 28 32)
 for n in ${ntot_dir[@]}
 do  
     export NGLOB_X=$(echo "$(( $n*64 ))")
@@ -78,18 +78,19 @@ do
     export NGLOB_Z=$(echo "$(( $n*64 ))")
     
     export L_X=$(echo "$(( ($n) ))")
-	  export L_Y=$(echo "$(( ($n) ))")
+	export L_Y=$(echo "$(( ($n) ))")
     export L_Z=$(echo "$(( ($n) ))")
     # -------------------------------------------
     # Loop on the provided version 
     # -------------------------------------------
     for version in ${CODE_VERSION}
-    do 
+    do  
         export EXEC_FLUPS=flups_validation_${version}
-        export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}/
+        export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}_N${NGLOB_X}x${NGLOB_Y}x${NGLOB_Z}/
         export MYNAME=flups_${version}_OMPI${OMPIVERSION}_N${NGLOB_X}x${NGLOB_Y}x${NGLOB_Z}
         export MODULES=${SCRIPT_MODULE}
         export OMPIVERSION=${OMPIVERSION}
+        mkdir -p ${SCRATCH_FLUPS}/prof/
         echo "Submitting job with command:  sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh "
         echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
         sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh
