@@ -88,6 +88,12 @@
 #define FLUPS_GIT_COMMIT "?"
 #endif
 
+#ifndef MPI_40
+#define FLUPS_OLD_MPI 1
+#else
+#define FLUPS_OLD_MPI 0
+#endif
+
 #define MPI_BATCH_SEND 16
 
 //=============================================================================

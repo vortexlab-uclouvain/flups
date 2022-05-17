@@ -4,8 +4,11 @@
 #include "SwitchTopoX.hpp"
 
 class SwitchTopoX_a2a : public SwitchTopoX {
+    MPI_Request* i2o_rqst_ = NULL;  //!< MPI i2o requests
+    MPI_Request* o2i_rqst_ = NULL;  //!< MPI o2i requests
+
     int *i2o_count_ = NULL; /**<@brief count argument of the all_to_all_v for input to output */
-    int *i2o_disp_ = NULL; /**<@brief start argument of the all_to_all_v for input to output */
+    int *i2o_disp_  = NULL; /**<@brief start argument of the all_to_all_v for input to output */
     int *o2i_count_ = NULL; /**<@brief count argument of the all_to_all_v for output to input */
     int *o2i_disp_  = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
