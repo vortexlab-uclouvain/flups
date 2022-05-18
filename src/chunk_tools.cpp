@@ -186,15 +186,22 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
+    // Allocate temp array to do out-of-place transpose
+    chunk->shuffle_buff = (opt_double_ptr)m_calloc(chunk->size_padded*sizeof(double));
+
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
     if (!iscomplex) {
-        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FFTW_FLAG);
+        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->shuffle_buff, NULL, FFTW_FLAG);
         // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     } else {
-        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
+        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->shuffle_buff, FLUPS_FORWARD, FFTW_FLAG);
         // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     }
+
+    // Save dim size
+    chunk->n0 = dims[0].n;
+    chunk->n1 = dims[1].n;
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -244,18 +251,6 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
     FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
-    // FLUPS_INFO("nf = %d",nf);
-    //     if (nf == 2) {
-    //         for (int id2 = 0; id2 < chunk->isize[ax[2]]; ++id2) {
-    //             for (int id1 = 0; id1 < chunk->isize[ax[1]]; ++id1) {
-    //                 for (int id0 = 0; id0 < chunk->isize[ax[0]]; ++id0) {
-    //                     const int id = localIndex(ax[0], id0, id1, id2, ax0, chunk->isize, nf, 0);
-    //                     printf("(%f %f)", chunk->data[id], chunk->data[id + 1]);
-    //                 }
-    //                 printf("\n");
-    //             }
-    //         }
-    //     }
 
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
@@ -275,6 +270,8 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             memcpy(vtrg, vsrc, nmax_byte);
+
+            // printf("[local] src = %zu vs. trg = %zu\n", localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0), localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0));
         }
     }
     //--------------------------------------------------------------------------

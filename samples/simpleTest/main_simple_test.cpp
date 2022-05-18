@@ -25,7 +25,7 @@ int main(int argc, char *argv[])  {
     // Definition of the problem
     //-------------------------------------------------------------------------
     bool is_node = true;
-    const int nglob[3] = {256, 256, 256};
+    const int nglob[3] = {4, 4, 4};
     const int nproc[3] = {1, 1, comm_size};
     const double L[3] = {1., 1., 1.};
     const double h[3] = {L[0] / (nglob[0] - is_node), L[1] / (nglob[1] - is_node), L[2] / (nglob[2] - is_node)};  
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])  {
     /** - solve the equation */
     //-------------------------------------------------------------------------
     for (int is = 0; is < nsolve; is++) {
-        m_log("Iteration %d/%d", is+1, nsolve);
+        m_log("Iteration %d/%d\n", is+1, nsolve);
         flups_solve(mysolver, field, rhs, STD);
     }
 

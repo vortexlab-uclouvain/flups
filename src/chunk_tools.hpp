@@ -18,6 +18,9 @@ typedef struct
     int dest_axis;  //!< the principal axis in the destination topology
 
     fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
+    opt_double_ptr shuffle_buff;
+    int n0;
+    int n1;
 
     size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
     size_t         nf;           //!< the number of double per data (1 if real, 2 if complex)

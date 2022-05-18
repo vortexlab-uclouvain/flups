@@ -1211,6 +1211,7 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
+    printf("Starting backwards transform !\n\n");
     if (type == STD) {
         do_FFT(mydata, FLUPS_BACKWARD);
     } else {

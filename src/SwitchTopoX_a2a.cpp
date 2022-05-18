@@ -155,8 +155,65 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
     auto complete_recv = [=](MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // shuffle the data
-        DoShuffleChunk(chunk);
+        if (chunk->axis != chunk->dest_axis) {
+            // // Print chunk data
+            // printf("Chunk   = [");
+            // for (int i = 0; i < chunk->isize[0]*chunk->isize[1]*chunk->isize[2]; i++) {
+            //     if (chunk->nf == 2) printf("(% 02.2f, % 02.2f) ", chunk->data[2*i], chunk->data[2*i+1]);
+            //     else                printf("(% 02.2f,   0.00) ", chunk->data[i]);
+            // }
+            // printf("]\n");
+            // Print chunk data - post shuffle
+            // printf("Shuffle = [");
+            // for (int i = 0; i < chunk->isize[0]*chunk->isize[1]*chunk->isize[2]; i++) {
+            //     if (chunk->nf == 2) printf("(% 02.2f, % 02.2f) ", chunk->data[2*i], chunk->data[2*i+1]);
+            //     else                printf("(% 02.2f,   0.00) ", chunk->data[i]);
+            // }
+            // printf("]\n");
+            // Print mem data
+            // printf("Mem     = [");
+            // for (int i = 0; i < nmem_out[0]*nmem_out[1]*nmem_out[2]; i++) {
+            //     if (chunk->nf == 2) printf("(% 02.2f, % 02.2f) ", mem[2*i], mem[2*i+1]);
+            //     else                printf("(% 02.2f,   0.00) ", mem[i]);
+            // }
+            // // printf("]\n
+
+            // The chunk arrives in its dest topology and must be shuffled into its correct topology
+            int iaxis[3] = {chunk->dest_axis, (chunk->dest_axis + 1) % 3, (chunk->dest_axis + 2) % 3};
+            int oaxis[3] = {chunk->axis, (chunk->axis + 1) % 3, (chunk->axis + 2) % 3};
+
+            int n0_in = 1, n1_in = 1;
+            int n0_out = 1, n1_out = 1;
+            for (int i = 0; i < 3; i++) {
+                if (i == chunk->dest_axis)  n0_in *= chunk->isize[iaxis[i]];
+                else                        n1_in *= chunk->isize[iaxis[i]];
+                if (i == chunk->axis)       n0_out *= chunk->isize[oaxis[i]];
+                else                        n1_out *= chunk->isize[oaxis[i]];
+            }
+
+            double alpha[2] = {1., 0.};
+
+            // Call to tmp THEN copy...
+            cblas_zomatcopy(CblasColMajor, CblasTrans, chunk->n1, chunk->n0, alpha, chunk->data, chunk->n1, chunk->shuffle_buff, chunk->n0);
+            memcpy(chunk->data, chunk->shuffle_buff, chunk->size_padded*sizeof(double));
+
+            // Print topo & chunk info
+            // chunk->isize is supposed to be the mem size in the "input topology", which is not the case ??
+            // chunk->axis is the axis in the input topology ( = the topo_out here)
+            printf("Shuffling from axis %d to axis %d (chunk info)\n", chunk->dest_axis, chunk->axis);
+            printf("                    %d         %d (topo  info)\n", topo_in->axis(), topo_out->axis());
+            printf("chunk xyz = (%d, %d, %d)\n", chunk->isize[0], chunk->isize[1], chunk->isize[2]);
+            printf("chunk IN  = (%d, %d, %d)\n", chunk->isize[iaxis[0]], chunk->isize[iaxis[1]], chunk->isize[iaxis[2]]);
+            printf("chunk OUT = (%d, %d, %d)\n", chunk->isize[oaxis[0]], chunk->isize[oaxis[1]], chunk->isize[oaxis[2]]);
+            printf("mem       = (%d, %d, %d)\n", nmem_out[oaxis[0]], nmem_out[oaxis[1]], nmem_out[oaxis[2]]);
+            printf("PLAN size: (%d, %d)\n", chunk->n0, chunk->n1);
+            printf("IN   size: (%d, %d)\n", n0_in, n1_in);
+            printf("OUT  size: (%d, %d)\n", n0_out, n1_out);
+        }
+        printf("Copyin' data\n");
         CopyChunk2Data(chunk, nmem_out, mem);
+        printf("\n");
+
     };
     //..........................................................................
     // Prepare the send buffer

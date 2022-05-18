@@ -153,7 +153,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
-        DoShuffleChunk(chunk);
+        // DoShuffleChunk(chunk);
         // CopyChunk2Data(chunk, nmem_out, mem);
     };
     //..........................................................................
