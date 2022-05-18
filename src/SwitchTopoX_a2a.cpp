@@ -262,11 +262,13 @@ void PrintCountArr(const std::string filename, const int* count_arr, int array_s
     MPI_Scan(&msg_size, &offset_ttl, 1, MPI_UNSIGNED_LONG, MPI_SUM, incomm);
 
     // the current position of current proc
-    MPI_Offset offset = offset_ttl - msg_size;
-    MPI_File_seek(mpi_file, offset, MPI_SEEK_SET);
+    //MPI_Offset offset = offset_ttl - msg_size;
+    //MPI_File_seek(mpi_file, offset, MPI_SEEK_SET);
 
     MPI_Status status;
-    err = MPI_File_write(mpi_file, msg.c_str(), msg_size, MPI_CHAR, &status);
+    MPI_Offset offset = offset_ttl - msg_size;
+    err = MPI_File_write_at(mpi_file, offset, msg.c_str(), msg_size, MPI_CHAR, &status);
+    FLUPS_CHECK(err == MPI_SUCCESS, "ERROR while writing in  <%s> (error = %d)", filename.c_str(), err);
 
     MPI_File_close(&mpi_file);
     //--------------------------------------------------------------------------
