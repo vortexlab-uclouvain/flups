@@ -17,9 +17,6 @@ module load Valgrind
 cd ${SCRATCH_FLUPS}
 cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
 
-echo "LD_PRELOAD= ${LD_PRELOAD}"
-export LD_PRELOAD=
-echo "LD_PRELOAD= ${LD_PRELOAD}"
 
 echo "----------------- launching job -----------------"
 echo "OMP_NUM_THREADS=1 srun ./${EXEC_FLUPS} --np=128,4,1 --bc=4,4,4,4,3,3 --center=1"
