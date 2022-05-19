@@ -3,7 +3,7 @@
 
 #include "Topology.hpp"
 #include "defines.hpp"
-#include "backend/backend.hpp"
+#include "backend.hpp"
 
 /**
  * @brief A "chunk" is a memory block belonging to an input topology. The block is sent over to the output topology and shuffled

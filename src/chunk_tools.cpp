@@ -207,7 +207,7 @@ void DoShuffleChunk(MemChunk* chunk) {
         #pragma omp target enter data map(to: data_in[:chunk->size_padded])
         #pragma omp target enter data map(alloc: data_out[:chunk->size_padded])
 
-        flups_shuffle(chunk->shuffle, chunk->data, chunk->shuffle_buff, 2 == chunk->nf);
+        flups_execute_shuffle(chunk->shuffle, chunk->data, chunk->shuffle_buff, 2 == chunk->nf);
 
         // Update & dealloc on GPU
         #pragma omp target exit data map(delete: data_in[:chunk->size_padded])

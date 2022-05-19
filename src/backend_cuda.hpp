@@ -8,6 +8,9 @@
 #include "cublas_v2.h"
 #include "cuda_runtime.h"
 
+// cuBLAS handle
+extern cublasHandle_t cuHandle;
+
 // Datatypes
 struct flups_fft_arch {
     int dim;
@@ -24,6 +27,15 @@ struct flups_shuffle_plan {
 using flups_kind    = fftw_r2r_kind;      // currently unused
 using flups_plan    = cufftHandle;
 using flups_complex = cufftDoubleComplex;
+
+// Init & cleanup backend
+inline void init_backend() {
+    cublasCreate(&cuHandle);
+}
+
+inline void finalize_backend() {
+    cublasDestroy(cuHandle);
+}
 
 // Allocation functions
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
@@ -62,6 +74,13 @@ inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_c
     return plan;
 }
 
+inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, double *out, bool iscomplex) {
+    flups_shuffle_plan plan;
+    plan.n0 = dims[0].n;
+    plan.n1 = dims[1].n;
+    return plan;
+}
+
 // Execute functions
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
     #pragma omp target data use_device_ptr(in, out)
@@ -85,38 +104,27 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign
     FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
 }
 
-// Shuffle
-inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, double *out, bool iscomplex) {
-    flups_shuffle_plan plan;
-    plan.n0 = dims[0].n;
-    plan.n1 = dims[1].n;
-    return plan;
-}
-
-inline void flups_shuffle(flups_shuffle_plan plan, double *data_in, double *data_out, bool iscomplex) {
-    cublasHandle_t handle;
-    cublasCreate(&handle);
+inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
     if (!iscomplex) {
         double alpha = 1.0;
-        #pragma omp target data use_device_ptr(data_in, data_out)
-        cublasDgeam(handle,
+        #pragma omp target data use_device_ptr(in, out)
+        cublasDgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
-                    &alpha, data_in, plan.n1,
+                    &alpha, in, plan.n1,
                     NULL  , NULL,    plan.n0,
-                    data_out, plan.n1);
+                    out, plan.n1);
     } else {
         flups_complex alpha = {1.0, 0.0};
-        #pragma omp target data use_device_ptr(data_in, data_out)
-        cublasZgeam(handle,
+        #pragma omp target data use_device_ptr(in, out)
+        cublasZgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
-                    &alpha, (flups_complex*)data_in, plan.n1,
+                    &alpha, (flups_complex*)in, plan.n1,
                     NULL  ,                    NULL, plan.n0,
-                    (flups_complex*)data_out, plan.n0);
+                    (flups_complex*)out, plan.n0);
     }
     cudaDeviceSynchronize();
-    cublasDestroy(handle);
 }
 
 // Cleanup functions

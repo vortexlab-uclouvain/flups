@@ -41,10 +41,10 @@
 Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centertype[3], H3LPR::Profiler *prof){
     BEGIN_FUNC;
 
-    // //-------------------------------------------------------------------------
-    // /** - Initialize the OpenMP threads for FFTW */
-    // //-------------------------------------------------------------------------
-    fftw_init_threads();
+    //-------------------------------------------------------------------------
+    /** - Initialize backend */
+    //-------------------------------------------------------------------------
+    init_backend();
 
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
@@ -512,8 +512,7 @@ Solver::~Solver() {
 
 
     //cleanup
-    fftw_cleanup_threads();
-    fftw_cleanup();
+    finalize_backend();
     // m_profStopi(prof_, "Clean up");
     //-------------------------------------------------------------------------
     END_FUNC;
@@ -1211,7 +1210,6 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go back to reals */
     //-------------------------------------------------------------------------
-    printf("Starting backwards transform !\n\n");
     if (type == STD) {
         do_FFT(mydata, FLUPS_BACKWARD);
     } else {

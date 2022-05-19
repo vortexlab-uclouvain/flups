@@ -32,6 +32,7 @@
 #include "defines.hpp"
 #include "green_functions.hpp"
 #include "hdf5_io.hpp"
+#include "backend.hpp"
 
 #if (FLUPS_MPI_AGGRESSIVE)
 #include "SwitchTopoX_nb.hpp"
