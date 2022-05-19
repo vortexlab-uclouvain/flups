@@ -191,17 +191,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
-    if (!iscomplex) {
-        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->shuffle_buff, NULL, FFTW_FLAG);
-        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
-    } else {
-        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->shuffle_buff, FLUPS_FORWARD, FFTW_FLAG);
-        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
-    }
-
-    // Save dim size
-    chunk->n0 = dims[0].n;
-    chunk->n1 = dims[1].n;
+    chunk->shuffle = flups_plan_shuffle(dims, chunk->data, chunk->shuffle_buff, iscomplex);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -209,15 +199,22 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
 void DoShuffleChunk(MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    // only the master call the fftw_execute which is executed in multithreading
     for (int ida = 0; ida < chunk->nda; ++ida) {
-        opt_double_ptr data_ptr = chunk->data + ida * chunk->size_padded;
-        if (chunk->nf == 1) {
-            // we execute it on the different directions of the field but the memory has the same properties (alignement, lenght, etc)
-            fftw_execute_r2r(chunk->shuffle, data_ptr, data_ptr);
-        } else {
-            fftw_execute_dft(chunk->shuffle, (opt_complex_ptr)(data_ptr), (opt_complex_ptr)(data_ptr));
-        }
+        opt_double_ptr data_in  = chunk->data + ida * chunk->size_padded;
+        opt_double_ptr data_out = chunk->shuffle_buff + ida * chunk->size_padded;
+
+        // Allocate on GPU
+        #pragma omp target enter data map(to: data_in[:chunk->size_padded])
+        #pragma omp target enter data map(alloc: data_out[:chunk->size_padded])
+
+        flups_shuffle(chunk->shuffle, chunk->data, chunk->shuffle_buff, 2 == chunk->nf);
+
+        // Update & dealloc on GPU
+        #pragma omp target exit data map(delete: data_in[:chunk->size_padded])
+        #pragma omp target update from(data_out[:chunk->size_padded])
+        #pragma omp target exit data map(delete: data_out[:chunk->size_padded])
+
+        memcpy(data_in, data_out, chunk->size_padded*sizeof(double));
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -270,8 +267,6 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             memcpy(vtrg, vsrc, nmax_byte);
-
-            // printf("[local] src = %zu vs. trg = %zu\n", localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0), localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0));
         }
     }
     //--------------------------------------------------------------------------

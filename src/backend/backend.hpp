@@ -1,5 +1,5 @@
-#ifndef BACKEND_HPP
-#define BACKEND_HPP
+#ifndef BACKEND_BACKEND_HPP
+#define BACKEND_BACKEND_HPP
 
 #if defined(FLUPS_FFTW_BACKEND)
 #include "backend_fftw.hpp"

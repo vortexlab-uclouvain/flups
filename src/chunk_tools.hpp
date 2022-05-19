@@ -3,6 +3,7 @@
 
 #include "Topology.hpp"
 #include "defines.hpp"
+#include "backend/backend.hpp"
 
 /**
  * @brief A "chunk" is a memory block belonging to an input topology. The block is sent over to the output topology and shuffled
@@ -17,10 +18,8 @@ typedef struct
     int dest_rank;  //!< destination ranks in the destination topology
     int dest_axis;  //!< the principal axis in the destination topology
 
-    fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
-    opt_double_ptr shuffle_buff;
-    int n0;
-    int n1;
+    flups_shuffle_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
+    opt_double_ptr shuffle_buff; //!< the array for the out-of-place shuffle
 
     size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
     size_t         nf;           //!< the number of double per data (1 if real, 2 if complex)

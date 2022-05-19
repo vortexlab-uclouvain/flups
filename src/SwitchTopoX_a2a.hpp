@@ -2,7 +2,7 @@
 #define SRC_SWITCHTOPOX_A2A_HPP_
 
 #include "SwitchTopoX.hpp"
-#include "cblas.h"
+#include "backend/backend.hpp"
 
 class SwitchTopoX_a2a : public SwitchTopoX {
     int *i2o_count_ = NULL; /**<@brief count argument of the all_to_all_v for input to output */
