@@ -224,7 +224,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     // According to the standard 3.1 pg 77, MPI should start all the requests in the array 
     // so we start all the other request and the self request using the same start. 
-    FLUPS_INFO("starting %d recv request", n_recv_rqst);+   
+    FLUPS_INFO("starting %d recv request", n_recv_rqst);
     MPI_Startall(n_recv_rqst, recv_rqst);
 
     // Start a first batch of send requests

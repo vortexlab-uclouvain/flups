@@ -225,15 +225,16 @@ void SwitchTopo_a2a::setup() {
 
         //The input topo may have been reset to real, even if this switchtopo is a complex2complex. 
         //We create a tmp input topo which is complex if needed, for the computation of start and end.
-        bool isC2C = topo_out_->isComplex();
         int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
         for(int i = 0; i<3;i++){
             tmp_nglob[i] = topo_in_->nglob(i);
             tmp_nproc[i] = topo_in_->nproc(i);
             tmp_axproc[i] = topo_in_->axproc(i);
         }
-        const Topology* topo_in_tmp = new Topology(topo_in_->axis(),topo_in_->lda(), tmp_nglob,tmp_nproc,isC2C,tmp_axproc,FLUPS_ALIGNMENT,topo_in_->get_comm());
-        
+        Topology* topo_in_tmp = new Topology(topo_in_->axis(),topo_in_->lda(), tmp_nglob,tmp_nproc, topo_in_->isComplex(),tmp_axproc,FLUPS_ALIGNMENT,topo_in_->get_comm());
+        if(topo_out_->isComplex() && !topo_in_->isComplex()){
+            topo_in_tmp->switch2complex();
+        }
         //recompute block info
         init_blockInfo_(topo_in_tmp,topo_out_);
 
@@ -975,6 +976,8 @@ void SwitchTopo_a2a::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
+
+
 /**
  * @brief 
  * 
@@ -1143,7 +1146,7 @@ void SwitchTopo_a2a_test2() {
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
         
-        MPI_Comm graph_comm = NULL;
+        MPI_Comm graph_comm = MPI_COMM_NULL;
 
 #ifndef DEV_SIMULATE_GRAPHCOMM
         const int per[3] = {0,0,0};

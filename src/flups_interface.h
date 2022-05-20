@@ -24,6 +24,7 @@
  * 
  */
 #define FLUPS_ALIGNMENT 16
+
 /**
  * @brief FFTW planner flag
  * 
@@ -94,7 +95,7 @@
 #define FLUPS_OLD_MPI 0
 #endif
 
-#define MPI_BATCH_SEND 16
+#define MPI_BATCH_SEND 64
 
 //=============================================================================
 /**

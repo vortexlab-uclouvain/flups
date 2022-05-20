@@ -16,6 +16,8 @@ class SwitchTopoX_a2a : public SwitchTopoX {
     explicit SwitchTopoX_a2a(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
     ~SwitchTopoX_a2a();
 
+    void print_info() const override;
+
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
     virtual void execute(opt_double_ptr data, const int sign) const override;
     virtual void disp() const override;
