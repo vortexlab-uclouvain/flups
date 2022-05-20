@@ -17,9 +17,9 @@ class SwitchTopoX {
     const Topology *topo_in_  = NULL; /**<@brief input topology  */
     const Topology *topo_out_ = NULL; /**<@brief  output topology */
 
-    MPI_Comm inComm_  = NULL; /**<@brief the reference input communicator */
-    MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
-    MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
+    MPI_Comm inComm_  = MPI_COMM_NULL; /**<@brief the reference input communicator */
+    MPI_Comm outComm_ = MPI_COMM_NULL; /**<@brief the reference output communicator */
+    MPI_Comm subcomm_ = MPI_COMM_NULL; /**<@brief the subcomm for this switchTopo */
 
     int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
     int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology

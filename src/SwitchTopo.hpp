@@ -48,9 +48,9 @@
  */
 class SwitchTopo {
    protected:
-    MPI_Comm inComm_ = NULL; /**<@brief the reference input communicator */
-    MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
-    MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
+    MPI_Comm inComm_ = MPI_COMM_NULL; /**<@brief the reference input communicator */
+    MPI_Comm outComm_ = MPI_COMM_NULL; /**<@brief the reference output communicator */
+    MPI_Comm subcomm_ = MPI_COMM_NULL; /**<@brief the subcomm for this switchTopo */
     int shift_[3]; /**<@brief the shift in memory */
 
     int inBlock_; /**<@brief the local number of block in each dim in the input topology */

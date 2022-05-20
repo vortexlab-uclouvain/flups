@@ -1146,7 +1146,7 @@ void SwitchTopo_a2a_test2() {
         // printf("\n=============================");
         SwitchTopo*    switchtopo = new SwitchTopo_a2a(topo, topobig, fieldstart, NULL);
         
-        MPI_Comm graph_comm = NULL;
+        MPI_Comm graph_comm = MPI_COMM_NULL;
 
 #ifndef DEV_SIMULATE_GRAPHCOMM
         const int per[3] = {0,0,0};
