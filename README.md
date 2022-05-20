@@ -120,6 +120,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
+- `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 

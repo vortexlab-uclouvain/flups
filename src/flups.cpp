@@ -62,7 +62,7 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "FLUPS \n");
         fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
         fprintf(file, "- defines:\n");
-        fprintf(file, "\tFFTW_FLAG = %d\n", FFTW_FLAG);
+        fprintf(file, "\tFLUPS_FFTW_FLAG = %d\n", FLUPS_FFTW_FLAG);
         fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
 #ifdef FLUPS_MPI_AGGRESSIVE
         fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
