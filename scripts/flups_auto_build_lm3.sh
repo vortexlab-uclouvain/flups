@@ -14,8 +14,9 @@ cd h3lpr
 CXX=${H3LPR_MPICXX} CC=${H3LPR_MPICC} \
     CXXFLAGS=${H3LPR_CXXFLAGS} LDFLAGS=${H3LPR_LDFLAGS} \
     PREFIX=${H3LPR_PREFIX} \
-    make install_static -j 
+    make install -j 
 cd .. 
+cd ${H3LPR_PREFIX} && rm -r lib/libh3lpr.so && cd - 
 rm -rf h3lpr
 
 ## Compile flups
