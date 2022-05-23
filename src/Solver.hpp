@@ -307,7 +307,7 @@ class Solver {
      * 
      */
     void get_switchtopo_info(){
-        for(int i = 0; i < 3; i++ ){
+        for(int i = 0; i < lda_; i++ ){
             switchtopo_[i]->print_info();
         }
     };
