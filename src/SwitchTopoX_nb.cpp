@@ -117,7 +117,7 @@ SwitchTopoX_nb::~SwitchTopoX_nb(){
 void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    m_profStarti(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     if (sign == FLUPS_FORWARD) {
         SendRecv(i2o_nchunks_, i2o_send_rqst_, i2o_chunks_, i2o_selfcomm_,
                  o2i_nchunks_, i2o_recv_rqst_, o2i_chunks_, o2i_selfcomm_,
@@ -127,7 +127,7 @@ void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
                  i2o_nchunks_, o2i_recv_rqst_, i2o_chunks_, i2o_selfcomm_,
                  topo_out_, topo_in_, v, prof_);
     }
-    m_profStopi(prof_, "Switchtopo%d", idswitchtopo_);
+    m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
 
     //--------------------------------------------------------------------------
     END_FUNC;
