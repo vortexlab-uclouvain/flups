@@ -64,7 +64,7 @@ export NPROC_Z=4
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..0}
+for i in {0..7}
 do
     if [ $(($i%3)) -eq 0 ]
     then
