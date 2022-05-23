@@ -430,6 +430,13 @@ void SwitchTopoX::print_info() const {
     }
     
     if(rank_world == 0){
+        // Create the prof directory if it does not exist
+        {
+            struct stat st = {0};
+            if (stat("./prof", &st) == -1) {
+                mkdir("./prof", 0700);
+            }
+        }
         // Get the file name
         std::string name = "./prof/SwitchTopo_" + std::to_string(idswitchtopo_) + "_info.txt";
 
