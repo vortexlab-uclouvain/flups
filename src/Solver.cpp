@@ -45,6 +45,10 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // /** - Initialize the OpenMP threads for FFTW */
     // //-------------------------------------------------------------------------
     fftw_init_threads();
+#ifdef FLUPS_WISDOM_PATH
+    FLUPS_INFO("Importing wisdom from %s",FLUPS_WISDOM_PATH);
+    fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
+#endif
 
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
