@@ -99,7 +99,11 @@
 #define FLUPS_OLD_MPI 0
 #endif
 
-#define MPI_BATCH_SEND 64
+#ifndef MPI_BATCH_SEND
+#define FLUPS_MPI_BATCH_SEND 64
+#else
+#define FLUPS_MPI_BATCH_SEND MPI_BATCH_SEND
+#endif
 
 //=============================================================================
 /**

@@ -210,7 +210,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     //..........................................................................
     // Define the counter needed to perform the send and receive
-    const int send_batch   = MPI_BATCH_SEND;
+    const int send_batch   = FLUPS_MPI_BATCH_SEND;
     int       send_cntr    = 0;
     int       recv_cntr    = 0;
     int      *completed_id = reinterpret_cast<int *>(m_calloc(n_other_recv * sizeof(int)));

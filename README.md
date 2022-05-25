@@ -121,6 +121,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
+- `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
