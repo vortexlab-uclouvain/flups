@@ -516,6 +516,10 @@ Solver::~Solver() {
 
 
     //cleanup
+#ifdef FLUPS_WISDOM_PATH
+    FLUPS_INFO("exporting wisdom to %s",FLUPS_WISDOM_PATH);
+    fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
+#endif
     fftw_cleanup_threads();
     fftw_cleanup();
     // m_profStopi(prof_, "Clean up");
