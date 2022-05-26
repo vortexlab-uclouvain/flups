@@ -46,7 +46,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // //-------------------------------------------------------------------------
     fftw_init_threads();
 #ifdef FLUPS_WISDOM_PATH
-    FLUPS_INFO("Importing wisdom from %s",FLUPS_WISDOM_PATH);
+    FLUPS_WARNING("Importing wisdom from %s",FLUPS_WISDOM_PATH);
     fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
 #endif
 
@@ -517,7 +517,7 @@ Solver::~Solver() {
 
     //cleanup
 #ifdef FLUPS_WISDOM_PATH
-    FLUPS_INFO("exporting wisdom to %s",FLUPS_WISDOM_PATH);
+    FLUPS_WARNING("exporting wisdom to %s",FLUPS_WISDOM_PATH);
     fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
 #endif
     fftw_cleanup_threads();
