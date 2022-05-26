@@ -86,6 +86,10 @@
 #define FLUPS_NEW_BALANCE 0
 #endif
 
+#ifdef HAVE_WISDOM
+#define FLUPS_WISDOM_PATH HAVE_WISDOM
+#endif
+
 // register the current git commit for tracking purpose
 #ifdef GIT_COMMIT
 #define FLUPS_GIT_COMMIT GIT_COMMIT

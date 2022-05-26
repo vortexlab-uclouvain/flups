@@ -64,7 +64,7 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "- defines:\n");
         fprintf(file, "\tFLUPS_FFTW_FLAG = %d\n", FLUPS_FFTW_FLAG);
         fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
-#ifdef FLUPS_MPI_AGGRESSIVE
+#if (FLUPS_MPI_AGGRESSIVE)
         fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
 #else
         fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? no\n");
@@ -74,6 +74,24 @@ void flups_info(int argc, char** argv) {
 #else
         fprintf(file, "\tNDEBUG ? yes\n");
 #endif
+#if (FLUPS_NEW_BALANCE)
+        fprintf(file, "\tFLUPS_NEW_BALANCE ? yes\n");
+#else
+        fprintf(file, "\tFLUPS_NEW_BALANCE ? no\n");
+#endif
+#ifdef FLUPS_WISDOM_PATH
+        fprintf(file, "\tFLUPS_WISDOM_PATH = %s\n", FLUPS_WISDOM_PATH);
+#else
+        fprintf(file, "\tFLUPS_WISDOM_PATH = none\n");
+#endif
+#if (FLUPS_OLD_MPI)
+        fprintf(file, "\tMPI_40 ? no\n");
+#else
+        fprintf(file, "\tMPI_40 ? yes\n");
+#endif
+#ifdef COMM_NONBLOCK
+        fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
+#endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {
             fprintf(file, "\t%s\n", argv[i]);
@@ -81,12 +99,8 @@ void flups_info(int argc, char** argv) {
         fclose(file);
     }
     FLUPS_INFO("-------------------------------------------------------------------");
-    FLUPS_INFO("MURPHY - (c) MIT");
-#ifdef FLUPS_MPI_AGGRESSIVE
-    FLUPS_INFO("commit = %s - MPI aggressive", FLUPS_GIT_COMMIT);
-#else
-    FLUPS_INFO("commit = %s - MPI non-aggressive", FLUPS_GIT_COMMIT);
-#endif
+    FLUPS_INFO("FLUPS - (c) UCLOUVAIN, MIT");
+    FLUPS_INFO("commit = %s", FLUPS_GIT_COMMIT);
     FLUPS_INFO("-------------------------------------------------------------------");
 }
 
