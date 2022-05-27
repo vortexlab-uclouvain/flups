@@ -182,18 +182,22 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](int count, MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
+        m_profStart(prof, "copy data 2 chunk");
         for (int ic = 0; ic < count; ++ic) {
             CopyData2Chunk(nmem_in, mem, chunk + ic);
         }
+        m_profStop(prof, "copy data 2 chunk");
         // start the request
+        m_profStart(prof, "start send");
         MPI_Startall(count, request);
+        m_profStop(prof, "start send");
     };
-    auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
+    auto recv_my_rqst = [prof](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // shuffle the data
+        m_profStart(prof, "shuffle");
         DoShuffleChunk(chunk);
-        FLUPS_INFO("Recv done");
-        // CopyChunk2Data(chunk, nmem_out, mem);
+        m_profStop(prof, "shuffle");
     };
 
     // Define the send of the batch
@@ -201,9 +205,9 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         int count_send = m_min(n_ttl_to_send - *n_already_send, n_to_send);
         FLUPS_INFO("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
         if (count_send > 0) {
-            m_profStarti(prof, "copy data 2 chunk");
+            // m_profStarti(prof, "copy data 2 chunk");
             send_my_rqst(count_send, chunks + *n_already_send, request + *n_already_send);
-            m_profStopi(prof, "copy data 2 chunk");
+            // m_profStopi(prof, "copy data 2 chunk");
         }
         *n_already_send += count_send;
     };
@@ -236,13 +240,18 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         m_profStart(prof, "self");
         // MPI_Start(recv_rqst + self_recv_idx);
         send_my_rqst(1, send_chunks + self_send_idx, send_rqst + self_send_idx);
+        m_profStart(prof, "wait recv");
         MPI_Wait(recv_rqst + self_recv_idx, MPI_STATUSES_IGNORE);
+        m_profStop(prof, "wait recv");
         recv_my_rqst(recv_rqst + self_recv_idx, recv_chunks + self_recv_idx);
+        m_profStart(prof, "wait send");
         MPI_Wait(send_rqst + self_send_idx, MPI_STATUSES_IGNORE);
+        m_profStop(prof, "wait send");
         m_profStop(prof, "self");
     }
 
     // while we still have to send or recv something, we continue
+    m_profStart(prof, "while loop");
     while ((send_cntr < n_other_send) || (recv_cntr < n_other_recv)) {
         // if we have some requests to recv, test it
         int n_completed = 0;
@@ -257,15 +266,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
         // for each of the completed request, treat it
         for (int id = 0; id < n_completed; ++id) {
-            m_profStart(prof, "shuffle");
             FLUPS_INFO("recving request %d/%d", recv_cntr + id, n_recv_rqst);
             const int rqst_id = completed_id[id];
             recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
-            m_profStop(prof, "shuffle");
         }
         // increment the counter of recv request
         recv_cntr += n_completed;
     }
+    m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
     FLUPS_INFO("Send recv completed");
 
