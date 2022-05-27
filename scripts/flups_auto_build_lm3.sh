@@ -21,7 +21,7 @@ rm -rf h3lpr
 ## Compile flups
 export FLUPS_MPICXX=mpic++
 export FLUPS_MPICC=mpicc
-export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF -DHAVE_WISDOM=\"$1/flups-wisdom/vortexbot.wsdm\""
+export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF -DHAVE_WISDOM=\"$1/fftw-wisdom/wisdom/vortexbot.wsdm\""
 export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
 export FLUPS_LDFLAGS="-fopenmp -lstdc++"
 
