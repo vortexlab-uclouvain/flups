@@ -4,7 +4,7 @@
 #SBATCH --qos=default
 #SBATCH --ntasks-per-node=128
 #SBATCH --nodes=32
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --hint=nomultithread
 
 export OMPIVERSION=4.1.3
@@ -46,7 +46,7 @@ source ${SCRIPT_MODULE} ${OMPIVERSION}
 
 #-------------------------------------------------------------------------------
 # INT_MAX = 2147483647
-size_length=(48 64 96 128)
+size_length=(32 48 64 96 128)
 batch_length=(1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192)
 
 # get the number of cpus, one node = 128
@@ -64,12 +64,12 @@ for NPCPU in ${size_length[@]}
 do
     for bl in ${batch_length[@]}
     do
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         # with new balance
         export COMPILE_OPT="-DMPI_BATCH_SEND=${bl}"
         export COMPILE_SUFFIX="batch${bl}_npcpu${NPCPU}"
     
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         SCRATCH_DIR=${SCRATCH_MAIN}/${COMPILE_SUFFIX}
         mkdir -p ${SCRATCH_DIR}
     
@@ -78,7 +78,7 @@ do
         echo "scratch file = ${SCRATCH_DIR}"
         echo "================================================================================="
     
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         ## Go to the scratch directory and copy what's needed
         export H3LPR_DIR=${SCRATCH_DIR}/h3lpr/
         export FLUPS_DIR=${SCRATCH_DIR}/flups/
@@ -87,11 +87,11 @@ do
         rsync -r ${MAIN_FLUPS} ${FLUPS_DIR}
         rsync -r ${MAIN_H3LPR} ${H3LPR_DIR}
     
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         # do the compilation 
         ${FLUPS_DIR}/samples/validation/run/meluxina_compile.sh
         
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         export NGLOB_X=$(( ($NPROC_X)*${NPCPU} ))
         export NGLOB_Y=$(( ($NPROC_Y)*${NPCPU} ))
         export NGLOB_Z=$(( ($NPROC_Z)*${NPCPU} ))
@@ -100,14 +100,14 @@ do
         export L_Z=$(( ($NPROC_Z) ))
         export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/128 ))
        
-        #---------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
         # start for the requested versions  - new balance
         for version in ${CODE_VERSION}
         do 
             export EXEC_FLUPS=flups_validation_${version}
             export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}/
             export MYNAME=flups_${version}_OMPI${OMPIVERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-    	    #---------------------------------------------------------------------
+    	    #-------------------------------------------------------------------
     	    mkdir -p ${SCRATCH_FLUPS}
             mkdir -p ${SCRATCH_FLUPS}/prof/
     	    cd ${SCRATCH_FLUPS}
@@ -120,12 +120,22 @@ do
     
     	    # go back
     	    cd -
-    	    #------------------------------------------------------
+    	    #-------------------------------------------------------------------
         done
-        #---------------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        # removes the flups and h3lpr folder
+        rm -rf ${FLUPS_DIR} ${H3LPR_DIR}
+
+        #-----------------------------------------------------------------------
     done
 done
 
+#-------------------------------------------------------------------------------
+# remove the flups and h3lpr folder
+rm -rf ${MAIN_FLUPS} ${MAIN_H3LPR}
+
+#-------------------------------------------------------------------------------
 echo "================================================================================="
 echo " MAIN SCRATCH DIR = ${ROOT_SCRATCH}/${SUBMISSION_NAME}"
 echo "================================================================================="
