@@ -220,7 +220,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     m_profStart(prof, "pre-send");
     m_profInitLeave(prof, "copy");
-    m_profInitLeave(prof, "shuffle");
+    // m_profInitLeave(prof, "shuffle");
     {
         // According to the standard 3.1 pg 77, MPI should start all the requests in the array
         // so we start all the other request and the self request using the same start.
@@ -272,13 +272,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         send_my_batch(n_other_send, &send_cntr, n_completed, send_chunks, send_rqst);
 
         // for each of the completed request, treat it
-        m_profStart(prof, "shuffle");
         for (int id = 0; id < n_completed; ++id) {
             FLUPS_INFO("recving request %d/%d", recv_cntr + id, n_recv_rqst);
             const int rqst_id = completed_id[id];
+            m_profStart(prof, "shuffle");
             recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
+            m_profStop(prof, "shuffle");
         }
-        m_profStop(prof, "shuffle");
+
         // increment the counter of recv request
         recv_cntr += n_completed;
     }
