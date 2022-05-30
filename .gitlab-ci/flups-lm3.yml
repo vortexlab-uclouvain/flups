@@ -69,7 +69,7 @@ compil lm3 :
     - scp lm3:${PATH2BIN}_${TAG}/test/flups_test_nb . #we must download the EXE back to the test machine, so that the runner can archive
     # Clean the files 
     - echo "Done with compilation."
-    - ssh lm3 rm -rf ${PATH2BIN}_${TAG}/
+   # - ssh lm3 rm -rf ${PATH2BIN}_${TAG}/
   
 
 run lm3:
