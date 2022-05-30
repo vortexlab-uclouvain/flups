@@ -32,7 +32,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
 void DoShuffleChunk(MemChunk* chunk);
 
-void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff);
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
 
 /**

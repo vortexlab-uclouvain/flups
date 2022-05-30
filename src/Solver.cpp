@@ -843,12 +843,12 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    std::memset(*send_buff, 0, max_mem * sizeof(double));
-    std::memset(*recv_buff, 0, max_mem * sizeof(double));
+    // *send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+    // *recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
+    *send_buff = (opt_double_ptr)flups_balloc(max_mem*sizeof(double));
+    *recv_buff = (opt_double_ptr)flups_balloc(max_mem*sizeof(double));
 
-    // associate the buffers to the switchtopo
+    // ociate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL){
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
@@ -864,11 +864,11 @@ void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, opt_double_ptr *se
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #endif
     if (*send_buff != NULL) {
-        m_free(*send_buff);
+        flups_bfree(*send_buff);
         (*send_buff) = NULL;
     }
     if (*recv_buff != NULL) {
-        m_free(*recv_buff);
+        flups_bfree(*recv_buff);
         (*recv_buff) = NULL;
     }
 }

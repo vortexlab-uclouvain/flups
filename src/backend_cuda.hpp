@@ -28,6 +28,7 @@ using flups_kind    = fftw_r2r_kind;      // currently unused
 using flups_plan    = cufftHandle;
 using flups_complex = cufftDoubleComplex;
 
+
 // Init & cleanup backend
 inline void init_backend() {
     cublasCreate(&cuHandle);
@@ -38,6 +39,15 @@ inline void finalize_backend() {
 }
 
 // Allocation functions
+inline void* flups_balloc(size_t size) {
+    size_t m_calloc_size_        = size + M_ALIGNMENT - 1;
+    size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % M_ALIGNMENT;
+    void*  ptr                   = omp_target_alloc(m_calloc_padded_size_, 0);
+
+    cudaMemset(ptr, 0, m_calloc_padded_size_);
+    return ptr;
+}
+
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
     FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
     cufftHandle plan;
@@ -107,7 +117,6 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
     if (!iscomplex) {
         double alpha = 1.0;
-        #pragma omp target data use_device_ptr(in, out)
         cublasDgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
@@ -116,7 +125,6 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
                     out, plan.n1);
     } else {
         flups_complex alpha = {1.0, 0.0};
-        #pragma omp target data use_device_ptr(in, out)
         cublasZgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
@@ -128,6 +136,10 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
 }
 
 // Cleanup functions
+inline void flups_bfree(void *ptr) {
+    omp_target_free(ptr, 0);
+}
+
 inline void flups_destroy_plan(flups_plan plan) {
     cufftDestroy(plan);
 }

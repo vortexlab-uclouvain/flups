@@ -187,7 +187,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
     // Allocate temp array to do out-of-place transpose
-    chunk->shuffle_buff = (opt_double_ptr)m_calloc(chunk->size_padded*sizeof(double));
+    chunk->shuffle_buff = (opt_double_ptr)flups_balloc(chunk->size_padded*sizeof(double));
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
@@ -200,21 +200,10 @@ void DoShuffleChunk(MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     for (int ida = 0; ida < chunk->nda; ++ida) {
-        opt_double_ptr data_in  = chunk->data + ida * chunk->size_padded;
+        opt_double_ptr data_in  = chunk->data         + ida * chunk->size_padded;
         opt_double_ptr data_out = chunk->shuffle_buff + ida * chunk->size_padded;
 
-        // Allocate on GPU
-        #pragma omp target enter data map(to: data_in[:chunk->size_padded])
-        #pragma omp target enter data map(alloc: data_out[:chunk->size_padded])
-
-        flups_execute_shuffle(chunk->shuffle, chunk->data, chunk->shuffle_buff, 2 == chunk->nf);
-
-        // Update & dealloc on GPU
-        #pragma omp target exit data map(delete: data_in[:chunk->size_padded])
-        #pragma omp target update from(data_out[:chunk->size_padded])
-        #pragma omp target exit data map(delete: data_out[:chunk->size_padded])
-
-        memcpy(data_in, data_out, chunk->size_padded*sizeof(double));
+        flups_execute_shuffle(chunk->shuffle, data_in, data_out, 2 == chunk->nf);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -233,7 +222,7 @@ void DoShuffleChunk(MemChunk* chunk) {
  * @param chunk the chunk of memory to copy
  * @param data the vector of data corresponding to the current memory
  */
-void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff) {
     BEGIN_FUNC;
     FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
     //--------------------------------------------------------------------------
@@ -252,7 +241,9 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
-        opt_double_ptr src_data = chunk->data + chunk->size_padded * lia;
+        opt_double_ptr src_data;
+        if (is_buff)   src_data = chunk->shuffle_buff + chunk->size_padded * lia;
+        else           src_data = chunk->data         + chunk->size_padded * lia;
         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // the chunk must be aligned all the time
@@ -266,7 +257,9 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             // get the starting adddress for the memcpy
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            memcpy(vtrg, vsrc, nmax_byte);
+
+            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_initial_device(), omp_get_default_device());
+            // std::memcpy(vtrg, vsrc, nmax_byte);
         }
     }
     //--------------------------------------------------------------------------
@@ -312,7 +305,9 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // get the starting adddress for the memcpy
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            std::memcpy(vtrg, vsrc, nmax_byte);
+
+            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_default_device(), omp_get_initial_device());
+            // std::memcpy(vtrg, vsrc, nmax_byte);
         }
     }
     //--------------------------------------------------------------------------

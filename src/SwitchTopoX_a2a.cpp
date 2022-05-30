@@ -155,8 +155,9 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
     auto complete_recv = [=](MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // shuffle the data
-        if (chunk->axis != chunk->dest_axis) DoShuffleChunk(chunk);
-        CopyChunk2Data(chunk, nmem_out, mem);
+        bool flag = (chunk->axis != chunk->dest_axis);
+        if (flag) DoShuffleChunk(chunk);
+        CopyChunk2Data(chunk, nmem_out, mem, flag);
     };
     //..........................................................................
     // Prepare the send buffer

@@ -210,7 +210,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     // once all the send has been done we can overwrite the received info
     m_profStarti(prof, "copy chunk 2 data");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
-        CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
+        CopyChunk2Data(recv_chunks + ic, nmem_out, mem, false);
     }
     m_profStopi(prof, "copy chunk 2 data");
 

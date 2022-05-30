@@ -31,12 +31,12 @@ SwitchTopoX::~SwitchTopoX() {
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
         flups_destroy_shuffle_plan(i2o_chunks_[ic].shuffle);
-        m_free(i2o_chunks_[ic].shuffle_buff);
+        flups_bfree(i2o_chunks_[ic].shuffle_buff);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
         // the shuffle happens in the "in" topology
         flups_destroy_shuffle_plan(o2i_chunks_[ic].shuffle);
-        m_free(o2i_chunks_[ic].shuffle_buff);
+        flups_bfree(o2i_chunks_[ic].shuffle_buff);
     }
 
     // free the buffers
