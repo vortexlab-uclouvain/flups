@@ -39,12 +39,16 @@ inline void finalize_backend() {
 }
 
 // Allocation functions
+inline void flups_memset(void *ptr, int val, size_t size) {
+    cudaMemset(ptr, val, size);
+}
+
 inline void* flups_balloc(size_t size) {
     size_t m_calloc_size_        = size + M_ALIGNMENT - 1;
     size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % M_ALIGNMENT;
-    void*  ptr                   = omp_target_alloc(m_calloc_padded_size_, 0);
+    void*  ptr                   = omp_target_alloc(m_calloc_padded_size_, omp_get_default_device());
 
-    cudaMemset(ptr, 0, m_calloc_padded_size_);
+    flups_memset(ptr, 0, m_calloc_padded_size_);
     return ptr;
 }
 
@@ -93,19 +97,16 @@ inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, dou
 
 // Execute functions
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
-    #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2Z(plan, in, out, sign);
     cudaDeviceSynchronize();
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
-    #pragma omp target data use_device_ptr(in, out)
     cufftExecD2Z(plan, in, out);
     cudaDeviceSynchronize();
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
-    #pragma omp target data use_device_ptr(in, out)
     cufftExecZ2D(plan, in, out);
     cudaDeviceSynchronize();
 }
@@ -137,7 +138,7 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
 
 // Cleanup functions
 inline void flups_bfree(void *ptr) {
-    omp_target_free(ptr, 0);
+    omp_target_free(ptr, omp_get_default_device());
 }
 
 inline void flups_destroy_plan(flups_plan plan) {

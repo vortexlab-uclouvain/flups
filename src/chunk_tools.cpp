@@ -258,8 +258,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_initial_device(), omp_get_default_device());
-            // std::memcpy(vtrg, vsrc, nmax_byte);
+            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_default_device(), omp_get_default_device());
         }
     }
     //--------------------------------------------------------------------------
@@ -306,8 +305,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
 
-            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_default_device(), omp_get_initial_device());
-            // std::memcpy(vtrg, vsrc, nmax_byte);
+            omp_target_memcpy(vtrg, vsrc, nmax_byte, 0, 0, omp_get_default_device(), omp_get_default_device());
         }
     }
     //--------------------------------------------------------------------------

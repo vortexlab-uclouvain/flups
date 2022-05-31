@@ -580,9 +580,6 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     //-------------------------------------------------------------------------
     check_dataAlign_(topo,data);
 
-    // Allocate data on the GPU
-    #pragma omp target enter data map(to: data[:memsize])
-
     //-------------------------------------------------------------------------
     /** - run the plan on each FFT  */
     //-------------------------------------------------------------------------
@@ -625,11 +622,6 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             }
         }
     }
-
-    // Get GPU data & then free it
-    #pragma omp target update from(data[:memsize])
-    #pragma omp target exit data map(delete: data[:memsize])
-
     END_FUNC;
 }
 

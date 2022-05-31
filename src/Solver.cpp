@@ -1021,23 +1021,34 @@ void Solver:: cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim
     //-------------------------------------------------------------------------
     /** - compute a symmetry and do the forward transform*/
     //-------------------------------------------------------------------------
+    size_t size_tot = 1;
+    for (int id = 0; id < ndim_; id++) {
+        size_tot = std::max(topo[id]->memsize(), size_tot);
+    }
+    size_tot *= sizeof(double);
+    double *gpu_data = (double*)flups_balloc(size_tot);
+    omp_target_memcpy(gpu_data, green, size_tot, 0, 0, omp_get_default_device(), omp_get_initial_device());
+
     for (int ip = 0; ip < ndim_; ip++) {
         const int dimID = planmap[ip]->dimID();
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            switchtopo_green_[ip]->execute(green, FLUPS_FORWARD);
+            switchtopo_green_[ip]->execute(gpu_data, FLUPS_FORWARD);
         }
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            plan_green_[ip]->execute_plan(topo[ip], green);
+            plan_green_[ip]->execute_plan(topo[ip], gpu_data);
         }
 
         if (plan_green_[ip]->isr2c_doneByFFT()) {
             topo[ip]->switch2complex();
         }
     }
+
+    omp_target_memcpy(green, gpu_data, size_tot, 0, 0, omp_get_initial_device(), omp_get_default_device());
+    flups_bfree(gpu_data);
 
     //-------------------------------------------------------------------------
     /** - scale the Green data using #volfact_ */
@@ -1173,6 +1184,14 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
 
     opt_double_ptr       mydata  = data_;
 
+    // the biggest size will be along the pencils
+    size_t size_tot = topo_phys_->memsize();
+    for (int id = 0; id < ndim_; id++) {
+        size_tot = std::max(topo_hat_[id]->memsize(), size_tot);
+    }
+    size_tot *= sizeof(double);
+    double *gpu_data = (double*)flups_balloc(size_tot);
+
     m_profStarti(prof_, "solve");
     //-------------------------------------------------------------------------
     /** - clean the data memory */
@@ -1185,6 +1204,7 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     FLUPS_CHECK(topo_phys_->nf() == 1, "The RHS topology cannot be complex");
 
     do_copy(topo_phys_, rhs, FLUPS_FORWARD);
+    omp_target_memcpy(gpu_data, mydata, size_tot, 0, 0, omp_get_default_device(), omp_get_initial_device());
 
 
 #ifdef DUMP_DBG
@@ -1193,7 +1213,7 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     //-------------------------------------------------------------------------
     /** - go to Fourier */
     //-------------------------------------------------------------------------
-    do_FFT(mydata, FLUPS_FORWARD);
+    do_FFT(gpu_data, FLUPS_FORWARD);
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_hat_[ndim_-1], "rhs_h", mydata);
@@ -1201,7 +1221,15 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
+    omp_target_memcpy(mydata, gpu_data, size_tot, 0, 0, omp_get_initial_device(), omp_get_default_device());
     do_mult(mydata,type);
+
+    #pragma omp target teams distribute parallel for
+    for (int i = 0; i < size_tot / sizeof(double); ++i) {
+        gpu_data[i]
+    }
+
+    omp_target_memcpy(gpu_data, mydata, size_tot, 0, 0, omp_get_default_device(), omp_get_initial_device());
 
 #ifdef DUMP_DBG
     // io if needed
@@ -1211,14 +1239,15 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     /** - go back to reals */
     //-------------------------------------------------------------------------
     if (type == STD) {
-        do_FFT(mydata, FLUPS_BACKWARD);
+        do_FFT(gpu_data, FLUPS_BACKWARD);
     } else {
-        do_FFT(mydata, FLUPS_BACKWARD_DIFF);
+        do_FFT(gpu_data, FLUPS_BACKWARD_DIFF);
     }
 
     //-------------------------------------------------------------------------
     /** - copy the solution in the field */
     //------------------------------------------------------------------------- 
+    omp_target_memcpy(mydata, gpu_data, size_tot, 0, 0, omp_get_initial_device(), omp_get_default_device());
     do_copy(topo_phys_, field, FLUPS_BACKWARD);
 
 #ifdef DUMP_DBG
@@ -1228,6 +1257,8 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     // stop the whole timer
     m_profStopi(prof_, "solve");
     END_FUNC;
+
+    flups_bfree(gpu_data);
 }
 
 /**
