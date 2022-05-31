@@ -26,5 +26,5 @@ echo "----------------- launching job -----------------"
 echo "srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --L=${L_X},${L_Y},${L_Z} --nres=1 --ns=20 --kernel=0"
 #srun ${EXEC_FLUPS} -np ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -res ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -L ${L_X} ${L_Y} ${L_Z} -bc 3 3 3 3 3 3 -nres 1 -ns 20 -k 0
 # export UCX_TLS=^xpmem 
-OMP_NUM_THREADS=1 srun ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=3,3,3,3,3,3 --nres=1 --nsolve=20 --kernel=0
+OMP_NUM_THREADS=1 srun ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=3,3,3,3,3,3 --nres=1 --nsolve=100 --kernel=0
 cd -
