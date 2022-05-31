@@ -1251,7 +1251,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     FLUPS_CHECK(data != NULL, "data is NULL");
     FLUPS_CHECK(lda_ == topo->lda(),"the solver lda = %d must match the topology one = %d",lda_,topo->lda());
     //-------------------------------------------------------------------------
-    m_profStarti(prof_,"copy");
+    m_profStart(prof_,"copy rhs");
     
     double* owndata = data_; 
     double* argdata = data; 
@@ -1353,7 +1353,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     }
 
 #endif
-    m_profStopi(prof_,"copy");
+    m_profStop(prof_,"copy rhs");
     
     //-------------------------------------------------------------------------
     END_FUNC;

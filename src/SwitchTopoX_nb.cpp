@@ -182,11 +182,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](int count, MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        m_profStart(prof, "copy");
         for (int ic = 0; ic < count; ++ic) {
+            m_profStart(prof, "copy");
             CopyData2Chunk(nmem_in, mem, chunk + ic);
+            m_profStop(prof, "copy");
         }
-        m_profStop(prof, "copy");
         // start the request
         MPI_Startall(count, request);
     };
