@@ -27,6 +27,7 @@
 #include "Topology.hpp"
 #include "bessel.hpp"
 #include "expint.hpp"
+#include "backend.hpp"
 
 // define macros to strigyfy, both are required!
 #define STR(a) ZSTR(a)

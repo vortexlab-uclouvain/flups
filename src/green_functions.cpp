@@ -544,6 +544,9 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+
+#pragma omp target teams distribute parallel for is_device_ptr(green) collapse(2) \
+        schedule(static) firstprivate(ie, is, istart, nmem) map(to: kfact[:3], koffset[:3], symstart[:3])
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
@@ -564,14 +567,15 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 // const double tmp[2] = {ksqr, eps};
                 const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
 
-                green[id + i0 * nf] = G(tmp, NULL);
+                // TODO: how to call G() ?
+                green[id + i0 * nf] = -1.0 / ksqr; // G(tmp, NULL);
             }
         }
     }
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        green[0] = 0.0;
+        flups_memset(green, 0, 1*sizeof(double));
     }
     END_FUNC;
 }

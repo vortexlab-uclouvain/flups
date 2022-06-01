@@ -57,7 +57,7 @@ void Solver::dothemagic_std_complex(double *data) {
 
     // get the adresses
     opt_double_ptr       mydata   = data;
-    // const opt_double_ptr mygreen  = green_;
+    const opt_double_ptr mygreen  = green_;
 
     // get the number of pencils for the field and green
     const size_t onmax = topo_hat_[cdim]->nloc(ax1) * topo_hat_[cdim]->nloc(ax2) * topo_hat_[cdim]->lda();
@@ -66,10 +66,6 @@ void Solver::dothemagic_std_complex(double *data) {
     // get the memory details
     const size_t memdim  = topo_hat_[cdim]->memdim();
     const int    nmem[3] = {topo_hat_[cdim]->nmem(0), topo_hat_[cdim]->nmem(1), topo_hat_[cdim]->nmem(2)};
-
-    // Alloc green_ on the gpu
-    double *mygreen = (double*)flups_balloc(memdim*sizeof(double));
-    omp_target_memcpy(mygreen, green_, memdim*sizeof(double), 0, 0, omp_get_default_device(), omp_get_initial_device());
 
     // check the alignment
     FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
@@ -112,6 +108,5 @@ void Solver::dothemagic_std_complex(double *data) {
         }
     }
 
-    flups_bfree(mygreen);
     END_FUNC;
 }
