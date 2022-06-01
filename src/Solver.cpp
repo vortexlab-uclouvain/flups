@@ -1221,15 +1221,7 @@ void Solver::solve(double *field, double *rhs,const SolverType type) {
     //-------------------------------------------------------------------------
     /** - Perform the magic */
     //-------------------------------------------------------------------------
-    omp_target_memcpy(mydata, gpu_data, size_tot, 0, 0, omp_get_initial_device(), omp_get_default_device());
-    do_mult(mydata,type);
-
-    #pragma omp target teams distribute parallel for
-    for (int i = 0; i < size_tot / sizeof(double); ++i) {
-        gpu_data[i]
-    }
-
-    omp_target_memcpy(gpu_data, mydata, size_tot, 0, 0, omp_get_default_device(), omp_get_initial_device());
+    do_mult(gpu_data, type);
 
 #ifdef DUMP_DBG
     // io if needed

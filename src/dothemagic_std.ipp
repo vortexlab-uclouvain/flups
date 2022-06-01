@@ -57,7 +57,7 @@ void Solver::dothemagic_std_complex(double *data) {
 
     // get the adresses
     opt_double_ptr       mydata   = data;
-    const opt_double_ptr mygreen  = green_;
+    // const opt_double_ptr mygreen  = green_;
 
     // get the number of pencils for the field and green
     const size_t onmax = topo_hat_[cdim]->nloc(ax1) * topo_hat_[cdim]->nloc(ax2) * topo_hat_[cdim]->lda();
@@ -67,6 +67,10 @@ void Solver::dothemagic_std_complex(double *data) {
     const size_t memdim  = topo_hat_[cdim]->memdim();
     const int    nmem[3] = {topo_hat_[cdim]->nmem(0), topo_hat_[cdim]->nmem(1), topo_hat_[cdim]->nmem(2)};
 
+    // Alloc green_ on the gpu
+    double *mygreen = (double*)flups_balloc(memdim*sizeof(double));
+    omp_target_memcpy(mygreen, green_, memdim*sizeof(double), 0, 0, omp_get_default_device(), omp_get_initial_device());
+
     // check the alignment
     FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
     FLUPS_CHECK(FLUPS_ISALIGNED(mydata) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
@@ -74,7 +78,12 @@ void Solver::dothemagic_std_complex(double *data) {
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata, mygreen) collapse(2) \
+        schedule(static) firstprivate(onmax, ondim, inmax, memdim, nmem, normfact, ax0, nf)
+#endif
     for (size_t id = 0; id < onmax; id++) {
         // get the lia and the io index
         const size_t lia = id / ondim;
@@ -103,5 +112,6 @@ void Solver::dothemagic_std_complex(double *data) {
         }
     }
 
+    flups_bfree(mygreen);
     END_FUNC;
 }
