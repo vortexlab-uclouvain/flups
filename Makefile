@@ -33,7 +33,8 @@ include $(ARCH_FILE)
 # Do not show GNU makefile command and info 
 #.SILENT:
 # git commit
-GIT_COMMIT ?= $(shell git describe --always --dirty)
+#GIT_COMMIT ?= $(shell git describe --always --dirty)
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 
 PREFIX ?= ./
 NAME := flups
@@ -82,6 +83,14 @@ H3LPR_LIB ?= /usr/lib
 H3LPR_LIBNAME ?= -lh3lpr
 INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
+#---- ACCFFT
+ACCFFT_DIR ?= /usr/
+ACCFFT_INC ?= ${ACCFFT_DIR}/include
+ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
+ACCFFT_LIBNAME ?= -laccfft
+INC += -I$(ACCFFT_INC)
+LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
 
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
