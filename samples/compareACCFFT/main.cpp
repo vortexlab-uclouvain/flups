@@ -3,6 +3,12 @@
 
 #include "Solver.hpp"
 #include "accfft.h"
+#include "h3lpr/profiler.hpp"
+#include "h3lpr/parser.hpp"
+#include "flups.h"
+
+using H3LPR::Profiler;
+using H3LPR::Parser;
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
@@ -15,9 +21,6 @@ int main(int argc, char *argv[]) {
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
-    if (provided < requested) {
-        FLUPS_ERROR("The MPI-provided thread behavior does not match");
-    }
 
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
@@ -26,7 +29,7 @@ int main(int argc, char *argv[]) {
     // Get info from the command line
     //--------------------------------------------------------------------------
     H3LPR::Parser parser(argc, (const char **)argv);
-    const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {16, 16, 16});
+    const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {64,64,64});
     const auto    arg_nproc = parser.GetValues<int, 3>("--nproc", "the proc distribution, for FLUPS only", {1, 1, 1});
     // const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
     const int     n_iter    = parser.GetValue<int>("--niter", "the number of iterations to perform", 20);
@@ -56,7 +59,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (rank == 0) {
-        printf("form the command line: %d %d %d unknowns on %d %d %d proc", n_glob[0], n_glob[1], n_glob[2], n_proc[0], n_proc[1], n_proc[2]);
+        printf("form the command line: %d %d %d unknowns on %d %d %d proc", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
     }
     if (nproc[0] != 1 && rank == 0) {
         printf("--------------------------------------------------------------\n");
@@ -88,9 +91,9 @@ int main(int argc, char *argv[]) {
     for (int i2 = 0; i2 < topoIn.nloc(2); i2++) {
         for (int i1 = 0; i1 < topoIn.nloc(1); i1++) {
             for (int i0 = 0; i0 < topoIn.nloc(0); i0++) {
-                double x   = 2.0 * M_PI / n_glob[0] * (i0 + topoIn.istart(0));
-                double y   = 2.0 * M_PI / n_glob[1] * (i1 + topoIn.istart(1));
-                double z   = 2.0 * M_PI / n_glob[2] * (i2 + topoIn.istart(2));
+                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn.cmpt_start_id(0));
+                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn.cmpt_start_id(1));
+                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn.cmpt_start_id(2));
                 size_t id  = localIndex(0, i0, i1, i2, 0, topo_nmem, 1, 0);
                 solFLU[id] = sin(x) + sin(y) + sin(z);
             }
@@ -109,22 +112,25 @@ int main(int argc, char *argv[]) {
 
     // let ACCFFT decide on the topology choice, pencil in Z, as always
     int    isize[3], osize[3], istart[3], ostart[3];
-    size_t alloc_max = accfft_local_size_dft_r2c(n_glob, isize, istart, osize, ostart, c_comm);
+
+    int n_acc[3] = {nglob[0],nglob[1],nglob[2]};
+    size_t alloc_max = accfft_local_size_dft_r2c(n_acc, isize, istart, osize, ostart, c_comm);
 
     double *data_acc = (double *)accfft_alloc(alloc_max);
 
     // init the ACCFFT with 1 thread
     accfft_init(1);
     // get the plan
-    accfft_plan *plan = accfft_plan_dft_3d_r2c(n_glob, data_acc, data_acc, c_comm, ACCFFT_MEASURE);
+    accfft_plan *plan = accfft_plan_dft_3d_r2c(n_acc, data_acc, data_acc, c_comm, ACCFFT_MEASURE);
 
     // setup the data
+    int n2_ = (nglob[2] / 2 + 1) * 2;
     for (int i = 0; i < isize[0]; i++) {
         for (int j = 0; j < isize[1]; j++) {
             for (int k = 0; k < isize[2]; k++) {
-                double x      = 2.0 * M_PI / n_glob[0] * (i + istart[0]);
-                double y      = 2.0 * M_PI / n_glob[1] * (j + istart[1]);
-                double z      = 2.0 * M_PI / n_glob[2] * k;
+                double x      = 2.0 * M_PI / nglob[0] * (i + istart[0]);
+                double y      = 2.0 * M_PI / nglob[1] * (j + istart[1]);
+                double z      = 2.0 * M_PI / nglob[2] * k;
                 size_t ptr    = i * isize[1] * n2_ + j * n2_ + k;
                 data_acc[ptr] = sin(x) + sin(y) + sin(z);
             }
@@ -204,7 +210,7 @@ int main(int argc, char *argv[]) {
     /** - cleanup */
     //-------------------------------------------------------------------------
     // ACCFFT
-    accfft_free(data_accfft);
+    accfft_free(data_acc);
     accfft_destroy_plan(plan);
     accfft_cleanup();
 
