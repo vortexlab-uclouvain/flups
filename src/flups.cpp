@@ -198,8 +198,8 @@ void flups_set_greenType(Solver* s, const GreenType type){
     s->set_GreenType(type);
 }
 
-double* flups_setup(Solver* s,const bool changeComm){
-    return s->setup(changeComm);
+void flups_setup(Solver* s,const bool changeComm){
+    s->setup(changeComm);
 }
 
 // solve

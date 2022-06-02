@@ -49,7 +49,8 @@ int main(int argc, char *argv[]) {
     FLUPS_CHECK(h[0] == h[1] && h[1] == h[2], "The grid spacing must be the same");
 
     // get the PER PER PER BC everywhere
-    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    // const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
     FLUPS_BoundaryType    *mybc[3][2];
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
@@ -75,12 +76,18 @@ int main(int argc, char *argv[]) {
     FLUPS_INFO("Initialization of FLUPS");
 
     // create a real topology
-    FLUPS_Topology topoIn(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Topology topoTemp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoIn, mybc, h, L, NOD, center_type, nullptr);
 
     // set the CHAT2 green type (even if it's not used)
     mysolver->set_GreenType(CHAT_2);
-    double *solFLU = mysolver->setup(true);
+    mysolver->setup(true);
+    double *solFLU = mysolver->get_innerBuffer();
+
+    // to fill the data we use the inner topo
+    const Topology *topoIn = mysolver->get_innerTopo_physical();
+    // instruct the solver to skip the first ST
+    mysolver->skip_firstSwitchtopo();
 
     //..........................................................................
     // set some straightforward data

@@ -230,7 +230,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
  * -------------------------------------------
  * We do the following operations
  */
-double* Solver::setup(const bool changeTopoComm) {
+void Solver::setup(const bool changeTopoComm) {
     BEGIN_FUNC;
     m_profStarti(prof_, "setup");
 
@@ -480,7 +480,6 @@ double* Solver::setup(const bool changeTopoComm) {
     FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
     END_FUNC;
-    return data_;
 }
 
 /**
@@ -1382,8 +1381,11 @@ void Solver::do_FFT(double *data, const int sign){
             // }
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
-            m_profStopi(prof_, "SwitchTopo");        
+            printf("doing this ST? %d\n", !(skip_st0_ && (ip == 0)));
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
+            }
+            m_profStopi(prof_, "SwitchTopo");
             // FLUPS_print_data(topo_hat_[ip], mydata);
             // run the FFT
             m_profStarti(prof_, "fftw");
@@ -1395,9 +1397,8 @@ void Solver::do_FFT(double *data, const int sign){
                 topo_hat_[ip]->switch2complex();
             }
         }
-    } 
-    else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
-        for (int ip = ndim_-1; ip >= 0; ip--) {
+    } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
+        for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1405,14 +1406,15 @@ void Solver::do_FFT(double *data, const int sign){
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
-            }  
+            }
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            }
             m_profStopi(prof_, "SwitchTopo");
         }
-    }
-    else if (sign == FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
-        for (int ip = ndim_-1; ip >= 0; ip--) {
+    } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
+        for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_diff_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1422,7 +1424,9 @@ void Solver::do_FFT(double *data, const int sign){
                 topo_hat_[ip]->switch2real();
             }
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            }
             m_profStopi(prof_, "SwitchTopo");
         }
     }
