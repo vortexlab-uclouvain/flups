@@ -56,20 +56,18 @@ echo " ------ ... done ! "
 export NPROC_X=1
 export NPROC_Y=16
 export NPROC_Z=16
-export NPCPU=64
+export NPCPU=28
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..6}
+for i in {0..2}
 do
-
-
-    export NGLOB_X=$(( ${NPROC_X}* ${NPCPU} ))
-    export NGLOB_Y=$(( ${NPROC_Y}* ${NPCPU} ))
-    export NGLOB_Z=$(( ${NPROC_Z}* ${NPCPU} ))
-    export L_X=$(( ${NPROC_X} ))
-    export L_Y=$(( ${NPROC_Y} ))
-    export L_Z=$(( ${NPROC_Z} ))
+    export NGLOB_X=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_X}* ${NPCPU} ))
+    export NGLOB_Y=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_Y}* ${NPCPU} ))
+    export NGLOB_Z=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_Z}* ${NPCPU} ))
+    export L_X=1 #$(( ${NPROC_X} ))
+    export L_Y=1 #$(( ${NPROC_Y} ))
+    export L_Z=1 #$(( ${NPROC_Z} ))
     export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
     
     # -------------------------------------------
@@ -88,14 +86,16 @@ do
         sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/compareACCFFT/run/meluxina_kernel_valid.sh
     done
 
-    if [ $(($i%2)) -eq 0 ]
-    then
-        NPROC_Z=$((2*$NPROC_Z))
-    fi
-    if [ $((($i)%2)) -eq 1 ]
-    then
-        NPROC_Y=$((2*$NPROC_Y))
-    fi
+    NPROC_Y=$((2*$NPROC_Y))
+    NPROC_Z=$((2*$NPROC_Z))
+    #if [ $(($i%2)) -eq 0 ]
+    #then
+    #    NPROC_Z=$((2*$NPROC_Z))
+    #fi
+    #if [ $((($i)%2)) -eq 1 ]
+    #then
+    #    NPROC_Y=$((2*$NPROC_Y))
+    #fi
 done 
 
 

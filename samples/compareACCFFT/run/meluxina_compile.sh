@@ -25,8 +25,12 @@ cd -
 cd ${FLUPS_DIR} 
 echo "CXX = ${EBROOTOPENMPI}/bin/mpic++ " > make_arch/make.meluxina
 echo "CC = ${EBROOTOPENMPI}/bin/mpicc " >> make_arch/make.meluxina
-echo "CXXFLAGS := -g -O3 -std=c++17 -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
-echo "CCFLAGS := -g -O3 -std=c99 -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+#echo "CXXFLAGS := -g -O3 -std=c++17 -DMPI_BATCH_SEND=2147483647 -DBALANCE_DPREC -DFFTW_FLAG=FFTW_MEASURE -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+#echo "CCFLAGS :=  -g -O3 -std=c99   -DMPI_BATCH_SEND=2147483647 -DBALANCE_DPREC -DFFTW_FLAG=FFTW_MEASURE -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+#echo "CXXFLAGS := -g -O3 -std=c++17 -DMPI_BATCH_SEND=2147483647 -DFFTW_FLAG=FFTW_MEASURE -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+#echo "CCFLAGS :=  -g -O3 -std=c99   -DMPI_BATCH_SEND=2147483647 -DFFTW_FLAG=FFTW_MEASURE -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+echo "CXXFLAGS := -g -O3 -std=c++17 -DMPI_BATCH_SEND=2147483647 -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
+echo "CCFLAGS :=  -g -O3 -std=c99   -DMPI_BATCH_SEND=2147483647 -DNDEBUG -march=native #-DNO_PROF" >> make_arch/make.meluxina
 
 # Working configuration
 # echo "CXXFLAGS := -g -Wall -O0 --debug -std=c++11" >> make_arch/make.meluxina

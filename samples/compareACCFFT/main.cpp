@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
     const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
     const int     n_iter    = parser.GetValue<int>("--niter", "the number of iterations to perform", 20);
     const int     n_warm    = parser.GetValue<int>("--warm", "the number of iterations to perform when warming up", 1);
+    const bool profile = parser.GetFlag("--profile","forward the profiler to flups");
     parser.Finalize();
 
     //--------------------------------------------------------------------------
@@ -49,8 +50,8 @@ int main(int argc, char *argv[]) {
     FLUPS_CHECK(h[0] == h[1] && h[1] == h[2], "The grid spacing must be the same");
 
     // get the PER PER PER BC everywhere
-    // const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
-    const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    //const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
     FLUPS_BoundaryType    *mybc[3][2];
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
@@ -70,14 +71,21 @@ int main(int argc, char *argv[]) {
         printf("--------------------------------------------------------------\n");
     }
 
+
+
+    //--------------------------------------------------------------------------
+    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
+    Profiler    prof(prof_name);
+
     //--------------------------------------------------------------------------
     /** - Initialize FLUPS */
     //--------------------------------------------------------------------------
     FLUPS_INFO("Initialization of FLUPS");
 
     // create a real topology
-    FLUPS_Topology topoTemp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
-    FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoIn, mybc, h, L, NOD, center_type, nullptr);
+    Profiler* flups_prof = (profile)? &prof:nullptr;
+    FLUPS_Topology topoTmp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoTmp, mybc, h, L, NOD, center_type, flups_prof);
 
     // set the CHAT2 green type (even if it's not used)
     mysolver->set_GreenType(CHAT_2);
@@ -91,16 +99,16 @@ int main(int argc, char *argv[]) {
 
     //..........................................................................
     // set some straightforward data
-    int topo_nmem[3] = {topoIn.nmem(0), topoIn.nmem(1), topoIn.nmem(2)};
+    int topo_nmem[3] = {topoIn->nmem(0), topoIn->nmem(1), topoIn->nmem(2)};
 
     // set a simple expression
     double val = 0.0;
-    for (int i2 = 0; i2 < topoIn.nloc(2); i2++) {
-        for (int i1 = 0; i1 < topoIn.nloc(1); i1++) {
-            for (int i0 = 0; i0 < topoIn.nloc(0); i0++) {
-                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn.cmpt_start_id(0));
-                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn.cmpt_start_id(1));
-                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn.cmpt_start_id(2));
+    for (int i2 = 0; i2 < topoIn->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topoIn->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topoIn->nloc(0); i0++) {
+                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
+                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
+                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
                 size_t id  = localIndex(0, i0, i1, i2, 0, topo_nmem, 1, 0);
                 solFLU[id] = sin(x) + sin(y) + sin(z);
             }
@@ -161,8 +169,6 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     /** - Proceed to the solve in place */
     //--------------------------------------------------------------------------
-    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
-    Profiler    prof(prof_name);
 
     m_profStart(&prof, "beatme");
     for (int iter = 0; iter < n_iter; iter++) {

@@ -1381,7 +1381,6 @@ void Solver::do_FFT(double *data, const int sign){
             // }
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
-            printf("doing this ST? %d\n", !(skip_st0_ && (ip == 0)));
             if (!(skip_st0_ && (ip == 0))) {
                 switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
             }
