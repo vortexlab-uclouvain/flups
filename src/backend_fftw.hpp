@@ -29,6 +29,14 @@ inline void finalize_backend() {
 }
 
 // Allocation functions
+inline void flups_memset(void *ptr, int val, size_t size) {
+    std::memset(ptr, val, size);
+}
+
+inline void* flups_balloc(size_t size) {
+    return m_calloc(size);
+}
+
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
     fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
@@ -97,6 +105,10 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
 }
 
 // Cleanup functions
+inline void flups_bfree(void *ptr) {
+    m_free(ptr);
+}
+
 inline void flups_destroy_plan(flups_plan plan) {
     fftw_destroy_plan(plan);
 }
