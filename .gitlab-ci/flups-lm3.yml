@@ -100,10 +100,10 @@ check result lm3:
   rules:
    - if: ($CI_OPEN_MERGE_REQUESTS)
      when: delayed
-     start_in: 400 minutes
+     start_in: 1200 minutes
    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
      when: delayed
-     start_in: 400 minutes 
+     start_in: 1200 minutes 
   artifacts: 
     paths: 
       - report_test_a2a.xml
