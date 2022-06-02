@@ -5,7 +5,7 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-CODE_VERSION='a2a'
+CODE_VERSION='a2a nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -63,13 +63,13 @@ echo " ------ ... done ! "
 
 
 ## 1 Node == 256 CPUS -> 1*64 = 64
-export NPROC_X=16
-export NPROC_Y=16
-export NPROC_Z=32
+export NPROC_X=4
+export NPROC_Y=4
+export NPROC_Z=4
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {7..7}
+for i in {0..7}
     do
         if [ $(($i%3)) -eq 0 ]
         then

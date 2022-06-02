@@ -45,6 +45,10 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
     // /** - Initialize the OpenMP threads for FFTW */
     // //-------------------------------------------------------------------------
     fftw_init_threads();
+#ifdef FLUPS_WISDOM_PATH
+    FLUPS_WARNING("Importing wisdom from %s",FLUPS_WISDOM_PATH);
+    fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
+#endif
 
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
@@ -512,6 +516,10 @@ Solver::~Solver() {
 
 
     //cleanup
+//#ifdef FLUPS_WISDOM_PATH
+//    FLUPS_WARNING("exporting wisdom to %s",FLUPS_WISDOM_PATH);
+//    fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
+//#endif
     fftw_cleanup_threads();
     fftw_cleanup();
     // m_profStopi(prof_, "Clean up");
@@ -1243,7 +1251,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     FLUPS_CHECK(data != NULL, "data is NULL");
     FLUPS_CHECK(lda_ == topo->lda(),"the solver lda = %d must match the topology one = %d",lda_,topo->lda());
     //-------------------------------------------------------------------------
-    m_profStarti(prof_,"copy");
+    m_profStart(prof_,"copy rhs");
     
     double* owndata = data_; 
     double* argdata = data; 
@@ -1345,7 +1353,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     }
 
 #endif
-    m_profStopi(prof_,"copy");
+    m_profStop(prof_,"copy rhs");
     
     //-------------------------------------------------------------------------
     END_FUNC;

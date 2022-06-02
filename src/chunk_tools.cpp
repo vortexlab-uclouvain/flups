@@ -1,6 +1,6 @@
 #include "chunk_tools.hpp"
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk **chunks) {
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk **chunks, int* self_comm) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // NOT NEEDED as we imposed identical communicators
@@ -75,16 +75,32 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
 
     //--------------------------------------------------------------------------
+    /** - Retrieve the id of the current process in the output topology to check 
+     * if there is a self communication */
+    //--------------------------------------------------------------------------
+    int out_rank; 
+    MPI_Comm_rank(topo_out->get_comm(), &out_rank);
+    bool is_self_comm = false;
+
+    //--------------------------------------------------------------------------
     /** - fill the chunks only if we have some chunks */
     //--------------------------------------------------------------------------
     int chunk_counter = 0;
     for (int ir2 = srank[2]; ir2 <= erank[2]; ++ir2) {
         for (int ir1 = srank[1]; ir1 <= erank[1]; ++ir1) {
             for (int ir0 = srank[0]; ir0 <= erank[0]; ++ir0) {
-                // get the current chunk
-                MemChunk* cchunk = *chunks + chunk_counter;
                 // store the current rank in a XYZ format
                 const int irank[3] = {ir0, ir1, ir2};
+                // compute the current rank in the topo_out subcomminator 
+                const int dest_rank     = rankindex(irank, topo_out);
+
+                // Get the right chunk. Here we check if the destination rank is equal to the current process
+                // If it is the case, we store the self comm as the last chunks in the chunk array 
+                // It it is not the case, then we continue to fill in the chnunks array. 
+                is_self_comm     = (out_rank == dest_rank);
+                self_comm[0]     = is_self_comm ? n_chunks[0] - 1 : self_comm[0] ; 
+                MemChunk* cchunk = is_self_comm ? *chunks + self_comm[0]: *chunks + chunk_counter;
+                
                 for (int id = 0; id < 3; ++id) {
                     // get the start and end index of the topo OUT and the topo IN in the global reference
                     const int topoo_start = topo_out->cmpt_start_id_from_rank(irank[id], id);
@@ -106,8 +122,9 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                     FLUPS_CHECK(cchunk->istart[id] >= 0, "the start id = %d should be >= 0", cchunk->istart[id]);
                     FLUPS_CHECK(cchunk->isize[id] > 0, "The size of the chunk is %d = %d - %d which is not expecte", cchunk->isize[id], cchunk_gend, cchunk_gstart);
                 }
+
                 // get the destination rank, no translation is required here as we imposed identical communicators
-                cchunk->dest_rank   = rankindex(irank, topo_out);
+                cchunk->dest_rank   = dest_rank;
                 cchunk->nda         = (size_t)topo_in->lda();
                 cchunk->nf          = (size_t)topo_in->nf();
                 cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
@@ -120,11 +137,12 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
 
                 // increasee the chunk counter
-                chunk_counter += 1;
+                chunk_counter += !is_self_comm;
             }
         }
     }
-    FLUPS_CHECK(chunk_counter == n_chunks[0], "the chunk counter = %d must be = %d", chunk_counter, n_chunks[0]);
+
+    FLUPS_CHECK((chunk_counter + (int) (self_comm[0]>= 0)) == n_chunks[0], "the chunk counter = %d must be = %d", (chunk_counter + (int) is_self_comm), n_chunks[0]);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -189,10 +207,10 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
     if (!iscomplex) {
-        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FFTW_FLAG);
+        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FLUPS_FFTW_FLAG);
         // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     } else {
-        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FFTW_FLAG);
+        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
         // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
     }
     //--------------------------------------------------------------------------
@@ -244,18 +262,6 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
     FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
-    // FLUPS_INFO("nf = %d",nf);
-    //     if (nf == 2) {
-    //         for (int id2 = 0; id2 < chunk->isize[ax[2]]; ++id2) {
-    //             for (int id1 = 0; id1 < chunk->isize[ax[1]]; ++id1) {
-    //                 for (int id0 = 0; id0 < chunk->isize[ax[0]]; ++id0) {
-    //                     const int id = localIndex(ax[0], id0, id1, id2, ax0, chunk->isize, nf, 0);
-    //                     printf("(%f %f)", chunk->data[id], chunk->data[id + 1]);
-    //                 }
-    //                 printf("\n");
-    //             }
-    //         }
-    //     }
 
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
@@ -320,7 +326,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // get the starting adddress for the memcpy
             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            FLUPS_INFO("offset src = %ld and trg = %ld",localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0),localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0));
+            // FLUPS_INFO("offset src = %ld and trg = %ld",localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0),localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0));
             std::memcpy(vtrg, vsrc, nmax_byte);
         }
     }

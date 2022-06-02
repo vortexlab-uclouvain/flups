@@ -73,10 +73,10 @@ void SwitchTopoX::setup() {
     
     // Populate the arrays of memory chunks
     FLUPS_INFO("I2O chunks");
-    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_, &i2o_selfcomm_);
     FLUPS_INFO("O2I chunks");
-    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
-    
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_, &o2i_selfcomm_);
+
     delete(topo_in_tmp);
 
     // Split the communication according to the destination of each chunk in the MPI_COMM_WORLD
@@ -94,22 +94,39 @@ void SwitchTopoX::setup() {
 void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
     BEGIN_FUNC;
     //..........................................................................
+    int sub_rank; 
+    MPI_Comm_rank(subcomm_, &sub_rank);
+
     send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
     recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
 
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
-        FLUPS_CHECK(i2o_chunks_[ic].size_padded > 0 && i2o_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
-        i2o_chunks_[ic].data = send_buf_ + size_counter;
+        // The self communication is the last one in the chunk array but correspond to its 
+        // rank number in the physical memory space. Therefore we need to check if the chunk index is 
+        // the same as the current rank number in the subcommunicator. If its the case, we have to register the 
+        // pointer to the buffer in the last chunk 
+        // Once we have perform that for the self communication, we must continue as usual. Yet, there is 
+        // a difference of 1 between ic and the real chunk index
+        bool is_self_idx = ((i2o_selfcomm_>=0) && (ic == sub_rank));
+        bool is_greater_self_idx = ((i2o_selfcomm_>=0) && (ic > sub_rank));
+        int i_chunk = is_self_idx ? i2o_selfcomm_ : ic - (int) is_greater_self_idx; 
+        
+        FLUPS_CHECK(i2o_chunks_[i_chunk].size_padded > 0 && i2o_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
+        i2o_chunks_[i_chunk].data = send_buf_ + size_counter;
         // update the counter
-        size_counter += i2o_chunks_[ic].size_padded * i2o_chunks_[ic].nda;
+        size_counter += i2o_chunks_[i_chunk].size_padded * i2o_chunks_[i_chunk].nda;
     }
     size_counter = 0;
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
-        FLUPS_CHECK(o2i_chunks_[ic].size_padded > 0 && o2i_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
-        o2i_chunks_[ic].data = recv_buf_ + size_counter;
-        size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
+        bool is_self_idx = ((o2i_selfcomm_>=0) && (ic == sub_rank));
+        bool is_greater_self_idx = ((o2i_selfcomm_>=0) && (ic > sub_rank));
+        int i_chunk = is_self_idx ? o2i_selfcomm_ : ic - (int) is_greater_self_idx; 
+
+        FLUPS_CHECK(o2i_chunks_[i_chunk].size_padded > 0 && o2i_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
+        o2i_chunks_[i_chunk].data = recv_buf_ + size_counter;
+        size_counter += o2i_chunks_[i_chunk].size_padded * o2i_chunks_[i_chunk].nda;
     }
 
     FLUPS_INFO("memory addresses have been assigned");
@@ -413,6 +430,13 @@ void SwitchTopoX::print_info() const {
     }
     
     if(rank_world == 0){
+        // Create the prof directory if it does not exist
+        {
+            struct stat st = {0};
+            if (stat("./prof", &st) == -1) {
+                mkdir("./prof", 0700);
+            }
+        }
         // Get the file name
         std::string name = "./prof/SwitchTopo_" + std::to_string(idswitchtopo_) + "_info.txt";
 

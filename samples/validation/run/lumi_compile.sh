@@ -26,8 +26,8 @@ cd -
 cd ${FLUPS_DIR} 
 echo "CXX=CC" > make_arch/make.lumi
 echo "CC=cc " >> make_arch/make.lumi
-echo "CXXFLAGS := -O3 -std=c++17 -DNDEBUG " >> make_arch/make.lumi
-echo "CCFLAGS  := -O3 -std=c99 -DNDEBUG" >> make_arch/make.lumi
+echo "CXXFLAGS := -g -O3 -std=c++17 -DNDEBUG " >> make_arch/make.lumi
+echo "CCFLAGS  := -g -O3 -std=c99 -DNDEBUG" >> make_arch/make.lumi
 echo "LDFLAGS  := -fopenmp #-lstc++ "  >> make_arch/make.lumi
 
 echo "#---------------------------------------------------------   " >> make_arch/make.lumi

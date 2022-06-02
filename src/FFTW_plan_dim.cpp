@@ -273,13 +273,13 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     for (int lia = 0; lia < lda_; lia++) {
         if (topo->nf() == 1) {
             fftw_stride_ = memsize[dimID_];
-            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FFTW_FLAG);
+            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FLUPS_FFTW_FLAG);
 
         } else if (topo->nf() == 2) {
             fftw_stride_ = memsize[dimID_] * topo->nf();
             plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_[lia]), 1,
                                             data, NULL, topo->nf(), memsize[dimID_] * topo->nf(),
-                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FFTW_FLAG);
+                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FLUPS_FFTW_FLAG);
         }
     }
 
@@ -367,9 +367,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data, (fftw_complex*)data, FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data, (fftw_complex*)data, FLUPS_FFTW_FLAG);
         } else {
-            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data, data, FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data, data, FLUPS_FFTW_FLAG);
         }
 
     } else {
@@ -392,7 +392,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
-        plan_[0] = fftw_plan_dft_1d(n_in_[0], (fftw_complex*)data, (fftw_complex*)data, sign_, FFTW_FLAG);
+        plan_[0] = fftw_plan_dft_1d(n_in_[0], (fftw_complex*)data, (fftw_complex*)data, sign_, FLUPS_FFTW_FLAG);
     }
 
     // the plan is the same in every other direction
