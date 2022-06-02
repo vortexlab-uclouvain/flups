@@ -260,7 +260,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we have some requests to recv, test it
         int n_completed = 0;
         if (recv_cntr < n_recv_rqst) {
-            MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
+            //MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
+            MPI_Waitsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
         }
 
         // Maintain the difference between the pending send and receive request to send_batch
