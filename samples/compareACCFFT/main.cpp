@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     H3LPR::Parser parser(argc, (const char **)argv);
     const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {64,64,64});
     const auto    arg_nproc = parser.GetValues<int, 3>("--nproc", "the proc distribution, for FLUPS only", {1, 1, 1});
-    // const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
+    const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
     const int     n_iter    = parser.GetValue<int>("--niter", "the number of iterations to perform", 20);
     const int     n_warm    = parser.GetValue<int>("--warm", "the number of iterations to perform when warming up", 1);
     parser.Finalize();
@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     const int nglob[3] = {arg_nglob[0], arg_nglob[1], arg_nglob[2]};
     const int nproc[3] = {arg_nproc[0], arg_nproc[1], arg_nproc[2]};
-    // const double L[3]     = {arg_dom[0], arg_dom[1], arg_dom[2]};
-    const double L[3] = {1.0, 1.0, 1.0};
+    const double L[3]     = {arg_dom[0], arg_dom[1], arg_dom[2]};
+    //const double L[3] = {1.0, 1.0, 1.0};
 
     // get the grid spacing
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (rank == 0) {
-        printf("form the command line: %d %d %d unknowns on %d %d %d proc", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
+        printf("form the command line: %d %d %d unknowns on %d %d %d proc\n", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
     }
     if (nproc[0] != 1 && rank == 0) {
         printf("--------------------------------------------------------------\n");

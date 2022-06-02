@@ -27,7 +27,7 @@ ARCH_FILE ?= make_arch/make.osx_gcc
 #DYLD_LIBRARY_PATH=/Users/DeeGee/Documents/PhD/devel/mix-poisson-solver/lib OMPI_MCA_btl=self,tcp OMPI_MCA_rmaps_base_oversubscribe=yes OMP_NUM_THREADS=1 mpirun -np 1 --tag-output --oversubscribe ./flups_vs_p3dfft 
 
 include ../../$(ARCH_FILE)
-include $(ARCH_FILE)
+#include $(ARCH_FILE)
 
 #CXXFLAGS := -g -Wall -O0 --debug -std=c++17 -DVERBOSE 
 
@@ -43,6 +43,8 @@ NAME := flups_vs_accfft
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
+TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
+TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -54,7 +56,8 @@ OBJ_DIR := ./build
 INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src 
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
-
+LIB_DPREC_A2A = -L$(FLUPSDIR)/lib -lflups_dprec_a2a
+LIB_DPREC_NB  = -L$(FLUPSDIR)/lib -lflups_dprec_nb 
 
 #---- ACCFFT
 ACCFFT_DIR ?= /usr/
@@ -78,6 +81,21 @@ HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
 
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
+
+#---- ACCFFT
+ACCFFT_DIR ?= /usr/
+ACCFFT_INC ?= ${ACCFFT_DIR}/include
+ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
+ACCFFT_LIBNAME ?= -laccfft
+INC += -I$(ACCFFT_INC)
+LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
+
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders
 SRC := $(notdir $(wildcard $(SRC_DIR)/*.cpp))
@@ -95,7 +113,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 all: default
 
@@ -104,6 +122,12 @@ $(TARGET_EXE_A2A): $(OBJ)
 
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
+	
+$(TARGET_EXE_DPREC_A2A): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_A2A)
+
+$(TARGET_EXE_DPREC_NB): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_NB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 	mkdir -p $(PREFIX)/bin
