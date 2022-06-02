@@ -182,13 +182,15 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto send_my_rqst = [=](int count, MemChunk *chunk, MPI_Request *request) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        m_profStart(prof, "copy");
         for (int ic = 0; ic < count; ++ic) {
+            m_profStart(prof, "copy");
             CopyData2Chunk(nmem_in, mem, chunk + ic);
+            m_profStop(prof, "copy");
         }
-        m_profStop(prof, "copy");
         // start the request
+        m_profStart(prof, "start");
         MPI_Startall(count, request);
+        m_profStop(prof, "start");
     };
     auto recv_my_rqst = [prof](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
@@ -201,9 +203,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         int count_send = m_min(n_ttl_to_send - *n_already_send, n_to_send);
         FLUPS_INFO("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
         if (count_send > 0) {
-            // m_profStarti(prof, "copy data 2 chunk");
             send_my_rqst(count_send, chunks + *n_already_send, request + *n_already_send);
-            // m_profStopi(prof, "copy data 2 chunk");
         }
         *n_already_send += count_send;
     };
@@ -220,12 +220,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     m_profStart(prof, "pre-send");
     m_profInitLeave(prof, "copy");
-    // m_profInitLeave(prof, "shuffle");
+    m_profInitLeave(prof, "start");
     {
         // According to the standard 3.1 pg 77, MPI should start all the requests in the array
         // so we start all the other request and the self request using the same start.
         FLUPS_INFO("starting %d recv request", n_recv_rqst);
+        m_profStart(prof, "start");
         MPI_Startall(n_recv_rqst, recv_rqst);
+        m_profStop(prof, "start");
 
         // Start a first batch of send request
         send_my_batch(n_other_send, &send_cntr, send_batch, send_chunks, send_rqst);
@@ -236,6 +238,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     // make sure everybody enter all the profiler counters
     m_profStart(prof, "self");
     m_profInitLeave(prof, "copy");
+    m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
     // process the self request
     if (0 <= self_send_idx) {
@@ -258,6 +261,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     // while we still have to send or recv something, we continue
     m_profStart(prof, "while loop");
     m_profInitLeave(prof, "copy");
+    m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
     while ((send_cntr < n_other_send) || (recv_cntr < n_other_recv)) {
         // if we have some requests to recv, test it
