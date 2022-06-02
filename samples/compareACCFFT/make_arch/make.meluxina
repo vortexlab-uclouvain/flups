@@ -24,4 +24,4 @@ H3LPR_INC := /home/users/u100155/soft/include/
 H3LPR_LIB := /home/users/u100155/soft/lib/  
 
 #
-ACCFFT_DIR := ${PREFIX}
+ACCFFT_DIR := /home/users/u100155/lib-OpenMPI-4.1.3
