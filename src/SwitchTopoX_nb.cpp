@@ -2,7 +2,7 @@
 
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks, const int self_send_idx,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks, const int self_recv_idx,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, int *completed_id, H3LPR::Profiler *prof);
 
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -20,8 +20,14 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     // first setup the basic stuffs
     this->SwitchTopoX::setup_buffers(sendData, recvData);
 
+    //..........................................................................
+    // get information on shared rank
     int sub_rank;
     MPI_Comm_rank(subcomm_, &sub_rank);
+    MPI_Comm_split_type(subcomm_, MPI_COMM_TYPE_SHARED, sub_rank, MPI_INFO_NULL, &shared_comm_);
+
+    int shared_rank;
+    MPI_Comm_rank(shared_comm_, &shared_rank);
 
     //..........................................................................
     // once we have the MemChunks we can allocate the requests
@@ -33,53 +39,82 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     o2i_send_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Request)));
     o2i_recv_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Request)));
 
+    // allocate the completed_id array:
+    const int n_rqst = m_max(i2o_nchunks_, o2i_nchunks_);
+    completed_id_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
+
+    //..........................................................................
+    // try to narrow down the comm group, if possible
+    MPI_Group sub_group;
+    MPI_Group shared_group;
+    MPI_Comm_group(subcomm_, &sub_group);
+    MPI_Comm_group(shared_comm_, &shared_group);
+
     //..........................................................................
     // this is the loop over the input topo and the associated chunks
-    for (int ir = 0; ir < i2o_nchunks_ - (i2o_selfcomm_ >= 0 ); ++ir) {
+    for (int ir = 0; ir < i2o_nchunks_ - (i2o_selfcomm_ >= 0); ++ir) {
         MemChunk      *cchunk = i2o_chunks_ + ir;
         opt_double_ptr buf    = cchunk->data;
         size_t         count  = cchunk->size_padded * cchunk->nda;
 
+        // test if the destination rank is inside the shared group
+        int dest_shared_rank;
+        MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+        bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
+        // if the dest_rank is inside the shared group, use the shared comm
+        int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+        int      tag       = is_in_shared ? shared_rank : sub_rank;
+        MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
+
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, i2o_send_rqst_ + ir);
-        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, sub_rank, subcomm_, o2i_recv_rqst_ + ir);
+        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_send_rqst_ + ir);
+        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_recv_rqst_ + ir);
     }
 
     // here we go for the output topo and the associated chunks
-    for (int ir = 0; ir < o2i_nchunks_ - (o2i_selfcomm_ >= 0 ); ++ir) {
+    for (int ir = 0; ir < o2i_nchunks_ - (o2i_selfcomm_ >= 0); ++ir) {
         MemChunk      *cchunk = o2i_chunks_ + ir;
         opt_double_ptr buf    = cchunk->data;
         size_t         count  = cchunk->size_padded * cchunk->nda;
+
+        // test if the destination rank is inside the shared group
+        int dest_shared_rank;
+        MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+        bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
+        // if the dest_rank is inside the shared group, use the shared comm
+        int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+        int      tag       = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+        MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
+
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, i2o_recv_rqst_ + ir);
-        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, subcomm_, o2i_send_rqst_ + ir);
+        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_recv_rqst_ + ir);
+        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_send_rqst_ + ir);
     }
 
     //..........................................................................
     // Create the self requests
-    if(i2o_selfcomm_ >= 0){
-        // Setting everything that use the i2o_chunks 
+    if (i2o_selfcomm_ >= 0) {
+        // Setting everything that use the i2o_chunks
         {
             MemChunk      *cchunk = i2o_chunks_ + i2o_selfcomm_;
             opt_double_ptr buf    = cchunk->data;
             size_t         count  = cchunk->size_padded * cchunk->nda;
             FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-            FLUPS_CHECK(cchunk->dest_rank == sub_rank,"the dest rank should be equal to the subrank when performing self request");
+            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
             MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_send_rqst_ + i2o_selfcomm_);
             MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_recv_rqst_ + i2o_selfcomm_);
         }
 
-        // Setting everything that use the o2i_chunks 
+        // Setting everything that use the o2i_chunks
         {
-            MemChunk *cchunk      = o2i_chunks_ + o2i_selfcomm_;
+            MemChunk      *cchunk = o2i_chunks_ + o2i_selfcomm_;
             opt_double_ptr buf    = cchunk->data;
             size_t         count  = cchunk->size_padded * cchunk->nda;
             FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-            FLUPS_CHECK(cchunk->dest_rank == sub_rank,"the dest rank should be equal to the subrank when performing self request");
+            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
             MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_recv_rqst_ + o2i_selfcomm_);
             MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_send_rqst_ + o2i_selfcomm_);
         }
-
     }
 
     //--------------------------------------------------------------------------
@@ -104,6 +139,14 @@ SwitchTopoX_nb::~SwitchTopoX_nb(){
     m_free(i2o_recv_rqst_);
     m_free(o2i_send_rqst_);
     m_free(o2i_recv_rqst_);
+    m_free(completed_id_);    
+
+    MPI_Comm_free(&shared_comm_);
+    // int comp;
+    // MPI_Comm_compare(shared_comm_,inComm_,&comp);
+    // if(comp!=MPI_IDENT){
+    //     MPI_Comm_free(&subcomm_);
+    // }
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -121,11 +164,11 @@ void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
     if (sign == FLUPS_FORWARD) {
         SendRecv(i2o_nchunks_, i2o_send_rqst_, i2o_chunks_, i2o_selfcomm_,
                  o2i_nchunks_, i2o_recv_rqst_, o2i_chunks_, o2i_selfcomm_,
-                 topo_in_, topo_out_, v, prof_);
+                 topo_in_, topo_out_, v, completed_id_, prof_);
     } else {
         SendRecv(o2i_nchunks_, o2i_send_rqst_, o2i_chunks_, o2i_selfcomm_,
                  i2o_nchunks_, o2i_recv_rqst_, i2o_chunks_, i2o_selfcomm_,
-                 topo_out_, topo_in_, v, prof_);
+                 topo_out_, topo_in_, v, completed_id_, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
 
@@ -165,7 +208,7 @@ void SwitchTopoX_nb::disp() const {
  */
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks, const int self_send_idx,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks, const int self_recv_idx,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, int* completed_id, H3LPR::Profiler* prof) {
     BEGIN_FUNC;
     FLUPS_CHECK(self_send_idx*self_recv_idx >= 0, "the self idx must be the same for the send and receive" );
     //--------------------------------------------------------------------------
@@ -214,8 +257,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     const int send_batch   = FLUPS_MPI_BATCH_SEND;
     int       send_cntr    = 0;
     int       recv_cntr    = 0;
-    // int      *completed_id = reinterpret_cast<int *>(m_calloc(n_other_recv * sizeof(int)));
-    int      *completed_id = reinterpret_cast<int *>(m_calloc(n_recv_rqst * sizeof(int)));
 
     //..........................................................................
     m_profStart(prof, "send/recv");
@@ -260,7 +301,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we have some requests to recv, test it
         int n_completed = 0;
         if (recv_cntr < n_recv_rqst) {
-            //MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
             MPI_Waitsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
         }
 
@@ -306,9 +346,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profStop(prof, "send/recv");
 
     FLUPS_INFO("Copying data completed");
-
-    // m_free(completed_status);
-    m_free(completed_id);
     //--------------------------------------------------------------------------
     END_FUNC;
 }

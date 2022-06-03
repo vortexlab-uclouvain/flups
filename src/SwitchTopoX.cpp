@@ -37,13 +37,17 @@ SwitchTopoX::~SwitchTopoX() {
         fftw_destroy_plan(o2i_chunks_[ic].shuffle);
     }
 
-    // free the buffers
-    // m_free(send_buf_);
-    // m_free(recv_buf_);
-
     // free the MemChunks
     m_free(i2o_chunks_);
     m_free(o2i_chunks_);
+
+    // deallocate the subcom, only if it's NOT the inComm
+    // MPI_Comm_free(&subcomm_);
+    int comp;
+    MPI_Comm_compare(subcomm_,inComm_,&comp);
+    if(comp!=MPI_IDENT){
+        MPI_Comm_free(&subcomm_);
+    }
 
     //--------------------------------------------------------------------------
     END_FUNC;
