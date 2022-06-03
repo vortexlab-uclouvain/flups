@@ -9,8 +9,8 @@ class SwitchTopoX_nb : public SwitchTopoX {
 
     // bool* i2o_priority_list_ = nullptr; //!< indicate if a request is in the priority list or not
     // bool* o2i_priority_list_ = nullptr; //!< indicate if a request is in the priority list or not
-    // int* i2o_send_order_ = nullptr;
-    // int* o2i_send_order_ = nullptr;
+    int* i2o_send_order_ = nullptr;
+    int* o2i_send_order_ = nullptr;
 
     MPI_Request* i2o_send_rqst_ = NULL;  //!< MPI send requests
     MPI_Request* i2o_recv_rqst_ = NULL;  //!< MPI recv requests
