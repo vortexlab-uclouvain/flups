@@ -51,7 +51,10 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     // o2i transfert goes from o2i_chunks to i2o_chunks
     o2i_send_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Request)));
     o2i_recv_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Request)));
-    
+
+    // i2o_send_order_ = reinterpret_cast<int *>(m_calloc(i2o_nchunks_ * sizeof(int)));
+    // o2i_send_order_ = reinterpret_cast<int *>(m_calloc(o2i_nchunks_ * sizeof(int)));
+
     // allocate the completed_id array
     const int n_rqst = m_max(i2o_nchunks_, o2i_nchunks_);
     completed_id_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
@@ -322,12 +325,15 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we completed n_completed recvs it means that the send are completed on the other rank.
         // to maintain the total balance accross the network we start another chunk of n_completed
         // here we use n_other_send as the self has been processed!
-        const int n_to_resend = m_max(n_completed,send_batch);
+        const int n_to_resend = m_max(send_batch - n_completed, 0);  // m_max(n_completed,send_batch);
         send_my_batch(n_other_send, &send_cntr, n_to_resend, send_chunks, send_rqst);
 
         // for each of the completed request, treat it
         for (int id = 0; id < n_completed; ++id) {
-            FLUPS_INFO("recving request %d/%d with id = %d", recv_cntr + id, n_recv_rqst,completed_id[id]);
+            // resend a send-request
+            send_my_batch(n_other_send, &send_cntr, 1, send_chunks, send_rqst);
+
+            FLUPS_INFO("recving request %d/%d with id = %d", recv_cntr + id, n_recv_rqst, completed_id[id]);
             const int rqst_id = completed_id[id];
             m_profStart(prof, "shuffle");
             recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
