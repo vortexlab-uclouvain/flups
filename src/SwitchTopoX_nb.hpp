@@ -4,8 +4,11 @@
 #include "SwitchTopoX.hpp"
 
 class SwitchTopoX_nb : public SwitchTopoX {
-    int*     completed_id_ = nullptr;        //!< array used by the Wait/Test in the non-blocking comms
+    int*     completed_id_ = nullptr;        //!< array used by the Wait/Test in the non-blocking comms    
     MPI_Comm shared_comm_  = MPI_COMM_NULL;  //<! communicators with ranks on the same node
+
+    // bool* i2o_priority_list_ = nullptr; //!< indicate if a request is in the priority list or not
+    // bool* o2i_priority_list_ = nullptr; //!< indicate if a request is in the priority list or not
 
     MPI_Request* i2o_send_rqst_ = NULL;  //!< MPI send requests
     MPI_Request* i2o_recv_rqst_ = NULL;  //!< MPI recv requests

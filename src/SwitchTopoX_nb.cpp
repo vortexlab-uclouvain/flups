@@ -51,8 +51,8 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     // o2i transfert goes from o2i_chunks to i2o_chunks
     o2i_send_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Request)));
     o2i_recv_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Request)));
-
-    // allocate the completed_id array:
+    
+    // allocate the completed_id array
     const int n_rqst = m_max(i2o_nchunks_, o2i_nchunks_);
     completed_id_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
 
@@ -278,7 +278,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profInitLeave(prof, "copy");
     m_profInitLeave(prof, "start");
     {
-        // According to the standard 3.1 pg 77, MPI should start all the requests in the array
+        // According to the standard 3.1 pg 77, MPI should start all the requests in the array, independently from the communicator used
         // so we start all the other request and the self request using the same start.
         FLUPS_INFO("starting %d recv request", n_recv_rqst);
         m_profStart(prof, "start");
@@ -314,14 +314,16 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we have some requests to recv, test it
         int n_completed = 0;
         if (recv_cntr < n_recv_rqst) {
-            MPI_Waitsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
+            // MPI_Waitsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
+            MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
         }
 
         // Maintain the difference between the pending send and receive request to send_batch
         // if we completed n_completed recvs it means that the send are completed on the other rank.
         // to maintain the total balance accross the network we start another chunk of n_completed
         // here we use n_other_send as the self has been processed!
-        send_my_batch(n_other_send, &send_cntr, n_completed, send_chunks, send_rqst);
+        const int n_to_resend = m_max(n_completed,send_batch);
+        send_my_batch(n_other_send, &send_cntr, n_to_resend, send_chunks, send_rqst);
 
         // for each of the completed request, treat it
         for (int id = 0; id < n_completed; ++id) {
