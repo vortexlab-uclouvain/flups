@@ -26,6 +26,19 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     MPI_Comm_rank(subcomm_, &sub_rank);
     MPI_Comm_split_type(subcomm_, MPI_COMM_TYPE_SHARED, sub_rank, MPI_INFO_NULL, &shared_comm_);
 
+#if (0 == FLUPS_OLD_MPI)
+    // apply some fancy parameters to allow faster MPI calls if we have a MPI-4.0 compliant version
+    // the info is NOT transfered from one comm to another
+    MPI_Info info;
+    MPI_Info_create(&info);
+    // MPI_Info_set(info, "mpi_assert_exact_length", "true");
+    MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
+    MPI_Info_set(info, "mpi_assert_no_any_tag", "true");
+    MPI_Info_set(info, "mpi_assert_no_any_source", "true");
+    MPI_Comm_set_info(shared_comm_, info);
+    MPI_Info_free(&info);
+#endif
+
     int shared_rank;
     MPI_Comm_rank(shared_comm_, &shared_rank);
 

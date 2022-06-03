@@ -330,13 +330,17 @@ void SwitchTopoX::SubCom_SplitComm() {
             std::string commname = "comm-" + std::to_string(mycolor);
             MPI_Comm_set_name(subcomm_, commname.c_str());
 
-            // apply some fancy parameters to allow faster MPI calls
+#if (0 == FLUPS_OLD_MPI)
+            // apply some fancy parameters to allow faster MPI calls if we have a MPI-4.0 compliant version
             MPI_Info info;
             MPI_Info_create(&info);
-            MPI_Info_set(info, "mpi_assert_exact_length", "true");
+            // MPI_Info_set(info, "mpi_assert_exact_length", "true");
             MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
+            MPI_Info_set(info, "mpi_assert_no_any_tag", "true");
+            MPI_Info_set(info, "mpi_assert_no_any_source", "true");
             MPI_Comm_set_info(subcomm_, info);
             MPI_Info_free(&info);
+#endif
         }
     }
     // free the vectors
