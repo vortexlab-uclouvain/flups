@@ -666,7 +666,10 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
-            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
+            // the rank distribution is computed using the dimOrder array, where every topology
+            // has it's ranks aligned with it's axis
+            const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
+            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, proc_axis, fftwalignment_, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
