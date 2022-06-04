@@ -74,40 +74,6 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     int o2i_noprior_idx = o2i_nchunks_ - 1;
 
     //..........................................................................
-    // Create the self requests first
-    if (i2o_selfcomm_ >= 0) {
-        // Setting everything that use the i2o_chunks
-        {
-            MemChunk      *cchunk = i2o_chunks_ + i2o_selfcomm_;
-            opt_double_ptr buf    = cchunk->data;
-            size_t         count  = cchunk->size_padded * cchunk->nda;
-            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
-            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_send_rqst_ + i2o_selfcomm_);
-            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_recv_rqst_ + i2o_selfcomm_);
-
-            // store the id in the send order list
-            i2o_send_order_[i2o_prior_idx] = i2o_selfcomm_;
-            i2o_prior_idx++;
-        }
-
-        // Setting everything that use the o2i_chunks
-        {
-            MemChunk      *cchunk = o2i_chunks_ + o2i_selfcomm_;
-            opt_double_ptr buf    = cchunk->data;
-            size_t         count  = cchunk->size_padded * cchunk->nda;
-            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
-            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_recv_rqst_ + o2i_selfcomm_);
-            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_send_rqst_ + o2i_selfcomm_);
-
-            // store the id in the send order list
-            o2i_send_order_[o2i_prior_idx] = o2i_selfcomm_;
-            o2i_prior_idx++;
-        }
-    }
-
-    //..........................................................................
     // this is the loop over the input topo and the associated chunks
     for (int ir = 0; ir < i2o_nchunks_ - (i2o_selfcomm_ >= 0); ++ir) {
         MemChunk      *cchunk = i2o_chunks_ + ir;
@@ -128,7 +94,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_recv_rqst_ + ir);
 
         // store the id in the send order list
-        if (is_in_shared) {
+        if (!is_in_shared) {
             i2o_send_order_[i2o_prior_idx] = ir;
             i2o_prior_idx++;
         } else {
@@ -157,7 +123,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_send_rqst_ + ir);
 
         // store the id in the send order list
-        if (is_in_shared) {
+        if (!is_in_shared) {
             o2i_send_order_[o2i_prior_idx] = ir;
             o2i_prior_idx++;
         } else {
@@ -165,6 +131,45 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
             o2i_noprior_idx--;
         }
     }
+    //..........................................................................
+    // Create the self requests first
+    if (i2o_selfcomm_ >= 0) {
+        // Setting everything that use the i2o_chunks
+        {
+            MemChunk      *cchunk = i2o_chunks_ + i2o_selfcomm_;
+            opt_double_ptr buf    = cchunk->data;
+            size_t         count  = cchunk->size_padded * cchunk->nda;
+            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
+            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_send_rqst_ + i2o_selfcomm_);
+            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_recv_rqst_ + i2o_selfcomm_);
+
+            // store the id in the send order list
+            // i2o_send_order_[i2o_prior_idx] = i2o_selfcomm_;
+            // i2o_prior_idx++;
+            i2o_send_order_[i2o_noprior_idx] = i2o_selfcomm_;
+            i2o_noprior_idx--;
+        }
+
+        // Setting everything that use the o2i_chunks
+        {
+            MemChunk      *cchunk = o2i_chunks_ + o2i_selfcomm_;
+            opt_double_ptr buf    = cchunk->data;
+            size_t         count  = cchunk->size_padded * cchunk->nda;
+            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
+            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_recv_rqst_ + o2i_selfcomm_);
+            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_send_rqst_ + o2i_selfcomm_);
+
+            // store the id in the send order list
+            // o2i_send_order_[o2i_prior_idx] = o2i_selfcomm_;
+            // o2i_prior_idx++;
+             o2i_send_order_[o2i_noprior_idx] = o2i_selfcomm_;
+             o2i_noprior_idx--;
+        }
+    }
+    FLUPS_CHECK(i2o_noprior_idx == (i2o_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", i2o_prior_idx, i2o_noprior_idx, i2o_noprior_idx + 1);
+    FLUPS_CHECK(o2i_noprior_idx == (o2i_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", o2i_prior_idx, o2i_noprior_idx, o2i_noprior_idx + 1);
 
     //--------------------------------------------------------------------------
     END_FUNC;
