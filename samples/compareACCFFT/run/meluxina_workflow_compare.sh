@@ -5,7 +5,8 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-CODE_VERSION='dprec_nb dprec_a2a nb a2a'
+#CODE_VERSION='dprec_nb dprec_a2a nb a2a'
+CODE_VERSION='nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -56,15 +57,18 @@ echo " ------ ... done ! "
 export NPROC_X=1
 export NPROC_Y=16
 export NPROC_Z=16
-export NPCPU=28
+#export NPCPU=16
+npcpu_list=(48)
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..2}
+for i in {0..1}
 do
-    export NGLOB_X=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_X}* ${NPCPU} ))
-    export NGLOB_Y=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_Y}* ${NPCPU} ))
-    export NGLOB_Z=$(( ${NPROC_Z}* ${NPCPU} )) # $(( ${NPROC_Z}* ${NPCPU} ))
+for npcpu in ${npcpu_list[@]}
+do
+    export NGLOB_X=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_X}* ${NPCPU} ))
+    export NGLOB_Y=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Y}* ${NPCPU} ))
+    export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Z}* ${NPCPU} ))
     export L_X=1 #$(( ${NPROC_X} ))
     export L_Y=1 #$(( ${NPROC_Y} ))
     export L_Z=1 #$(( ${NPROC_Z} ))
@@ -76,8 +80,8 @@ do
     for version in ${CODE_VERSION}
     do 
         export EXEC_FLUPS=flups_vs_accfft_${version}
-        export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${NPCPU}/
-        export MYNAME=flups_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
+        export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${npcpu}/
+        export MYNAME=flups_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${npcpu}
         export MODULES=${SCRIPT_MODULE}
         export OMPIVERSION=${OMPIVERSION}
         mkdir -p ${SCRATCH_FLUPS}/prof/
@@ -85,7 +89,7 @@ do
         echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
         sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/compareACCFFT/run/meluxina_kernel_valid.sh
     done
-
+done
     NPROC_Y=$((2*$NPROC_Y))
     NPROC_Z=$((2*$NPROC_Z))
     #if [ $(($i%2)) -eq 0 ]
