@@ -75,8 +75,11 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
 
     //..........................................................................
     // this is the loop over the input topo and the associated chunks
-    for (int ir = 0; ir < i2o_nchunks_ - (i2o_selfcomm_ >= 0); ++ir) {
-        MemChunk      *cchunk = i2o_chunks_ + ir;
+    const int i2o_n_requests = i2o_nchunks_ - (i2o_selfcomm_ >= 0);
+    for (int ir = 0; ir < i2o_n_requests; ++ir) {
+        // we offset the starting index to avoid congestion
+        const int      ichunk = (ir + sub_rank) % i2o_n_requests;
+        MemChunk      *cchunk = i2o_chunks_ + ichunk;
         opt_double_ptr buf    = cchunk->data;
         size_t         count  = cchunk->size_padded * cchunk->nda;
 
@@ -104,8 +107,11 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     }
 
     // here we go for the output topo and the associated chunks
-    for (int ir = 0; ir < o2i_nchunks_ - (o2i_selfcomm_ >= 0); ++ir) {
-        MemChunk      *cchunk = o2i_chunks_ + ir;
+    const int o2i_n_requests = o2i_nchunks_ - (o2i_selfcomm_ >= 0);
+    for (int ir = 0; ir < o2i_n_requests; ++ir) {
+        // we offset the starting index to avoid congestion
+        const int      ichunk =  (ir + sub_rank) % o2i_n_requests;
+        MemChunk      *cchunk = o2i_chunks_ + ichunk;
         opt_double_ptr buf    = cchunk->data;
         size_t         count  = cchunk->size_padded * cchunk->nda;
 
