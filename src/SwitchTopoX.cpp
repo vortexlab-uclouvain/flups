@@ -243,18 +243,19 @@ void SwitchTopoX::SubCom_SplitComm() {
     const int in_axis    = topo_in_->axis();
     const int out_axis   = topo_out_->axis();
     const int other_axis = (3) - (in_axis + out_axis);
-    const int color      = topo_in_->rankd(other_axis);
-    const int key        = topo_in_->rankd(in_axis) + topo_in_->rankd(out_axis);
+    // const int color      = topo_in_->rankd(other_axis);
+    // const int key        = topo_in_->rankd(in_axis) + topo_in_->rankd(out_axis);
+    // MPI_Comm_split(inComm_, color, key, &subcomm_);
 
-    MPI_Comm_split(inComm_, color, key, &subcomm_);
-    // MPI_Comm  comm_temp;
-    // MPI_Comm_split(inComm_, color, key, &comm_temp);
-
-    // create the cartesian comm now, as we have a "slice" of communication
-    // not sure it helps though.
-    // const int period = false;
-    // const int nprocs = topo_in_->nproc(in_axis) + topo_in_->nproc(out_axis);
-    // MPI_Cart_create(comm_temp, 1, &nprocs, &period, true, &subcomm_);
+    const int period [3]= {0,0,0};
+    const int nproc[3] = {topo_in_->nproc(0),topo_in_->nproc(1),topo_in_->nproc(2)};
+    MPI_Comm  comm_temp;
+    MPI_Cart_create(inComm_, 3, nproc, period, true, &comm_temp);
+    // false if we split along that direction
+    const int remain_dim[3] = {other_axis==0,other_axis==1,other_axis==2};
+    MPI_Cart_sub(comm_temp,remain_dim,&subcomm_);
+    
+    
 
 //     //-------------------------------------------------------------------------
 //     /** - Set the starting color and determine who I wish to get in my group */
