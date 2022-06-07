@@ -239,131 +239,130 @@ void SwitchTopoX::SubCom_SplitComm() {
     MPI_Comm_rank(inComm_, &rank);
     MPI_Comm_size(inComm_, &comm_size);
 
-    // the easier way to get the color of subcomm is to use the id of the non-transposed direction
-    const int in_axis    = topo_in_->axis();
-    const int out_axis   = topo_out_->axis();
-    const int other_axis = (3) - (in_axis + out_axis);
-    // const int color      = topo_in_->rankd(other_axis);
-    // const int key        = topo_in_->rankd(in_axis) + topo_in_->rankd(out_axis);
-    // MPI_Comm_split(inComm_, color, key, &subcomm_);
+    // // the easier way to get the color of subcomm is to use the id of the non-transposed direction
+    // const int in_axis    = topo_in_->axis();
+    // const int out_axis   = topo_out_->axis();
+    // const int other_axis = (3) - (in_axis + out_axis);
+    // // const int color      = topo_in_->rankd(other_axis);
+    // // const int key        = topo_in_->rankd(in_axis) + topo_in_->rankd(out_axis);
+    // // MPI_Comm_split(inComm_, color, key, &subcomm_);
 
-    const int period [3]= {0,0,0};
-    const int nproc[3] = {topo_in_->nproc(0),topo_in_->nproc(1),topo_in_->nproc(2)};
-    MPI_Comm  comm_temp;
-    MPI_Cart_create(inComm_, 3, nproc, period, true, &comm_temp);
-    // false if we split along that direction
-    const int remain_dim[3] = {other_axis==0,other_axis==1,other_axis==2};
-    MPI_Cart_sub(comm_temp,remain_dim,&subcomm_);
-    
-    
+    // const int period[3] = {0, 0, 0};
+    // const int nproc[3]  = {topo_in_->nproc(0), topo_in_->nproc(1), topo_in_->nproc(2)};
+    // MPI_Comm  comm_temp;
+    // MPI_Cart_create(inComm_, 3, nproc, period, true, &comm_temp);
+    // // false if we split along that direction
+    // const int remain_dim[3] = {other_axis != 0, other_axis != 1, other_axis != 2};
+    // MPI_Cart_sub(comm_temp, remain_dim, &subcomm_);
 
-//     //-------------------------------------------------------------------------
-//     /** - Set the starting color and determine who I wish to get in my group */
-//     //-------------------------------------------------------------------------
-//     // allocate colors and inMyGroup array
-//     int*  colors    = (int*)m_calloc(comm_size * sizeof(int));
-//     bool* inMyGroup = (bool*)m_calloc(comm_size * sizeof(bool));
+    //-------------------------------------------------------------------------
+    /** - Set the starting color and determine who I wish to get in my group */
+    //-------------------------------------------------------------------------
+    // allocate colors and inMyGroup array
+    int*  colors    = (int*)m_calloc(comm_size * sizeof(int));
+    bool* inMyGroup = (bool*)m_calloc(comm_size * sizeof(bool));
 
-//     for (int ir = 0; ir < comm_size; ir++) {
-//         inMyGroup[ir] = false;
-//     }
-//     inMyGroup[rank] = true;
+    for (int ir = 0; ir < comm_size; ir++) {
+        inMyGroup[ir] = false;
+    }
+    inMyGroup[rank] = true;
 
-//     // do a first pass and give a color + who is in my group
-//     int mycolor = rank;
-//     for (int ib = 0; ib < i2o_nchunks_; ib++) {
-//         const int chunk_dest_rank  = i2o_chunks_[ib].dest_rank;
-//         mycolor                    = m_min(mycolor, chunk_dest_rank);
-//         inMyGroup[chunk_dest_rank] = true;
-//     }
-//     for (int ib = 0; ib < o2i_nchunks_; ib++) {
-//         const int chunk_dest_rank  = o2i_chunks_[ib].dest_rank;
-//         mycolor                    = m_min(mycolor, chunk_dest_rank);
-//         inMyGroup[chunk_dest_rank] = true;
-//     }
+    // do a first pass and give a color + who is in my group
+    // after this I have a clear view on who is communicating with me
+    int mycolor = rank;
+    for (int ib = 0; ib < i2o_nchunks_; ib++) {
+        const int chunk_dest_rank  = i2o_chunks_[ib].dest_rank;
+        mycolor                    = m_min(mycolor, chunk_dest_rank);
+        inMyGroup[chunk_dest_rank] = true;
+    }
+    for (int ib = 0; ib < o2i_nchunks_; ib++) {
+        const int chunk_dest_rank  = o2i_chunks_[ib].dest_rank;
+        mycolor                    = m_min(mycolor, chunk_dest_rank);
+        inMyGroup[chunk_dest_rank] = true;
+    }
 
-//     //-------------------------------------------------------------------------
-//     /** - count how much ranks are in my group and assumes they don't have the same color as I do */
-//     //-------------------------------------------------------------------------
-//     int n_left       = 0;  // the global counter of wrong colors
-//     int n_wrongColor = 0;  // the local counter of wrong colors
+    //-------------------------------------------------------------------------
+    /** - count how much ranks are in my group and assumes they don't have the same color as I do */
+    //-------------------------------------------------------------------------
+    int n_left       = 0;  // the global counter of wrong colors
+    int n_wrongColor = 0;  // the local counter of wrong colors
 
-//     for (int ir = 0; ir < comm_size; ir++) {
-//         if (inMyGroup[ir]) {
-//             n_wrongColor += 1;
-//         }
-//     }
-//     // compute among everybody, if we need to continue
-//     MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
+    for (int ir = 0; ir < comm_size; ir++) {
+        n_wrongColor += inMyGroup[ir];
+    }
+    // compute among everybody, if we need to continue
+    MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
 
-//     //-------------------------------------------------------------------------
-//     /** - Among everybody in group, get the minimum color.
-//      * The loop is used to force information to travel:
-//      * If 0 is in the group of 1 and 1 in the group of 2 and 2 in the group of 3, etc.
-//      * we need to spread the color 0 among the group
-//      */
-//     //-------------------------------------------------------------------------
-//     int iter = 0;
-//     while (n_left > 0 && iter < comm_size) {
-//         // gather the color info from everyone
-//         MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, inComm_);
-//         // iterate on the proc
-//         n_wrongColor = 0;
-//         for (int ir = 0; ir < comm_size; ir++) {
-//             // if the rank is in my group and it has not the same color
-//             if (inMyGroup[ir] && (colors[ir] != mycolor)) {
-//                 // we first increment the counter flagging that one is missing
-//                 n_wrongColor += 1;
-//                 // then we change the color if we are able to do so....
-//                 // remove 1 if we are able to solve the color issue <=> my color > colors[ir]
-//                 n_wrongColor = n_wrongColor - (colors[ir] < mycolor);
-//                 // changing the color if possible
-//                 mycolor = m_min(mycolor, colors[ir]);
-//             }
-//         }
-//         // compute among everybody, if we need to continue
-//         MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
-//         iter++;
-//     }
+    //-------------------------------------------------------------------------
+    /** - Among everybody in group, get the minimum color.
+     * The loop is used to force information to travel:
+     * If 0 is in the group of 1 and 1 in the group of 2 and 2 in the group of 3, etc.
+     * we need to spread the color 0 among the group
+     */
+    //-------------------------------------------------------------------------
+    int iter = 0;
+    while (n_left > 0 && iter < comm_size) {
+        // gather the color info from everyone
+        MPI_Allgather(&mycolor, 1, MPI_INT, colors, 1, MPI_INT, inComm_);
+        // iterate on the proc
+        n_wrongColor = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            // if the rank is in my group and it has not the same color
+            if (inMyGroup[ir] && (colors[ir] != mycolor)) {
+                // we first increment the counter flagging that one is missing
+                n_wrongColor += 1;
+                // then we change the color if we are able to do so....
+                // remove 1 if we are able to solve the color issue <=> my color > colors[ir]
+                n_wrongColor = n_wrongColor - (colors[ir] < mycolor);
+                // changing the color if possible
+                mycolor = m_min(mycolor, colors[ir]);
+            }
+        }
+        // compute among everybody, if we need to continue
+        MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
+        iter++;
+    }
 
-//     // if we failed to create the subcom, uses the default one
-//     if (n_left > 0) {
-//         subcomm_ = inComm_;
-//         FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete");
-//     } else {
-//         // If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
-//         int sumColor = 0;
-//         for (int ir = 0; ir < comm_size; ir++) {
-//             sumColor += colors[ir];
-//         }
-//         // if nleft = 0 -> everybody is inside the same color = the rank = 0
-//         // we do not create a new comm if it is not necessary
-//         if (sumColor == 0) {
-//             // avoids the creation of a communicator
-//             subcomm_ = inComm_;
-//             FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise the initial comm");
-//         } else {
-//             // create the communicator and give a name
-//             MPI_Comm_split(inComm_, mycolor, rank, &subcomm_);
-//             std::string commname = "comm-" + std::to_string(mycolor);
-//             MPI_Comm_set_name(subcomm_, commname.c_str());
+    // if we failed to create the subcom, uses the default one
+    if (n_left > 0) {
+        // subcomm_ = inComm_;
+        MPI_Comm_dup(inComm_,&subcomm_);
+        FLUPS_WARNING("I failed to create the subcomm: max iter reached, every group is not complete");
+    } else {
+        // If there is only 1 color left on all procs, it is 0, and I can still use COMM_WORLD
+        int sumColor = 0;
+        for (int ir = 0; ir < comm_size; ir++) {
+            sumColor += colors[ir];
+        }
+        // if nleft = 0 -> everybody is inside the same color = the rank = 0
+        // we do not create a new comm if it is not necessary
+        if (sumColor == 0) {
+            // // avoids the creation of a communicator
+            // subcomm_ = inComm_;
+            MPI_Comm_dup(inComm_,&subcomm_);
+            FLUPS_INFO("I did not create a new comm since I did not find a way to subdivise the initial comm");
+        } else {
+            // create the communicator and give a name
+            MPI_Comm_split(inComm_, mycolor, rank, &subcomm_);
+            std::string commname = "comm-" + std::to_string(mycolor);
+            MPI_Comm_set_name(subcomm_, commname.c_str());
 
-// #if (0 == FLUPS_OLD_MPI)
-//             // apply some fancy parameters to allow faster MPI calls if we have a MPI-4.0 compliant version
-//             MPI_Info info;
-//             MPI_Info_create(&info);
-//             // MPI_Info_set(info, "mpi_assert_exact_length", "true");
-//             MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
-//             MPI_Info_set(info, "mpi_assert_no_any_tag", "true");
-//             MPI_Info_set(info, "mpi_assert_no_any_source", "true");
-//             MPI_Comm_set_info(subcomm_, info);
-//             MPI_Info_free(&info);
-// #endif
-//         }
-//     }
-//     // free the vectors
-//     m_free(colors);
-//     m_free(inMyGroup);
+#if (0 == FLUPS_OLD_MPI)
+            // apply some fancy parameters to allow faster MPI calls if we have a MPI-4.0 compliant version
+            MPI_Info info;
+            MPI_Info_create(&info);
+            // MPI_Info_set(info, "mpi_assert_exact_length", "true");
+            MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
+            MPI_Info_set(info, "mpi_assert_no_any_tag", "true");
+            MPI_Info_set(info, "mpi_assert_no_any_source", "true");
+            MPI_Comm_set_info(subcomm_, info);
+            MPI_Info_free(&info);
+#endif
+        }
+    }
+    // free the vectors
+    m_free(colors);
+    m_free(inMyGroup);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
