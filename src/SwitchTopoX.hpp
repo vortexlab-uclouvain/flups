@@ -17,9 +17,9 @@ class SwitchTopoX {
     const Topology *topo_in_  = NULL; /**<@brief input topology  */
     const Topology *topo_out_ = NULL; /**<@brief  output topology */
 
-    MPI_Comm inComm_  = NULL; /**<@brief the reference input communicator */
-    MPI_Comm outComm_ = NULL; /**<@brief the reference output communicator */
-    MPI_Comm subcomm_ = NULL; /**<@brief the subcomm for this switchTopo */
+    MPI_Comm inComm_  = MPI_COMM_NULL; /**<@brief the reference input communicator */
+    MPI_Comm outComm_ = MPI_COMM_NULL; /**<@brief the reference output communicator */
+    MPI_Comm subcomm_ = MPI_COMM_NULL; /**<@brief the subcomm for this switchTopo */
 
     int i2o_nchunks_ = 0;  //!< local number of chunks in the input topology
     int o2i_nchunks_ = 0;  //!< local number of chunks in the output topology
@@ -27,13 +27,16 @@ class SwitchTopoX {
     MemChunk *i2o_chunks_ = NULL;  //!< the local chunks of memory in the output topology
     MemChunk *o2i_chunks_ = NULL;  //!< the local chunks of memory in the output topology
 
+    int i2o_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
+    int o2i_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
+
     opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
 
     fftw_plan *i2o_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the output topo
     fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
 
-    H3LPR::Profiler *prof_    = NULL;
+    H3LPR::Profiler *prof_         = NULL;
     int              idswitchtopo_ = -1;
 
    public:
@@ -42,9 +45,11 @@ class SwitchTopoX {
 
     // abstract functions
     void setup();
+    virtual void print_info() const;
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
     virtual void execute(opt_double_ptr data, const int sign) const = 0;
     virtual void disp() const                                       = 0;
+    
 
     size_t get_bufMemSize() const;
     size_t get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk *chunks) const;

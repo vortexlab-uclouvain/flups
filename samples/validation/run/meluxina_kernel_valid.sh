@@ -2,10 +2,11 @@
 #SBATCH --account=p200053
 #SBATCH --partition=cpu
 #SBATCH --qos=default
-#SBATCH --ntasks-per-node=256
+#SBATCH --ntasks-per-node=128
 #SBATCH --time=00:30:00
-#SBATCH --output=flups_OpenMPI5.0.0.%j.out
-#SBATCH --error=flups_OpenMPI5.0.0.%j.err
+#SBATCH --hint=nomultithread    # don't use hyperthreading
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
 
 #--------------------------------------------------------
 # module use /apps/USE/easybuild/staging/2021.1/modules/all
@@ -24,5 +25,6 @@ cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
 echo "----------------- launching job -----------------"
 echo "srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --L=${L_X},${L_Y},${L_Z} --nres=1 --ns=20 --kernel=0"
 #srun ${EXEC_FLUPS} -np ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -res ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -L ${L_X} ${L_Y} ${L_Z} -bc 3 3 3 3 3 3 -nres 1 -ns 20 -k 0
-srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --nres=1 --nsolve=20 --kernel=0
+# export UCX_TLS=^xpmem 
+OMP_NUM_THREADS=1 srun ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=3,3,3,3,3,3 --nres=1 --nsolve=100 --kernel=0
 cd -

@@ -27,7 +27,7 @@ touch make_arch/make.meluxina
 echo "CC = mpicc " > make_arch/make.meluxina
 echo "CXX = mpic++ " >> make_arch/make.meluxina 
 echo "CXXFLAGS := -g -O3 -march=native -fopenmp -DNDEBUG " >> make_arch/make.meluxina
-echo "LDFLAGS := -fopenmp " >> make_arch/make.meluxina
+echo "LDFLAGS := -fopenmp -rdynamic -ldl " >> make_arch/make.meluxina
 ARCH_FILE=make_arch/make.meluxina make install -j 
 cd - 
 
@@ -43,9 +43,17 @@ echo "# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG " >> ma
 echo "## For profiling: " >> make_arch/make.meluxina
 echo "# CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF " >> make_arch/make.meluxina
 echo "## For production: " >> make_arch/make.meluxina
-echo "CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
-echo "CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
-echo "LDFLAGS = -fopenmp #-lstc++ " >> make_arch/make.meluxina
+# echo "CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
+# echo "CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
+
+echo "CXXFLAGS := -g -O3 -std=c++17 -DNDEBUG -march=native -DHAVE_WISDOM=\\\"${HOME}/flups/fftw-wisdom/wisdom/meluxina.wsdm\\\" ${COMPILE_OPT}" >> make_arch/make.meluxina
+echo "CCFLAGS := -g -O3 -std=c99 -DNDEBUG -march=native" >> make_arch/make.meluxina
+
+# Working configuration
+# echo "CXXFLAGS := -g -Wall -O0 --debug -std=c++11" >> make_arch/make.meluxina
+# echo "CCFLAGS := -g -Wall -O0 --debug -std=c99" >> make_arch/make.meluxina
+
+echo "LDFLAGS = -fopenmp " >> make_arch/make.meluxina
 echo "#---------------------------------------------------------   " >> make_arch/make.meluxina
 echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.meluxina
 echo "#---------------------------------------------------------  " >> make_arch/make.meluxina

@@ -58,20 +58,24 @@ void SwitchTopoX::setup() {
     //--------------------------------------------------------------------------
     // The input topo may have been reset to real, even if this switchtopo is a complex2complex.
     // We create a tmp input topo which is complex if needed, for the computation of start and end.
-    bool isC2C = topo_out_->isComplex();
     int tmp_nglob[3], tmp_nproc[3], tmp_axproc[3];
     for (int i = 0; i < 3; i++){
         tmp_nglob[i] = topo_in_->nglob(i);
         tmp_nproc[i] = topo_in_->nproc(i);
         tmp_axproc[i] = topo_in_->axproc(i);
     }
-    const Topology *topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, isC2C, tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
-
+    
+    Topology * topo_in_tmp = new Topology(topo_in_->axis(), topo_in_->lda(), tmp_nglob, tmp_nproc, topo_in_->isComplex(), tmp_axproc, FLUPS_ALIGNMENT, topo_in_->get_comm());
+    // If the output topo is complex while the input topo is real, switch the input topo as a complex one 
+    if(topo_out_->isComplex() && !topo_in_->isComplex()){
+        topo_in_tmp->switch2complex();
+    }
+    
     // Populate the arrays of memory chunks
     FLUPS_INFO("I2O chunks");
-    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_, &i2o_selfcomm_);
     FLUPS_INFO("O2I chunks");
-    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_, &o2i_selfcomm_);
 
     delete(topo_in_tmp);
 
@@ -90,22 +94,39 @@ void SwitchTopoX::setup() {
 void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
     BEGIN_FUNC;
     //..........................................................................
+    int sub_rank; 
+    MPI_Comm_rank(subcomm_, &sub_rank);
+
     send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
     recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
 
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
-        FLUPS_CHECK(i2o_chunks_[ic].size_padded > 0 && i2o_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
-        i2o_chunks_[ic].data = send_buf_ + size_counter;
+        // The self communication is the last one in the chunk array but correspond to its 
+        // rank number in the physical memory space. Therefore we need to check if the chunk index is 
+        // the same as the current rank number in the subcommunicator. If its the case, we have to register the 
+        // pointer to the buffer in the last chunk 
+        // Once we have perform that for the self communication, we must continue as usual. Yet, there is 
+        // a difference of 1 between ic and the real chunk index
+        bool is_self_idx = ((i2o_selfcomm_>=0) && (ic == sub_rank));
+        bool is_greater_self_idx = ((i2o_selfcomm_>=0) && (ic > sub_rank));
+        int i_chunk = is_self_idx ? i2o_selfcomm_ : ic - (int) is_greater_self_idx; 
+        
+        FLUPS_CHECK(i2o_chunks_[i_chunk].size_padded > 0 && i2o_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
+        i2o_chunks_[i_chunk].data = send_buf_ + size_counter;
         // update the counter
-        size_counter += i2o_chunks_[ic].size_padded * i2o_chunks_[ic].nda;
+        size_counter += i2o_chunks_[i_chunk].size_padded * i2o_chunks_[i_chunk].nda;
     }
     size_counter = 0;
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
-        FLUPS_CHECK(o2i_chunks_[ic].size_padded > 0 && o2i_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
-        o2i_chunks_[ic].data = recv_buf_ + size_counter;
-        size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
+        bool is_self_idx = ((o2i_selfcomm_>=0) && (ic == sub_rank));
+        bool is_greater_self_idx = ((o2i_selfcomm_>=0) && (ic > sub_rank));
+        int i_chunk = is_self_idx ? o2i_selfcomm_ : ic - (int) is_greater_self_idx; 
+
+        FLUPS_CHECK(o2i_chunks_[i_chunk].size_padded > 0 && o2i_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
+        o2i_chunks_[i_chunk].data = recv_buf_ + size_counter;
+        size_counter += o2i_chunks_[i_chunk].size_padded * o2i_chunks_[i_chunk].nda;
     }
 
     FLUPS_INFO("memory addresses have been assigned");
@@ -317,6 +338,147 @@ void SwitchTopoX::SubCom_SplitComm() {
     // free the vectors
     m_free(colors);
     m_free(inMyGroup);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+
+void SwitchTopoX::print_info() const {
+    BEGIN_FUNC;
+    FLUPS_CHECK(topo_in_ != NULL, "You must initialise the switchtopo before printing the information");
+    //--------------------------------------------------------------------------
+    // Get info about the in communicator 
+    int rank_world, size_world;
+    MPI_Comm_rank(inComm_, &rank_world);
+    MPI_Comm_size(inComm_, &size_world);
+
+    // Get info about the subcommunicator 
+    int rank_subcomm, size_subcomm, num_subcomm;
+    MPI_Comm_rank(subcomm_, &rank_subcomm);
+    MPI_Comm_size(subcomm_, &size_subcomm);
+
+    // Initiate the global information
+    int max_size_subcomm, min_size_subcomm;
+    int ttl_ni2ochunks, max_ni2ochunks, min_ni2ochunks;
+    int ttl_no2ichunks, max_no2ichunks, min_no2ichunks;
+    size_t ttl_size_i2ochunks;
+    size_t ttl_size_o2ichunks;
+
+    // get the local information 
+    size_t loc_ttl_size_i2ochunk = 0;
+    size_t loc_ttl_size_o2ichunk = 0;
+
+    // define the MPI structure used to get the location of the max and the min
+    struct{
+        size_t val = 0;
+        int   rank = 0;
+    } max_size_i2ochunks, max_size_o2ichunks,\
+      loc_max_size_i2ochunk, loc_max_size_o2ichunk;
+
+    struct{
+        size_t val = std::numeric_limits<size_t>::max();
+        int   rank = 0;
+    }  min_size_i2ochunks,min_size_o2ichunks,\
+      loc_min_size_i2ochunk, loc_min_size_o2ichunk;
+
+    for (int ir = 0; ir < i2o_nchunks_; ++ir) {
+        MemChunk      *cchunk = i2o_chunks_ + ir;
+        loc_ttl_size_i2ochunk += cchunk->size_padded * cchunk->nda;
+        loc_max_size_i2ochunk.val  =  std::max((cchunk->size_padded * cchunk->nda), loc_max_size_i2ochunk.val);
+        loc_min_size_i2ochunk.val  =  std::min((cchunk->size_padded * cchunk->nda), loc_min_size_i2ochunk.val);
+    }
+    loc_max_size_i2ochunk.rank = rank_world;
+    loc_min_size_i2ochunk.rank = rank_world;
+
+    
+    for (int ir = 0; ir < o2i_nchunks_; ++ir) {
+        MemChunk      *cchunk = o2i_chunks_ + ir;
+        loc_ttl_size_o2ichunk += cchunk->size_padded * cchunk->nda;
+        loc_max_size_o2ichunk.val  = std::max((cchunk->size_padded * cchunk->nda), loc_max_size_o2ichunk.val);
+        loc_min_size_o2ichunk.val  = std::min((cchunk->size_padded * cchunk->nda), loc_min_size_o2ichunk.val);
+    }
+    loc_max_size_o2ichunk.rank = rank_world;
+    loc_min_size_o2ichunk.rank = rank_world;
+
+    // Get all the global information
+    {   
+        // Get the number of rank communicator inside the sub_communicator
+        // To do that, we compute the number of rank who are identified as root (rank 0)
+        // in their communicator. The sum of number of root rank is equal to the number of communicator
+        // /!\ Only the root rank of inComm have its num_subcomm up-to-date
+        int is_root = (int)(rank_subcomm == 0);
+        MPI_Reduce(&is_root, &num_subcomm, 1, MPI_INT, MPI_SUM, 0, inComm_);
+        MPI_Reduce(&size_subcomm, &max_size_subcomm, 1, MPI_INT, MPI_MAX, 0, inComm_);
+        MPI_Reduce(&size_subcomm, &min_size_subcomm, 1, MPI_INT, MPI_MIN, 0, inComm_);
+
+        // Get information about nchunks per rank 
+        MPI_Reduce(&i2o_nchunks_, &ttl_ni2ochunks, 1, MPI_INT, MPI_SUM, 0, inComm_);
+        MPI_Reduce(&i2o_nchunks_, &max_ni2ochunks, 1, MPI_INT, MPI_MAX, 0, inComm_);
+        MPI_Reduce(&i2o_nchunks_, &min_ni2ochunks, 1, MPI_INT, MPI_MIN, 0, inComm_);
+        
+        MPI_Reduce(&o2i_nchunks_, &ttl_no2ichunks, 1, MPI_INT, MPI_SUM, 0, inComm_);
+        MPI_Reduce(&o2i_nchunks_, &max_no2ichunks, 1, MPI_INT, MPI_MAX, 0, inComm_);
+        MPI_Reduce(&o2i_nchunks_, &min_no2ichunks, 1, MPI_INT, MPI_MIN, 0, inComm_);
+
+        MPI_Reduce(&loc_ttl_size_i2ochunk, &ttl_size_i2ochunks, 1, MPI_LONG, MPI_SUM, 0, inComm_);
+        MPI_Reduce(&loc_max_size_i2ochunk, &max_size_i2ochunks, 1, MPI_LONG_INT, MPI_MAXLOC, 0, inComm_);
+        MPI_Reduce(&loc_min_size_i2ochunk, &min_size_i2ochunks, 1, MPI_LONG_INT, MPI_MINLOC, 0, inComm_);
+
+        MPI_Reduce(&loc_ttl_size_o2ichunk, &ttl_size_o2ichunks, 1, MPI_LONG, MPI_SUM, 0, inComm_);
+        MPI_Reduce(&loc_max_size_o2ichunk, &max_size_o2ichunks, 1, MPI_LONG_INT, MPI_MAXLOC, 0, inComm_);
+        MPI_Reduce(&loc_min_size_o2ichunk, &min_size_o2ichunks, 1, MPI_LONG_INT, MPI_MINLOC, 0, inComm_);
+    }
+    
+    if(rank_world == 0){
+        // Create the prof directory if it does not exist
+        {
+            struct stat st = {0};
+            if (stat("./prof", &st) == -1) {
+                mkdir("./prof", 0700);
+            }
+        }
+        // Get the file name
+        std::string name = "./prof/SwitchTopo_" + std::to_string(idswitchtopo_) + "_info.txt";
+
+        // Open the file and print general information about the subcommunicators
+        FILE *file = fopen(name.c_str(), "a+");
+
+        // Print the information
+        fprintf(file,"Switchtopo %d - from axis in = %d to axis out = %d -- total number of ranks = %d\n", idswitchtopo_, topo_in_->axis(), topo_out_->axis(), size_world);
+        fprintf(file, "-----------------------------------------------------------------------------------------------------\n");
+        fprintf(file,"Topo in: lda   = %d -- iscomplex = %d\n", topo_in_->lda(), topo_in_->isComplex());
+        fprintf(file,"         nglob = %d %d %d \n", topo_in_->nglob(0), topo_in_->nglob(1), topo_in_->nglob(2));
+        fprintf(file,"         nproc = %d %d %d \n", topo_in_->nproc(0), topo_in_->nproc(1), topo_in_->nproc(2));
+        fprintf(file,"Topo out: lda   = %d -- iscomplex = %d\n", topo_out_->lda(), topo_out_->isComplex());
+        fprintf(file,"         nglob = %d %d %d \n", topo_out_->nglob(0), topo_out_->nglob(1), topo_out_->nglob(2));
+        fprintf(file,"         nproc = %d %d %d \n", topo_out_->nproc(0), topo_out_->nproc(1), topo_out_->nproc(2));
+        fprintf(file, "-----------------------------------------------------------------------------------------------------\n");
+        fprintf(file, "number of subcom               = %d \n", num_subcomm);
+        fprintf(file, "mean number of rank per subcom = %d \n", size_world/num_subcomm);
+        fprintf(file, "max  number of rank per subcom = %d \n", max_size_subcomm);
+        fprintf(file, "min  number of rank per subcom = %d \n", min_size_subcomm);
+        fprintf(file, "-----------------------------------------------------------------------------------------------------\n");
+        fprintf(file, "total  number of chunks in the input topo = %d \n", ttl_ni2ochunks);
+        fprintf(file, "mean  number of chunks in the input topo = %d \n", ttl_ni2ochunks/size_world);
+        fprintf(file, "max   number of chunks in the input topo = %d \n", max_ni2ochunks);
+        fprintf(file, "min   number of chunks in the input topo = %d \n", min_ni2ochunks);
+        fprintf(file, "\n");
+        fprintf(file, "mean  chunk size in the input topo = %lu \n", ttl_size_i2ochunks/ttl_ni2ochunks);
+        fprintf(file, "max   chunk size in the input topo = %lu belongs to rank %d in Comm_WORLD \n", max_size_i2ochunks.val, max_size_i2ochunks.rank);
+        fprintf(file, "min   chunk size in the input topo = %lu belongs to rank %d in Comm_WORLD \n", min_size_i2ochunks.val, min_size_i2ochunks.rank);
+        fprintf(file, "-----------------------------------------------------------------------------------------------------\n");
+        fprintf(file, "total  number of chunks in the output topo = %d \n", ttl_no2ichunks);
+        fprintf(file, "mean  number of chunks in the output topo = %d \n", ttl_no2ichunks/size_world);
+        fprintf(file, "max   number of chunks in the output topo = %d \n", max_no2ichunks);
+        fprintf(file, "min   number of chunks in the output topo = %d \n", min_no2ichunks);
+        fprintf(file, "\n");
+        fprintf(file, "mean  chunk size in the output topo = %lu \n", ttl_size_o2ichunks/ttl_no2ichunks);
+        fprintf(file, "max   chunk size in the output topo = %lu belongs to rank %d in Comm_WORLD \n", max_size_o2ichunks.val, max_size_o2ichunks.rank);
+        fprintf(file, "min   chunk size in the output topo = %lu belongs to rank %d in Comm_WORLD \n", min_size_o2ichunks.val, min_size_o2ichunks.rank);
+        fclose(file);
+    }
+    
+    MPI_Barrier(inComm_);
     //--------------------------------------------------------------------------
     END_FUNC;
 }

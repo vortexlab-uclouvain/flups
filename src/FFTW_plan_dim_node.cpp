@@ -110,11 +110,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // no additional mode is required
                     n_in_[lia]  = size[dimID_] - 1;
                     n_out_ = size[dimID_];
-                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
-                    corrtype_[lia] = CORRECTION_NONE;
                     koffset_       = 0.5;
                     // always the samed DST
-
                 }
 
             }
