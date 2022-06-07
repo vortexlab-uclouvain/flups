@@ -290,6 +290,7 @@ void SwitchTopoX::SubCom_SplitComm() {
     for (int ir = 0; ir < comm_size; ir++) {
         n_wrongColor += inMyGroup[ir];
     }
+    printf("I have %d wrong colors");
     // compute among everybody, if we need to continue
     MPI_Allreduce(&n_wrongColor, &n_left, 1, MPI_INT, MPI_SUM, inComm_);
 

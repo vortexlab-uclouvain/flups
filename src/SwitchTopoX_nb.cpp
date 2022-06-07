@@ -73,109 +73,171 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     int i2o_noprior_idx = i2o_nchunks_ - 1;
     int o2i_noprior_idx = o2i_nchunks_ - 1;
 
-    //..........................................................................
-    // this is the loop over the input topo and the associated chunks
-    const int i2o_n_requests = i2o_nchunks_ - (i2o_selfcomm_ >= 0);
-    for (int ir = 0; ir < i2o_n_requests; ++ir) {
-        // we offset the starting index to avoid congestion
-        const int      ichunk = (ir + sub_rank) % i2o_n_requests;
-        MemChunk      *cchunk = i2o_chunks_ + ichunk;
-        opt_double_ptr buf    = cchunk->data;
-        size_t         count  = cchunk->size_padded * cchunk->nda;
+    auto opinit = [=](const int nchunks, const int selfcomm,
+                      MemChunk *chunks, MPI_Request *send_rqst, MPI_Request *recv_rqst,
+                      int *send_order, int *prior_idx, int *noprior_idx) {
+        //......................................................................
+        const int n_requests = nchunks - (selfcomm >= 0);
+        for (int ir = 0; ir < n_requests; ++ir) {
+            // we offset the starting index to avoid congestion
+            const int ichunk = (ir + sub_rank) % n_requests;
+            // get the chunk informations
+            MemChunk      *cchunk = chunks + ichunk;
+            opt_double_ptr buf    = cchunk->data;
+            size_t         count  = cchunk->size_padded * cchunk->nda;
 
-        // test if the destination rank is inside the shared group
-        int dest_shared_rank;
-        MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
-        bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
-        // if the dest_rank is inside the shared group, use the shared comm
-        int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
-        int      tag       = is_in_shared ? shared_rank : sub_rank;
-        MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
+            // test if the destination rank is inside the shared group
+            int dest_shared_rank;
+            MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+            bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
+            // if the dest_rank is inside the shared group, use the shared comm
+            int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+            int      send_tag  = is_in_shared ? shared_rank : sub_rank;
+            int      recv_tag  = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+            MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
 
-        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_send_rqst_ + ir);
-        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_recv_rqst_ + ir);
+            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, send_tag, dest_comm, send_rqst + ichunk);
+            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, recv_tag, dest_comm, recv_rqst + ichunk);
 
-        // store the id in the send order list
-        if (!is_in_shared) {
-            i2o_send_order_[i2o_prior_idx] = ir;
-            i2o_prior_idx++;
-        } else {
-            i2o_send_order_[i2o_noprior_idx] = ir;
-            i2o_noprior_idx--;
+            // store the id in the send order list
+            if (!is_in_shared) {
+                send_order[prior_idx[0]] = ichunk;
+                (prior_idx[0])++;
+            } else {
+                send_order[noprior_idx[0]] = ichunk;
+                (noprior_idx[0])--;
+            }
         }
-    }
-
-    // here we go for the output topo and the associated chunks
-    const int o2i_n_requests = o2i_nchunks_ - (o2i_selfcomm_ >= 0);
-    for (int ir = 0; ir < o2i_n_requests; ++ir) {
-        // we offset the starting index to avoid congestion
-        const int      ichunk =  (ir + sub_rank) % o2i_n_requests;
-        MemChunk      *cchunk = o2i_chunks_ + ichunk;
-        opt_double_ptr buf    = cchunk->data;
-        size_t         count  = cchunk->size_padded * cchunk->nda;
-
-        // test if the destination rank is inside the shared group
-        int dest_shared_rank;
-        MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
-        bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
-        // if the dest_rank is inside the shared group, use the shared comm
-        int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
-        int      tag       = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
-        MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
-
-        FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-        MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_recv_rqst_ + ir);
-        MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_send_rqst_ + ir);
-
-        // store the id in the send order list
-        if (!is_in_shared) {
-            o2i_send_order_[o2i_prior_idx] = ir;
-            o2i_prior_idx++;
-        } else {
-            o2i_send_order_[o2i_noprior_idx] = ir;
-            o2i_noprior_idx--;
-        }
-    }
-    //..........................................................................
-    // Create the self requests first
-    if (i2o_selfcomm_ >= 0) {
-        // Setting everything that use the i2o_chunks
-        {
-            MemChunk      *cchunk = i2o_chunks_ + i2o_selfcomm_;
+        //......................................................................
+        // Create the self requests first
+        if (selfcomm >= 0) {
+            const int      ichunk = selfcomm;
+            MemChunk      *cchunk = chunks + ichunk;
             opt_double_ptr buf    = cchunk->data;
             size_t         count  = cchunk->size_padded * cchunk->nda;
             FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
             FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
-            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_send_rqst_ + i2o_selfcomm_);
-            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_recv_rqst_ + i2o_selfcomm_);
+            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, send_rqst + ichunk);
+            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, recv_rqst + ichunk);
 
             // store the id in the send order list
-            // i2o_send_order_[i2o_prior_idx] = i2o_selfcomm_;
-            // i2o_prior_idx++;
-            i2o_send_order_[i2o_noprior_idx] = i2o_selfcomm_;
-            i2o_noprior_idx--;
+            // send_order[prior_idx[0]] = ichunk;
+            // (prior_idx[0])++;
+            send_order[noprior_idx[0]] = ichunk;
+            (noprior_idx[0])--;
         }
+        FLUPS_CHECK(noprior_idx[0] == (prior_idx[0] - 1), "the prior index = %d should be = %d + 1 = %d", prior_idx[0], noprior_idx[0], noprior_idx[0] + 1);
+    };
 
-        // Setting everything that use the o2i_chunks
-        {
-            MemChunk      *cchunk = o2i_chunks_ + o2i_selfcomm_;
-            opt_double_ptr buf    = cchunk->data;
-            size_t         count  = cchunk->size_padded * cchunk->nda;
-            FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
-            FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
-            MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_recv_rqst_ + o2i_selfcomm_);
-            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_send_rqst_ + o2i_selfcomm_);
+    opinit(i2o_nchunks_,i2o_selfcomm_,i2o_chunks_,i2o_send_rqst_,o2i_recv_rqst_,i2o_send_order_,&i2o_prior_idx,&i2o_noprior_idx);
+    opinit(o2i_nchunks_,o2i_selfcomm_,o2i_chunks_,o2i_send_rqst_,i2o_recv_rqst_,o2i_send_order_,&o2i_prior_idx,&o2i_noprior_idx);
 
-            // store the id in the send order list
-            // o2i_send_order_[o2i_prior_idx] = o2i_selfcomm_;
-            // o2i_prior_idx++;
-             o2i_send_order_[o2i_noprior_idx] = o2i_selfcomm_;
-             o2i_noprior_idx--;
-        }
-    }
-    FLUPS_CHECK(i2o_noprior_idx == (i2o_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", i2o_prior_idx, i2o_noprior_idx, i2o_noprior_idx + 1);
-    FLUPS_CHECK(o2i_noprior_idx == (o2i_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", o2i_prior_idx, o2i_noprior_idx, o2i_noprior_idx + 1);
+    // //..........................................................................
+    // // this is the loop over the input topo and the associated chunks
+    // const int i2o_n_requests = i2o_nchunks_ - (i2o_selfcomm_ >= 0);
+    // for (int ir = 0; ir < i2o_n_requests; ++ir) {
+    //     // we offset the starting index to avoid congestion
+    //     const int      ichunk = (ir + sub_rank) % i2o_n_requests;
+    //     MemChunk      *cchunk = i2o_chunks_ + ichunk;
+    //     opt_double_ptr buf    = cchunk->data;
+    //     size_t         count  = cchunk->size_padded * cchunk->nda;
+
+    //     // test if the destination rank is inside the shared group
+    //     int dest_shared_rank;
+    //     MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+    //     bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
+    //     // if the dest_rank is inside the shared group, use the shared comm
+    //     int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+    //     int      tag       = is_in_shared ? shared_rank : sub_rank;
+    //     MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
+
+    //     FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+    //     MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_send_rqst_ + ichunk);
+    //     MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_recv_rqst_ + ichunk);
+
+    //     // store the id in the send order list
+    //     if (!is_in_shared) {
+    //         i2o_send_order_[i2o_prior_idx] = ichunk;
+    //         i2o_prior_idx++;
+    //     } else {
+    //         i2o_send_order_[i2o_noprior_idx] = ichunk;
+    //         i2o_noprior_idx--;
+    //     }
+    // }
+
+    // // here we go for the output topo and the associated chunks
+    // const int o2i_n_requests = o2i_nchunks_ - (o2i_selfcomm_ >= 0);
+    // for (int ir = 0; ir < o2i_n_requests; ++ir) {
+    //     // we offset the starting index to avoid congestion
+    //     const int      ichunk =  (ir + sub_rank) % o2i_n_requests;
+    //     MemChunk      *cchunk = o2i_chunks_ + ichunk;
+    //     opt_double_ptr buf    = cchunk->data;
+    //     size_t         count  = cchunk->size_padded * cchunk->nda;
+
+    //     // test if the destination rank is inside the shared group
+    //     int dest_shared_rank;
+    //     MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+    //     bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
+    //     // if the dest_rank is inside the shared group, use the shared comm
+    //     int      dest_rank = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+    //     int      tag       = is_in_shared ? dest_shared_rank : cchunk->dest_rank;
+    //     MPI_Comm dest_comm = is_in_shared ? shared_comm_ : subcomm_;
+
+    //     FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+    //     MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, i2o_recv_rqst_ + ichunk);
+    //     MPI_Send_init(buf, (int)(count), MPI_DOUBLE, dest_rank, tag, dest_comm, o2i_send_rqst_ + ichunk);
+
+    //     // store the id in the send order list
+    //     if (!is_in_shared) {
+    //         o2i_send_order_[o2i_prior_idx] = ichunk;
+    //         o2i_prior_idx++;
+    //     } else {
+    //         o2i_send_order_[o2i_noprior_idx] = ichunk;
+    //         o2i_noprior_idx--;
+    //     }
+    // }
+    // //..........................................................................
+    // // Create the self requests first
+    // if (i2o_selfcomm_ >= 0) {
+    //     // Setting everything that use the i2o_chunks
+    //     {
+    //         const int      ichunk = i2o_selfcomm_;
+    //         MemChunk      *cchunk = i2o_chunks_ + ichunk;
+    //         opt_double_ptr buf    = cchunk->data;
+    //         size_t         count  = cchunk->size_padded * cchunk->nda;
+    //         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+    //         FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
+    //         MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_send_rqst_ + ichunk);
+    //         MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_recv_rqst_ + ichunk);
+
+    //         // store the id in the send order list
+    //         // i2o_send_order_[i2o_prior_idx] = ichunk;
+    //         // i2o_prior_idx++;
+    //         i2o_send_order_[i2o_noprior_idx] = ichunk;
+    //         i2o_noprior_idx--;
+    //     }
+
+    //     // Setting everything that use the o2i_chunks
+    //     {
+    //         const int      ichunk = o2i_selfcomm_;
+    //         MemChunk      *cchunk = o2i_chunks_ + o2i_selfcomm_;
+    //         opt_double_ptr buf    = cchunk->data;
+    //         size_t         count  = cchunk->size_padded * cchunk->nda;
+    //         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
+    //         FLUPS_CHECK(cchunk->dest_rank == sub_rank, "the dest rank should be equal to the subrank when performing self request");
+    //         MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, i2o_recv_rqst_ + ichunk);
+    //         MPI_Send_init(buf, (int)(count), MPI_DOUBLE, 0, 0, MPI_COMM_SELF, o2i_send_rqst_ + ichunk);
+
+    //         // store the id in the send order list
+    //         // o2i_send_order_[o2i_prior_idx] = ichunk;
+    //         // o2i_prior_idx++;
+    //         o2i_send_order_[o2i_noprior_idx] = ichunk;
+    //         o2i_noprior_idx--;
+    //     }
+    // }
+    // FLUPS_CHECK(i2o_noprior_idx == (i2o_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", i2o_prior_idx, i2o_noprior_idx, i2o_noprior_idx + 1);
+    // FLUPS_CHECK(o2i_noprior_idx == (o2i_prior_idx - 1), "the prior index = %d should be = %d + 1 = %d", o2i_prior_idx, o2i_noprior_idx, o2i_noprior_idx + 1);
 
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -261,6 +323,7 @@ void SwitchTopoX_nb::disp() const {
  * @param n_send_rqst
  * @param send_rqst
  * @param send_chunks
+ * @param send_order_list
  * @param n_recv_rqst
  * @param recv_rqst
  * @param recv_chunks
@@ -318,12 +381,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             const int   *id_to_send = my_send_order + n_already_send[0] + ir;
             MPI_Request *c_rqst     = request + id_to_send[0];
             MemChunk    *c_chunk    = chunks + id_to_send[0];
-
+            
             // copy the memory
             m_profStart(prof, "copy");
             CopyData2Chunk(nmem_in, mem, c_chunk);
             m_profStop(prof, "copy");
-            
+
             // start the send
             m_profStart(prof, "start");
             MPI_Start(c_rqst);
