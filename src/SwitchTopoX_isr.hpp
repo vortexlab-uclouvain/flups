@@ -10,12 +10,6 @@ class SwitchTopoX_isr : public SwitchTopoX {
     int* i2o_send_order_ = nullptr;
     int* o2i_send_order_ = nullptr;
 
-    size_t* i2o_send_offset_;
-    size_t* o2i_send_offset_;
-
-    MPI_Datatype* i2o_send_dtype_;
-    MPI_Datatype* o2i_send_dtype_;
-
     MPI_Request* send_rqst_;  //<! storage for send requests
     MPI_Request* recv_rqst_;  //<! storage for recv requests
 

@@ -1,6 +1,6 @@
 #include "SwitchTopoX_isr.hpp"
 
-void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, size_t *send_offset,MPI_Datatype *send_dtype,
+void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, /* size_t *send_offset,MPI_Datatype *send_dtype,*/
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, MPI_Comm comm,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof);
@@ -52,10 +52,10 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
 
     i2o_send_order_  = reinterpret_cast<int *>(m_calloc(i2o_nchunks_ * sizeof(int)));
     o2i_send_order_  = reinterpret_cast<int *>(m_calloc(o2i_nchunks_ * sizeof(int)));
-    i2o_send_offset_ = reinterpret_cast<size_t *>(m_calloc(i2o_nchunks_ * sizeof(size_t)));
-    o2i_send_offset_ = reinterpret_cast<size_t *>(m_calloc(o2i_nchunks_ * sizeof(size_t)));
-    i2o_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Datatype)));
-    o2i_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Datatype)));
+    // i2o_send_offset_ = reinterpret_cast<size_t *>(m_calloc(i2o_nchunks_ * sizeof(size_t)));
+    // o2i_send_offset_ = reinterpret_cast<size_t *>(m_calloc(o2i_nchunks_ * sizeof(size_t)));
+    // i2o_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Datatype)));
+    // o2i_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Datatype)));
 
     //..........................................................................
     MPI_Group sub_group;
@@ -70,10 +70,8 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     int o2i_noprior_idx = o2i_nchunks_ - 1;
 
     //..........................................................................
-    auto opinit = [=](const int nmem[3],                               /* topology info */
-                      size_t *send_offsets, MPI_Datatype *send_dtypes, /*  send types and offsets */
-                      const int nchunks, MemChunk *chunks,             /* chunk info */
-                      int *send_order, int *prior_idx, int *noprior_idx) {
+    auto setup_priority = [=](const int nchunks, MemChunk *chunks, /* chunk info */
+                              int *send_order, int *prior_idx, int *noprior_idx) {
         for (int ir = 0; ir < nchunks; ++ir) {
             // we offset the starting index to avoid congestion
             const int ichunk = (ir + sub_rank) % nchunks;
@@ -86,7 +84,8 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
             const bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
 
             // send data_types, the axis is the one of the chunk
-            ChunkToMPIDataType(nmem, cchunk, send_offsets + ichunk, send_dtypes + ichunk);
+            // FLUPS_INFO("TO MPI for chunk %d", ichunk);
+            // ChunkToMPIDataType(nmem, cchunk, send_offsets + ichunk, send_dtypes + ichunk);
 
             // store the id in the send order list
             if (!is_in_shared) {
@@ -99,10 +98,17 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
         }
     };
     //..........................................................................
-    const int in_nmem[3]  = {topo_in_->nmem(0), topo_in_->nmem(1), topo_in_->nmem(2)};
-    const int out_nmem[3] = {topo_out_->nmem(0), topo_out_->nmem(1), topo_out_->nmem(2)};
-    opinit(in_nmem, i2o_send_offset_, i2o_send_dtype_, i2o_nchunks_, i2o_chunks_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
-    opinit(out_nmem, o2i_send_offset_, o2i_send_dtype_, o2i_nchunks_, o2i_chunks_, o2i_send_order_, &o2i_prior_idx, &o2i_noprior_idx);
+    // during the init the topo_in might have been switched to real while during the SwitchTopo it's gonna be complex
+    // const bool must_switch2complex = (!topo_in_->isComplex() && topo_out_->isComplex());
+    // const int scale_nmem = must_switch2complex? 2 : 1;
+    // const int in_nmem[3]  = {topo_in_->nmem(0)/scale_nmem, topo_in_->nmem(1), topo_in_->nmem(2)};
+    // const int out_nmem[3] = {topo_out_->nmem(0), topo_out_->nmem(1), topo_out_->nmem(2)};
+    setup_priority(i2o_nchunks_, i2o_chunks_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
+    setup_priority(o2i_nchunks_, o2i_chunks_, o2i_send_order_, &o2i_prior_idx, &o2i_noprior_idx);
+
+    // free the groups
+    MPI_Group_free(&sub_group);
+    MPI_Group_free(&shared_group);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -110,21 +116,21 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
 SwitchTopoX_isr::~SwitchTopoX_isr() {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    for (int ir = 0; ir < i2o_nchunks_; ++ir) {
-        MPI_Type_free(i2o_send_dtype_ + ir);
-    }
-    // here we go for the output topo and the associated chunks
-    for (int ir = 0; ir < o2i_nchunks_; ++ir) {
-        MPI_Type_free(o2i_send_dtype_ + ir);
-    }
+    // for (int ir = 0; ir < i2o_nchunks_; ++ir) {
+    //     MPI_Type_free(i2o_send_dtype_ + ir);
+    // }
+    // // here we go for the output topo and the associated chunks
+    // for (int ir = 0; ir < o2i_nchunks_; ++ir) {
+    //     MPI_Type_free(o2i_send_dtype_ + ir);
+    // }
 
     // free the request arrays
     m_free(send_rqst_);
     m_free(recv_rqst_);
-    m_free(i2o_send_dtype_);
-    m_free(o2i_send_dtype_);
-    m_free(i2o_send_offset_);
-    m_free(o2i_send_offset_);
+    // m_free(i2o_send_dtype_);
+    // m_free(o2i_send_dtype_);
+    // m_free(i2o_send_offset_);
+    // m_free(o2i_send_offset_);
 
     m_free(i2o_send_order_);
     m_free(o2i_send_order_);
@@ -146,12 +152,12 @@ void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     if (sign == FLUPS_FORWARD) {
-        SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_, i2o_send_offset_, i2o_send_dtype_,
+        SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_, /*i2o_send_offset_, i2o_send_dtype_,*/
                  o2i_nchunks_, recv_rqst_, o2i_chunks_,
                  i2o_send_order_, completed_id_, subcomm_,
                  topo_out_, v, prof_);
     } else {
-        SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_, o2i_send_offset_, o2i_send_dtype_,
+        SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_, /*o2i_send_offset_, o2i_send_dtype_,*/
                  i2o_nchunks_, recv_rqst_, i2o_chunks_,
                  o2i_send_order_, completed_id_, subcomm_,
                  topo_in_, v, prof_);
@@ -176,7 +182,7 @@ void SwitchTopoX_isr::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, size_t *send_offset, MPI_Datatype *send_dtype,
+void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,/* size_t *send_offset, MPI_Datatype *send_dtype,*/
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, MPI_Comm comm,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
@@ -201,19 +207,15 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // for all of the requests, loop one to one and send them
         // get the starting index of the request
         for (int ir = 0; ir < count_send; ++ir) {
-            const int     ridx      = n_already_send[0] + ir;
-            const int     chunk_idx = send_order_list[ridx];
-            size_t        offset    = send_offset[chunk_idx];
-            MPI_Datatype *dtype     = send_dtype + chunk_idx;
-            MemChunk     *c_chunk   = send_chunks + chunk_idx;
-
-            int mysize;
-            MPI_Type_size(dtype[0], &mysize);
-            FLUPS_INFO("chunk idx = %d, offset = %zu, mysize = %zu, chunk size %zu", chunk_idx, offset, mysize / sizeof(double), c_chunk->size_padded);
+            const int ridx      = n_already_send[0] + ir;
+            const int chunk_idx = send_order_list[ridx];
+            MemChunk *c_chunk   = send_chunks + chunk_idx;
+            // size_t        offset    = send_offset[chunk_idx];
+            // MPI_Datatype *dtype     = send_dtype + chunk_idx;
 
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank, comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter

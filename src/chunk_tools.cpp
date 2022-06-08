@@ -92,31 +92,31 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
             for (int ir0 = srank[0]; ir0 <= erank[0]; ++ir0) {
                 // store the current rank in a XYZ format
                 const int irank[3] = {ir0, ir1, ir2};
-                // compute the current rank in the topo_out subcomminator 
-                const int dest_rank     = rankindex(irank, topo_out);
+                // compute the current rank in the topo_out subcomminator
+                const int dest_rank = rankindex(irank, topo_out);
 
                 // // Get the right chunk. Here we check if the destination rank is equal to the current process
-                // // If it is the case, we store the self comm as the last chunks in the chunk array 
-                // // It it is not the case, then we continue to fill in the chnunks array. 
+                // // If it is the case, we store the self comm as the last chunks in the chunk array
+                // // It it is not the case, then we continue to fill in the chnunks array.
                 // is_self_comm     = (out_rank == dest_rank);
-                // self_comm[0]     = is_self_comm ? n_chunks[0] - 1 : self_comm[0] ; 
+                // self_comm[0]     = is_self_comm ? n_chunks[0] - 1 : self_comm[0] ;
                 // MemChunk* cchunk = is_self_comm ? *chunks + self_comm[0]: *chunks + chunk_counter;
                 bool is_self_comm = (out_rank == dest_rank);
-                self_idx[0] = (is_self_comm) ? chunk_counter : (-1);
-                MemChunk* cchunk = *chunks + chunk_counter;
-                
+                self_idx[0]       = (is_self_comm) ? chunk_counter : (-1);
+                MemChunk* cchunk  = *chunks + chunk_counter;
+
                 for (int id = 0; id < 3; ++id) {
                     // get the start and end index of the topo OUT and the topo IN in the global reference
                     const int topoo_start = topo_out->cmpt_start_id_from_rank(irank[id], id);
                     const int topoo_end   = topo_out->cmpt_start_id_from_rank(irank[id] + 1, id);
 
                     FLUPS_INFO("chunk in dim %d topoo_start = %d, topoo_end=%d", id, topoo_start, topoo_end);
-                    
+
                     // Compute the start and end of the chunk in the global frame of reference
                     // make sure that the chunks belongs to the topo_in
                     const int cchunk_gstart = m_max(topoo_start - shift[id], topoi_gstart[id]);
-                    const int cchunk_gend = m_min(topoo_end - shift[id], topoi_gend[id]);
-                    
+                    const int cchunk_gend   = m_min(topoo_end - shift[id], topoi_gend[id]);
+
                     // The chunk start in the current topo must be in the local frame of the input topo
                     cchunk->istart[id] = cchunk_gstart - topo_in->cmpt_start_id(id);
                     cchunk->isize[id]  = cchunk_gend - cchunk_gstart;
@@ -137,12 +137,15 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 cchunk->axis      = topo_in->axis();
                 cchunk->dest_axis = topo_out->axis();
 
+                // setup the offset and the MPI datatype
+                const int nmem[3] = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
+                ChunkToMPIDataType(nmem, cchunk);//, &(cchunk->offset), &(cchunk->dtype));
+
                 FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
 
                 // increasee the chunk counter
-                // chunk_counter += !is_self_comm;
-                chunk_counter ++;
+                chunk_counter++;
             }
         }
     }
@@ -153,7 +156,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     END_FUNC;
 }
 
-void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset, MPI_Datatype* type_xyzd) {
+void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     const int nf         = chunk->nf;
@@ -163,9 +166,9 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
 
     //..........................................................................
     // the offset is the location in memory for the first dimension
-    offset[0] = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 0);
+    chunk->offset = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 0);
     // get the sride for the different nda in the data
-    const size_t offset_dim = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 1) - offset[0];
+    const size_t offset_dim = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 1) - chunk->offset;
 #ifndef NDEBUG
     size_t* offset_check = reinterpret_cast<size_t*>(m_calloc(sizeof(size_t) * chunk->nda));
     for (int ida = 0; ida < chunk->nda; ++ida) {
@@ -200,14 +203,14 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
     FLUPS_INFO("puting %d type_xy together with strides = %zu", size[2], stride_byte[2]);
     // finally get the different dimensions together
     // MPI_Type_vector(chunk->nda, 1, offset_dim, type_xyz, type_xyzd);
-    MPI_Type_create_hvector(size[3], 1, stride_byte[3], type_xyz, type_xyzd);
+    MPI_Type_create_hvector(size[3], 1, stride_byte[3], type_xyz, &(chunk->dtype));
     FLUPS_INFO("puting %d type_xyz together with strides = %zu", size[3], stride_byte[3]);
 
     //..........................................................................
     // commit the new type
-    MPI_Type_commit(type_xyzd);
+    MPI_Type_commit(&(chunk->dtype));
 
-    // free the
+    // free the now useless types
     MPI_Type_free(&type_x);
     MPI_Type_free(&type_xy);
     MPI_Type_free(&type_xyz);

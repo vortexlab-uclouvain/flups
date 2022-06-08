@@ -130,8 +130,12 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         FLUPS_CHECK(noprior_idx[0] == (prior_idx[0] - 1), "the prior index = %d should be = %d + 1 = %d", prior_idx[0], noprior_idx[0], noprior_idx[0] + 1);
     };
 
-    opinit(i2o_nchunks_,i2o_selfcomm_,i2o_chunks_,i2o_send_rqst_,o2i_recv_rqst_,i2o_send_order_,&i2o_prior_idx,&i2o_noprior_idx);
-    opinit(o2i_nchunks_,o2i_selfcomm_,o2i_chunks_,o2i_send_rqst_,i2o_recv_rqst_,o2i_send_order_,&o2i_prior_idx,&o2i_noprior_idx);
+    opinit(i2o_nchunks_, i2o_selfcomm_, i2o_chunks_, i2o_send_rqst_, o2i_recv_rqst_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
+    opinit(o2i_nchunks_, o2i_selfcomm_, o2i_chunks_, o2i_send_rqst_, i2o_recv_rqst_, o2i_send_order_, &o2i_prior_idx, &o2i_noprior_idx);
+
+    // free the groups
+    MPI_Group_free(&sub_group);
+    MPI_Group_free(&shared_group);
 
     // //..........................................................................
     // // this is the loop over the input topo and the associated chunks
