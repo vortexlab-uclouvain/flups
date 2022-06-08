@@ -177,8 +177,9 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
 #endif
 
     //..........................................................................
-    const int    size[4]        = {chunk->isize[ax[0]], chunk->isize[ax[1]], chunk->isize[ax[2]], chunk->nda};
-    const size_t stride_byte[4] = {sizeof(double) * nf,
+    FLUPS_INFO("nmem = %d %d %d", nmem[ax[0]], nmem[ax[1]], nmem[ax[2]]);
+    const int    size[4]        = {chunk->isize[ax[0]] * nf, chunk->isize[ax[1]], chunk->isize[ax[2]], chunk->nda};
+    const size_t stride_byte[4] = {sizeof(double),
                                    sizeof(double) * nf * nmem[ax[0]],
                                    sizeof(double) * nf * nmem[ax[0]] * nmem[ax[1]],
                                    sizeof(double) * offset_dim};
@@ -186,8 +187,8 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
     MPI_Datatype type_x, type_xy, type_xyz;
     // stride in x = 1, count = chunk size
     // MPI_Type_vector(size[0], nf, stride[0], MPI_DOUBLE, &type_x);
-    MPI_Type_create_hvector(size[0], nf, stride_byte[0], MPI_DOUBLE, &type_x);
-    FLUPS_INFO("puting %d doubles together with strides = %zu", size[0], stride_byte[0]);
+    MPI_Type_create_hvector(size[0], 1, stride_byte[0], MPI_DOUBLE, &type_x);
+    FLUPS_INFO("puting %d %d-doubles together with strides = %zu", size[0], nf, stride_byte[0]);
     // stride in y = nmem[0]a, count = chunk sie
     // MPI_Type_vector(size[1], 1, stride[1], type_x, &type_xy);
     MPI_Type_create_hvector(size[1], 1, stride_byte[1], type_x, &type_xy);
