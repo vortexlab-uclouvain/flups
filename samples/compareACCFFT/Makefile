@@ -41,7 +41,7 @@ P3DFFTDIR := ./
 PREFIX ?= ./
 NAME := flups_vs_accfft
 # executable naming
-TARGET_EXE_ISR := $(NAME)_a2a
+TARGET_EXE_ISR := $(NAME)_isr
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
 TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
@@ -115,7 +115,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB) $(TARGET_EXE_ISR)
 
 all: default
 
