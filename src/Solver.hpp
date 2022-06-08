@@ -36,6 +36,7 @@
 #if (FLUPS_MPI_AGGRESSIVE)
 #include "SwitchTopoX_nb.hpp"
 #include "SwitchTopoX_a2a.hpp"
+#include "SwitchTopoX_isr.hpp"
 #else
 #include "SwitchTopo.hpp"
 #include "SwitchTopo_a2a.hpp"

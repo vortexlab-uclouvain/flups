@@ -39,6 +39,7 @@ GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 PREFIX ?= ./
 NAME := flups
 # library naming
+TARGET_LIB_ISR := build/lib$(NAME)_isr
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
 TARGET_LIB_NB  := build/lib$(NAME)_nb
 TARGET_LIB_DPREC_A2A := build/lib$(NAME)_dprec_a2a
@@ -107,6 +108,7 @@ API := $(wildcard $(SRC_DIR)/*.h)
 
 ## generate object list
 DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
+OBJ_ISR := $(SRC:%.cpp=$(OBJ_DIR)/isr_%.o)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
 OBJ_DPREC_A2A := $(SRC:%.cpp=$(OBJ_DIR)/dprec_a2a_%.o)
@@ -118,6 +120,9 @@ IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
 
 ################################################################################
+$(OBJ_DIR)/isr_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
+	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_ISR $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
+
 $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
@@ -151,15 +156,18 @@ all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
 all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
 
-nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so
+nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 
 nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so 
 
-lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_ISR).a
 
-lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_ISR).so
 
 lib: lib_static
+
+$(TARGET_LIB_ISR).so: $(OBJ_ISR)
+	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
@@ -172,6 +180,9 @@ $(TARGET_LIB_DPREC_A2A).so: $(OBJ_DPREC_A2A)
 
 $(TARGET_LIB_DPREC_NB).so: $(OBJ_DPREC_NB)
 	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_ISR).a: $(OBJ_ISR)
+	ar rvs $@  $^
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
 	ar rvs $@  $^
@@ -190,6 +201,7 @@ preproc: $(IN)
 install_dynamic: lib_dynamic
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_ISR).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
@@ -200,6 +212,7 @@ install_dynamic: lib_dynamic
 install_static: lib_static 
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
@@ -217,6 +230,7 @@ test:
 
 clean:
 	@rm -f $(OBJ_DIR)/*.o
+	@rm -f $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
 	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
 	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
@@ -225,6 +239,7 @@ clean:
 destroy:
 	@rm -rf $(OBJ_DIR)/*.o
 	@rm -rf $(OBJ_DIR)/*.d
+	@rm -f $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
 	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
 	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a

@@ -31,6 +31,7 @@ include ../../$(ARCH_FILE)
 #-----------------------------------------------------------------------------
 NAME := flups
 # executable naming
+TARGET_EXE_ISR := $(NAME)_validation_isr
 TARGET_EXE_A2A := $(NAME)_validation_a2a
 TARGET_EXE_NB := $(NAME)_validation_nb
 TARGET_EXE_DPREC_A2A := $(NAME)_validation_dprec_a2a
@@ -96,17 +97,22 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 all2all: $(TARGET_EXE_A2A)
 
-nonblocking: $(TARGET_EXE_NB)
+nonblocking: $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
+
+nonblockingisr: $(TARGET_EXE_ISR)
 
 nonblocking_deprec: $(TARGET_EXE_DPREC_NB)
 
 all2all_deprec: $(TARGET_EXE_DPREC_A2A)
+
+$(TARGET_EXE_ISR): $(OBJ)
+	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_isr -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
 $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
@@ -122,6 +128,7 @@ $(TARGET_EXE_DPREC_NB): $(OBJ)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
+	rm -f $(TARGET_EXE_ISR)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	rm -f $(TARGET_EXE_DPREC_A2A)

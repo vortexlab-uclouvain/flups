@@ -681,7 +681,10 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
+#elif defined(COMM_ISR)
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+#else 
+
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
@@ -702,6 +705,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
+#elif defined(COMM_ISR)
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else                
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif 
@@ -769,6 +774,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
+#elif defined(COMM_ISR)
+                switchtopo[ip + 1] = new SwitchTopoX_isr(topomap[ip], current_topo, fieldstart, NULL);
 #else
                 switchtopo[ip + 1] = new SwitchTopoX_a2a(topomap[ip], current_topo, fieldstart, NULL);
 #endif 
@@ -928,7 +935,6 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     (*data) = (double *)m_calloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));
-
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
