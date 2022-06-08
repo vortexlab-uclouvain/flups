@@ -224,10 +224,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         DoShuffleChunk(chunk);
     };
 
-    double * test = reinterpret_cast<double *>(m_calloc(278528*sizeof(double)));
-
     // Define the send of a batch of requests
-    auto send_my_batch = [=](const int n_ttl_to_send, int *n_already_send, const int n_batch, double * buf) {
+    auto send_my_batch = [=](const int n_ttl_to_send, int *n_already_send, const int n_batch) {
         // determine how many requests are left to send
         int count_send = m_min(n_ttl_to_send - n_already_send[0], n_batch);
         FLUPS_CHECK(count_send >= 0, "count send = %d cannot be negative", count_send);
@@ -244,7 +242,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
 
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Isend(buf, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
+            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -278,7 +276,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // Start a first batch of send request
         // here we use n_other_send as the self will be processed!
         // send_my_batch(n_other_send, &send_cntr, send_batch, send_chunks, send_rqst);
-        send_my_batch(n_send_chunk, &send_cntr, send_batch, test);
+        send_my_batch(n_send_chunk, &send_cntr, send_batch);
     }
     m_profStop(prof, "pre-send");
 
@@ -313,7 +311,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // if I haven't received any, just re-send a batch.
         // if I have received many, then the throughput is great and I should resend many
         const int n_to_resend = m_max(n_completed,send_batch);
-        send_my_batch(n_send_chunk, &send_cntr, n_to_resend, test);
+        send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
         // for each of the completed request, treat it
         for (int id = 0; id < n_completed; ++id) {
