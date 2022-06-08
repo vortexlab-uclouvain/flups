@@ -6,7 +6,7 @@
 
 OMPIVERSION=4.1.3
 #CODE_VERSION='dprec_nb dprec_a2a nb a2a'
-CODE_VERSION='nb'
+CODE_VERSION='nb isr'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
