@@ -7,6 +7,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
     BEGIN_FUNC;
+    FLUPS_CHECK(sendData != nullptr, "The send data must be != to nullptr");
+    FLUPS_CHECK(recvData != nullptr, "The recv data must be != to nullptr");
     //--------------------------------------------------------------------------
     // nothing special to do here
     //--------------------------------------------------------------------------

@@ -849,27 +849,42 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
         if (switchtopo[id] != NULL){
             switchtopo[id]->setup();
             FLUPS_INFO("--------------- switchtopo %d set up ----------",id);
-        } 
+        }
     }
 
-    //get the maximum size required for the buffers
+    // get the maximum size required for the buffers
+    bool need_send = false;
+    bool need_recv = false;
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
+
+            need_send = need_send ||
+#if (FLUPS_MPI_AGGRESSIVE)
+                        switchtopo[id]->need_send_buf();
+#else
+                        true;
+#endif
+            need_recv = need_recv ||
+#if (FLUPS_MPI_AGGRESSIVE)
+                        switchtopo[id]->need_recv_buf();
+#else
+                        true;
+#endif
         }
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    std::memset(*send_buff, 0, max_mem * sizeof(double));
-    std::memset(*recv_buff, 0, max_mem * sizeof(double));
+    *send_buff = need_send ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+    *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+    // std::memset(*send_buff, 0, max_mem * sizeof(double));
+    // std::memset(*recv_buff, 0, max_mem * sizeof(double));
 
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
-        if (switchtopo[id] != NULL){
+        if (switchtopo[id] != NULL) {
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
-        } 
+        }
     }
     //-------------------------------------------------------------------------
     END_FUNC;

@@ -17,6 +17,9 @@ class SwitchTopoX_isr : public SwitchTopoX {
     explicit SwitchTopoX_isr(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
     ~SwitchTopoX_isr();
 
+    virtual bool need_send_buf() const override { return false; };
+    virtual bool need_recv_buf() const override { return true; };
+
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
     virtual void execute(opt_double_ptr data, const int sign) const override;
     virtual void disp() const override;

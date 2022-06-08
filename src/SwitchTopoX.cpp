@@ -99,13 +99,15 @@ void SwitchTopoX::setup() {
  */
 void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData){
     BEGIN_FUNC;
+    FLUPS_CHECK(this->need_recv_buf() || this->need_recv_buf(),"not needing any buffer is incompatible with the inplace approach");
     //..........................................................................
     int sub_rank; 
     MPI_Comm_rank(subcomm_, &sub_rank);
 
-    send_buf_ = sendData; //reinterpret_cast<opt_double_ptr>(m_calloc(send_buff_size * sizeof(double)));
-    recv_buf_ = recvData; //reinterpret_cast<opt_double_ptr>(m_calloc(recv_buff_size * sizeof(double)));
-
+    const bool need_send = this->need_send_buf();
+    const bool need_recv = this->need_recv_buf();
+    send_buf_            = (need_send) ? sendData : recvData;
+    recv_buf_            = (need_recv) ? recvData : sendData;
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
