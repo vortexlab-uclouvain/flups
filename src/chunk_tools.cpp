@@ -1,6 +1,7 @@
 #include "chunk_tools.hpp"
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk **chunks, int* self_comm) {
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out,
+                   int* n_chunks, MemChunk** chunks, int* self_idx) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // NOT NEEDED as we imposed identical communicators
@@ -80,7 +81,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     //--------------------------------------------------------------------------
     int out_rank; 
     MPI_Comm_rank(topo_out->get_comm(), &out_rank);
-    bool is_self_comm = false;
+    // bool is_self_comm = false;
 
     //--------------------------------------------------------------------------
     /** - fill the chunks only if we have some chunks */
@@ -94,12 +95,15 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 // compute the current rank in the topo_out subcomminator 
                 const int dest_rank     = rankindex(irank, topo_out);
 
-                // Get the right chunk. Here we check if the destination rank is equal to the current process
-                // If it is the case, we store the self comm as the last chunks in the chunk array 
-                // It it is not the case, then we continue to fill in the chnunks array. 
-                is_self_comm     = (out_rank == dest_rank);
-                self_comm[0]     = is_self_comm ? n_chunks[0] - 1 : self_comm[0] ; 
-                MemChunk* cchunk = is_self_comm ? *chunks + self_comm[0]: *chunks + chunk_counter;
+                // // Get the right chunk. Here we check if the destination rank is equal to the current process
+                // // If it is the case, we store the self comm as the last chunks in the chunk array 
+                // // It it is not the case, then we continue to fill in the chnunks array. 
+                // is_self_comm     = (out_rank == dest_rank);
+                // self_comm[0]     = is_self_comm ? n_chunks[0] - 1 : self_comm[0] ; 
+                // MemChunk* cchunk = is_self_comm ? *chunks + self_comm[0]: *chunks + chunk_counter;
+                bool is_self_comm = (out_rank == dest_rank);
+                self_idx[0] = (is_self_comm) ? chunk_counter : (-1);
+                MemChunk* cchunk = *chunks + chunk_counter;
                 
                 for (int id = 0; id < 3; ++id) {
                     // get the start and end index of the topo OUT and the topo IN in the global reference
@@ -137,12 +141,63 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
 
                 // increasee the chunk counter
-                chunk_counter += !is_self_comm;
+                // chunk_counter += !is_self_comm;
+                chunk_counter ++;
             }
         }
     }
 
-    FLUPS_CHECK((chunk_counter + (int) (self_comm[0]>= 0)) == n_chunks[0], "the chunk counter = %d must be = %d", (chunk_counter + (int) is_self_comm), n_chunks[0]);
+    // FLUPS_CHECK((chunk_counter + (int) (self_comm[0]>= 0)) == n_chunks[0], "the chunk counter = %d must be = %d", (chunk_counter + (int) is_self_comm), n_chunks[0]);
+    FLUPS_CHECK(chunk_counter == n_chunks[0], "the chunk counter = %d must be = %d", chunk_counter, n_chunks[0]);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset, MPI_Datatype* type_xyzd) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    const int nf         = chunk->nf;
+    const int ax0        = chunk->axis;
+    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+    const int size[3]    = {chunk->isize[ax[0]], chunk->isize[ax[1]], chunk->isize[ax[2]]};
+    const int stride[3]  = {nf, nf * nmem[ax[0]], nf * nmem[ax[0]] * nmem[ax[1]]};
+    const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
+
+    //..........................................................................
+    // the offset is the location in memory for the first dimension
+    offset[0] = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 0);
+    // get the sride for the different nda in the data
+    const size_t offset_dim = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, 1) - offset[0];
+#ifndef NDEBUG
+    size_t* offset_check = reinterpret_cast<size_t*>(m_calloc(sizeof(size_t) * chunk->nda));
+    for (int ida = 0; ida < chunk->nda; ++ida) {
+        offset_check[ida] = localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, ida);
+    }
+    for (int ida = 1; ida < chunk->nda; ++ida) {
+        FLUPS_CHECK(offset_dim == (offset_check[ida] - offset_check[ida - 1]), "the offsets must be =");
+    }
+#endif
+
+    //..........................................................................
+    // create the 3D datatype
+    MPI_Datatype type_x, type_xy, type_xyz;
+    // stride in x = 1, count = chunk size
+    MPI_Type_vector(size[0], nf, stride[0], MPI_DOUBLE, &type_x);
+    // stride in y = nmem[0]a, count = chunk sie
+    MPI_Type_vector(size[1], 1, stride[1], type_x, &type_xy);
+    // stride in z = nmem[0]*nmem[1], count = chunk size
+    MPI_Type_vector(size[2], 1, stride[2], type_xy, &type_xyz);
+    // finally get the different dimensions together
+    MPI_Type_vector(chunk->nda, 1, offset_dim, type_xyz, type_xyzd);
+
+    //..........................................................................
+    // commit the new type
+    MPI_Type_commit(type_xyzd);
+
+    // free the
+    MPI_Type_free(&type_x);
+    MPI_Type_free(&type_xy);
+    MPI_Type_free(&type_xyz);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
