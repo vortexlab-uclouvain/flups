@@ -208,14 +208,12 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MemChunk     *c_chunk   = send_chunks + chunk_idx;
 
             int mysize;
-            MPI_Type_size(dtype[0],&mysize);
-            FLUPS_INFO("chunk idx = %d, offset = %zu, mysize = %zu, chunk size %zu",chunk_idx,offset,mysize/sizeof(double),c_chunk->size_padded);
+            MPI_Type_size(dtype[0], &mysize);
+            FLUPS_INFO("chunk idx = %d, offset = %zu, mysize = %zu, chunk size %zu", chunk_idx, offset, mysize / sizeof(double), c_chunk->size_padded);
 
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Request rqst;
-            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, &rqst);
-            // MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
+            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
