@@ -1,8 +1,9 @@
 #include "SwitchTopoX_isr.hpp"
 
-void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, /* size_t *send_offset,MPI_Datatype *send_dtype,*/
+void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const int *send_order_list, int *completed_id, MPI_Comm comm,
+              const int *send_order_list, int *completed_id,
+              MPI_Comm comm, MPI_Comm shared_comm,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof);
 
 SwitchTopoX_isr::SwitchTopoX_isr(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
@@ -85,26 +86,23 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
             MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
             const bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
 
-            // send data_types, the axis is the one of the chunk
-            // FLUPS_INFO("TO MPI for chunk %d", ichunk);
-            // ChunkToMPIDataType(nmem, cchunk, send_offsets + ichunk, send_dtypes + ichunk);
-
-            // store the id in the send order list
-            if (!is_in_shared) {
-                send_order[prior_idx[0]] = ichunk;
-                (prior_idx[0])++;
-            } else {
+            // store the id in the send order list and update the comm + dest_rank if needed
+            if (is_in_shared) {
+                // store the priority list
                 send_order[noprior_idx[0]] = ichunk;
                 (noprior_idx[0])--;
+
+                // update the rank + comm
+                cchunk->dest_rank = dest_shared_rank;
+                cchunk->comm      = shared_comm_;
+            } else {
+                // store the priority
+                send_order[prior_idx[0]] = ichunk;
+                (prior_idx[0])++;
+                // no rank update
             }
         }
     };
-    //..........................................................................
-    // during the init the topo_in might have been switched to real while during the SwitchTopo it's gonna be complex
-    // const bool must_switch2complex = (!topo_in_->isComplex() && topo_out_->isComplex());
-    // const int scale_nmem = must_switch2complex? 2 : 1;
-    // const int in_nmem[3]  = {topo_in_->nmem(0)/scale_nmem, topo_in_->nmem(1), topo_in_->nmem(2)};
-    // const int out_nmem[3] = {topo_out_->nmem(0), topo_out_->nmem(1), topo_out_->nmem(2)};
     setup_priority(i2o_nchunks_, i2o_chunks_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
     setup_priority(o2i_nchunks_, o2i_chunks_, o2i_send_order_, &o2i_prior_idx, &o2i_noprior_idx);
 
@@ -154,14 +152,14 @@ void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     if (sign == FLUPS_FORWARD) {
-        SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_, /*i2o_send_offset_, i2o_send_dtype_,*/
+        SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_,
                  o2i_nchunks_, recv_rqst_, o2i_chunks_,
-                 i2o_send_order_, completed_id_, subcomm_,
+                 i2o_send_order_, completed_id_, subcomm_, shared_comm_,
                  topo_out_, v, prof_);
     } else {
-        SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_, /*o2i_send_offset_, o2i_send_dtype_,*/
+        SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_,
                  i2o_nchunks_, recv_rqst_, i2o_chunks_,
-                 o2i_send_order_, completed_id_, subcomm_,
+                 o2i_send_order_, completed_id_, subcomm_, shared_comm_,
                  topo_in_, v, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
@@ -184,15 +182,15 @@ void SwitchTopoX_isr::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,/* size_t *send_offset, MPI_Datatype *send_dtype,*/
+void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const int *send_order_list, int *completed_id, MPI_Comm comm,
+              const int *send_order_list, int *completed_id,
+              MPI_Comm comm, MPI_Comm shared_comm,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     int rank;
     MPI_Comm_rank(comm, &rank);
-
     //..........................................................................
     auto recv_my_rqst = [prof](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
@@ -212,12 +210,9 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             const int ridx      = n_already_send[0] + ir;
             const int chunk_idx = send_order_list[ridx];
             MemChunk *c_chunk   = send_chunks + chunk_idx;
-            // size_t        offset    = send_offset[chunk_idx];
-            // MPI_Datatype *dtype     = send_dtype + chunk_idx;
-
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank, comm, send_rqst + ridx);
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank, c_chunk->comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -241,11 +236,12 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         FLUPS_INFO("starting %d recv request", n_recv_chunk);
         m_profStart(prof, "start");
         for (int ir = 0; ir < n_recv_chunk; ++ir) {
-            MemChunk *c_chunk = recv_chunks + ir;
+            const int chunk_idx = send_order_list[ir];
+            MemChunk *c_chunk   = recv_chunks + chunk_idx;
             // we cannot use the padded size here as the datatype is build on isize and not padded size!!
             const size_t count = c_chunk->isize[0] * c_chunk->isize[1] * c_chunk->isize[2] * c_chunk->nf * c_chunk->nda;
-            FLUPS_INFO("recving %zu doubles, form %d at %p",count,c_chunk->dest_rank,c_chunk->data);
-            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, comm, recv_rqst + ir);
+            FLUPS_INFO("recving %zu doubles, form %d at %p", count, c_chunk->dest_rank, c_chunk->data);
+            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, c_chunk->comm, recv_rqst + ir);
         }
         m_profStop(prof, "start");
 

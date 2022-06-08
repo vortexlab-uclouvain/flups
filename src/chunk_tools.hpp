@@ -14,13 +14,14 @@ typedef struct
     int istart[3];  //!< local start index for the memory chunk (012 indexing), in the "input" topology
     int isize[3];   // !< local size for the memory chunks (012 indexing), in the "input" topology
 
-    int dest_rank;  //!< destination ranks in the destination topology
-    int dest_axis;  //!< the principal axis in the destination topology
+    int      dest_rank;  //!< destination ranks in the destination topology
+    int      dest_axis;  //!< the principal axis in the destination topology
+    MPI_Comm comm;       //!< the communicator to be used for the communication, also dictates the dest_rank id
 
     fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
 
-    size_t offset; //!< offset in memory in the "input" topology
-    MPI_Datatype dtype; //!< datatype in the "input" topology
+    size_t       offset;  //!< offset in memory in the "input" topology
+    MPI_Datatype dtype;   //!< datatype in the "input" topology
 
     int            nda;          //!< the number of data array (1 if scalar, 3 if vector)
     int            nf;           //!< the number of double per data (1 if real, 2 if complex)

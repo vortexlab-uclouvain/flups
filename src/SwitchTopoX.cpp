@@ -140,19 +140,6 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     FLUPS_INFO("memory addresses have been assigned");
 
     //..........................................................................
-    // compute the subcomm and start the gather of each rank
-    // SubCom_SplitComm();
-    int inrank, subrank, worldsize;
-    MPI_Comm_size(inComm_, &worldsize);
-    MPI_Comm_rank(subcomm_, &subrank);
-    MPI_Comm_rank(inComm_, &inrank);
-
-    // get the ranks of everybody in all communicators
-    MPI_Request subrank_rqst;
-    int*        subRanks = reinterpret_cast<int*>(m_calloc(worldsize * sizeof(int)));
-    MPI_Iallgather(&subrank, 1, MPI_INT, subRanks, 1, MPI_INT, inComm_, &subrank_rqst);
-
-    //..........................................................................
     // init the shuffle, this might take some time
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
@@ -164,24 +151,41 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     }
 
     //..........................................................................
-    // finish the rank assignement
-    MPI_Status subrank_status;
-    MPI_Wait(&subrank_rqst,&subrank_status);
+    // we have to update the ranks for each of the i2o_chunks and o2i_chunks
+    // the i2o_chunks have for the moment a dest_rank in the outcomm
+    // the io2i_chunks have for the moment a dest_rank in the incomm
+    // int inrank, outrank, subrank, worldsize;
+    MPI_Group in_group, out_group, sub_group;
+    MPI_Comm_group(topo_in_->get_comm(), &in_group);
+    MPI_Comm_group(topo_out_->get_comm(), &out_group);
+    MPI_Comm_group(subcomm_, &sub_group);
+
     // replace the old ranks by the newest ones
     for (int ic = 0; ic < i2o_nchunks_; ++ic) {
         // get the destination rank in the old inComm_
-        const int in_dest_rank = i2o_chunks_[ic].dest_rank;
+        const int out_dest_rank = i2o_chunks_[ic].dest_rank;
         // replace by the one in the subcommunicator
-        i2o_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+        int new_rank;
+        MPI_Group_translate_ranks(out_group, 1, &out_dest_rank, sub_group, &new_rank);
+        FLUPS_CHECK(MPI_UNDEFINED != new_rank, "the rank %d is not in the sub comm", out_dest_rank);
+        i2o_chunks_[ic].dest_rank = new_rank;
+        i2o_chunks_[ic].comm      = subcomm_;
     }
     for (int ic = 0; ic < o2i_nchunks_; ++ic) {
         // get the destination rank in the old inComm_
         const int in_dest_rank = o2i_chunks_[ic].dest_rank;
         // replace by the one in the subcommunicator
-        o2i_chunks_[ic].dest_rank = subRanks[in_dest_rank];
+        // replace by the one in the subcommunicator
+        int new_rank;
+        MPI_Group_translate_ranks(out_group, 1, &in_dest_rank, sub_group, &new_rank);
+        FLUPS_CHECK(MPI_UNDEFINED != new_rank, "the rank %d is not in the sub comm", in_dest_rank);
+        o2i_chunks_[ic].dest_rank = new_rank;
+        o2i_chunks_[ic].comm      = subcomm_;
     }
     // free the allocated array
-    m_free(subRanks);
+    MPI_Group_free(&in_group);
+    MPI_Group_free(&out_group);
+    MPI_Group_free(&sub_group);
     //--------------------------------------------------------------------------
     END_FUNC;
 }

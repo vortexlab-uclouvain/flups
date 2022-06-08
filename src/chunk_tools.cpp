@@ -81,7 +81,6 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
     //--------------------------------------------------------------------------
     int out_rank; 
     MPI_Comm_rank(topo_out->get_comm(), &out_rank);
-    // bool is_self_comm = false;
 
     //--------------------------------------------------------------------------
     /** - fill the chunks only if we have some chunks */
@@ -129,6 +128,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
 
                 // get the destination rank, no translation is required here as we imposed identical communicators
                 cchunk->dest_rank   = dest_rank;
+                cchunk->comm        = topo_out->get_comm();
                 cchunk->nda         = (size_t)topo_in->lda();
                 cchunk->nf          = (size_t)topo_in->nf();
                 cchunk->size_padded = get_ChunkPaddedSize(topo_in->nf(), cchunk);
@@ -139,7 +139,7 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
 
                 // setup the offset and the MPI datatype
                 const int nmem[3] = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
-                ChunkToMPIDataType(nmem, cchunk);//, &(cchunk->offset), &(cchunk->dtype));
+                ChunkToMPIDataType(nmem, cchunk);
 
                 FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
