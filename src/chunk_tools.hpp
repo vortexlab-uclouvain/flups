@@ -19,8 +19,8 @@ typedef struct
 
     fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
 
-    size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
-    size_t         nf;           //!< the number of double per data (1 if real, 2 if complex)
+    int            nda;          //!< the number of data array (1 if scalar, 3 if vector)
+    int            nf;           //!< the number of double per data (1 if real, 2 if complex)
     size_t         size_padded;  //!< padded size for the data ptr
     opt_double_ptr data;         //!< the pointer to the data in the buffer
 

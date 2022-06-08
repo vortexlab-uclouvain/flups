@@ -99,7 +99,6 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
         }
     };
     //..........................................................................
-
     const int in_nmem[3]  = {topo_in_->nmem(0), topo_in_->nmem(1), topo_in_->nmem(2)};
     const int out_nmem[3] = {topo_out_->nmem(0), topo_out_->nmem(1), topo_out_->nmem(2)};
     opinit(in_nmem, i2o_send_offset_, i2o_send_dtype_, i2o_nchunks_, i2o_chunks_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
@@ -208,13 +207,20 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MPI_Datatype *dtype     = send_dtype + chunk_idx;
             MemChunk     *c_chunk   = send_chunks + chunk_idx;
 
+            int mysize;
+            MPI_Type_size(dtype[0],&mysize);
+            FLUPS_INFO("chunk idx = %d, offset = %zu, mysize = %zu, chunk size %zu",chunk_idx,offset,mysize/sizeof(double),c_chunk->size_padded);
+
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
+            MPI_Request rqst;
+            MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, &rqst);
+            // MPI_Isend(mem + offset, 1, dtype[0], c_chunk->dest_rank, rank, comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
         n_already_send[0] += count_send;
+        FLUPS_INFO(" I am all done here, moving on");
     };
 
     //..........................................................................
@@ -236,6 +242,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MemChunk *c_chunk = recv_chunks + ir;
             // we cannot use the padded size here as the datatype is build on isize and not padded size!!
             const size_t count = c_chunk->isize[0] * c_chunk->isize[1] * c_chunk->isize[2] * c_chunk->nf * c_chunk->nda;
+            FLUPS_INFO("recving %zu doubles, form %d at %p",count,c_chunk->dest_rank,c_chunk->data);
             MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, comm, recv_rqst + ir);
         }
         m_profStop(prof, "start");

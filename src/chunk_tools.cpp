@@ -159,8 +159,6 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
     const int nf         = chunk->nf;
     const int ax0        = chunk->axis;
     const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
-    const int size[3]    = {chunk->isize[ax[0]], chunk->isize[ax[1]], chunk->isize[ax[2]]};
-    const int stride[3]  = {nf, nf * nmem[ax[0]], nf * nmem[ax[0]] * nmem[ax[1]]};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
     //..........................................................................
@@ -179,16 +177,29 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
 #endif
 
     //..........................................................................
+    const int    size[4]        = {chunk->isize[ax[0]], chunk->isize[ax[1]], chunk->isize[ax[2]], chunk->nda};
+    const size_t stride_byte[4] = {sizeof(double) * nf,
+                                   sizeof(double) * nf * nmem[ax[0]],
+                                   sizeof(double) * nf * nmem[ax[0]] * nmem[ax[1]],
+                                   sizeof(double) * offset_dim};
     // create the 3D datatype
     MPI_Datatype type_x, type_xy, type_xyz;
     // stride in x = 1, count = chunk size
-    MPI_Type_vector(size[0], nf, stride[0], MPI_DOUBLE, &type_x);
+    // MPI_Type_vector(size[0], nf, stride[0], MPI_DOUBLE, &type_x);
+    MPI_Type_create_hvector(size[0], nf, stride_byte[0], MPI_DOUBLE, &type_x);
+    FLUPS_INFO("puting %d doubles together with strides = %zu", size[0], stride_byte[0]);
     // stride in y = nmem[0]a, count = chunk sie
-    MPI_Type_vector(size[1], 1, stride[1], type_x, &type_xy);
+    // MPI_Type_vector(size[1], 1, stride[1], type_x, &type_xy);
+    MPI_Type_create_hvector(size[1], 1, stride_byte[1], type_x, &type_xy);
+    FLUPS_INFO("puting %d type_x together with strides = %zu", size[1], stride_byte[1]);
     // stride in z = nmem[0]*nmem[1], count = chunk size
-    MPI_Type_vector(size[2], 1, stride[2], type_xy, &type_xyz);
+    // MPI_Type_vector(size[2], 1, stride[2], type_xy, &type_xyz);
+    MPI_Type_create_hvector(size[2], 1, stride_byte[2], type_xy, &type_xyz);
+    FLUPS_INFO("puting %d type_xy together with strides = %zu", size[2], stride_byte[2]);
     // finally get the different dimensions together
-    MPI_Type_vector(chunk->nda, 1, offset_dim, type_xyz, type_xyzd);
+    // MPI_Type_vector(chunk->nda, 1, offset_dim, type_xyz, type_xyzd);
+    MPI_Type_create_hvector(size[3], 1, stride_byte[3], type_xyz, type_xyzd);
+    FLUPS_INFO("puting %d type_xyz together with strides = %zu", size[3], stride_byte[3]);
 
     //..........................................................................
     // commit the new type
