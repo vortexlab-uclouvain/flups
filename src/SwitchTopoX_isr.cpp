@@ -212,7 +212,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MemChunk *c_chunk   = send_chunks + chunk_idx;
             // send is done directly from the memory to MPI
             m_profStart(prof, "start");
-            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank, c_chunk->comm, send_rqst + ridx);
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank,0, c_chunk->comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -241,7 +241,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             // we cannot use the padded size here as the datatype is build on isize and not padded size!!
             const size_t count = c_chunk->isize[0] * c_chunk->isize[1] * c_chunk->isize[2] * c_chunk->nf * c_chunk->nda;
             FLUPS_INFO("recving %zu doubles, form %d at %p", count, c_chunk->dest_rank, c_chunk->data);
-            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, c_chunk->comm, recv_rqst + ir);
+            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank,0, c_chunk->comm, recv_rqst + ir);
         }
         m_profStop(prof, "start");
 
