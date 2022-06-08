@@ -186,8 +186,11 @@ int main(int argc, char *argv[]) {
         m_profStart(&prof, "ACCFFT - forward");
         accfft_execute_r2c(plan, data_acc, (Complex *)data_acc);
         m_profStop(&prof, "ACCFFT - forward");
+        m_profStop(&prof, "ACCFFT");
 
         MPI_Barrier(comm);
+
+        m_profStart(&prof, "ACCFFT");
         m_profStart(&prof, "ACCFFT - backward");
         accfft_execute_c2r(plan, (Complex *)data_acc, data_acc);
         m_profStop(&prof, "ACCFFT - backward");
@@ -205,8 +208,11 @@ int main(int argc, char *argv[]) {
         m_profStart(&prof, "flups - forward");
         mysolver->do_FFT(solFLU, FLUPS_FORWARD);
         m_profStop(&prof, "flups - forward");
+        m_profStop(&prof, "flups");
 
         MPI_Barrier(comm);
+
+        m_profStart(&prof, "flups");
         m_profStart(&prof, "flups - backward");
         mysolver->do_FFT(solFLU, FLUPS_BACKWARD);
         m_profStop(&prof, "flups - backward");
