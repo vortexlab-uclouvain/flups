@@ -174,6 +174,7 @@ void ChunkToMPIDataType(const int nmem[3], const MemChunk* chunk, size_t* offset
     for (int ida = 1; ida < chunk->nda; ++ida) {
         FLUPS_CHECK(offset_dim == (offset_check[ida] - offset_check[ida - 1]), "the offsets must be =");
     }
+    m_free(offset_check);
 #endif
 
     //..........................................................................
