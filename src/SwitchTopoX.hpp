@@ -52,7 +52,7 @@ class SwitchTopoX {
     
 
     size_t get_bufMemSize() const;
-    size_t get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk *chunks) const;
+    size_t get_ChunkArraysMemSize(const int lda, const int nchunks, const MemChunk *chunks) const;
 
    protected:
     void SubCom_SplitComm();

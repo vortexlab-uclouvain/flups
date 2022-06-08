@@ -189,13 +189,13 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
  *
  * @return size_t
  */
-size_t SwitchTopoX::get_ChunkArraysMemSize(const size_t lda, const int nchunks, const MemChunk* chunks) const {
+size_t SwitchTopoX::get_ChunkArraysMemSize(const int lda, const int nchunks, const MemChunk* chunks) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // nultiply by the number of blocks
     size_t total = 0;
     for (int ib = 0; ib < nchunks; ib++) {
-        FLUPS_CHECK(chunks[ib].nda == lda, "The number of component given must be equal to the one of the chunks --> %zu vs %zu", chunks[ib].nda, lda );
+        FLUPS_CHECK(chunks[ib].nda == lda, "The number of component given must be equal to the one of the chunks --> %d vs %d", chunks[ib].nda, lda );
         total += chunks[ib].size_padded;
     }
     return total * lda;
