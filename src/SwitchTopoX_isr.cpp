@@ -86,7 +86,7 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
             const bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
 
             // send data_types, the axis is the one of the chunk
-            ChunkToMPIDataType(nmem, cchunk->axis, cchunk, send_offsets + ichunk, send_dtypes + ichunk);
+            ChunkToMPIDataType(nmem, cchunk, send_offsets + ichunk, send_dtypes + ichunk);
 
             // store the id in the send order list
             if (!is_in_shared) {
@@ -177,7 +177,7 @@ void SwitchTopoX_isr::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, size_t *send_offset,MPI_Datatype *send_dtype,
+void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks, size_t *send_offset, MPI_Datatype *send_dtype,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, MPI_Comm comm,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
@@ -241,6 +241,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         m_profStop(prof, "start");
 
         // Start a first batch of send request
+        // here we use n_other_send as the self will be processed!
+        // send_my_batch(n_other_send, &send_cntr, send_batch, send_chunks, send_rqst);
         send_my_batch(n_send_chunk, &send_cntr, send_batch);
     }
     m_profStop(prof, "pre-send");
@@ -262,7 +264,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // here we use the n_completed information as an estimation of the speed at which I receive requests
         // if I haven't received any, just re-send a batch.
         // if I have received many, then the throughput is great and I should resend many
-        const int n_to_resend = m_max(n_completed, send_batch);
+        const int n_to_resend = m_max(n_completed,send_batch);
         send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
         // for each of the completed request, treat it

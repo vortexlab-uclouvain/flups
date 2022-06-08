@@ -41,6 +41,7 @@ P3DFFTDIR := ./
 PREFIX ?= ./
 NAME := flups_vs_accfft
 # executable naming
+TARGET_EXE_ISR := $(NAME)_a2a
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
 TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
@@ -54,6 +55,7 @@ OBJ_DIR := ./build
 #-----------------------------------------------------------------------------
 #---- FLUPS
 INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src 
+LIB_ISR = -L$(FLUPSDIR)/lib -lflups_isr
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
 LIB_DPREC_A2A = -L$(FLUPSDIR)/lib -lflups_dprec_a2a
@@ -117,6 +119,9 @@ default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE
 
 all: default
 
+$(TARGET_EXE_ISR): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_ISR)
+
 $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_A2A)
 
@@ -129,8 +134,9 @@ $(TARGET_EXE_DPREC_A2A): $(OBJ)
 $(TARGET_EXE_DPREC_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_NB)
 
-install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 	mkdir -p $(PREFIX)/bin
+	cp $(TARGET_EXE_ISR) $(PREFIX)/bin
 	cp $(TARGET_EXE_A2A) $(PREFIX)/bin
 	cp $(TARGET_EXE_NB) $(PREFIX)/bin
 
@@ -141,12 +147,14 @@ test:
 
 clean:
 	rm -f $(OBJ_DIR)/*.o
+	rm -f $(TARGET_EXE_ISR)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	
 destroy:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(OBJ_DIR)/*.d
+	rm -f $(TARGET_EXE_ISR)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 	rm -f $(OBJ_DIR)/*
