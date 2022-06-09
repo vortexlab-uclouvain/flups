@@ -61,9 +61,7 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     // o2i_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(o2i_nchunks_ * sizeof(MPI_Datatype)));
 
     //..........................................................................
-    MPI_Group sub_group;
     MPI_Group shared_group;
-    MPI_Comm_group(subcomm_, &sub_group);
     MPI_Comm_group(shared_comm_, &shared_group);
     // we store the priority requests in front of the order list
     int i2o_prior_idx = 0;
@@ -83,7 +81,9 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
 
             // test if the destination rank is inside the shared group
             int dest_shared_rank;
-            MPI_Group_translate_ranks(sub_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
+            MPI_Group chunk_group;
+            MPI_Comm_group(cchunk->comm, &chunk_group);
+            MPI_Group_translate_ranks(chunk_group, 1, &(cchunk->dest_rank), shared_group, &dest_shared_rank);
             const bool is_in_shared = (MPI_UNDEFINED != dest_shared_rank);
 
             // store the id in the send order list and update the comm + dest_rank if needed
@@ -101,13 +101,13 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
                 (prior_idx[0])++;
                 // no rank update
             }
+            MPI_Group_free(&chunk_group);
         }
     };
     setup_priority(i2o_nchunks_, i2o_chunks_, i2o_send_order_, &i2o_prior_idx, &i2o_noprior_idx);
     setup_priority(o2i_nchunks_, o2i_chunks_, o2i_send_order_, &o2i_prior_idx, &o2i_noprior_idx);
 
     // free the groups
-    MPI_Group_free(&sub_group);
     MPI_Group_free(&shared_group);
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -211,8 +211,10 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             const int chunk_idx = send_order_list[ridx];
             MemChunk *c_chunk   = send_chunks + chunk_idx;
             // send is done directly from the memory to MPI
+            int rank_in_chunk;
+            MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
             m_profStart(prof, "start");
-            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank,0, c_chunk->comm, send_rqst + ridx);
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + chunk_idx);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -236,12 +238,11 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         FLUPS_INFO("starting %d recv request", n_recv_chunk);
         m_profStart(prof, "start");
         for (int ir = 0; ir < n_recv_chunk; ++ir) {
-            const int chunk_idx = send_order_list[ir];
-            MemChunk *c_chunk   = recv_chunks + chunk_idx;
+            MemChunk *c_chunk   = recv_chunks + ir;
             // we cannot use the padded size here as the datatype is build on isize and not padded size!!
             const size_t count = c_chunk->isize[0] * c_chunk->isize[1] * c_chunk->isize[2] * c_chunk->nf * c_chunk->nda;
             FLUPS_INFO("recving %zu doubles, form %d at %p", count, c_chunk->dest_rank, c_chunk->data);
-            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank,0, c_chunk->comm, recv_rqst + ir);
+            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, c_chunk->comm, recv_rqst + ir);
         }
         m_profStop(prof, "start");
 

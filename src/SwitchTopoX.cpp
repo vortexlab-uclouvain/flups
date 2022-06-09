@@ -177,7 +177,7 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
         // replace by the one in the subcommunicator
         // replace by the one in the subcommunicator
         int new_rank;
-        MPI_Group_translate_ranks(out_group, 1, &in_dest_rank, sub_group, &new_rank);
+        MPI_Group_translate_ranks(in_group, 1, &in_dest_rank, sub_group, &new_rank);
         FLUPS_CHECK(MPI_UNDEFINED != new_rank, "the rank %d is not in the sub comm", in_dest_rank);
         o2i_chunks_[ic].dest_rank = new_rank;
         o2i_chunks_[ic].comm      = subcomm_;
