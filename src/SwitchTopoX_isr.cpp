@@ -209,9 +209,11 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         for (int ir = 0; ir < count_send; ++ir) {
             const int ridx      = n_already_send[0] + ir;
             const int chunk_idx = send_order_list[ridx];
-            MemChunk *c_chunk   = send_chunks + chunk_idx;
+            FLUPS_CHECK(chunk_idx < n_send_chunk, "the chunk id = %d must be < n_send_chunk = %d", chunk_idx, n_send_chunk);
+
             // send is done directly from the memory to MPI
-            int rank_in_chunk;
+            MemChunk *c_chunk = send_chunks + chunk_idx;
+            int       rank_in_chunk;
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
             m_profStart(prof, "start");
             MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + chunk_idx);
@@ -264,8 +266,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     // while we have to send msgs to others or recv msg, we keep going
     while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, ready_to_reset);
-        // if all my send have completed I can reset the data
-        if (!ready_to_reset) {
+        // if all my send have been done and they all completed I can reset the data
+        if ((!ready_to_reset) && (send_cntr == n_send_chunk)) {
             MPI_Testall(n_send_chunk, send_rqst, &ready_to_reset, MPI_STATUSES_IGNORE);
             if (ready_to_reset) {
                 const size_t reset_size = topo_out->memsize();
@@ -283,7 +285,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // here we use the n_completed information as an estimation of the speed at which I receive requests
         // if I haven't received any, just re-send a batch.
         // if I have received many, then the throughput is great and I should resend many
-        const int n_to_resend = m_max(n_completed,send_batch);
+        const int n_to_resend = m_max(n_completed, send_batch);
         send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
         // for each of the completed request save its id for processing later
