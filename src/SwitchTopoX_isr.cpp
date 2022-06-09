@@ -216,7 +216,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             int       rank_in_chunk;
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
             m_profStart(prof, "start");
-            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + chunk_idx);
+            // we must store the request in the same order as we go! otherwise the Testsome is wrong
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + ir);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -226,11 +227,12 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
 
     //..........................................................................
     // Define the counter needed to perform the send and receive
-    const int send_batch = FLUPS_MPI_BATCH_SEND;
-    int       send_cntr  = 0;
-    int       recv_cntr  = 0;
+    const int send_batch     = FLUPS_MPI_BATCH_SEND;
+    int       send_cntr      = 0;
+    int       recv_cntr      = 0;
     int       copy_cntr      = 0;
     int       ready_to_reset = 0;
+    int       finished_send  = 0; // number of completed send
 
     //..........................................................................
     m_profStart(prof, "send/recv");
@@ -266,10 +268,18 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     // while we have to send msgs to others or recv msg, we keep going
     while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, ready_to_reset);
-        // if all my send have been done and they all completed I can reset the data
-        if ((!ready_to_reset) && (send_cntr == n_send_chunk)) {
-            MPI_Testall(n_send_chunk, send_rqst, &ready_to_reset, MPI_STATUSES_IGNORE);
-            if (ready_to_reset) {
+        // if I haven't reset the memory yet, my sends are not over
+        if (finished_send < n_send_chunk) {
+            int n_send_completed;
+            // completed id can be reused here :-)
+            MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, MPI_STATUSES_IGNORE);
+            // this is the total number of send that have completed
+            finished_send += n_send_completed;
+            const int still_ongoing_send = send_cntr - finished_send;
+            const int n_to_resend        = FLUPS_MPI_MAX_NBSEND - still_ongoing_send;
+            send_my_batch(n_send_chunk, &send_cntr, n_send_completed);
+
+            if (finished_send == n_send_chunk) {
                 const size_t reset_size = topo_out->memsize();
                 std::memset(mem, 0, reset_size * sizeof(double));
                 FLUPS_INFO("reset mem done ");
