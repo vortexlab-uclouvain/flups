@@ -1,7 +1,7 @@
 #!/bin/sh
 KERNELS='CHAT2 LGF2 HEJ2 HEJ4 HEJ6 HEJ8 HEJ10 HEJ0'
 CENTERS='Node Cell'
-VERSIONS='nb a2a'
+VERSIONS='nb a2a isr'
 
 export LIBDIR=$1
 
