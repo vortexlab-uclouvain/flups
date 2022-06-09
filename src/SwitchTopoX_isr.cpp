@@ -2,8 +2,7 @@
 
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const int *send_order_list, int *completed_id,
-              MPI_Comm comm, MPI_Comm shared_comm,
+              const int *send_order_list, int *completed_id, int* recv_order_list,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof);
 
 SwitchTopoX_isr::SwitchTopoX_isr(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
@@ -50,11 +49,12 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     // once we have the MemChunks we can allocate the communication information
     const int n_rqst = m_max(i2o_nchunks_, o2i_nchunks_);
     completed_id_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
+    recv_order_      = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
     send_rqst_       = reinterpret_cast<MPI_Request *>(m_calloc(n_rqst * sizeof(MPI_Request)));
     recv_rqst_       = reinterpret_cast<MPI_Request *>(m_calloc(n_rqst * sizeof(MPI_Request)));
 
-    i2o_send_order_  = reinterpret_cast<int *>(m_calloc(i2o_nchunks_ * sizeof(int)));
-    o2i_send_order_  = reinterpret_cast<int *>(m_calloc(o2i_nchunks_ * sizeof(int)));
+    i2o_send_order_ = reinterpret_cast<int *>(m_calloc(i2o_nchunks_ * sizeof(int)));
+    o2i_send_order_ = reinterpret_cast<int *>(m_calloc(o2i_nchunks_ * sizeof(int)));
     // i2o_send_offset_ = reinterpret_cast<size_t *>(m_calloc(i2o_nchunks_ * sizeof(size_t)));
     // o2i_send_offset_ = reinterpret_cast<size_t *>(m_calloc(o2i_nchunks_ * sizeof(size_t)));
     // i2o_send_dtype_  = reinterpret_cast<MPI_Datatype *>(m_calloc(i2o_nchunks_ * sizeof(MPI_Datatype)));
@@ -135,6 +135,7 @@ SwitchTopoX_isr::~SwitchTopoX_isr() {
     m_free(i2o_send_order_);
     m_free(o2i_send_order_);
     m_free(completed_id_);
+    m_free(recv_order_);
 
     MPI_Comm_free(&shared_comm_);
     //--------------------------------------------------------------------------
@@ -154,12 +155,12 @@ void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
     if (sign == FLUPS_FORWARD) {
         SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_,
                  o2i_nchunks_, recv_rqst_, o2i_chunks_,
-                 i2o_send_order_, completed_id_, subcomm_, shared_comm_,
+                 i2o_send_order_, completed_id_, recv_order_,
                  topo_out_, v, prof_);
     } else {
         SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_,
                  i2o_nchunks_, recv_rqst_, i2o_chunks_,
-                 o2i_send_order_, completed_id_, subcomm_, shared_comm_,
+                 o2i_send_order_, completed_id_, recv_order_,
                  topo_in_, v, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
@@ -184,13 +185,12 @@ void SwitchTopoX_isr::disp() const {
 
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
-              const int *send_order_list, int *completed_id,
-              MPI_Comm comm, MPI_Comm shared_comm,
+              const int *send_order_list, int *completed_id, int* recv_order_list,
               const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    int rank;
-    MPI_Comm_rank(comm, &rank);
+    const int nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
+
     //..........................................................................
     auto recv_my_rqst = [prof](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
@@ -227,6 +227,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     const int send_batch = FLUPS_MPI_BATCH_SEND;
     int       send_cntr  = 0;
     int       recv_cntr  = 0;
+    int       copy_cntr      = 0;
+    int       ready_to_reset = 0;
 
     //..........................................................................
     m_profStart(prof, "send/recv");
@@ -260,7 +262,18 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
     // while we have to send msgs to others or recv msg, we keep going
-    while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk)) {
+    while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
+        FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, ready_to_reset);
+        // if all my send have completed I can reset the data
+        if (!ready_to_reset) {
+            MPI_Testall(n_send_chunk, send_rqst, &ready_to_reset, MPI_STATUSES_IGNORE);
+            if (ready_to_reset) {
+                const size_t reset_size = topo_out->memsize();
+                std::memset(mem, 0, reset_size * sizeof(double));
+                FLUPS_INFO("reset mem done ");
+            }
+        }
+
         // if we have some requests to recv, test it
         int n_completed = 0;
         if (recv_cntr < n_recv_chunk) {
@@ -273,40 +286,52 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         const int n_to_resend = m_max(n_completed,send_batch);
         send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
-        // for each of the completed request, treat it
+        // for each of the completed request save its id for processing later
         for (int id = 0; id < n_completed; ++id) {
-            FLUPS_INFO("recving request %d/%d with id = %d", recv_cntr + id, n_recv_chunk, completed_id[id]);
             const int rqst_id = completed_id[id];
+            FLUPS_INFO("shuffling request %d/%d with id = %d", recv_cntr + id, n_recv_chunk, rqst_id);
+            // shuffle the data
             m_profStart(prof, "shuffle");
             recv_my_rqst(recv_rqst + rqst_id, recv_chunks + rqst_id);
             m_profStop(prof, "shuffle");
+            // save the id for copy'ing it later
+            recv_order_list[recv_cntr] = completed_id[id];
+            recv_cntr++;
         }
 
-        // increment the counter of recv request
-        recv_cntr += n_completed;
+        // for each of the ready  and not copied yet request, copy them
+        if (ready_to_reset && (copy_cntr < recv_cntr)) {
+            const int rqst_id = recv_order_list[copy_cntr];
+            FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_chunk, rqst_id);
+            // copy the data
+            m_profStart(prof, "copy");
+            CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
+            m_profStop(prof, "copy");
+            copy_cntr++;
+        }
     }
     m_profStop(prof, "while loop");
 
-    //..........................................................................
-    // we need to officially close ALL the send requests
-    MPI_Waitall(n_send_chunk, send_rqst, MPI_STATUSES_IGNORE);
+    // //..........................................................................
+    // // we need to officially close ALL the send requests
+    // MPI_Waitall(n_send_chunk, send_rqst, MPI_STATUSES_IGNORE);
 
-    //..........................................................................
-    // reset the memory to 0.0 as we do inplace computations
-    const int    nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
-    const size_t reset_size  = topo_out->memsize();
-    std::memset(mem, 0, reset_size * sizeof(double));
-    FLUPS_INFO("reset mem done ");
+    // //..........................................................................
+    // // reset the memory to 0.0 as we do inplace computations
+    // const int    nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
+    // const size_t reset_size  = topo_out->memsize();
+    // std::memset(mem, 0, reset_size * sizeof(double));
+    // FLUPS_INFO("reset mem done ");
 
-    // once all the send has been done we can overwrite the received info
-    FLUPS_INFO("Copying data");
-    m_profStart(prof, "final copy");
-    m_profStart(prof, "copy");
-    for (int ic = 0; ic < n_recv_chunk; ++ic) {
-        CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
-    }
-    m_profStop(prof, "copy");
-    m_profStop(prof, "final copy");
+    // // once all the send has been done we can overwrite the received info
+    // FLUPS_INFO("Copying data");
+    // m_profStart(prof, "final copy");
+    // m_profStart(prof, "copy");
+    // for (int ic = 0; ic < n_recv_chunk; ++ic) {
+    //     CopyChunk2Data(recv_chunks + ic, nmem_out, mem);
+    // }
+    // m_profStop(prof, "copy");
+    // m_profStop(prof, "final copy");
     m_profStop(prof, "send/recv");
 
     FLUPS_INFO("Copying data completed");

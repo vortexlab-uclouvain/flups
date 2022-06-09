@@ -444,7 +444,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, ready_to_reset);
         // if all my send have completed I can reset the data
         if (!ready_to_reset) {
-            ready_to_reset = 0;
             MPI_Testall(n_send_rqst, send_rqst, &ready_to_reset, MPI_STATUSES_IGNORE);
             if (ready_to_reset) {
                 const size_t reset_size = topo_out->memsize();

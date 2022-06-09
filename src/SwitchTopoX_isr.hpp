@@ -7,6 +7,7 @@ class SwitchTopoX_isr : public SwitchTopoX {
     int* i2o_send_order_ = nullptr;  //!< order in which to perform the send for input to output
     int* o2i_send_order_ = nullptr;  //!< order in which to perform the send for output to input
     int* completed_id_   = nullptr;  //!< array used by the Wait/Test in the non-blocking comms
+    int* recv_order_     = nullptr;  //!< array used by the Wait/Test in the non-blocking comms
 
     MPI_Comm shared_comm_ = MPI_COMM_NULL;  //<! communicators with ranks on the same node
 
