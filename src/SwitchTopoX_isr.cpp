@@ -217,7 +217,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
             m_profStart(prof, "start");
             // we must store the request in the same order as we go! otherwise the Testsome is wrong
-            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + ir);
+            MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + ridx);
             m_profStop(prof, "start");
         }
         // increment the send counter
@@ -278,7 +278,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             finished_send += n_send_completed;
             const int still_ongoing_send = send_cntr - finished_send;
             const int n_to_resend        = FLUPS_MPI_MAX_NBSEND - still_ongoing_send;
-            send_my_batch(n_send_chunk, &send_cntr, n_send_completed);
+            send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
             if (finished_send == n_send_chunk) {
                 const size_t reset_size = topo_out->memsize();
@@ -316,15 +316,15 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // for each of the ready  and not copied yet request, copy them
         // if (is_mem_reset && ready_to_reset && (copy_cntr < recv_cntr)) {
         if (is_mem_reset && (copy_cntr < recv_cntr)) {
-            do {
-                const int rqst_id = recv_order_list[copy_cntr];
-                FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_chunk, rqst_id);
+            for(int icpy =  copy_cntr; icpy < recv_cntr; ++icpy){
+                const int rqst_id = recv_order_list[icpy];
+                FLUPS_INFO("treating recv request %d/%d with id = %d", icpy, n_recv_chunk, rqst_id);
                 // copy the data
                 m_profStart(prof, "copy");
                 CopyChunkMPIData2Data(recv_chunks + rqst_id, nmem_out, mem);
                 m_profStop(prof, "copy");
-                copy_cntr++;
-            } while (copy_cntr < recv_cntr);
+                ++copy_cntr;
+            }
         }
     }
     m_profStop(prof, "while loop");
