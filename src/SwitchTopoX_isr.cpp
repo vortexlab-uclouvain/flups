@@ -268,7 +268,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     m_profInitLeave(prof, "shuffle");
     // while we have to send msgs to others or recv msg, we keep going
     while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
-        FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, ready_to_reset);
+        FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset ready? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, is_mem_reset);
         // if I haven't reset the memory yet, my sends are not over
         if (finished_send < n_send_chunk) {
             int n_send_completed;
