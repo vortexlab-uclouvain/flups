@@ -231,8 +231,9 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     int       send_cntr      = 0;
     int       recv_cntr      = 0;
     int       copy_cntr      = 0;
-    int       ready_to_reset = 0;
+    // int       ready_to_reset = 0;
     int       finished_send  = 0; // number of completed send
+    bool      is_mem_reset   = false; 
 
     //..........................................................................
     m_profStart(prof, "send/recv");
@@ -282,6 +283,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             if (finished_send == n_send_chunk) {
                 const size_t reset_size = topo_out->memsize();
                 std::memset(mem, 0, reset_size * sizeof(double));
+                is_mem_reset = true;
                 FLUPS_INFO("reset mem done ");
             }
         }
@@ -312,14 +314,17 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         }
 
         // for each of the ready  and not copied yet request, copy them
-        if (ready_to_reset && (copy_cntr < recv_cntr)) {
-            const int rqst_id = recv_order_list[copy_cntr];
-            FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_chunk, rqst_id);
-            // copy the data
-            m_profStart(prof, "copy");
-            CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
-            m_profStop(prof, "copy");
-            copy_cntr++;
+        // if (is_mem_reset && ready_to_reset && (copy_cntr < recv_cntr)) {
+        if (is_mem_reset && (copy_cntr < recv_cntr)) {
+            do {
+                const int rqst_id = recv_order_list[copy_cntr];
+                FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_chunk, rqst_id);
+                // copy the data
+                m_profStart(prof, "copy");
+                CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
+                m_profStop(prof, "copy");
+                copy_cntr++;
+            } while (copy_cntr < recv_cntr);
         }
     }
     m_profStop(prof, "while loop");
