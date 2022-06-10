@@ -32,7 +32,9 @@ typedef struct
 
 } MemChunk;
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk** chunks, int* self_comm);
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk** chunks);
+
+void ChunkToNewComm(const MPI_Comm new_comm, const MPI_Group new_group, MemChunk* chunk, bool* is_in_comm);
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
 void DoShuffleChunk(MemChunk* chunk);
 

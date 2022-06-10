@@ -81,9 +81,9 @@ void SwitchTopoX::setup() {
     
     // Populate the arrays of memory chunks
     FLUPS_INFO("I2O chunks");
-    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_, &i2o_selfcomm_);
+    PopulateChunk(i2o_shift_, topo_in_tmp, topo_out_, &i2o_nchunks_, &i2o_chunks_);
     FLUPS_INFO("O2I chunks");
-    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_, &o2i_selfcomm_);
+    PopulateChunk(o2i_shift_, topo_out_, topo_in_tmp, &o2i_nchunks_, &o2i_chunks_);
 
     delete(topo_in_tmp);
 
@@ -103,42 +103,31 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     BEGIN_FUNC;
     FLUPS_CHECK(this->need_recv_buf() || this->need_recv_buf(),"not needing any buffer is incompatible with the inplace approach");
     //..........................................................................
-    int sub_rank; 
+    int sub_rank;
     MPI_Comm_rank(subcomm_, &sub_rank);
 
     const bool need_send = this->need_send_buf();
     const bool need_recv = this->need_recv_buf();
     send_buf_            = (need_send) ? sendData : recvData;
     recv_buf_            = (need_recv) ? recvData : sendData;
+
     // assign the chunks with the relevant memory address
     size_t size_counter = 0;
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
-        // The self communication is the last one in the chunk array but correspond to its 
-        // rank number in the physical memory space. Therefore we need to check if the chunk index is 
-        // the same as the current rank number in the subcommunicator. If its the case, we have to register the 
-        // pointer to the buffer in the last chunk 
-        // Once we have perform that for the self communication, we must continue as usual. Yet, there is 
-        // a difference of 1 between ic and the real chunk index
-        bool is_self_idx = ((i2o_selfcomm_>=0) && (ic == sub_rank));
-        bool is_greater_self_idx = ((i2o_selfcomm_>=0) && (ic > sub_rank));
-        int i_chunk = is_self_idx ? i2o_selfcomm_ : ic - (int) is_greater_self_idx; 
-        
-        FLUPS_CHECK(i2o_chunks_[i_chunk].size_padded > 0 && i2o_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
-        i2o_chunks_[i_chunk].data = send_buf_ + size_counter;
+        FLUPS_CHECK(i2o_chunks_[ic].size_padded > 0 && i2o_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        // register the memory
+        i2o_chunks_[ic].data = send_buf_ + size_counter;
         // update the counter
-        size_counter += i2o_chunks_[i_chunk].size_padded * i2o_chunks_[i_chunk].nda;
+        size_counter += i2o_chunks_[ic].size_padded * i2o_chunks_[ic].nda;
     }
     size_counter = 0;
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
-        bool is_self_idx = ((o2i_selfcomm_>=0) && (ic == sub_rank));
-        bool is_greater_self_idx = ((o2i_selfcomm_>=0) && (ic > sub_rank));
-        int i_chunk = is_self_idx ? o2i_selfcomm_ : ic - (int) is_greater_self_idx; 
-
-        FLUPS_CHECK(o2i_chunks_[i_chunk].size_padded > 0 && o2i_chunks_[i_chunk].nda > 0, "the size of the chunk cannot be null here");
-        o2i_chunks_[i_chunk].data = recv_buf_ + size_counter;
-        size_counter += o2i_chunks_[i_chunk].size_padded * o2i_chunks_[i_chunk].nda;
+        FLUPS_CHECK(o2i_chunks_[ic].size_padded > 0 && o2i_chunks_[ic].nda > 0, "the size of the chunk cannot be null here");
+        // register the memory
+        o2i_chunks_[ic].data = recv_buf_ + size_counter;
+        // update the counter
+        size_counter += o2i_chunks_[ic].size_padded * o2i_chunks_[ic].nda;
     }
-
     FLUPS_INFO("memory addresses have been assigned");
 
     //..........................................................................
@@ -156,37 +145,21 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     // we have to update the ranks for each of the i2o_chunks and o2i_chunks
     // the i2o_chunks have for the moment a dest_rank in the outcomm
     // the io2i_chunks have for the moment a dest_rank in the incomm
-    // int inrank, outrank, subrank, worldsize;
     MPI_Group in_group, out_group, sub_group;
-    MPI_Comm_group(topo_in_->get_comm(), &in_group);
-    MPI_Comm_group(topo_out_->get_comm(), &out_group);
     MPI_Comm_group(subcomm_, &sub_group);
 
     // replace the old ranks by the newest ones
     for (int ic = 0; ic < i2o_nchunks_; ++ic) {
-        // get the destination rank in the old inComm_
-        const int out_dest_rank = i2o_chunks_[ic].dest_rank;
-        // replace by the one in the subcommunicator
-        int new_rank;
-        MPI_Group_translate_ranks(out_group, 1, &out_dest_rank, sub_group, &new_rank);
-        FLUPS_CHECK(MPI_UNDEFINED != new_rank, "the rank %d is not in the sub comm", out_dest_rank);
-        i2o_chunks_[ic].dest_rank = new_rank;
-        i2o_chunks_[ic].comm      = subcomm_;
+        bool is_in_sub;
+        ChunkToNewComm(subcomm_, sub_group, i2o_chunks_ + ic, &is_in_sub);
+        FLUPS_CHECK(is_in_sub, "the rank %d is not in the sub comm", i2o_chunks_[ic].dest_rank);
     }
     for (int ic = 0; ic < o2i_nchunks_; ++ic) {
-        // get the destination rank in the old inComm_
-        const int in_dest_rank = o2i_chunks_[ic].dest_rank;
-        // replace by the one in the subcommunicator
-        // replace by the one in the subcommunicator
-        int new_rank;
-        MPI_Group_translate_ranks(in_group, 1, &in_dest_rank, sub_group, &new_rank);
-        FLUPS_CHECK(MPI_UNDEFINED != new_rank, "the rank %d is not in the sub comm", in_dest_rank);
-        o2i_chunks_[ic].dest_rank = new_rank;
-        o2i_chunks_[ic].comm      = subcomm_;
+        bool is_in_sub;
+        ChunkToNewComm(subcomm_, sub_group, o2i_chunks_ + ic, &is_in_sub);
+        FLUPS_CHECK(is_in_sub, "the rank %d is not in the sub comm", i2o_chunks_[ic].dest_rank);
     }
     // free the allocated array
-    MPI_Group_free(&in_group);
-    MPI_Group_free(&out_group);
     MPI_Group_free(&sub_group);
     //--------------------------------------------------------------------------
     END_FUNC;

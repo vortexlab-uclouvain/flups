@@ -27,8 +27,8 @@ class SwitchTopoX {
     MemChunk *i2o_chunks_ = NULL;  //!< the local chunks of memory in the output topology
     MemChunk *o2i_chunks_ = NULL;  //!< the local chunks of memory in the output topology
 
-    int i2o_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
-    int o2i_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
+    // int i2o_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
+    // int o2i_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
 
     opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
