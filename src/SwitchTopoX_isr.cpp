@@ -277,7 +277,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             // this is the total number of send that have completed
             finished_send += n_send_completed;
             const int still_ongoing_send = send_cntr - finished_send;
-            const int n_to_resend        = FLUPS_MPI_MAX_NBSEND - still_ongoing_send;
+            const int n_to_resend        = m_min(FLUPS_MPI_MAX_NBSEND - still_ongoing_send, send_batch);
+            FLUPS_CHECK(n_to_resend >= 0 , " You need to send a positive number of request");
             send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
 
             if (finished_send == n_send_chunk) {
