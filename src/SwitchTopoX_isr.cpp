@@ -249,7 +249,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             // we cannot use the padded size here as the datatype is build on isize and not padded size!!
             const size_t count = c_chunk->isize[0] * c_chunk->isize[1] * c_chunk->isize[2] * c_chunk->nf * c_chunk->nda;
             FLUPS_INFO("recving %zu doubles, form %d at %p", count, c_chunk->dest_rank, c_chunk->data);
-            MPI_Irecv(c_chunk->data, count, MPI_DOUBLE, c_chunk->dest_rank, c_chunk->dest_rank, c_chunk->comm, recv_rqst + ir);
+            MPI_Irecv(c_chunk->data, 1, c_chunk->dest_dtype, c_chunk->dest_rank, c_chunk->dest_rank, c_chunk->comm, recv_rqst + ir);
         }
         m_profStop(prof, "start");
 
@@ -322,7 +322,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 FLUPS_INFO("treating recv request %d/%d with id = %d", icpy, n_recv_chunk, rqst_id);
                 // copy the data
                 m_profStart(prof, "copy");
-                CopyChunkMPIData2Data(recv_chunks + rqst_id, nmem_out, mem);
+                CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
                 m_profStop(prof, "copy");
                 ++copy_cntr;
             }

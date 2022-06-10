@@ -23,6 +23,8 @@ typedef struct
     size_t       offset;  //!< offset in memory in the "input" topology
     MPI_Datatype dtype;   //!< datatype in the "input" topology
 
+    MPI_Datatype dest_dtype;   //!< datatype in the "output" topology
+
     int            nda;          //!< the number of data array (1 if scalar, 3 if vector)
     int            nf;           //!< the number of double per data (1 if real, 2 if complex)
     size_t         size_padded;  //!< padded size for the data ptr
@@ -36,9 +38,9 @@ void DoShuffleChunk(MemChunk* chunk);
 
 void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
-void CopyChunkMPIData2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
 
 void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk);//, size_t* offset, MPI_Datatype* type_xyzd);
+void ChunkToDestMPIDataType(MemChunk* chunk);
 
 /**
  * @brief returns the memory size (padded to a multiple of alignment) of a MemChunk

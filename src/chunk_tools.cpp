@@ -138,8 +138,9 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 cchunk->dest_axis = topo_out->axis();
 
                 // setup the offset and the MPI datatype
-                const int nmem[3] = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
-                ChunkToMPIDataType(nmem, cchunk);
+                const int nmem_in[3] = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
+                ChunkToMPIDataType(nmem_in, cchunk);
+                ChunkToDestMPIDataType(cchunk);
 
                 FLUPS_CHECK(topo_in->nf() == topo_out->nf(), "the 2 topo must have matching nfs: %d vs %d", topo_in->nf(), topo_out->nf());
                 FLUPS_INFO("chunks going from %d %d %d with size %d %d %d and destination rank %d", cchunk->istart[0], cchunk->istart[1], cchunk->istart[2], cchunk->isize[0], cchunk->isize[1], cchunk->isize[2], cchunk->dest_rank);
@@ -216,6 +217,25 @@ void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk) {
     MPI_Type_free(&type_x);
     MPI_Type_free(&type_xy);
     MPI_Type_free(&type_xyz);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief 
+ * 
+ * @param chunk 
+ */
+void ChunkToDestMPIDataType(MemChunk* chunk){
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    int      count        = chunk->nda;                                                       // number of blocks
+    int      block_length = chunk->isize[0] * chunk->isize[1] * chunk->isize[2] * chunk->nf;  // Number of element per block
+    MPI_Aint stride       = chunk->size_padded;                                               // number of bytes between start of each block
+    MPI_Type_vector(count, block_length, stride, MPI_DOUBLE, &(chunk->dest_dtype));
+
+    // commit the new type
+    MPI_Type_commit(&(chunk->dest_dtype));
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -407,55 +427,55 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     END_FUNC;
 }
 
-/**
- * @brief Copy the memory from the chunk to the data pointer
- *
- * This function uses the memcpy algorithm, which should be the fastest memory copy possible
- * ex of the libc implementation (v2.31)
- *  https://sourceware.org/git/?p=glibc.git;a=blob;f=string/memcpy.c;h=2cb4c76515f476f36a9a8d5dd258ea98e36792b2;hb=9ea3686266dca3f004ba874745a4087a89682617
- *
- * the alignement is automatically performed and exploited, there is not need to do it by hand
- *
- * @param topo the topology in which the chunk and the data are located, must be the input topo of the chunk
- * @param chunk the chunk of memory to copy
- * @param data the vector of data corresponding to the current memory
- */
-void CopyChunkMPIData2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
-    BEGIN_FUNC;
-    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
-    //--------------------------------------------------------------------------
-    // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
-    const int nf         = chunk->nf;
-    const int ax0        = chunk->axis;
-    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
-    const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
+// /**
+//  * @brief Copy the memory from the chunk to the data pointer
+//  *
+//  * This function uses the memcpy algorithm, which should be the fastest memory copy possible
+//  * ex of the libc implementation (v2.31)
+//  *  https://sourceware.org/git/?p=glibc.git;a=blob;f=string/memcpy.c;h=2cb4c76515f476f36a9a8d5dd258ea98e36792b2;hb=9ea3686266dca3f004ba874745a4087a89682617
+//  *
+//  * the alignement is automatically performed and exploited, there is not need to do it by hand
+//  *
+//  * @param topo the topology in which the chunk and the data are located, must be the input topo of the chunk
+//  * @param chunk the chunk of memory to copy
+//  * @param data the vector of data corresponding to the current memory
+//  */
+// void CopyChunkMPIData2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
+//     BEGIN_FUNC;
+//     FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
+//     //--------------------------------------------------------------------------
+//     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
+//     const int nf         = chunk->nf;
+//     const int ax0        = chunk->axis;
+//     const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+//     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
-    // get the indexes to copy
-    const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
-    const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
+//     // get the indexes to copy
+//     const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+//     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
-    FLUPS_INFO("copying data at %d %d %d - nf == %d", chunk->istart[0], chunk->istart[1], chunk->istart[2], chunk->nf);
+//     FLUPS_INFO("copying data at %d %d %d - nf == %d", chunk->istart[0], chunk->istart[1], chunk->istart[2], chunk->nf);
 
-#pragma omp parallel proc_bind(close)
-    for (int lia = 0; lia < chunk->nda; ++lia) {
-        // get the starting address for the chunk, not taking into account the padding, as the MPI_Data do no take it into account
-        opt_double_ptr src_data = chunk->data + chunk->isize[0] * chunk->isize[1] * chunk->isize[2] * chunk->nf * lia;
-        opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
+// #pragma omp parallel proc_bind(close)
+//     for (int lia = 0; lia < chunk->nda; ++lia) {
+//         // get the starting address for the chunk, not taking into account the padding, as the MPI_Data do no take it into account
+//         opt_double_ptr src_data = chunk->data + chunk->isize[0] * chunk->isize[1] * chunk->isize[2] * chunk->nf * lia;
+//         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
-        // the chunk must be aligned all the time
-        // FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned - lia = %d", lia);
+//         // the chunk must be aligned all the time
+//         // FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned - lia = %d", lia);
 
-#pragma omp for schedule(static)
-        for (int il = 0; il < n_loop; ++il) {
-            // get the local indexes (we cannot used the collaspedIndex one!!!)
-            const int i2 = il / (chunk->isize[ax[1]]);
-            const int i1 = il % (chunk->isize[ax[1]]);
-            // get the starting adddress for the memcpy
-            const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            memcpy(vtrg, vsrc, nmax_byte);
-        }
-    }
-    //--------------------------------------------------------------------------
-    END_FUNC;
-}
+// #pragma omp for schedule(static)
+//         for (int il = 0; il < n_loop; ++il) {
+//             // get the local indexes (we cannot used the collaspedIndex one!!!)
+//             const int i2 = il / (chunk->isize[ax[1]]);
+//             const int i1 = il % (chunk->isize[ax[1]]);
+//             // get the starting adddress for the memcpy
+//             const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
+//             double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+//             memcpy(vtrg, vsrc, nmax_byte);
+//         }
+//     }
+//     //--------------------------------------------------------------------------
+//     END_FUNC;
+// }

@@ -31,11 +31,13 @@ SwitchTopoX::~SwitchTopoX() {
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
         MPI_Type_free(&i2o_chunks_[ic].dtype);
+        MPI_Type_free(&i2o_chunks_[ic].dest_dtype);
         fftw_destroy_plan(i2o_chunks_[ic].shuffle);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
         // the shuffle happens in the "in" topology
         MPI_Type_free(&o2i_chunks_[ic].dtype);
+        MPI_Type_free(&o2i_chunks_[ic].dest_dtype);
         fftw_destroy_plan(o2i_chunks_[ic].shuffle);
     }
 
