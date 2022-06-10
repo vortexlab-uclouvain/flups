@@ -36,6 +36,7 @@ void DoShuffleChunk(MemChunk* chunk);
 
 void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
+void CopyChunkMPIData2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
 
 void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk);//, size_t* offset, MPI_Datatype* type_xyzd);
 

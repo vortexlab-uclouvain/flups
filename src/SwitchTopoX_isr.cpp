@@ -321,7 +321,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_chunk, rqst_id);
                 // copy the data
                 m_profStart(prof, "copy");
-                CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
+                CopyChunkMPIData2Data(recv_chunks + rqst_id, nmem_out, mem);
                 m_profStop(prof, "copy");
                 copy_cntr++;
             } while (copy_cntr < recv_cntr);
