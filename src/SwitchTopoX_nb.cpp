@@ -16,7 +16,6 @@ SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out
 
 void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) {
     BEGIN_FUNC;
-    FLUPS_CHECK(i2o_selfcomm_ * o2i_selfcomm_ >= 0, "The selfcomm i2o and o2i must have the same sign ");
     FLUPS_CHECK(sendData != nullptr, "The send data must be != to nullptr");
     FLUPS_CHECK(recvData != nullptr, "The recv data must be != to nullptr");
     //--------------------------------------------------------------------------
