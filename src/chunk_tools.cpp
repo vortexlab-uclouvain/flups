@@ -434,12 +434,11 @@ void CopyChunkMPIData2Data(const MemChunk* chunk, const int nmem[3], opt_double_
     const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
     const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
 
-    FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
+    FLUPS_INFO("copying data at %d %d %d - nf == %d", chunk->istart[0], chunk->istart[1], chunk->istart[2], chunk->nf);
 
 #pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, not taking into account the padding, as the MPI_Data do no take it into account
-        printf("Copying data -- lia = %d -- offset == %d \n", lia, chunk->isize[0] * chunk->isize[1] * chunk->isize[2] * chunk->nf * lia);
         opt_double_ptr src_data = chunk->data + chunk->isize[0] * chunk->isize[1] * chunk->isize[2] * chunk->nf * lia;
         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
