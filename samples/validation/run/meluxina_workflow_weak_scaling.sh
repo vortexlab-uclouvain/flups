@@ -5,7 +5,7 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-CODE_VERSION='a2a nb isr'
+CODE_VERSION='nb a2a dprec_a2a dprec_nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -63,13 +63,14 @@ echo " ------ ... done ! "
 
 
 ## 1 Node == 256 CPUS -> 1*64 = 64
-export NPROC_X=4
-export NPROC_Y=4
-export NPROC_Z=4
+export NPROC_X=16
+export NPROC_Y=32
+export NPROC_Z=16
+export NPCPUS=96
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..7}
+for i in {0..0}
     do
         if [ $(($i%3)) -eq 0 ]
         then
@@ -85,9 +86,9 @@ for i in {0..7}
         fi
 
 
-    export NGLOB_X=$(( ($NPROC_X)*96 ))
-    export NGLOB_Y=$(( ($NPROC_Y)*96 ))
-    export NGLOB_Z=$(( ($NPROC_Z)*96 ))
+    export NGLOB_X=$(( ($NPROC_X)* ($NPCPUS)))
+    export NGLOB_Y=$(( ($NPROC_Y) * ($NPCPUS)))
+    export NGLOB_Z=$(( ($NPROC_Z) * ($NPCPUS)))
     export L_X=$(( ($NPROC_X) ))
     export L_Y=$(( ($NPROC_Y) ))
     export L_Z=$(( ($NPROC_Z) ))

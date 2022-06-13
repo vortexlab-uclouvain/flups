@@ -1,6 +1,6 @@
 
 ## Change the list of module we use 
-module use /apps/USE/easybuild/staging/2021.1/modules/all
+module use /apps/USE/easybuild/staging/2021.5/modules/all
 
 ## First load the librairies relying on the old version of OpenMPI
 module load HDF5/1.12.1-gompi-2021a
