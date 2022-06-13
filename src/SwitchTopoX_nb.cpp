@@ -212,6 +212,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // get the starting index of the request
         for (int ir = 0; ir < count_send; ++ir) {
             FLUPS_INFO("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
+            //FLUPS_WARNING("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
             // get the request id, the request is indexed as the send-order
             const int   *id_to_send = send_order_list + (n_already_send[0] + ir);
             MPI_Request *c_rqst     = send_rqst + (n_already_send[0] + ir);
@@ -267,11 +268,13 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     // while we have to send msgs to others or recv msg or copy the one we have received
     while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst) || (copy_cntr < n_recv_rqst)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
+        //FLUPS_WARNING("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
 
         //......................................................................
         // [1] test if we have finished some send requests and start new ones
         //......................................................................
         if (finished_send < n_send_rqst) {
+            //FLUPS_WARNING("Testing %d/%d send requests, finished = %d",send_cntr,n_send_rqst,finished_send);
             // completed id can be reused here as it has been allocated on the max of send and recv
             int n_send_completed;
             MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, MPI_STATUSES_IGNORE);
@@ -319,14 +322,18 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         //......................................................................
         // for each of the ready  and not copied yet request, copy them
         if (is_mem_reset && (copy_cntr < recv_cntr)) {
-            for (int icpy = copy_cntr; icpy < recv_cntr; ++icpy) {
-                const int rqst_id = recv_order_list[icpy];
-                FLUPS_INFO("treating recv request %d/%d with id = %d", icpy, n_recv_rqst, rqst_id);
+            const int n_ready = recv_cntr - copy_cntr;
+            for (int icpy = 0; icpy < n_ready; ++icpy) {
+                const int rqst_id = recv_order_list[copy_cntr];
+                FLUPS_INFO("treating recv request %d/%d with id = %d",copy_cntr, n_recv_rqst, rqst_id);
+
                 // copy the data
                 m_profStart(prof, "copy");
                 CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
                 m_profStop(prof, "copy");
-                ++copy_cntr;
+
+                // increment the counter
+                copy_cntr ++;
             }
         }
     }
