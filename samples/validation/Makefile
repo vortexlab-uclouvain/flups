@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_gcc
+ARCH_FILE ?= make_arch/make.docker_clang
 include ../../$(ARCH_FILE)
 
 ################################################################################
@@ -45,6 +45,13 @@ OBJ_DIR := ./build
 INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
+#---- CUDA (& cuFFT)
+CUDA_INC ?= /usr/local/cuda/include
+CUDA_LIB ?= /usr/local/cuda/lib64
+CUDA_LIBNAME ?= -lcudart -lcufft -lcublas
+INC += -I$(CUDA_INC)
+LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
+
 #---- FLUPS
 FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
