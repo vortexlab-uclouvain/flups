@@ -27,7 +27,7 @@
 
 /**
  * @brief Construct a new FFTW_plan_dim object
- * 
+ *
  * @param dimID the dimension id in the non-transpose reference = the field reference
  * @param h the grid spacing
  * @param L the lenght of the computational domain
@@ -36,9 +36,9 @@
  * @param isGreen boolean to indicate if the plan is intended for Green's function
  */
 FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen) : lda_(lda),
-                                                                                                                                                                    dimID_(dimID),
-                                                                                                                                                                    sign_(sign),
-                                                                                                                                                                    isGreen_(isGreen){
+                                                                                                                                                                isGreen_(isGreen),
+                                                                                                                                                                dimID_(dimID),
+                                                                                                                                                                sign_(sign) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // sanity checks
@@ -405,32 +405,32 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
 
 /**
  * @brief check that every starting pointer in a direction is well-aligned for the FFTW requirement
- * 
+ *
  * @warning to access the memory, we cannot use #howmany_ since it is based on the local size of the topo on the input.
  * Then, we have to use the memdim() function of the Topology
- * 
- * @param topo 
- * @param data 
+ *
+ * @param topo
+ * @param data
  */
 void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
 #ifndef NDEBUG
     const size_t howmany = howmany_;
     const size_t onmax   = howmany_ * lda_;
-    const size_t memdim = topo->memdim();
+    const size_t memdim  = topo->memdim();
 
     for (size_t id = 0; id < onmax; id++) {
         // get the current index
-        size_t io = id%howmany_;
-        size_t lia = id/howmany_;
+        size_t io  = id % howmany;
+        size_t lia = id / howmany;
         // get the memory
-        double* mydata;
+        double* mydata = nullptr;
         if (type_ == SYMSYM || type_ == MIXUNB) {
-            mydata = data + lia* memdim + io * fftw_stride_;
+            mydata = data + lia * memdim + io * fftw_stride_;
         } else if (type_ == PERPER || type_ == UNBUNB) {
             if (isr2c_) {
-                mydata = data + lia* memdim + io * fftw_stride_;
+                mydata = data + lia * memdim + io * fftw_stride_;
             } else {
-                mydata = data + lia* memdim + io * fftw_stride_ * 2;
+                mydata = data + lia * memdim + io * fftw_stride_ * 2;
             }
         }
         // check the alignment
