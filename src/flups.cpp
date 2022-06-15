@@ -92,10 +92,12 @@ void flups_info(int argc, char** argv) {
 #ifdef COMM_NONBLOCK
         fprintf(file, "\tPersistent, non blocking implementation \n");
         fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
+        fprintf(file, "\tFLUPS_MPI_MAX_NBSEND = %d\n", FLUPS_MPI_MAX_NBSEND);
 #endif
 #ifdef COMM_ISR
         fprintf(file, "\tNon blocking implementation -- MPI data type \n");
         fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
+        fprintf(file, "\tFLUPS_MPI_MAX_NBSEND = %d\n", FLUPS_MPI_MAX_NBSEND);
 #endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {

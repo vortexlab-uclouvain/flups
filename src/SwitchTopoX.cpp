@@ -145,7 +145,7 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     // we have to update the ranks for each of the i2o_chunks and o2i_chunks
     // the i2o_chunks have for the moment a dest_rank in the outcomm
     // the io2i_chunks have for the moment a dest_rank in the incomm
-    MPI_Group in_group, out_group, sub_group;
+    MPI_Group sub_group;
     MPI_Comm_group(subcomm_, &sub_group);
 
     // replace the old ranks by the newest ones

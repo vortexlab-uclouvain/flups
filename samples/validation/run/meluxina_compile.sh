@@ -46,8 +46,8 @@ echo "## For production: " >> make_arch/make.meluxina
 # echo "CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
 # echo "CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros " >> make_arch/make.meluxina
 
-echo "CXXFLAGS := -g -O3 -std=c++17 -DNDEBUG -march=native -DHAVE_WISDOM=\\\"${HOME}/flups/fftw-wisdom/wisdom/meluxina.wsdm\\\" ${COMPILE_OPT}" >> make_arch/make.meluxina
-echo "CCFLAGS := -g -O3 -std=c99 -DNDEBUG -march=native" >> make_arch/make.meluxina
+echo "CXXFLAGS := -g -O0 -DVERBOSE -std=c++17 -march=native -DHAVE_WISDOM=\\\"${HOME}/flups/fftw-wisdom/wisdom/meluxina.wsdm\\\" ${COMPILE_OPT}" >> make_arch/make.meluxina
+echo "CCFLAGS := -g -O0 -DVERBOSE -std=c99 -march=native" >> make_arch/make.meluxina
 
 # Working configuration
 # echo "CXXFLAGS := -g -Wall -O0 --debug -std=c++11" >> make_arch/make.meluxina

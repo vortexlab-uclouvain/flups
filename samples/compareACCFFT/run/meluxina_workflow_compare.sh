@@ -6,7 +6,7 @@
 
 OMPIVERSION=4.1.3
 #CODE_VERSION='dprec_nb dprec_a2a nb a2a'
-CODE_VERSION='nb isr'
+CODE_VERSION='isr nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -55,8 +55,8 @@ echo " ------ ... done ! "
 
 ## 1 Node == 128 CPUS -> 1*64 = 64
 export NPROC_X=1
-export NPROC_Y=16
-export NPROC_Z=16
+export NPROC_Y=16 #4 #16
+export NPROC_Z=16 #4 #16
 #export NPCPU=16
 npcpu_list=(48)
 
