@@ -1,12 +1,15 @@
-#!/bin/sh 
+#!/bin/bash -l
+#SBATCH --job-name="Flups Compilation"
+#SBATCH --output=flups_compile%j.out
+#SBATCH --error=flups_compile%j.err
 
 source ${SCRIPT_MODULE} ${MPI_VERSION}
 
 ## Compile H3LPR
 cd ${H3LPR_DIR}
 touch make_arch/make.${CLUSTER}
-echo "CXX=CC " >> make_arch/make.${CLUSTER} 
-echo "CC=cc " > make_arch/make.${CLUSTER}
+echo "CXX=${MPICXX} " >> make_arch/make.${CLUSTER} 
+echo "CC=${MPICC} " > make_arch/make.${CLUSTER}
 echo "CXXFLAGS :=  ${H3LPR_CXXFLAGS}" >> make_arch/make.${CLUSTER}
 echo "LDFLAGS  := ${H3LPR_LDFLAGS}" >> make_arch/make.${CLUSTER}
 ARCH_FILE=make_arch/make.${CLUSTER} make install -j4 
@@ -16,8 +19,8 @@ cd -
 ## Compile Flups 
 ## Warning -- Only the static librairies are installed as we move the executable of place.. 
 cd ${FLUPS_DIR} 
-echo "CXX=CC" > make_arch/make.${CLUSTER}
-echo "CC=cc " >> make_arch/make.${CLUSTER}
+echo "CXX=${MPICXX}" > make_arch/make.${CLUSTER}
+echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
 
 echo "CXXFLAGS := ${FLUPS_CXXFLAGS} " >> make_arch/make.${CLUSTER}
 echo "CCFLAGS  := ${FLUPS_CCFLAGS}" >> make_arch/make.${CLUSTER}

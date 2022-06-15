@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash -l
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
 ## Compilation has to be done on the compute nodes (the logging node don't have any module information)
@@ -9,7 +9,7 @@ SUBMISSION_NAME=weak_scaling_flups-${MPI_VERSION}-${TAG}
 
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory
-SCRATCH_DIR=${BASE_SCRATCHDIR}/${SUBMISSION_NAME}  
+export SCRATCH_DIR=${BASE_SCRATCHDIR}/${SUBMISSION_NAME}  
 echo "scratch directory = ${SCRATCH_DIR}"
 
 #-------------------------------------------------------------------------------
@@ -31,22 +31,17 @@ rsync -r ${HOME_H3LPR} ${H3LPR_DIR}
 echo " ------ ... done ! "
 
 #-------------------------------------------------------------------------------
-## Compile the librairies  
-export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG'
-export H3LPR_LDFLAGS='-fopenmp'
-
-export FLUPS_CCFLAGS='-g -O3 -std=c99 -DNDEBUG'
-export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DNDEBUG'
-export FLUPS_LDFLAGS='-fopenmp '
-export FLUPS_OPTS=''
-
-export FFTW_DIR
-export HDF5_DIR
 ## Launch the compilations
 echo " ------ Compiling librairies ..."
 COMPILEJOB_ID=$(sbatch --parsable \
-                       --job-name=flups_compile_CRAYMPICH${MPI_VERSION} \
-                       ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_compile.sh) 
+                       --job-name=flups_compile_MPI_${MPI_VERSION} \
+                       --account=${ACCOUNT} \
+                       --partition=${PARTITION} \
+                       ${COMPILE_CLUSTER_SPEC} \
+                       --nodes=${COMPILE_NNODE} \
+                       --ntasks=${COMPILE_NTASK} \
+                       --time=${COMPILE_TIME} \
+                       ${FLUPS_DIR}/samples/validation/run/benchmark_compile.sh) 
 echo " ------ ... done ! "
 
 #-------------------------------------------------------------------------------
@@ -55,25 +50,13 @@ echo " ------ ... done ! "
 ## 1 Node == 128 CPUS
 export NPROC_X=4
 export NPROC_Y=4
-export NPROC_Z=4
+export NPROC_Z=8
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..7}
+for i in {0..0}
 do
-    if [ $(($i%3)) -eq 0 ]
-    then
-        NPROC_Z=$((2*$NPROC_Z))
-    fi
-    if [ $((($i)%3)) -eq 1 ]
-    then
-        NPROC_Y=$((2*$NPROC_Y))
-    fi
-    if [ $(($i%3)) -eq 2 ]
-    then
-        NPROC_X=$((2*$NPROC_X))
-    fi
-    export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/128 ))
+    export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
     
     #---------------------------------------------------------------------------
     export NGLOB_X=$(( ($NPROC_X)*($NPCPUS) ))
@@ -86,11 +69,33 @@ do
     #---------------------------------------------------------------------------
     # Loop on the provided version 
     #---------------------------------------------------------------------------
-    export MYNAME=flups_${version}_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
+    export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
     echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
     echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
-    sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh
+    
+    sbatch -d afterok:${COMPILEJOB_ID} \
+           --job-name=${MYNAME} \
+           --account=${ACCOUNT} \
+           ${KERNEL_CLUSTER_SPEC} \
+           --partition=${PARTITION} \
+           --nodes=${NNODE} \
+           --ntasks-per-node=${NPROC_NODES} \
+           --time=${KERNEL_TIME} \
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
     #---------------------------------------------------------------------------
+    
+    if [ $(($i%3)) -eq 0 ]
+    then
+        NPROC_Z=$((2*$NPROC_Z))
+    fi
+    if [ $((($i)%3)) -eq 1 ]
+    then
+        NPROC_Y=$((2*$NPROC_Y))
+    fi
+    if [ $(($i%3)) -eq 2 ]
+    then
+        NPROC_X=$((2*$NPROC_X))
+    fi
 done 
 
 
