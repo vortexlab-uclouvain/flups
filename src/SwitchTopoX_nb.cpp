@@ -212,8 +212,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // get the starting index of the request
         for (int ir = 0; ir < count_send; ++ir) {
             FLUPS_INFO("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
-            //FLUPS_WARNING("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
-            // get the request id, the request is indexed as the send-order
+            // FLUPS_WARNING("sending %d/%d request -- already send = %d", count_send, n_ttl_to_send, *n_already_send);
+            //  get the request id, the request is indexed as the send-order
             const int   *id_to_send = send_order_list + (n_already_send[0] + ir);
             MPI_Request *c_rqst     = send_rqst + (n_already_send[0] + ir);
             MemChunk    *c_chunk    = send_chunks + id_to_send[0];
@@ -260,6 +260,11 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     }
     m_profStop(prof, "pre-send");
 
+#ifndef NDEBUG
+    MPI_Status *send_status = reinterpret_cast<MPI_Status *>(m_calloc(sizeof(MPI_Status) * n_send_rqst));
+    MPI_Status *recv_status = reinterpret_cast<MPI_Status *>(m_calloc(sizeof(MPI_Status) * n_recv_rqst));
+#endif
+
     //..........................................................................
     m_profStart(prof, "while loop");
     m_profInitLeave(prof, "copy");
@@ -274,10 +279,29 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // [1] test if we have finished some send requests and start new ones
         //......................................................................
         if (finished_send < n_send_rqst) {
-            //FLUPS_WARNING("Testing %d/%d send requests, finished = %d",send_cntr,n_send_rqst,finished_send);
-            // completed id can be reused here as it has been allocated on the max of send and recv
-            int n_send_completed;
+            // FLUPS_WARNING("Testing %d/%d send requests, finished = %d",send_cntr,n_send_rqst,finished_send);
+            //  completed id can be reused here as it has been allocated on the max of send and recv
+            int n_send_completed = 0;
+#ifndef NDEBUG
+            MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, send_status);
+            FLUPS_CHECK(n_send_completed != MPI_UNDEFINED, "having an MPI_UNDEFINED here means no request is active");
+
+            for (int ir = 0; ir < n_send_completed; ++ir) {
+                const int    rid    = completed_id[ir];
+                MPI_Status   status = send_status[ir];
+                MPI_Request *rqst   = send_rqst + rid;
+                // the chunk is can be retrieve becuase if the request is the x one, it's also the x one in the send_order
+                const int chunk_id = send_order_list[rid];
+                MemChunk *chunk    = send_chunks + chunk_id;
+
+                // check the the source and the tag
+                int send_tag;
+                MPI_Comm_rank(chunk->comm, &send_tag);
+                FLUPS_CHECK(send_tag == status.MPI_TAG, "The tag of the message send does not match: %d vs %d", send_tag, status.MPI_TAG);
+            }
+#else
             MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, MPI_STATUSES_IGNORE);
+#endif
 
             // this is the total number of send that have completed
             finished_send += n_send_completed;
@@ -285,14 +309,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             const int n_to_resend        = m_min(FLUPS_MPI_MAX_NBSEND - still_ongoing_send, send_batch);
             FLUPS_CHECK(n_to_resend >= 0, " You need to send a positive number of request");
             send_my_batch(n_send_rqst, &send_cntr, n_to_resend);
-
-            // if all the send have completed I can reset the memory to 0
-            is_mem_reset = (finished_send == n_send_rqst);
-            if (is_mem_reset) {
-                const size_t reset_size = topo_out->memsize();
-                std::memset(mem, 0, reset_size * sizeof(double));
-                FLUPS_INFO("reset mem done ");
-            }
+        }
+        // if all the send have completed I can reset the memory to 0
+        if (!is_mem_reset && (finished_send == n_send_rqst)) {
+            const size_t reset_size = topo_out->memsize();
+            std::memset(mem, 0, reset_size * sizeof(double));
+            is_mem_reset = true;
         }
 
         //......................................................................
@@ -301,15 +323,26 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if we have some requests to recv, test it
         if (recv_cntr < n_recv_rqst) {
             int n_completed = 0;
+#ifndef NDEBUG
+            MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, recv_status);
+            FLUPS_CHECK(n_completed != MPI_UNDEFINED, "having an MPI_UNDEFINED here means no request is active");
+#else
             MPI_Testsome(n_recv_rqst, recv_rqst, &n_completed, completed_id, MPI_STATUSES_IGNORE);
+#endif
 
             // for each of the completed request save its id for processing later
             for (int id = 0; id < n_completed; ++id) {
                 const int rqst_id = completed_id[id];
+                MemChunk *chunk   = recv_chunks + rqst_id;
                 FLUPS_INFO("shuffling request %d/%d with id = %d", recv_cntr + id, n_recv_rqst, rqst_id);
+#ifndef NDEBUG
+                MPI_Status status = recv_status[id];
+                FLUPS_CHECK(chunk->dest_rank == status.MPI_TAG, "The tag of the message send does not match: %d vs %d", chunk->dest_rank, status.MPI_TAG);
+                FLUPS_CHECK(chunk->dest_rank == status.MPI_SOURCE, "The tag of the message send does not match: %d vs %d", chunk->dest_rank, status.MPI_SOURCE);
+#endif
                 // shuffle the data
                 m_profStart(prof, "shuffle");
-                DoShuffleChunk(recv_chunks + rqst_id);
+                DoShuffleChunk(chunk);
                 m_profStop(prof, "shuffle");
                 // save the id for copy'ing it later
                 recv_order_list[recv_cntr] = completed_id[id];
@@ -333,12 +366,17 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
                 m_profStop(prof, "copy");
 
                 // increment the counter
-                copy_cntr ++;
+                copy_cntr++;
             }
         }
     }
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
+
+#ifndef NDEBUG
+    m_free(send_status);
+    m_free(recv_status);
+#endif
 
     FLUPS_INFO("Copying data completed");
     //--------------------------------------------------------------------------
