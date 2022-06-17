@@ -5,7 +5,7 @@
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=weak_scaling_flups-${MPI_VERSION}-${TAG}
+SUBMISSION_NAME=strong_scaling_flups-${MPI_VERSION}-${TAG}
 
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory
@@ -48,24 +48,24 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X=4
-export NPROC_Y=4
-export NPROC_Z=8
+export NPROC_X=8
+export NPROC_Y=16
+export NPROC_Z=16
+
+export NGLOB_X=4096
+export NGLOB_Y=4096
+export NGLOB_Z=4096
+
+export L_X=1
+export L_Y=1
+export L_Z=1
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {1..10}
+for i in {5..10}
 do
     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
-    
-    #---------------------------------------------------------------------------
-    export NGLOB_X=$(( ($NPROC_X)*($NPCPUS) ))
-    export NGLOB_Y=$(( ($NPROC_Y)*($NPCPUS) ))
-    export NGLOB_Z=$(( ($NPROC_Z)*($NPCPUS) ))
-    export L_X=$(( ($NPROC_X) ))
-    export L_Y=$(( ($NPROC_Y) ))
-    export L_Z=$(( ($NPROC_Z) ))
-    
+
     #---------------------------------------------------------------------------
     # Loop on the provided version 
     #---------------------------------------------------------------------------
