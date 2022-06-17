@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------------------------
 #               Case dependent info
 #---------------------------------------------------------------------------------------
-export CODE_VERSION='dprec_nb dprec_a2a a2a nb isr'
+export CODE_VERSION='a2a nb isr dprec_nb dprec_a2a '
 export NPCPUS=96
 
 ## Compile the librairies  
