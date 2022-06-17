@@ -261,7 +261,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profStop(prof, "pre-send");
 
 #ifndef NDEBUG
-    MPI_Status *send_status = reinterpret_cast<MPI_Status *>(m_calloc(sizeof(MPI_Status) * n_send_rqst));
     MPI_Status *recv_status = reinterpret_cast<MPI_Status *>(m_calloc(sizeof(MPI_Status) * n_recv_rqst));
 #endif
 
@@ -282,26 +281,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             // FLUPS_WARNING("Testing %d/%d send requests, finished = %d",send_cntr,n_send_rqst,finished_send);
             //  completed id can be reused here as it has been allocated on the max of send and recv
             int n_send_completed = 0;
-#ifndef NDEBUG
-            MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, send_status);
-            FLUPS_CHECK(n_send_completed != MPI_UNDEFINED, "having an MPI_UNDEFINED here means no request is active");
-
-            for (int ir = 0; ir < n_send_completed; ++ir) {
-                const int    rid    = completed_id[ir];
-                MPI_Status   status = send_status[ir];
-                MPI_Request *rqst   = send_rqst + rid;
-                // the chunk is can be retrieve becuase if the request is the x one, it's also the x one in the send_order
-                const int chunk_id = send_order_list[rid];
-                MemChunk *chunk    = send_chunks + chunk_id;
-
-                // check the the source and the tag
-                int send_tag;
-                MPI_Comm_rank(chunk->comm, &send_tag);
-                FLUPS_CHECK(send_tag == status.MPI_TAG, "The tag of the message send does not match: %d vs %d", send_tag, status.MPI_TAG);
-            }
-#else
             MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, MPI_STATUSES_IGNORE);
-#endif
 
             // this is the total number of send that have completed
             finished_send += n_send_completed;
@@ -374,7 +354,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profStop(prof, "send/recv");
 
 #ifndef NDEBUG
-    m_free(send_status);
     m_free(recv_status);
 #endif
 
