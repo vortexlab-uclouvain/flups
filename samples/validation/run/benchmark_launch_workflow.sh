@@ -9,8 +9,8 @@ export NPCPUS=96
 export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG'
 export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl'
 
-export FLUPS_CCFLAGS='-g -O3 -std=c99'
-export FLUPS_CXXFLAGS='-g -O3 -std=c++17'
+export FLUPS_CCFLAGS='-g -O3 -std=c99 -DNDEBUG'
+export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DNDEBUG'
 export FLUPS_LDFLAGS='-fopenmp '
 export FLUPS_OPTS=''
 
@@ -100,5 +100,5 @@ if [[ ${CLUSTER} == "vega" ]]; then
 fi
 
 
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
+("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
 ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh")

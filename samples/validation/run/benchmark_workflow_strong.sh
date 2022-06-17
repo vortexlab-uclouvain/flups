@@ -48,13 +48,13 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X=8
-export NPROC_Y=16
-export NPROC_Z=16
+export NPROC_X_ARR=(8 16 16 16 32 32 32)
+export NPROC_Y_ARR=(8 12 24 24 24 32 48)
+export NPROC_Z_ARR=(12 12 12 24 24 48 48)
 
-export NGLOB_X=4096
-export NGLOB_Y=4096
-export NGLOB_Z=4096
+export NGLOB_X=1152
+export NGLOB_Y=1152
+export NGLOB_Z=1152
 
 export L_X=1
 export L_Y=1
@@ -62,8 +62,13 @@ export L_Z=1
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {5..10}
+for idx in "${!NPROC_X_ARR[@]}";
 do
+    export NPROC_X=${NPROC_X_ARR[$idx]}
+    export NPROC_Y=${NPROC_Y_ARR[$idx]}
+    export NPROC_Z=${NPROC_Z_ARR[$idx]}
+
+
     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
 
     #---------------------------------------------------------------------------
@@ -83,19 +88,6 @@ do
            --time=${KERNEL_TIME} \
            ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
     #---------------------------------------------------------------------------
-    
-    if [ $(($i%3)) -eq 0 ]
-    then
-        NPROC_Z=$((2*$NPROC_Z))
-    fi
-    if [ $((($i)%3)) -eq 1 ]
-    then
-        NPROC_Y=$((2*$NPROC_Y))
-    fi
-    if [ $(($i%3)) -eq 2 ]
-    then
-        NPROC_X=$((2*$NPROC_X))
-    fi
 done 
 
 

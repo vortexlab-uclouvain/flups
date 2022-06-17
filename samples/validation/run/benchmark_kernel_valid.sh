@@ -14,6 +14,8 @@ do
     cd ${SCRATCH_FLUPS}
     cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
 
+    export UCX_TLS=ud,sm
+
     echo "----------------- launching job -----------------"
     if [[ ${LCOMMAND} == "srun" ]]; then
         echo "srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --L=${L_X},${L_Y},${L_Z} --nres=1 --ns=20 --kernel=0"; 
