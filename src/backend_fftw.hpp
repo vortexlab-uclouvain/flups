@@ -47,7 +47,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
                               in, &arch.dim, arch.stride, arch.dist,
                               out, &arch.dim, arch.stride, arch.dist,
-                              &kind, FFTW_FLAG);
+                              &kind, FLUPS_FFTW_FLAG);
 }
 
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
@@ -55,7 +55,7 @@ inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex 
     return fftw_plan_many_dft_r2c(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist,
                                   out, &arch.dim, 1, arch.dist / 2,
-                                  FFTW_FLAG);
+                                  FLUPS_FFTW_FLAG);
 }
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
@@ -63,7 +63,7 @@ inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double 
     return fftw_plan_many_dft_c2r(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist / 2,
                                   out, &arch.dim, 1, arch.dist,
-                                  FFTW_FLAG);
+                                  FLUPS_FFTW_FLAG);
 }
 
 inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
@@ -71,14 +71,14 @@ inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_c
     return fftw_plan_many_dft(1, &arch.dim, arch.howmany,
                               in, &arch.dim, 1, arch.dist,
                               out, &arch.dim, 1, arch.dist,
-                              sign, FFTW_FLAG);
+                              sign, FLUPS_FFTW_FLAG);
 }
 
 inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, double *out, bool iscomplex) {
     if (!iscomplex) {
-        return fftw_plan_guru_r2r(0, NULL, 2, dims, in, out, NULL, FFTW_FLAG);
+        return fftw_plan_guru_r2r(0, NULL, 2, dims, in, out, NULL, FLUPS_FFTW_FLAG);
     } else {
-        return fftw_plan_guru_dft(0, NULL, 2, dims, (flups_complex*)in, (flups_complex*)out, FLUPS_FORWARD, FFTW_FLAG);
+        return fftw_plan_guru_dft(0, NULL, 2, dims, (flups_complex*)in, (flups_complex*)out, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
     }
 }
 
