@@ -26,6 +26,11 @@ inline void init_backend() {
 inline void finalize_backend() {
     fftw_cleanup_threads();
     fftw_cleanup();
+
+#ifdef FLUPS_WISDOM_PATH
+    FLUPS_WARNING("Importing wisdom from %s",FLUPS_WISDOM_PATH);
+    fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
+#endif
 }
 
 // Allocation functions

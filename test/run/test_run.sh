@@ -1,10 +1,10 @@
 #!/bin/bash
-# Submission script for Lemaitre3 
+# Submission script for Lemaitre3
 #SBATCH --job-name=flups_auto_test
-#SBATCH --time=6:00:00 # hh:mm:ss
+#SBATCH --time=16:00:00 # hh:mm:ss
 #
 #SBATCH --ntasks=64
-#SBATCH --mem-per-cpu=4000 # megabytes 
+#SBATCH --mem-per-cpu=4000 # megabytes
 #SBATCH --partition=batch
 #
 #SBATCH --comment=flups
@@ -20,7 +20,7 @@ module load HDF5/1.12.1-gompi-2021b
 module load CMake/3.21.1-GCCcore-11.2.0
 #------------------------------------------------------------------------------
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBPATH}
 
 echo "--------------------------------------------------------------------"
 echo "      WELCOME ON LM3!! "
@@ -30,4 +30,4 @@ echo "--------------------------------------------------------------------"
 
 #------------------------------------------------------------------------------
 # run the simulation
-srun -n ${SLURM_NTASKS} ./${EXEC} --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID
+mpirun -n ${SLURM_NTASKS} ${EXEC} --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID

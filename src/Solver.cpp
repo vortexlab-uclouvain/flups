@@ -512,6 +512,10 @@ Solver::~Solver() {
 
 
     //cleanup
+//#ifdef FLUPS_WISDOM_PATH
+//    FLUPS_WARNING("exporting wisdom to %s",FLUPS_WISDOM_PATH);
+//    fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
+//#endif
     finalize_backend();
     // m_profStopi(prof_, "Clean up");
     //-------------------------------------------------------------------------
@@ -1242,8 +1246,8 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     FLUPS_CHECK(data != NULL, "data is NULL");
     FLUPS_CHECK(lda_ == topo->lda(),"the solver lda = %d must match the topology one = %d",lda_,topo->lda());
     //-------------------------------------------------------------------------
-    m_profStarti(prof_,"copy");
-
+    m_profStart(prof_,"copy rhs");
+    
     double* owndata = data_; 
     double* argdata = data; 
 
@@ -1262,106 +1266,107 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
         omp_target_memcpy(argdata, owndata, memdim*sizeof(double), 0, 0, omp_get_initial_device(), omp_get_default_device());
     }
 #endif
+/*
+    const int    ax0     = topo->axis();
+    const int    ax1     = (ax0 + 1) % 3;
+    const int    ax2     = (ax0 + 2) % 3;
+    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const size_t memdim  = topo->memdim();
+    const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);
+    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * lda_;
+    const size_t inmax   = topo->nloc(ax0);
 
-    m_profStopi(prof_,"copy");
+    // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
+    if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
+        // do the loop
+        if (sign == FLUPS_FORWARD) {
+            //Copying from arg to own
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
+            for (int id = 0; id < onmax; id++) {
+                // get the lia and the io
+                const size_t lia = id / ondim;
+                const size_t io  = id % ondim;
+                // get the pointers
+                opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                // set the alignment
+                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    ownloc[ii] = argloc[ii];
+                }
+            }
+        } else {  //FLUPS_BACKWARD
+                  //Copying from own to arg
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
+            for (int id = 0; id < onmax; id++) {
+                // get the lia and the io
+                const size_t lia = id / ondim;
+                const size_t io  = id % ondim;
+                // get the pointers
+                opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                // set the alignment
+                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    argloc[ii] = ownloc[ii];
+                }
+            }
+        }
+    } else {
+        // do the loop
+        FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %lu. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT);
+        if (sign == FLUPS_FORWARD) {
+            //Copying from arg to own
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
+            for (int id = 0; id < onmax; id++) {
+                // get the lia and the io
+                const size_t lia = id / ondim;
+                const size_t io  = id % ondim;
+                // get the pointers
+                double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    ownloc[ii] = argloc[ii];
+                }
+            }
+        } else {  //FLUPS_BACKWARD
+                  //Copying from own to arg
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
+            for (int id = 0; id < onmax; id++) {
+                // get the lia and the io
+                const size_t lia = id / ondim;
+                const size_t io  = id % ondim;
+                // get the pointers
+                double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+                for (size_t ii = 0; ii < inmax; ii++) {
+                    argloc[ii] = ownloc[ii];
+                }
+            }
+        }
+    }
 
-//     const int    ax0     = topo->axis();
-//     const int    ax1     = (ax0 + 1) % 3;
-//     const int    ax2     = (ax0 + 2) % 3;
-//     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-//     const size_t memdim  = topo->memdim();
-//     const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);
-//     const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * lda_;
-//     const size_t inmax   = topo->nloc(ax0);
+#ifndef NDEBUG
+    for (int id = 0; id < onmax; id++){
+        // get the lia and the io
+        const size_t lia          = id / ondim;
+        const size_t io           = id % ondim;
+        double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
+        FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
+        for (size_t ii = 0; ii < inmax; ii++) {
+            FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
+        }
+    }
 
-//     // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
-//     if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
-//         // do the loop
-//         if (sign == FLUPS_FORWARD) {
-//             //Copying from arg to own
-// #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-//             for (int id = 0; id < onmax; id++) {
-//                 // get the lia and the io
-//                 const size_t lia = id / ondim;
-//                 const size_t io  = id % ondim;
-//                 // get the pointers
-//                 opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 // set the alignment
-//                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-//                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-//                 for (size_t ii = 0; ii < inmax; ii++) {
-//                     ownloc[ii] = argloc[ii];
-//                 }
-//             }
-//         } else {  //FLUPS_BACKWARD
-//                   //Copying from own to arg
-// #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-//             for (int id = 0; id < onmax; id++) {
-//                 // get the lia and the io
-//                 const size_t lia = id / ondim;
-//                 const size_t io  = id % ondim;
-//                 // get the pointers
-//                 opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 // set the alignment
-//                 FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-//                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-//                 for (size_t ii = 0; ii < inmax; ii++) {
-//                     argloc[ii] = ownloc[ii];
-//                 }
-//             }
-//         }
-//     } else {
-//         // do the loop
-//         FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %lu. Please align your topology using FLUPS_ALIGNEMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT);
-//         if (sign == FLUPS_FORWARD) {
-//             //Copying from arg to own
-// #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-//             for (int id = 0; id < onmax; id++) {
-//                 // get the lia and the io
-//                 const size_t lia = id / ondim;
-//                 const size_t io  = id % ondim;
-//                 // get the pointers
-//                 double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-//                 for (size_t ii = 0; ii < inmax; ii++) {
-//                     ownloc[ii] = argloc[ii];
-//                 }
-//             }
-//         } else {  //FLUPS_BACKWARD
-//                   //Copying from own to arg
-// #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-//             for (int id = 0; id < onmax; id++) {
-//                 // get the lia and the io
-//                 const size_t lia = id / ondim;
-//                 const size_t io  = id % ondim;
-//                 // get the pointers
-//                 double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//                 FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-//                 for (size_t ii = 0; ii < inmax; ii++) {
-//                     argloc[ii] = ownloc[ii];
-//                 }
-//             }
-//         }
-//     }
-
-// #ifndef NDEBUG
-//     for (int id = 0; id < onmax; id++){
-//         // get the lia and the io
-//         const size_t lia          = id / ondim;
-//         const size_t io           = id % ondim;
-//         double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//         opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-//         FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-//         for (size_t ii = 0; ii < inmax; ii++) {
-//             FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
-//         }
-//     }
-
-// #endif 
+#endif 
+*/
+    
+    m_profStop(prof_,"copy rhs");
     //-------------------------------------------------------------------------
     END_FUNC;
 }

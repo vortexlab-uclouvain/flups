@@ -628,10 +628,10 @@ void SwitchTopo::setup_shuffle_(const int bSize[3], const Topology* topo_in, con
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
     if (nf == 1) {
-        *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FFTW_FLAG);
+        *shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, data, data, NULL, FLUPS_FFTW_FLAG);
         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
     } else if (nf == 2) {
-        *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FFTW_FLAG);
+        *shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)data, (fftw_complex*)data, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
         FLUPS_CHECK(*shuffle != NULL, "Plan has not been setup");
     }
 

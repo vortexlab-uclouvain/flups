@@ -29,6 +29,7 @@
 #include "defines.hpp"
 #include "mpi.h"
 #include <cstring>
+#include <limits.h>
 
 /**
  * @brief Class Topology
@@ -95,44 +96,57 @@ class Topology {
 
     /**
      * @brief compute the scalar number of unknowns on each proc, i.e. the number of unkowns for one component
-     * 
-     * @param id 
-     * @return int 
+     *
+     * @param id
+     * @return int
      */
     inline int cmpt_nbyproc(const int id) const {
+#if (FLUPS_NEW_BALANCE)
+        const int start = cmpt_start_id_from_rank(rankd_[id], id);
+        const int end   = cmpt_start_id_from_rank(rankd_[id] + 1, id);
+        return (end - start);
+#else
         return (nglob_[id] / nproc_[id]) + 1 * ((nglob_[id] % nproc_[id]) > rankd_[id]);
-        // const int start = (nglob_[id] * rankd_[id]) / nproc_[id];
-        // const int end   = (nglob_[id] * (rankd_[id] + 1)) / nproc_[id];
-        // return (end - start);
+#endif
     }
 
     /**
      * @name Functions to compute the starting index of each topology
-     * 
+     *
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
+#if (FLUPS_NEW_BALANCE)
+        return cmpt_start_id_from_rank(rankd_[id], id);
+#else
         return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
-        // return (nglob_[id] * rankd_[id]) / nproc_[id];
+#endif
     }
 
     /**
      * @name Functions to compute the starting index of each rank of the topology
-     * 
+     * more details can be found in the documentation of the FLUPS_NEW_BALANCE define
+     *
      * @param id the id for one component
      */
     inline int cmpt_start_id_from_rank(const int rank_id, const int id) const {
+#if (FLUPS_NEW_BALANCE)
+        const int b   = nglob_[id] / nproc_[id];                     // baseline
+        const int res = nglob_[id] % nproc_[id];                     // residual
+        const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
+        // if res = 0, stride becomes then inactive
+        // it might happen when requesting out of bound ranks (typically comm_size)
+        // that rank_id/s is bigger than the residual, which is not allowed
+        return rank_id * b + m_min(rank_id / s, res);
+#else
         return (rank_id) * (nglob_[id] / nproc_[id]) + std::min(rank_id, nglob_[id] % nproc_[id]);
-        // return (nglob_[id] * rankd_[id]) / nproc_[id];
+#endif
     }
 
     /**
      * @brief compute the rank associated to a scalar global id
-     * The domain decomposition of the points in ranks (@ref cmpt_start_id) give the following inequality 
-     * global_id * nproc_ <= n_glob_*rank_id <= min(global_id +1 , nglob - 1)* nproc
-     * Since we use integral division, we only take the right inequality to compute the 
-     * rank associated with a global id
-     * 
+     * more details can be found in the documentation of the FLUPS_NEW_BALANCE define
+     *
      * if the global id requested is the last point in the domain, the rank returned is the last rank in the domain
      *
      * @param global_id the scalar id of the point considered
@@ -140,18 +154,44 @@ class Topology {
      * @return int the rank hosting the global_id, the rank is considered to be a valid rank in the topo!
      */
     inline int cmpt_rank_fromid(const int global_id, const int id) const {
-        const int nproc_g0  = nglob_[id] % nproc_[id];                       // number of procs that have a +1 in their unkowns
-        const int nbyproc   = nglob_[id] / nproc_[id];                       // the number of unknowns in the integer division
-        const int global_g0 = nproc_g0 * (nbyproc + 1);                      // the number of unknowns in the first group of procs
-        const int rank_g0   = global_id / (nbyproc + 1);                     // rank id if the global index is below global_g0
-        const int rank_g1   = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
+#if (FLUPS_NEW_BALANCE)
+        const int b   = nglob_[id] / nproc_[id];                     // baseline
+        const int res = nglob_[id] % nproc_[id];                     // residual
+        const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
+        FLUPS_CHECK(b > 0, "The baseline = %d must be > 0 with nglob = %d and nproc = %d", b, nglob_[id], nproc_[id]);
+
+        // if the res is 0, setting the stride to INT_MAX then the gsize is then INT_MAX
+        // get how many groups of rank with a "+1" are to be taken into account
+        const int gsize = (res > 0) ? (s * b + 1) : (INT_MAX);  // group size, = INT_MAX if the stride is null
+        const int gid   = m_min(res, global_id / gsize);        // group id = the nubmer of groups with a "+1", bounded by res
+        FLUPS_CHECK(gid <= res, "the group id computed based on gsize = %d must be <= res = %d", gid, res);
+        // the residual should be divided by the baseline only = all the points left to be taken into account
+        const int gres = global_id - gsize * gid;
+
+        // if the group id is smaller than the max number of group = res:
+        // you cannot return a number of rank that is higher than the stride (that would happen with the last point of the group)
+        // if the gid is after the last group then we don't care and let the rank be large enough
+        const int rrank = (gid < res)? m_min(gres / b, s - 1) : (gres/b);
+        const int grank = gid * s;
+        // const int rrank = (gid < res)? (rrank) ; m_min(gres / b, s - 1);  // the rrank is bound by s-1, always
+        const int rank  = m_min(nproc_[id] - 1, grank + rrank);
+        FLUPS_CHECK(cmpt_start_id_from_rank(rank, id) <= global_id, "The global id = %d must be bigger than the start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d) = min(%d, %d * %d + %d)", global_id, rank, cmpt_start_id_from_rank(rank, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize, nproc_[id] - 1, (global_id / gsize), s, (global_id % gsize) / b);
+        FLUPS_CHECK(global_id < cmpt_start_id_from_rank(rank + 1, id), "The global id = %d must be smaller than the next start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d)", global_id, rank, cmpt_start_id_from_rank(rank + 1, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize);
+        return rank;
+#else
+        const int nproc_g0  = nglob_[id] % nproc_[id];    // number of procs that have a +1 in their unkowns
+        const int nbyproc   = nglob_[id] / nproc_[id];    // the number of unknowns in the integer division
+        const int global_g0 = nproc_g0 * (nbyproc + 1);   // the number of unknowns in the first group of procs
+        const int rank_g0   = global_id / (nbyproc + 1);  // rank id if the global index is below global_g0
+        FLUPS_CHECK((nbyproc > 0), "the case were there is less points in 1 direction than procs in the same direction is not handled by flups");
+        const int rank_g1 = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
         return (global_id < global_g0) ? rank_g0 : m_min(rank_g1, nproc_[id] - 1);
-        // return  (nproc_[id] * std::min(global_id + 1 , nglob_[id] - 1 ))/nglob_[id] ;
+#endif
     }
 
-     /**
+    /**
      * @name Functions to compute intersection data with other Topologies
-     * 
+     *
      * @{
      */
     void cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
