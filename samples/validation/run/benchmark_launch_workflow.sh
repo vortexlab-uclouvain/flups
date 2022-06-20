@@ -59,6 +59,10 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     ## BASH OPTIONS -- kernel job 
     export KERNEL_CLUSTER_SPEC='--qos=default'
 
+    # export UCX_TLS=self,shm,rc,ud
+    # export UCX_TLS=self,shm,rc,ud
+    # export UCX_UD_TX_QUEUE_LEN=4096
+
     ## .................................
     export LCOMMAND='srun'
 fi
@@ -94,6 +98,9 @@ if [[ ${CLUSTER} == "vega" ]]; then
     ## .................................
     ## BASH OPTIONS -- kernel job 
     export KERNEL_CLUSTER_SPEC=''
+
+    ## .................................
+    export UCX_TLS=ud,sm
 
     ## .................................
     export LCOMMAND='mpirun'

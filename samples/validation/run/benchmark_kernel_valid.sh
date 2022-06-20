@@ -14,9 +14,8 @@ do
     cd ${SCRATCH_FLUPS}
     cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
 
-    # export UCX_TLS=ud,sm
-    export UCX_TLS=self,shm,rc,ud
-    export UCX_UD_TX_QUEUE_LEN=4096
+    echo "---------------- UCX Flags ---------------------"
+    echo "UCX_TLS == ${UCX_TLS}"
 
     echo "----------------- launching job -----------------"
     if [[ ${LCOMMAND} == "srun" ]]; then
