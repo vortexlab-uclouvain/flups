@@ -49,7 +49,7 @@ echo " ------ ... done ! "
 
 ## 1 Node == 128 CPUS
 export NPROC_X_ARR=(8 16 16 16 32 32 32)
-export NPROC_Y_ARR=(8 12 24 24 24 32 48)
+export NPROC_Y_ARR=(8 12 24 24 24 24 48)
 export NPROC_Z_ARR=(12 12 12 24 24 48 48)
 
 export NGLOB_X=1536
