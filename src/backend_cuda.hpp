@@ -32,6 +32,13 @@ using flups_complex = cufftDoubleComplex;
 // Init & cleanup backend
 inline void init_backend() {
     cublasCreate(&cuHandle);
+
+    // Set default GPU device
+    int rank;
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm_rank(comm, &rank);
+
+    omp_set_default_device(rank % omp_get_num_devices());
 }
 
 inline void finalize_backend() {
