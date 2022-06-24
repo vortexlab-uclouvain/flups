@@ -3,6 +3,7 @@
 #SBATCH --output=flups_compile%j.out
 #SBATCH --error=flups_compile%j.err
 
+echo "sourcing the modules"
 source ${SCRIPT_MODULE} ${MPI_VERSION}
 
 ## Compile H3LPR
@@ -12,7 +13,8 @@ echo "CXX=${MPICXX} " >> make_arch/make.${CLUSTER}
 echo "CC=${MPICC} " > make_arch/make.${CLUSTER}
 echo "CXXFLAGS :=  ${H3LPR_CXXFLAGS}" >> make_arch/make.${CLUSTER}
 echo "LDFLAGS  := ${H3LPR_LDFLAGS}" >> make_arch/make.${CLUSTER}
-ARCH_FILE=make_arch/make.${CLUSTER} make install -j4 
+ARCH_FILE=make_arch/make.${CLUSTER} make clean
+PREFIX=. ARCH_FILE=make_arch/make.${CLUSTER} make install -j4 
 cd - 
 
 
@@ -45,12 +47,14 @@ echo "##H3LPR  " >> make_arch/make.${CLUSTER}
 echo "H3LPR_INC := ${H3LPR_DIR}/include/  " >> make_arch/make.${CLUSTER}
 echo "H3LPR_LIB := ${H3LPR_DIR}/lib/  " >> make_arch/make.${CLUSTER}
 
-ARCH_FILE=make_arch/make.${CLUSTER} make install_static -j4
+ARCH_FILE=make_arch/make.${CLUSTER} make clean
+PREFIX=. ARCH_FILE=make_arch/make.${CLUSTER} make install_static -j4
 cd - 
 
 
 ## Compile the validation testcase
 cd ${FLUPS_DIR}/samples/validation
+ARCH_FILE=make_arch/make.${CLUSTER} make clean
 ARCH_FILE=make_arch/make.${CLUSTER} make all -j4
 cd -
 
