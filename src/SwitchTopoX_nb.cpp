@@ -153,8 +153,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     auto recv_my_rqst = [=](MPI_Request *request, MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d",chunk->dest_rank,chunk->isize[0],chunk->isize[1],chunk->isize[2]);
         // shuffle the data
-        // DoShuffleChunk(chunk);
-        // CopyChunk2Data(chunk, nmem_out, mem);
+        bool flag = (chunk->axis != chunk->dest_axis);
+        if (flag) DoShuffleChunk(chunk);
     };
     //..........................................................................
     int         send_cntr        = 0;
@@ -205,12 +205,14 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 
     // reset the memory to 0.0 as we do inplace computations
     const size_t reset_size = topo_out->memsize();
-    std::memset(mem, 0, reset_size * sizeof(double));
+    flups_memset(mem, 0, reset_size * sizeof(double));
 
     // once all the send has been done we can overwrite the received info
     m_profStarti(prof, "copy chunk 2 data");
     for (int ic = 0; ic < n_recv_rqst; ++ic) {
-        CopyChunk2Data(recv_chunks + ic, nmem_out, mem, false);
+        MemChunk *chunk = recv_chunks + ic;
+        bool flag = (chunk->axis != chunk->dest_axis);
+        CopyChunk2Data(chunk, nmem_out, mem, flag);
     }
     m_profStopi(prof, "copy chunk 2 data");
 
