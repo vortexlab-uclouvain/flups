@@ -9,7 +9,9 @@ compil lm3 :
     paths: 
       - libflups_a2a.a
       - libflups_nb.a
+      - libflups_isr.a
       - flups_test_a2a
+      - flups_test_isr
       - flups_test_nb
     when: on_success
   when: manual
@@ -88,7 +90,8 @@ run lm3:
     - ssh lm3 rm -f ${PATH2RUN}/*
     - ssh lm3 mkdir -p ${PATH2RUN}/
     - scp flups_test_nb lm3:${PATH2RUN}/  
-    - scp flups_test_a2a lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
+    - scp flups_test_a2a lm3:${PATH2RUN}/         
+    - scp flups_test_isr lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
     - scp -r test/run/test_run.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - scp -r test/run/test_workflow.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
     - ssh lm3 "cd ${PATH2RUN}/ && ./test_workflow.sh ${LIBDIR}"
