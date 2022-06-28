@@ -443,6 +443,9 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
  * @brief corrects the plan executed depending on #corrtype_ and #sign_.
  * 
  * This function resets the correct mode at the correct place in the Topology
+ * ............................................ 
+ * Cell-centred version
+ * ............................................
  * If going forward:
  * - the DST correction sets the 0-mode to 0 and shifts the modes by 1 on the right  (i-> i+1)
  * - the DCT correction sets the flip-flop mode to 0
@@ -450,6 +453,19 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
  * If going backward:
  * - the DCT correction is not needed
  * - the DST correction shifts the mode to the left (i-> i-1)
+ * 
+ * ............................................ 
+ * Node-centred version
+ * ............................................
+ * If going forward:
+ * - the DCT-III correction sets the flipflop-mode to 0
+ * - the DST-I correction sets the 0- and the flip-flop mode to 0 
+ * - the DST-III correction shifts the modes by 1 to the left (i->i-1)
+ * 
+ * If going backward:
+ * - the DCT-III correction is not needed
+ * - the DST-I correction is not needed 
+ * - the DST-III correction shifts the modes by 1 to the right (i->i+1) and set the first physical point to 0 
  * 
  * @param data 
  */
@@ -489,9 +505,33 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 }
                 dataloc[0] = 0.0;
             }
+        }    
 
+        else if (corrtype_[lia] == CORRECTION_NODE_DCT_III && sign_ == FLUPS_FORWARD) {
+            // we need to properly set the zero and the flip flop mode to 0
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // reset the flip-flop mode
+                dataloc[nloc - 1]       = 0.0;
+            }
         } 
-        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_FORWARD) {
+
+        else if (corrtype_[lia] == CORRECTION_NODE_DST_I && sign_ == FLUPS_FORWARD) {
+            // we need to properly set the zero and the flip flop mode to 0
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // Reset the null mode
+                dataloc[0] = 0.0;
+                // reset the flip-flop mode
+                dataloc[nloc - 1]       = 0.0;
+            }
+        } 
+
+        else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_FORWARD) {
             // we need to shift everything from i+1 to i
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
@@ -516,7 +556,7 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 }
             }
         }
-        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_BACKWARD) {
+        else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_BACKWARD) {
             // we need to shift everything from i to i+1
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {

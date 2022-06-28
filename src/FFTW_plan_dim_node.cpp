@@ -84,6 +84,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         /** - Take care of the Green function                                    */
         //-------------------------------------------------------------------------
         if (isGreen_) {
+            //In this case, the green functions are spectral. There is no need for correction
             corrtype_[lia] = CORRECTION_NONE;
             imult_[lia]    = false;
 
@@ -142,8 +143,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     n_in_[lia]  = size[dimID_] - 1;
                     n_out_ = size[dimID_];
 
-                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
-                    corrtype_[lia] = CORRECTION_NONE;
+                    corrtype_[lia] = CORRECTION_NODE_DCT_III;
                     koffset_       = 0.0;
                     // always the samed DCT
                     if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT01;   // DCT type III
@@ -163,7 +163,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     n_out_ = size[dimID_];
 
                     // The first data of the memory is not given to fftw
-                    corrtype_[lia]  = CORRECTION_NONE;
+                    corrtype_[lia]  = CORRECTION_NODE_DST_I;
                     fftwstart_[lia] = 1;
                     koffset_        = 0.0;
                     fieldstart_     = 0;
@@ -173,18 +173,18 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
 
                 } else if (bc_[1][lia] == EVEN) {
-                    // no additional mode is required
+                    // The first data is not need by FFTW, we have to manually remove it 
                     n_in_[lia]  = size[dimID_] - 1;
                     n_out_ = size[dimID_];
-                    // no correction is needed for the types 4 but an offset of 1/2 in fourier
-
-                    corrtype_[lia]  = CORRECTION_NDST;
+                    
+                    // A correction is needed to remove the first data and shift all the other to the right 
+                    corrtype_[lia]  = CORRECTION_NODE_DST_III;
                     fftwstart_[lia] = 1;
                     koffset_        = 0.0;
                     fieldstart_     = 0;
                     // always the samed DST
-                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT01;   // DST type IV
-                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type IV
+                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT01;   // DST type III
+                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type II
                 }
             } else {
                 FLUPS_CHECK(false, "unable to init the solver required");
@@ -284,7 +284,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 n_out_ = n_in_[lia] + 2;
                 // no offset after the correction
                 koffset_       = 0.0;
-                corrtype_[lia] = CORRECTION_NONE;
+                corrtype_[lia] = CORRECTION_NODE_DST_I;
                 // we do a DCT, so no imult
                 imult_[lia] = true;
                 fftwstart_[lia] = 1;

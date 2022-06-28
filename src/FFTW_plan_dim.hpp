@@ -65,8 +65,10 @@ class FFTW_plan_dim {
     enum PlanCorrectionType{
         CORRECTION_NONE = 0,
         CORRECTION_DCT = 1,
-        CORRECTION_DST = 2, 
-        CORRECTION_NDST = 3
+        CORRECTION_DST = 2,
+        CORRECTION_NODE_DCT_III = 3, 
+        CORRECTION_NODE_DST_I = 4, 
+        CORRECTION_NODE_DST_III = 5
     };
 
    protected:
