@@ -230,7 +230,7 @@ Solver::Solver(Topology *topo, BoundaryType* rhsbc[3][2], const double h[3], con
  * -------------------------------------------
  * We do the following operations
  */
-double* Solver::setup(const bool changeTopoComm) {
+void Solver::setup(const bool changeTopoComm) {
     BEGIN_FUNC;
     m_profStarti(prof_, "setup");
 
@@ -480,7 +480,6 @@ double* Solver::setup(const bool changeTopoComm) {
     FLUPS_INFO(">>>>>>>>>> DONE WITH SOLVER INITIALIZATION <<<<<<<<<<");
 
     END_FUNC;
-    return data_;
 }
 
 /**
@@ -667,6 +666,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 pencil_nproc_hint(dimID, nproc, comm_size, planmap[ip - 1]->dimID(), nproc_hint);
             }
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
+            // the rank distribution is computed using the dimOrder array, where every topology
+            // const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
             topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
@@ -680,7 +681,10 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
+#elif defined(COMM_ISR)
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+#else 
+
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
@@ -701,6 +705,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
+#elif defined(COMM_ISR)
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else                
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif 
@@ -768,6 +774,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
+#elif defined(COMM_ISR)
+                switchtopo[ip + 1] = new SwitchTopoX_isr(topomap[ip], current_topo, fieldstart, NULL);
 #else
                 switchtopo[ip + 1] = new SwitchTopoX_a2a(topomap[ip], current_topo, fieldstart, NULL);
 #endif 
@@ -841,27 +849,42 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
         if (switchtopo[id] != NULL){
             switchtopo[id]->setup();
             FLUPS_INFO("--------------- switchtopo %d set up ----------",id);
-        } 
+        }
     }
 
-    //get the maximum size required for the buffers
+    // get the maximum size required for the buffers
+    bool need_send = false;
+    bool need_recv = false;
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
+
+            need_send = need_send ||
+#if (FLUPS_MPI_AGGRESSIVE)
+                        switchtopo[id]->need_send_buf();
+#else
+                        true;
+#endif
+            need_recv = need_recv ||
+#if (FLUPS_MPI_AGGRESSIVE)
+                        switchtopo[id]->need_recv_buf();
+#else
+                        true;
+#endif
         }
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    *recv_buff = (opt_double_ptr)m_calloc(max_mem * sizeof(double));
-    std::memset(*send_buff, 0, max_mem * sizeof(double));
-    std::memset(*recv_buff, 0, max_mem * sizeof(double));
+    *send_buff = need_send ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+    *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+    // std::memset(*send_buff, 0, max_mem * sizeof(double));
+    // std::memset(*recv_buff, 0, max_mem * sizeof(double));
 
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
-        if (switchtopo[id] != NULL){
+        if (switchtopo[id] != NULL) {
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
-        } 
+        }
     }
     //-------------------------------------------------------------------------
     END_FUNC;
@@ -927,7 +950,6 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     (*data) = (double *)m_calloc(size_tot * sizeof(double));
 
     std::memset(*data, 0, size_tot * sizeof(double));
-
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
@@ -1382,8 +1404,10 @@ void Solver::do_FFT(double *data, const int sign){
             // }
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
-            m_profStopi(prof_, "SwitchTopo");        
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
+            }
+            m_profStopi(prof_, "SwitchTopo");
             // FLUPS_print_data(topo_hat_[ip], mydata);
             // run the FFT
             m_profStarti(prof_, "fftw");
@@ -1395,9 +1419,8 @@ void Solver::do_FFT(double *data, const int sign){
                 topo_hat_[ip]->switch2complex();
             }
         }
-    } 
-    else if (sign == FLUPS_BACKWARD) {  //FLUPS_BACKWARD
-        for (int ip = ndim_-1; ip >= 0; ip--) {
+    } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
+        for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1405,14 +1428,15 @@ void Solver::do_FFT(double *data, const int sign){
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
-            }  
+            }
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            }
             m_profStopi(prof_, "SwitchTopo");
         }
-    }
-    else if (sign == FLUPS_BACKWARD_DIFF) {  //FLUPS_BACKWARD_DIFF
-        for (int ip = ndim_-1; ip >= 0; ip--) {
+    } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
+        for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_diff_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
@@ -1422,7 +1446,9 @@ void Solver::do_FFT(double *data, const int sign){
                 topo_hat_[ip]->switch2real();
             }
             m_profStarti(prof_, "SwitchTopo");
-            switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            if (!(skip_st0_ && (ip == 0))) {
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+            }
             m_profStopi(prof_, "SwitchTopo");
         }
     }

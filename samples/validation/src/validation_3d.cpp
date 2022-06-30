@@ -111,7 +111,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     MPI_Comm_rank(comm, &rank);
     m_profStop(prof, "Validation--Init-Flups");
 
-    flups_switchtopo_info(mysolver);
+    //flups_switchtopo_info(mysolver);
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
@@ -372,9 +372,11 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     /** - solve the equations */
     //-------------------------------------------------------------------------
     for (int is = 0; is < nSolve; is++) {
+        MPI_Barrier(MPI_COMM_WORLD);
         m_profStart(prof, "Validation--Solve");
         flups_solve(mysolver, field, rhs,STD);
         m_profStop(prof, "Validation--Solve");
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     flups_profiler_disp(prof);

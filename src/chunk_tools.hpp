@@ -14,24 +14,35 @@ typedef struct
     int istart[3];  //!< local start index for the memory chunk (012 indexing), in the "input" topology
     int isize[3];   // !< local size for the memory chunks (012 indexing), in the "input" topology
 
-    int dest_rank;  //!< destination ranks in the destination topology
-    int dest_axis;  //!< the principal axis in the destination topology
+    int      dest_rank;  //!< destination ranks in the destination topology
+    int      dest_axis;  //!< the principal axis in the destination topology
+    MPI_Comm comm;       //!< the communicator to be used for the communication, also dictates the dest_rank id
 
     fftw_plan shuffle;  //!< the shuffle plan used by FFTW to reorder data
 
-    size_t         nda;          //!< the number of data array (1 if scalar, 3 if vector)
-    size_t         nf;           //!< the number of double per data (1 if real, 2 if complex)
+    size_t       offset;  //!< offset in memory in the "input" topology
+    MPI_Datatype dtype;   //!< datatype in the "input" topology
+
+    MPI_Datatype dest_dtype;   //!< datatype in the "output" topology
+
+    int            nda;          //!< the number of data array (1 if scalar, 3 if vector)
+    int            nf;           //!< the number of double per data (1 if real, 2 if complex)
     size_t         size_padded;  //!< padded size for the data ptr
     opt_double_ptr data;         //!< the pointer to the data in the buffer
 
 } MemChunk;
 
-void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk** chunks, int* self_comm);
+void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk** chunks);
+
+void ChunkToNewComm(const MPI_Comm new_comm, const MPI_Group new_group, MemChunk* chunk, bool* is_in_comm);
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
 void DoShuffleChunk(MemChunk* chunk);
 
 void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data);
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
+
+void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk);//, size_t* offset, MPI_Datatype* type_xyzd);
+void ChunkToDestMPIDataType(MemChunk* chunk);
 
 /**
  * @brief returns the memory size (padded to a multiple of alignment) of a MemChunk

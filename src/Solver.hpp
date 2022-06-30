@@ -36,6 +36,7 @@
 #if (FLUPS_MPI_AGGRESSIVE)
 #include "SwitchTopoX_nb.hpp"
 #include "SwitchTopoX_a2a.hpp"
+#include "SwitchTopoX_isr.hpp"
 #else
 #include "SwitchTopo.hpp"
 #include "SwitchTopo_a2a.hpp"
@@ -97,36 +98,36 @@ static int sort_plans(FFTW_plan_dim *plan[3]) {
 
 /**
  * @brief The Poisson solver
- * 
+ *
  * A collection of 3 FFTW_plan_dim for the forward and backward FFT transform of
  * data, plus the transformed required for the Green's function to solve the Poisson equation.
  * The tranforms are done in-place in each direction successively. Between each transform, data
  * are remapped (i.e. transposed) in order to have the memory aligned with the direction of the
  * transform. This is done using SwitchTopo which changes the layout of data between 2 topos.
- * 
+ *
  * @warning
  * The memory alignement follows the rules explained on the mainpage.
  * Yet, a transposition of the data is required to perfom the transfroms in the correct order.
  * For an element (ix,iy,iz) its tranposed location is computed as\code{.cpp}
  * const size_t id_transposed = iz*dim_multfact_[2] + iy*dim_multfact_[1] + ix*dim_multfact_[0] + offset_;
  * \endcode
- *  
- * 
+ *
+ *
  */
 class Solver {
    protected:
-    int            lda_           = 1;     /**@brief the number of components of the problem, i.e. 2D or 3D */
-    int            ndim_          = 3;     /**@brief the dimension of the problem, i.e. 2D or 3D */
-    int            fftwalignment_ = 0;     /**< @brief alignement assumed by the FFTW Solver  */
-    DiffType odiff_         = NOD;  /**< @brief the order of derivative (spectral = SPE, 2nd order FD = FD2) */
-    double         normfact_      = 1.0;   /**< @brief normalization factor so that the forward/backward FFT gives output = input */
-    double         volfact_       = 1.0;   /**< @brief volume factor due to the convolution computation */
-    double         hgrid_[3]      = {0.0}; /**< @brief grid spacing in the tranposed directions */
-    double*        data_          = NULL;  /**< @brief data pointer to the transposed memory */
-    
+    bool     skip_st0_      = false;  //!< dictates the solver to skip the first Switchtopo and that the "physical info" are given according to topo_hat_[0]
+    int      lda_           = 1;      //!< the number of components of the problem, i.e. 2D or 3D */
+    int      ndim_          = 3;      //!< the dimension of the problem, i.e. 2D or 3D */
+    int      fftwalignment_ = 0;      //!< alignement assumed by the FFTW Solver  */
+    DiffType odiff_         = NOD;    //!< the order of derivative (spectral = SPE, 2nd order FD = FD2) */
+    double   normfact_      = 1.0;    //!< normalization factor so that the forward/backward FFT gives output = input */
+    double   volfact_       = 1.0;    //!< volume factor due to the convolution computation */
+    double   hgrid_[3]      = {0.0};  //!< grid spacing in the tranposed directions */
+    double*  data_          = NULL;   //!< data pointer to the transposed memory */
 
     /**
-     * @name Forward and backward 
+     * @name Forward and backward
      * transforms related objects
      */
     /**@{ */
@@ -241,10 +242,13 @@ class Solver {
     Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
     ~Solver();
 
-    double* setup(const bool changeTopoComm);
+    void setup(const bool changeTopoComm);
     const Topology* get_innerTopo_physical() ;
     const Topology* get_innerTopo_spectral() ;
 
+    double* get_innerBuffer(){return data_;};
+
+    void skip_firstSwitchtopo() { skip_st0_ = true; };
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

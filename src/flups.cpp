@@ -90,7 +90,14 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "\tMPI_40 ? yes\n");
 #endif
 #ifdef COMM_NONBLOCK
+        fprintf(file, "\tPersistent, non blocking implementation \n");
         fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
+        fprintf(file, "\tFLUPS_MPI_MAX_NBSEND = %d\n", FLUPS_MPI_MAX_NBSEND);
+#endif
+#ifdef COMM_ISR
+        fprintf(file, "\tNon blocking implementation -- MPI data type \n");
+        fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
+        fprintf(file, "\tFLUPS_MPI_MAX_NBSEND = %d\n", FLUPS_MPI_MAX_NBSEND);
 #endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {
@@ -198,8 +205,8 @@ void flups_set_greenType(Solver* s, const GreenType type){
     s->set_GreenType(type);
 }
 
-double* flups_setup(Solver* s,const bool changeComm){
-    return s->setup(changeComm);
+void flups_setup(Solver* s,const bool changeComm){
+    s->setup(changeComm);
 }
 
 // solve

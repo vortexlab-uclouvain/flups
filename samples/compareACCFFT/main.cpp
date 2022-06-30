@@ -31,9 +31,10 @@ int main(int argc, char *argv[]) {
     H3LPR::Parser parser(argc, (const char **)argv);
     const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {64,64,64});
     const auto    arg_nproc = parser.GetValues<int, 3>("--nproc", "the proc distribution, for FLUPS only", {1, 1, 1});
-    // const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
+    const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
     const int     n_iter    = parser.GetValue<int>("--niter", "the number of iterations to perform", 20);
     const int     n_warm    = parser.GetValue<int>("--warm", "the number of iterations to perform when warming up", 1);
+    const bool profile = parser.GetFlag("--profile","forward the profiler to flups");
     parser.Finalize();
 
     //--------------------------------------------------------------------------
@@ -41,8 +42,8 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     const int nglob[3] = {arg_nglob[0], arg_nglob[1], arg_nglob[2]};
     const int nproc[3] = {arg_nproc[0], arg_nproc[1], arg_nproc[2]};
-    // const double L[3]     = {arg_dom[0], arg_dom[1], arg_dom[2]};
-    const double L[3] = {1.0, 1.0, 1.0};
+    const double L[3]     = {arg_dom[0], arg_dom[1], arg_dom[2]};
+    //const double L[3] = {1.0, 1.0, 1.0};
 
     // get the grid spacing
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
@@ -50,6 +51,7 @@ int main(int argc, char *argv[]) {
 
     // get the PER PER PER BC everywhere
     const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    //const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
     FLUPS_BoundaryType    *mybc[3][2];
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (rank == 0) {
-        printf("form the command line: %d %d %d unknowns on %d %d %d proc", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
+        printf("form the command line: %d %d %d unknowns on %d %d %d proc\n", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
     }
     if (nproc[0] != 1 && rank == 0) {
         printf("--------------------------------------------------------------\n");
@@ -69,31 +71,44 @@ int main(int argc, char *argv[]) {
         printf("--------------------------------------------------------------\n");
     }
 
+
+
+    //--------------------------------------------------------------------------
+    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
+    Profiler    prof(prof_name);
+
     //--------------------------------------------------------------------------
     /** - Initialize FLUPS */
     //--------------------------------------------------------------------------
     FLUPS_INFO("Initialization of FLUPS");
 
     // create a real topology
-    FLUPS_Topology topoIn(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
-    FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoIn, mybc, h, L, NOD, center_type, nullptr);
+    Profiler* flups_prof = (profile)? &prof:nullptr;
+    FLUPS_Topology topoTmp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoTmp, mybc, h, L, NOD, center_type, flups_prof);
 
     // set the CHAT2 green type (even if it's not used)
     mysolver->set_GreenType(CHAT_2);
-    double *solFLU = mysolver->setup(true);
+    mysolver->setup(true);
+    double *solFLU = mysolver->get_innerBuffer();
+
+    // to fill the data we use the inner topo
+    const Topology *topoIn = mysolver->get_innerTopo_physical();
+    // instruct the solver to skip the first ST
+    mysolver->skip_firstSwitchtopo();
 
     //..........................................................................
     // set some straightforward data
-    int topo_nmem[3] = {topoIn.nmem(0), topoIn.nmem(1), topoIn.nmem(2)};
+    int topo_nmem[3] = {topoIn->nmem(0), topoIn->nmem(1), topoIn->nmem(2)};
 
     // set a simple expression
     double val = 0.0;
-    for (int i2 = 0; i2 < topoIn.nloc(2); i2++) {
-        for (int i1 = 0; i1 < topoIn.nloc(1); i1++) {
-            for (int i0 = 0; i0 < topoIn.nloc(0); i0++) {
-                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn.cmpt_start_id(0));
-                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn.cmpt_start_id(1));
-                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn.cmpt_start_id(2));
+    for (int i2 = 0; i2 < topoIn->nloc(2); i2++) {
+        for (int i1 = 0; i1 < topoIn->nloc(1); i1++) {
+            for (int i0 = 0; i0 < topoIn->nloc(0); i0++) {
+                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
+                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
+                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
                 size_t id  = localIndex(0, i0, i1, i2, 0, topo_nmem, 1, 0);
                 solFLU[id] = sin(x) + sin(y) + sin(z);
             }
@@ -154,8 +169,6 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     /** - Proceed to the solve in place */
     //--------------------------------------------------------------------------
-    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
-    Profiler    prof(prof_name);
 
     m_profStart(&prof, "beatme");
     for (int iter = 0; iter < n_iter; iter++) {
@@ -173,8 +186,11 @@ int main(int argc, char *argv[]) {
         m_profStart(&prof, "ACCFFT - forward");
         accfft_execute_r2c(plan, data_acc, (Complex *)data_acc);
         m_profStop(&prof, "ACCFFT - forward");
+        m_profStop(&prof, "ACCFFT");
 
         MPI_Barrier(comm);
+
+        m_profStart(&prof, "ACCFFT");
         m_profStart(&prof, "ACCFFT - backward");
         accfft_execute_c2r(plan, (Complex *)data_acc, data_acc);
         m_profStop(&prof, "ACCFFT - backward");
@@ -192,8 +208,11 @@ int main(int argc, char *argv[]) {
         m_profStart(&prof, "flups - forward");
         mysolver->do_FFT(solFLU, FLUPS_FORWARD);
         m_profStop(&prof, "flups - forward");
+        m_profStop(&prof, "flups");
 
         MPI_Barrier(comm);
+
+        m_profStart(&prof, "flups");
         m_profStart(&prof, "flups - backward");
         mysolver->do_FFT(solFLU, FLUPS_BACKWARD);
         m_profStop(&prof, "flups - backward");
