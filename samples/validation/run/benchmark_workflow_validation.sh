@@ -5,7 +5,7 @@
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=weak_scaling_flups-${MPI_VERSION}-${TAG}
+SUBMISSION_NAME=validation_flups-${MPI_VERSION}-${TAG}
 
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory
@@ -48,23 +48,29 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X=4
-export NPROC_Y=4
-export NPROC_Z=8
+export ARR_NPROC_X=(4 4 4 4 4 8 8)
+export ARR_NPROC_Y=(4 4 4 8 8 8 8)
+export ARR_NPROC_Z=(8 8 8 8 8 8 16)
+
+
+export NGLOB=(32 64 128 256 512 1024 2048)
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {1..7}
-do
-    export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
-    
+for idx in "${!NGLOB[@]}";
+do    
+    export NPROC_X=${ARR_NPROC_X[$idx]}
+    export NPROC_Y=${ARR_NPROC_Y[$idx]}
+    export NPROC_Z=${ARR_NPROC_Z[$idx]}
+
     #---------------------------------------------------------------------------
-    export NGLOB_X=$(( ($NPROC_X)*($NPCPUS) ))
-    export NGLOB_Y=$(( ($NPROC_Y)*($NPCPUS) ))
-    export NGLOB_Z=$(( ($NPROC_Z)*($NPCPUS) ))
-    export L_X=$(( ($NPROC_X) ))
-    export L_Y=$(( ($NPROC_Y) ))
-    export L_Z=$(( ($NPROC_Z) ))
+    export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
+    export NGLOB_X=${NGLOB[$idx]}
+    export NGLOB_Y=${NGLOB[$idx]}
+    export NGLOB_Z=${NGLOB[$idx]}
+    export L_X=1
+    export L_Y=1
+    export L_Z=1
     
     #---------------------------------------------------------------------------
     # Loop on the provided version 
@@ -83,19 +89,6 @@ do
            --time=${KERNEL_TIME} \
            ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
     #---------------------------------------------------------------------------
-    
-    if [ $(($i%3)) -eq 0 ]
-    then
-        NPROC_Z=$((2*$NPROC_Z))
-    fi
-    if [ $((($i)%3)) -eq 1 ]
-    then
-        NPROC_Y=$((2*$NPROC_Y))
-    fi
-    if [ $(($i%3)) -eq 2 ]
-    then
-        NPROC_X=$((2*$NPROC_X))
-    fi
 done 
 
 
