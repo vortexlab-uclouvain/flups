@@ -111,7 +111,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     MPI_Comm_rank(comm, &rank);
     m_profStop(prof, "Validation--Init-Flups");
 
-    flups_switchtopo_info(mysolver);
+    // flups_switchtopo_info(mysolver);
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */

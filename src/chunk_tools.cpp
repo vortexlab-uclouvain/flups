@@ -205,7 +205,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
     // Allocate temp array to do out-of-place transpose
-    chunk->shuffle_buff = (opt_double_ptr)flups_balloc(chunk->size_padded*sizeof(double));
+    chunk->shuffle_buff = (opt_double_ptr)flups_balloc(chunk->nda*chunk->size_padded*sizeof(double));
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS

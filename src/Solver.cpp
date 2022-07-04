@@ -1251,7 +1251,7 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign ){
     double* owndata = data_; 
     double* argdata = data; 
 
-    const size_t memdim  = topo->memdim();
+    const size_t memdim  = topo->memsize();
 
 #if defined(FLUPS_FFTW_BACKEND)
     if (sign == FLUPS_FORWARD) {
