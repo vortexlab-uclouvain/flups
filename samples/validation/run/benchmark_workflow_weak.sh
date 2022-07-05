@@ -52,6 +52,8 @@ export NPROC_X=4
 export NPROC_Y=4
 export NPROC_Z=8
 
+export NRES=1
+
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
 for i in {1..7}

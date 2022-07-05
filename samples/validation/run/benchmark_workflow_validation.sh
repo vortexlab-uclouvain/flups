@@ -48,12 +48,13 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export ARR_NPROC_X=(4 4 4 4 4 8 8)
-export ARR_NPROC_Y=(4 4 4 8 8 8 8)
-export ARR_NPROC_Z=(8 8 8 8 8 8 16)
+export NGLOB=(32 256 2048)
+export ARR_NRES=(3 3 1)
 
+export ARR_NPROC_X=(4 8 16)
+export ARR_NPROC_Y=(4 8 16)
+export ARR_NPROC_Z=(8 8 16)
 
-export NGLOB=(32 64 128 256 512 1024 2048)
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
@@ -68,6 +69,7 @@ do
     export NGLOB_X=${NGLOB[$idx]}
     export NGLOB_Y=${NGLOB[$idx]}
     export NGLOB_Z=${NGLOB[$idx]}
+    export NRES=${ARR_NRES[$idx]}
     export L_X=1
     export L_Y=1
     export L_Z=1

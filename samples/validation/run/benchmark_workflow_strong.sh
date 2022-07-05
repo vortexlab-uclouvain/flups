@@ -48,17 +48,23 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X_ARR=(8 16 16 16 32 32 32)
-export NPROC_Y_ARR=(8 12 24 24 24 24 48)
-export NPROC_Z_ARR=(12 12 12 24 24 48 48)
+# export NPROC_X_ARR=(8 16 16 16 32 32 32)
+# export NPROC_Y_ARR=(8 12 24 24 24 24 48)
+# export NPROC_Z_ARR=(12 12 12 24 24 48 48)
 
-export NGLOB_X=1536
-export NGLOB_Y=1536
-export NGLOB_Z=1536
+export NPROC_X_ARR=(4 4 4 8 8 8 16 16 16)
+export NPROC_Y_ARR=(4 4 8 8 8 16 16 16 32)
+export NPROC_Z_ARR=(8 8 8 8 16 16 16 32 32)
+
+export NGLOB_X=832
+export NGLOB_Y=832
+export NGLOB_Z=832
 
 export L_X=1
 export L_Y=1
 export L_Z=1
+
+export NRES=1
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test

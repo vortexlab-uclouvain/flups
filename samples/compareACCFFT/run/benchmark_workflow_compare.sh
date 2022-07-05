@@ -52,19 +52,24 @@ export NPROC_X=1
 export NPROC_Y=16
 export NPROC_Z=16
 
+export L_X=1 #$(( ${NPROC_X} ))
+export L_Y=1 #$(( ${NPROC_Y} ))
+export L_Z=1 #$(( ${NPROC_Z} ))
+
 npcpu_list=(48)
+
+
+export NGLOB_X=$(( ${NPROC_Z}*48 )) # $(( ${NPROC_X}* ${NPCPU} ))
+
 echo " ------ Submitting Job scripts"
+
 # Loop on the number of node needed for the test
 for i in {0..2}
 do
     for npcpu in ${npcpu_list[@]}
     do
-        export NGLOB_X=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_X}* ${NPCPU} ))
-        export NGLOB_Y=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Y}* ${NPCPU} ))
+        export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} )) # $(( ${NPROC_Y}* ${NPCPU} ))
         export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Z}* ${NPCPU} ))
-        export L_X=1 #$(( ${NPROC_X} ))
-        export L_Y=1 #$(( ${NPROC_Y} ))
-        export L_Z=1 #$(( ${NPROC_Z} ))
         export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
 
         export NPCPU=${npcpu}
@@ -89,6 +94,8 @@ do
         NPROC_Y=$((2*$NPROC_Y))
         NPROC_Z=$((2*$NPROC_Z))
         
+        L_Y=$((2*$L_Y))
+        L_Z=$((2*$L_Z))
     done
 done 
 
