@@ -5,7 +5,7 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-CODE_VERSION='a2a nb'
+CODE_VERSION='nb a2a dprec_a2a dprec_nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE
@@ -13,10 +13,10 @@ CODE_VERSION='a2a nb'
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=WEAK_SCALING_MPIBALANCE_OMPI_${OMPIVERSION}_${TAG}
+SUBMISSION_NAME=weak_scaling_ompi_${OMPIVERSION}_${TAG}
 
 ## Ceation of the scratch directory
-SCRATCH_DIR=/project/scratch/p200053/${SUBMISSION_NAME}  
+export SCRATCH_DIR=/project/scratch/p200053/${SUBMISSION_NAME}  
 echo "scratch file = ${SCRATCH_DIR}"
 
 HOME_FLUPS=${HOME}/flups/
@@ -63,13 +63,14 @@ echo " ------ ... done ! "
 
 
 ## 1 Node == 256 CPUS -> 1*64 = 64
-export NPROC_X=4
-export NPROC_Y=4
-export NPROC_Z=4
+export NPROC_X=16
+export NPROC_Y=32
+export NPROC_Z=16
+export NPCPUS=96
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {0..7}
+for i in {0..0}
     do
         if [ $(($i%3)) -eq 0 ]
         then
@@ -85,9 +86,9 @@ for i in {0..7}
         fi
 
 
-    export NGLOB_X=$(( ($NPROC_X)*96 ))
-    export NGLOB_Y=$(( ($NPROC_Y)*96 ))
-    export NGLOB_Z=$(( ($NPROC_Z)*96 ))
+    export NGLOB_X=$(( ($NPROC_X)* ($NPCPUS)))
+    export NGLOB_Y=$(( ($NPROC_Y) * ($NPCPUS)))
+    export NGLOB_Z=$(( ($NPROC_Z) * ($NPCPUS)))
     export L_X=$(( ($NPROC_X) ))
     export L_Y=$(( ($NPROC_Y) ))
     export L_Z=$(( ($NPROC_Z) ))
@@ -96,18 +97,14 @@ for i in {0..7}
     # -------------------------------------------
     # Loop on the provided version 
     # -------------------------------------------
-    for version in ${CODE_VERSION}
-    do 
-        export EXEC_FLUPS=flups_validation_${version}
-        export SCRATCH_FLUPS=${SCRATCH_DIR}/simulations_${version}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}/
-        export MYNAME=flups_${version}_OMPI${OMPIVERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-        export MODULES=${SCRIPT_MODULE}
-        export OMPIVERSION=${OMPIVERSION}
-        mkdir -p ${SCRATCH_FLUPS}/prof/
-        echo "Submitting job with command:  sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh "
-        echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
-        sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh
-    done
+    export CODE_VERSION=${CODE_VERSION}
+    export OMPIVERSION=${OMPIVERSION}
+    export MODULES=${SCRIPT_MODULE}
+    export MYNAME=flups_weak_scaling_OMPI${OMPIVERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
+    
+    echo "Submitting job with command:  sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh "
+    echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+    sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/meluxina_kernel_valid.sh
 done 
 
 

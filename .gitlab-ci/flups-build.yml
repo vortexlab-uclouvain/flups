@@ -4,6 +4,7 @@ compil dbg:
     paths: 
       - ./samples/validation/flups_validation_nb
       - ./samples/validation/flups_validation_a2a
+      - ./samples/validation/flups_validation_isr
       - ./include/LGF_2d_sym_acc12_32.ker
       - ./include/LGF_3d_sym_acc12_64.ker
     when: on_success
@@ -19,6 +20,7 @@ compil opt:
     paths: 
       - ./samples/validation/flups_validation_nb
       - ./samples/validation/flups_validation_a2a
+      - ./samples/validation/flups_validation_isr
       - ./include/LGF_2d_sym_acc12_32.ker
       - ./include/LGF_3d_sym_acc12_64.ker
     when: on_success
@@ -35,6 +37,7 @@ compil comm:
     paths: 
       - ./samples/validation/flups_validation_nb
       - ./samples/validation/flups_validation_a2a
+      - ./samples/validation/flups_validation_isr
       - ./include/LGF_2d_sym_acc12_32.ker
       - ./include/LGF_3d_sym_acc12_64.ker
     when: on_success

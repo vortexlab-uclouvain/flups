@@ -104,9 +104,15 @@
 #endif
 
 #ifndef MPI_BATCH_SEND
-#define FLUPS_MPI_BATCH_SEND 64
+#define FLUPS_MPI_BATCH_SEND 1
 #else
 #define FLUPS_MPI_BATCH_SEND MPI_BATCH_SEND
+#endif
+
+#ifndef MPI_MAX_NBSEND
+#define FLUPS_MPI_MAX_NBSEND INT_MAX
+#else
+#define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
 #endif
 
 //=============================================================================

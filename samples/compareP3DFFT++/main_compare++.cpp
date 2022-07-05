@@ -155,7 +155,8 @@ int main(int argc, char *argv[]) {
     // solver creation and init
     Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, center_type, FLUprof);
     mysolver->set_GreenType(CHAT_2);
-    double *solFLU = mysolver->setup(true);
+    mysolver->setup(true);
+    double *solFLU = mysolver->get_innerBuffer();
     // update the comm and the rank
     comm = flups_topo_get_comm(topoIn);
     MPI_Comm_rank(comm, &rank);
