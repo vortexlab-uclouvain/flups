@@ -30,6 +30,10 @@ include $(ARCH_FILE)
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
+CXX ?= mpic++
+AR ?= ar
+
+#-----------------------------------------------------------------------------
 # Do not show GNU makefile command and info 
 #.SILENT:
 # git commit
@@ -118,6 +122,7 @@ IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 ################################################################################
 # mandatory flags
 M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
+M_LFLAGS := -lto
 
 ################################################################################
 $(OBJ_DIR)/isr_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
@@ -167,34 +172,34 @@ lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so
 lib: lib_static
 
 $(TARGET_LIB_ISR).so: $(OBJ_ISR)
-	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_A2A).so: $(OBJ_A2A)
-	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_NB).so: $(OBJ_NB)
-	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_DPREC_A2A).so: $(OBJ_DPREC_A2A)
-	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_DPREC_NB).so: $(OBJ_DPREC_NB)
-	$(CXX) -shared $(LDFLAGS) $^ -o $@ $(LIB)
+	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
 $(TARGET_LIB_ISR).a: $(OBJ_ISR)
-	ar rvs $@  $^
+	$(AR) rvs $(M_LFLAGS) $@  $^
 
 $(TARGET_LIB_A2A).a: $(OBJ_A2A)
-	ar rvs $@  $^
+	$(AR) rvs $(M_LFLAGS) $@  $^
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	ar rvs $@  $^
+	$(AR) rvs $(M_LFLAGS) $@  $^
 
 $(TARGET_LIB_DPREC_A2A).a: $(OBJ_DPREC_A2A)
-	ar rvs $@  $^
+	$(AR) rvs $(M_LFLAGS) $@  $^
 
 $(TARGET_LIB_DPREC_NB).a: $(OBJ_DPREC_NB)
-	ar rvs $@  $^
+	$(AR) rvs $(M_LFLAGS) $@  $^
 
 preproc: $(IN)
 
