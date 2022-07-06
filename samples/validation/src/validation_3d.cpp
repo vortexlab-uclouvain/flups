@@ -23,6 +23,9 @@
  * 
  */
 
+#include <unistd.h>
+#include <limits.h>
+
 #include "validation_3d.hpp"
 
 #include "omp.h"
@@ -434,11 +437,15 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         err2[i] = sqrt(err2[i]);
     }
 
-    char   filename[512];
-    string folder = "./data";
+    char   cwd[PATH_MAX];     // Current working directory
+    getcwd(cwd, sizeof(cwd)); // Get the current directory 
+    
+    
+    char   filename[PATH_MAX];
+    string folder = "data";
     string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
 
-    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    sprintf(filename, "%s/%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", cwd, folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
@@ -448,6 +455,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
         FILE *myfile = fopen(filename, "a+");
         if (myfile != NULL) {
+            printf("Opening file %s !\n", filename);
             fprintf(myfile, "%d ", nglob[0]);
             for (int i = 0; i < lda; i++) {
                 fprintf(myfile, "%12.12e %12.12e ", err2[i], erri[i]);
