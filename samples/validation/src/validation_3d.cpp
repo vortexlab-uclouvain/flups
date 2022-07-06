@@ -33,8 +33,8 @@
 
 using namespace std;
 
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda) {
-    validation_3d(myCase, typeGreen, 1);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const std::string output_dir) {
+    validation_3d(myCase, typeGreen, 1, output_dir);
 }
 
 /**
@@ -45,7 +45,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
  * @param lda leading dimension of array = number of vector components
  * @param nSolve number of times we call the same solver (for timing)
  */
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve) {
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve, const std::string output_dir) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
@@ -437,20 +437,22 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         err2[i] = sqrt(err2[i]);
     }
 
-    char   cwd[PATH_MAX];     // Current working directory
-    getcwd(cwd, sizeof(cwd)); // Get the current directory 
     
     
-    char   filename[PATH_MAX];
-    string folder = "data";
+    string folder = output_dir + "/data";
     string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
-
-    sprintf(filename, "%s/%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", cwd, folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    char   filename[PATH_MAX];
+    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
-        struct stat st = {0};
-        if (stat(folder.c_str(), &st) == -1) {
-            mkdir(folder.c_str(), 0770);
+        struct stat st_output = {0};
+        struct stat st_folder = {0};
+        if (stat(output_dir.c_str(), &st_output) == -1) {
+            mkdir(output_dir.c_str(), 0770);
+        }
+        
+        if (stat(folder.c_str(), &st_folder) == -1) {
+                mkdir(folder.c_str(), 0770);
         }
 
         FILE *myfile = fopen(filename, "a+");
