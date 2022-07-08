@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     // let ACCFFT decide on the topology choice, pencil in Z, as always
     int    isize[3], osize[3], istart[3], ostart[3];
 
-    int n_acc[3] = {nglob[0],nglob[1],nglob[2]};
+    int n_acc[3] = {nglob[2],nglob[1],nglob[0]};
     size_t alloc_max = accfft_local_size_dft_r2c(n_acc, isize, istart, osize, ostart, c_comm);
 
     double *data_acc = (double *)accfft_alloc(alloc_max);
