@@ -31,10 +31,8 @@
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
 #include "green_functions.hpp"
-
-#if (FLUPS_HDF5) 
 #include "hdf5_io.hpp"
-#endif
+
 
 
 #if (FLUPS_MPI_AGGRESSIVE)

@@ -1048,9 +1048,8 @@ void SwitchTopo_nb_test() {
         }
     }
     // try the dump
-#if (FLUPS_HDF5)
     hdf5_dump(topo, "test_real", data);
-#endif
+
     const int fieldstart[3] = {0, 0, 0};
     // printf("\n=============================");
     SwitchTopo* switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart, NULL);
@@ -1068,17 +1067,12 @@ void SwitchTopo_nb_test() {
 
     // printf("\n\n============ FORWARD =================");
     switchtopo->execute(data, FLUPS_FORWARD);
-
-#if (FLUPS_HDF5)
     hdf5_dump(topobig, "test_real_padd", data);
-#endif
 
     // printf("\n\n============ BACKWARD =================");
     switchtopo->execute(data, FLUPS_BACKWARD);
-
-#if (FLUPS_HDF5)
     hdf5_dump(topo, "test_real_returned", data);
-#endif
+
 
     m_free(data);
     delete (switchtopo);
@@ -1101,11 +1095,8 @@ void SwitchTopo_nb_test() {
             }
         }
     }
-
-#if (FLUPS_HDF5) 
     // try the dump
     hdf5_dump(topo, "test_complex", data);
-#endif
 
     // topobig->switch2complex();
     // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
@@ -1117,16 +1108,11 @@ void SwitchTopo_nb_test() {
     switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart2, NULL);
 
     switchtopo->execute(data, FLUPS_FORWARD);
-
-#if (FLUPS_HDF5)
     hdf5_dump(topobig, "test_complex_padd", data);
-#endif 
 
     switchtopo->execute(data, FLUPS_BACKWARD);
-
-#if (FLUPS_HDF5)
     hdf5_dump(topo, "test_complex_returned", data);
-#endif
+
 
     m_free(data);
     delete (switchtopo);

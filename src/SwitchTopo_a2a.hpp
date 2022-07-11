@@ -37,10 +37,8 @@
 #include "defines.hpp"
 #include "Topology.hpp"
 #include "SwitchTopo.hpp"
-
-#if (FLUPS_HDF5)
 #include "hdf5_io.hpp"
-#endif
+
 
 /**
  * @brief Takes care of the switch between to different topologies

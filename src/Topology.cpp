@@ -24,10 +24,8 @@
  */
 
 #include "Topology.hpp"
-
-#if (FLUPS_HDF5)
 #include "hdf5_io.hpp"
-#endif 
+
 
 /**
  * @brief Construct a new Topology

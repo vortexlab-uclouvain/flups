@@ -1018,9 +1018,7 @@ void SwitchTopo_a2a_test() {
             }
         }
         // try the dump
-#if (FLUPS_HDF5)
         hdf5_dump(topo, "test_real", data);
-#endif 
 
         const int fieldstart[3] = {-1, 0, 0};
         // printf("\n=============================");
@@ -1037,17 +1035,12 @@ void SwitchTopo_a2a_test() {
 
         // printf("\n\n============ FORWARD =================");
         switchtopo->execute(data, FLUPS_FORWARD);
-#if (FLUPS_HDF5)
         hdf5_dump(topobig, "test_real_padd", data);
-#endif
+
 
         // printf("\n\n============ BACKWARD =================");
         switchtopo->execute(data, FLUPS_BACKWARD);
-
-#if (FLUPS_HDF5)
         hdf5_dump(topo, "test_real_returned", data);
-#endif
-
         MPI_Barrier(MPI_COMM_WORLD);
 
         m_free(data);
@@ -1077,9 +1070,8 @@ void SwitchTopo_a2a_test() {
             }
         }
         // try the dump
-#if (FLUPS_HDF5)
         hdf5_dump(topo, "test_complex", data);
-#endif
+
         // topobig->switch2complex();
         // printf("as complex: nloc topobig = %d %d %d\n",topobig->nloc(0),topobig->nloc(1),topobig->nloc(2));
         // topobig->switch2real();
@@ -1099,16 +1091,10 @@ void SwitchTopo_a2a_test() {
         switchtopo->setup_buffers(send_buff, recv_buff);
 
         switchtopo->execute(data, FLUPS_FORWARD);
-
-#if (FLUPS_HDF5)
         hdf5_dump(topobig, "test_complex_padd", data);
-#endif
 
         switchtopo->execute(data, FLUPS_BACKWARD);
-
-#if (FLUPS_HDF5)
         hdf5_dump(topo, "test_complex_returned", data);
-#endif
 
         m_free(data);
         delete (switchtopo);
@@ -1206,10 +1192,8 @@ void SwitchTopo_a2a_test2() {
                 }
             }
         }
-        // try the dump
-#if (FLUPS_HDF5)        
+        // try the dump    
         hdf5_dump(topo, "test_real", data);
-#endif
 
         // //CREATE THE SWITCHTOPO AFTER CHANGE IN TOPOS
         // // printf("\n=============================");
@@ -1230,17 +1214,12 @@ void SwitchTopo_a2a_test2() {
 
         // printf("\n\n============ FORWARD =================");
         switchtopo->execute(data, FLUPS_FORWARD);
-
-#if (FLUPS_HDF5)
         hdf5_dump(topobig, "test_FWD", data);
-#endif
+
         // printf("\n\n============ BACKWARD =================");
         switchtopo->execute(data, FLUPS_BACKWARD);
-
-#if (FLUPS_HDF5)
         hdf5_dump(topo, "test_BCKWD", data);
-#endif 
-
+        
         MPI_Barrier(MPI_COMM_WORLD);
 
         m_free(data);
