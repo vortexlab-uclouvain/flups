@@ -184,8 +184,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+#if (HAVE_HDF5)
     flups_hdf5_dump(topoSpec,"spectrum",solFLU);
-
+#endif
     // //-------------------------------------------------------------------------
     // /** - Proceed to the BACKWARD 3D FFT */
     // //-------------------------------------------------------------------------
@@ -207,8 +208,9 @@ int main(int argc, char *argv[]) {
     print_res(solFLU,topoIn);
 #endif
 
+#if (HAVE_HDF5)
     flups_hdf5_dump(topoIn,"result",solFLU);
-
+#endif
     // //-------------------------------------------------------------------------
     // /** - CLEAN */
     // //-------------------------------------------------------------------------

@@ -22,9 +22,10 @@
  * limitations under the License.
  * 
  */
-
 #ifndef HDF5_IO_HPP
 #define HDF5_IO_HPP
+
+#if (FLUPS_HDF5)
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,5 +42,5 @@ void hdf5_dump(const Topology *topo, const std::string filename, const double *d
 
 void xmf_write(const Topology *topo, const std::string filename, const std::string attribute);
 void hdf5_write(const Topology *topo, const std::string filename, const std::string attribute, const double *data);
-
+#endif
 #endif

@@ -25,6 +25,8 @@
 
 #include "hdf5_io.hpp"
 
+
+#if (FLUPS_HDF5)
 using std::string;
 
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
@@ -403,3 +405,4 @@ void hdf5_dumptest() {
     delete (topo);
     END_FUNC;
 }
+#endif
