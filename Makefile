@@ -121,8 +121,7 @@ IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
 # mandatory flags
-M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
-M_LFLAGS := -flto
+M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\" 
 
 ################################################################################
 $(OBJ_DIR)/isr_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)

@@ -6,12 +6,13 @@ export CODE_VERSION='a2a nb isr dprec_nb dprec_a2a'
 export NPCPUS=96
 
 ## Compile the librairies  
-export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG'
-export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl'
+export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'
+export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl -flto'
 
-export FLUPS_CCFLAGS='-g -O3 -std=c99 -march=native -DNDEBUG'
-export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -march=native -DNDEBUG'
-export FLUPS_LDFLAGS='-fopenmp '
+export FLUPS_AR='gcc-ar'
+export FLUPS_CCFLAGS='-g -O3 -std=c99 -march=native -DNDEBUG -flto'
+export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -march=native -DNDEBUG -flto'
+export FLUPS_LDFLAGS='-fopenmp -flto'
 export FLUPS_OPTS=''
 
 # ..................................................................
