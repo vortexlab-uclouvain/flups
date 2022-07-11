@@ -110,13 +110,14 @@ To build the documentation, go to the `./doc` subfolder and type `doxygen`.
 
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
-- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
+- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library. /!\ When using this option, you should also use the flag `-DHAVE-HDF5` and provide the path to your `HDF5` include and libs
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to bypass various checks inside the library
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
 - `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
+- `-DHAVE-HDF5` : Enable the use of function to dump flups fields. When using this flag, you should detail your `HDF5` lib and include in your `make_arch`
 - `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
