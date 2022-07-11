@@ -306,7 +306,6 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                 }
             }
     }
-#if (HAVE_HDF5)
 #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
@@ -315,7 +314,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     sprintf(msg, "anal");
     flups_hdf5_dump(topo, msg, sol);
 #endif
-#endif
+
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
@@ -327,13 +326,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_profiler_disp(prof);
     flups_profiler_free(prof);
 
-#if (HAVE_HDF5)
+
 #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, field);
 #endif
-#endif
+
     //-------------------------------------------------------------------------
     /** - compute the error */
     //-------------------------------------------------------------------------

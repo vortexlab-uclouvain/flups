@@ -594,7 +594,6 @@ void            flups_profiler_disp(FLUPS_Profiler* p);
  * @name HDF5 exports
  * @{
  */
-#if (FLUPS_HDF5)
 /**
  * @brief dumps data in a hdf5 format with a xdmf compatible description, in the folder ./data
  * 
@@ -608,7 +607,6 @@ void flups_hdf5_dump(const FLUPS_Topology *topo, const char filename[], const do
 
 void flups_print_data(const FLUPS_Topology *topo, double* data);
 
-#endif 
 
 #ifdef __cplusplus
 }

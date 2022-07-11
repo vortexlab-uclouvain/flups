@@ -293,7 +293,6 @@ void flups_profiler_disp(H3LPR::Profiler* p) {
 //**********************************************************************
 //  HDF5
 //**********************************************************************
-#if (FLUPS_HDF5)
 void flups_hdf5_dump(const Topology *topo, const char filename[], const double *data){
     const std::string fn(filename);
     hdf5_dump(topo,fn, data);
@@ -302,6 +301,5 @@ void flups_hdf5_dump(const Topology *topo, const char filename[], const double *
 void flups_print_data(const Topology *topo, double* data){
     FLUPS_print_data(topo, data);    
 }
-#endif
 
 }
