@@ -10,12 +10,14 @@ export FLUPS_LDFLAGS="-fopenmp -lstdc++"
 
 
 # Clone and compile google source test 
-git clone https://github.com/google/googletest.git $1/googletest/
-cd $1/googletest/
+# git clone https://github.com/google/googletest.git $1/googletest/
+wget https://github.com/google/googletest/archive/release-1.12.1.tar.gz
+tar zxvf release-1.12.1.tar.gz 
+cd $1/googletest-release-1.12.1/
 cmake . -DCMAKE_INSTALL_PREFIX=$2 -D CMAKE_C_COMPILER=mpicc -D CMAKE_CXX_COMPILER=mpicxx
 make install -j
 cd $1 
-rm -rf /googletest;
+rm -rf ./googletest-release-1.12.1;
 
 
 # sed -i '/GTEST_/d' make_arch/make.lm3_gtest
