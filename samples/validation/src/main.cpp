@@ -72,6 +72,7 @@ int main(int argc, char *argv[]) {
     auto arg_kernel  = parser.GetValue<int>("--kernel", "the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6, 5=HEJ8, 6=HEJ10, 7=HEJ0", 0);
     auto arg_lda     = parser.GetValue<int>("--lda", "the leading dimension fo array, number of component  (1=scalar, 3=vector)", 1);
     auto arg_nsample = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
+    auto arg_outputdir = parser.GetValue<std::string>("--outdir", "the output directory for the error","./");
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});
@@ -123,6 +124,7 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < arg_nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
+        printf(" --outdir:%s\n",arg_outputdir.c_str());
     }
 
     //..........................................................................
@@ -146,7 +148,7 @@ int main(int argc, char *argv[]) {
         }
 
         // let's gooo
-        validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve);
+        validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve, arg_outputdir);
     }
 
     

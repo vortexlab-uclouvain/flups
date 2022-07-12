@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     // let ACCFFT decide on the topology choice, pencil in Z, as always
     int    isize[3], osize[3], istart[3], ostart[3];
 
-    int n_acc[3] = {nglob[0],nglob[1],nglob[2]};
+    int n_acc[3] = {nglob[2],nglob[1],nglob[0]};
     size_t alloc_max = accfft_local_size_dft_r2c(n_acc, isize, istart, osize, ostart, c_comm);
 
     double *data_acc = (double *)accfft_alloc(alloc_max);
@@ -139,13 +139,13 @@ int main(int argc, char *argv[]) {
     accfft_plan *plan = accfft_plan_dft_3d_r2c(n_acc, data_acc, data_acc, c_comm, ACCFFT_MEASURE);
 
     // setup the data
-    int n2_ = (nglob[2] / 2 + 1) * 2;
+    int n2_ = (n_acc[2] / 2 + 1) * 2;
     for (int i = 0; i < isize[0]; i++) {
         for (int j = 0; j < isize[1]; j++) {
             for (int k = 0; k < isize[2]; k++) {
-                double x      = 2.0 * M_PI / nglob[0] * (i + istart[0]);
-                double y      = 2.0 * M_PI / nglob[1] * (j + istart[1]);
-                double z      = 2.0 * M_PI / nglob[2] * k;
+                double x      = 2.0 * M_PI / n_acc[0] * (i + istart[0]);
+                double y      = 2.0 * M_PI / n_acc[1] * (j + istart[1]);
+                double z      = 2.0 * M_PI / n_acc[2] * k;
                 size_t ptr    = i * isize[1] * n2_ + j * n2_ + k;
                 data_acc[ptr] = sin(x) + sin(y) + sin(z);
             }
