@@ -33,7 +33,7 @@ echo " ------ ... done ! "
 #-------------------------------------------------------------------------------
 ## Launch the compilations
 echo " ------ Compiling librairies ..."
-COMPILEJOB_ID=$(sbatch --parsable \
+DEPJOB_ID=$(sbatch --parsable \
                        --job-name=flups_compile_MPI_${MPI_VERSION} \
                        --account=${ACCOUNT} \
                        --partition=${PARTITION} \
@@ -48,12 +48,16 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NGLOB=(32 256 2048)
-export ARR_NRES=(3 3 1)
+export NGLOB=(32 64 128 256 512 1024 2048)
 
-export ARR_NPROC_X=(4 8 16)
-export ARR_NPROC_Y=(4 8 16)
-export ARR_NPROC_Z=(8 8 16)
+export ARR_NPROC_X=(4 4 4 4 4 8 16)
+export ARR_NPROC_Y=(4 4 4 4 4 8 16)
+export ARR_NPROC_Z=(8 8 8 8 8 8 16)
+
+export CODE_BCS='4,4,4,4,4,4 
+                 0,0,1,0,3,3 
+                 4,0,4,4,1,4
+                 3,3,4,4,4,4'
 
 
 echo " ------ Submitting Job scripts"
@@ -78,18 +82,19 @@ do
     # Loop on the provided version 
     #---------------------------------------------------------------------------
     export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-    echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
+    echo "sbatch -d afterok:${DEPJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
     echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
     
-    sbatch -d afterok:${COMPILEJOB_ID} \
-           --job-name=${MYNAME} \
-           --account=${ACCOUNT} \
-           ${KERNEL_CLUSTER_SPEC} \
-           --partition=${PARTITION} \
-           --nodes=${NNODE} \
-           --ntasks-per-node=${NPROC_NODES} \
-           --time=${KERNEL_TIME} \
-           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
+    DEPJOB_ID=$(sbatch --parsable \
+                       -d afterok:${DEPJOB_ID} \
+                       --job-name=${MYNAME} \
+                       --account=${ACCOUNT} \
+                       ${KERNEL_CLUSTER_SPEC} \
+                       --partition=${PARTITION} \
+                       --nodes=${NNODE} \
+                       --ntasks-per-node=${NPROC_NODES} \
+                       --time=${KERNEL_TIME} \
+                       ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
     #---------------------------------------------------------------------------
 done 
 

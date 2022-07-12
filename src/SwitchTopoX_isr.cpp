@@ -65,6 +65,7 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
             ChunkToNewComm(shared_comm_, shared_group, cchunk, &is_in_shared);
 
             // store the id in the send order list and update the comm + dest_rank if needed
+#if (1 == FLUPS_PRIORITYLIST)
             if (is_in_shared) {
                 // store the priority list
                 send_order[noprior_idx[0]] = ichunk;
@@ -74,6 +75,10 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
                 send_order[prior_idx[0]] = ichunk;
                 (prior_idx[0])++;
             }
+#elif (0 == FLUPS_PRIORITYLIST)
+            send_order[prior_idx[0]] = ichunk;
+            (prior_idx[0])++;
+#endif 
         }
     };
     // we store the priority requests in front of the order list and the non-priority ones at the end of the list

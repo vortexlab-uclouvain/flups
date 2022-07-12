@@ -121,6 +121,11 @@
 #define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
 #endif
 
+#ifndef MPI_DEFAULT_ORDER
+#define FLUPS_PRIORITYLIST 1
+#else
+#define FLUPS_PRIORITYLIST 0
+#endif
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS
