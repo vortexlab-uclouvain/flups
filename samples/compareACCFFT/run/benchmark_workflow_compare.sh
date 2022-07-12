@@ -48,8 +48,8 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X=1
-export NPROC_Y=16
+export NPROC_X=16
+export NPROC_Y=1
 export NPROC_Z=16
 
 export L_X=1 #$(( ${NPROC_X} ))
@@ -59,7 +59,7 @@ export L_Z=1 #$(( ${NPROC_Z} ))
 npcpu_list=(48)
 
 
-export NGLOB_X=$(( ${NPROC_Z}*48 )) # $(( ${NPROC_X}* ${NPCPU} ))
+export NGLOB_Y=$(( ${NPROC_Z}*48 )) # $(( ${NPROC_X}* ${NPCPU} ))
 
 echo " ------ Submitting Job scripts"
 
@@ -68,7 +68,7 @@ for i in {0..2}
 do
     for npcpu in ${npcpu_list[@]}
     do
-        export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} )) # $(( ${NPROC_Y}* ${NPCPU} ))
+        export NGLOB_X=$(( ${NPROC_X}* ${npcpu} )) # $(( ${NPROC_X}* ${NPCPU} ))
         export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Z}* ${NPCPU} ))
         export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
 
@@ -91,10 +91,10 @@ do
                ${FLUPS_DIR}/samples/compareACCFFT/run/benchmark_kernel_compare.sh
         #---------------------------------------------------------------------------
         
-        NPROC_Y=$((2*$NPROC_Y))
+        NPROC_X=$((2*$NPROC_X))
         NPROC_Z=$((2*$NPROC_Z))
         
-        L_Y=$((2*$L_Y))
+        L_X=$((2*$L_X))
         L_Z=$((2*$L_Z))
     done
 done 
