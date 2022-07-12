@@ -594,7 +594,6 @@ void            flups_profiler_disp(FLUPS_Profiler* p);
  * @name HDF5 exports
  * @{
  */
-
 /**
  * @brief dumps data in a hdf5 format with a xdmf compatible description, in the folder ./data
  * 
