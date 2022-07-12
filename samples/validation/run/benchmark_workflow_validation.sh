@@ -94,7 +94,7 @@ do
                        --nodes=${NNODE} \
                        --ntasks-per-node=${NPROC_NODES} \
                        --time=${KERNEL_TIME} \
-                       ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
+                       ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh)
     #---------------------------------------------------------------------------
 done 
 
