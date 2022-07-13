@@ -58,7 +58,7 @@ export CODE_BCS='4,4,4,4,4,4
                  0,0,1,0,3,3 
                  4,0,4,4,1,4
                  3,3,4,4,4,4'
-
+export NRES=1
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
@@ -73,7 +73,6 @@ do
     export NGLOB_X=${NGLOB[$idx]}
     export NGLOB_Y=${NGLOB[$idx]}
     export NGLOB_Z=${NGLOB[$idx]}
-    export NRES=${ARR_NRES[$idx]}
     export L_X=1
     export L_Y=1
     export L_Z=1
