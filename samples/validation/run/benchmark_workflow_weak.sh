@@ -56,7 +56,7 @@ export NRES=1
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {1..7}
+for i in {1..11}
 do
     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
     
