@@ -105,6 +105,11 @@ void flups_info(int argc, char** argv) {
 #else
         fprintf(file, "\tHDF5 ? no\n");
 #endif
+#if (FLUPS_PRIORITYLIST)
+        fprintf(file, "\tPriority list order ? yes\n");
+#else
+        fprintf(file, "\tPriority list order ? no\n");
+#endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {
             fprintf(file, "\t%s\n", argv[i]);
