@@ -24,7 +24,7 @@ export COMPILE_PREFIXES=("priority_order" "default_order")
 for idx in "${!COMPILE_OPTIONS[@]}";
 do
     echo "------ Copying what's needed ..."
-    export H3LPR_DIR=${SCRATCH_DIR}/h3lpr/
+    export H3LPR_DIR=${SCRATCH_DIR}/${COMPILE_PREFIXES[$idx]}/h3lpr/
     export FLUPS_DIR=${SCRATCH_DIR}/${COMPILE_PREFIXES[$idx]}/flups/
 
     mkdir -p ${H3LPR_DIR}
@@ -40,7 +40,7 @@ do
     ## Launch the compilations
     echo " ------ Rewriting the options ..."
     export FLUPS_OPTS=${COMPILE_OPTIONS[$idx]}
-    echo " ------ Compiling with ${FLUPS_OPTIONS} -- Executable will be there ${FLUPS_DIR}/samples/validation/"
+    echo " ------ Compiling with ${FLUPS_OPTS} -- Executable will be there ${FLUPS_DIR}/samples/validation/"
 
     echo " ------ Compiling librairies ..."
     COMPILEJOB_ID=$(sbatch --parsable \
