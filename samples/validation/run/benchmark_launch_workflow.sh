@@ -8,7 +8,7 @@
 # MPI_datatypes              = isr
 # First version all to all   = dprec_a2a 
 # First version non blocking = dprec_nb
-export CODE_VERSION='a2a'
+export CODE_VERSION='a2a isr nb'
 
 ## Kernels : 
 # CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
@@ -19,8 +19,8 @@ export CODE_VERSION='a2a'
 # HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
 # HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
 # HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
-export CODE_KERNEL='0 1 2 3 4 5 6 7 8'
-#export CODE_KERNEL='0'
+#export CODE_KERNEL='0 1 2 3 4 5 6 7 8'
+export CODE_KERNEL='0'
 
 ## Center ; 
 # Node-centred = 0 
@@ -48,7 +48,7 @@ export COMPILE_TIME='00:10:00'
 export KERNEL_TIME='02:30:00'
 
 # ..................................................................
-export CLUSTER='vega'
+export CLUSTER='meluxina'
 
 # ..................................................................
 #---------------------------------------------------------------------------------------
@@ -134,8 +134,8 @@ fi
 
 
 # Performance 
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
+("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
 # ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh")
 
 # Validation 
-("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh")
+#("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh")
