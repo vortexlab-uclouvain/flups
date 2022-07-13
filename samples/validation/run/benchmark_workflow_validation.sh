@@ -5,7 +5,7 @@
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=validation_flups-${MPI_VERSION}-${TAG}
+SUBMISSION_NAME=xplore_order_list_flups-${MPI_VERSION}-${TAG}
 
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory

@@ -91,7 +91,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
             MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, cchunk->comm, recv_rqst + ichunk);
 
             // store the id in the send order list together with the send request
-#if (1 == FLUPS_PRIORITYLIST)
+#if (FLUPS_PRIORITYLIST)
             if (!is_in_shared) {
                 send_order[prior_idx[0]] = ichunk;
                 MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, send_tag, cchunk->comm, send_rqst + prior_idx[0]);
@@ -103,8 +103,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
                 // increment the non-priority counter
                 (noprior_idx[0])--;
             }
-
-#elif (0 == FLUPS_PRIORITYLIST)
+#else
             send_order[prior_idx[0]] = ichunk;
             MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, send_tag, cchunk->comm, send_rqst + prior_idx[0]);
             // increment the counter
