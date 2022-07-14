@@ -21,6 +21,8 @@ export SCRIPT_MODULE=${HOME_FLUPS}/samples/validation/run/${CLUSTER}_modules.sh
 ## Go to the scratch directory and copy what's needed
 export COMPILE_OPTIONS=(" " "-DMPI_DEFAULT_ORDER")
 export COMPILE_PREFIXES=("priority_order" "default_order")
+export SCRATCH_DIR_LIST="(${SCRATCH_DIR}/${COMPILE_PREFIXES[0]}/" "${SCRATCH_DIR}/${COMPILE_PREFIXES[1]}/")
+
 for idx in "${!COMPILE_OPTIONS[@]}";
 do
     echo "------ Copying what's needed ..."
@@ -54,57 +56,69 @@ do
                            ${FLUPS_DIR}/samples/validation/run/benchmark_compile.sh) 
     echo " ------ ... done ! "
 done
+
 #-------------------------------------------------------------------------------
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-# export NGLOB=(32 64 128 256 512 1024 2048)
+export NPROC_X=4
+export NPROC_Y=4
+export NPROC_Z=8
 
-# export ARR_NPROC_X=(4 4 4 4 4 8 16)
-# export ARR_NPROC_Y=(4 4 4 4 4 8 16)
-# export ARR_NPROC_Z=(8 8 8 8 8 8 16)
+export NRES=1
 
-# export CODE_BCS='4,4,4,4,4,4 
-#                  0,0,1,0,3,3 
-#                  4,0,4,4,1,4
-#                  3,3,4,4,4,4'
-# export NRES=1
-
-# echo " ------ Submitting Job scripts"
-# # Loop on the number of node needed for the test
-# for idx in "${!NGLOB[@]}";
-# do    
-#     export NPROC_X=${ARR_NPROC_X[$idx]}
-#     export NPROC_Y=${ARR_NPROC_Y[$idx]}
-#     export NPROC_Z=${ARR_NPROC_Z[$idx]}
-
-#     #---------------------------------------------------------------------------
-#     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
-#     export NGLOB_X=${NGLOB[$idx]}
-#     export NGLOB_Y=${NGLOB[$idx]}
-#     export NGLOB_Z=${NGLOB[$idx]}
-#     export L_X=1
-#     export L_Y=1
-#     export L_Z=1
+echo " ------ Submitting Job scripts"
+# Loop on the number of node needed for the test
+for i in {1..7}
+do
+    export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
     
-#     #---------------------------------------------------------------------------
-#     # Loop on the provided version 
-#     #---------------------------------------------------------------------------
-#     export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-#     echo "sbatch -d afterok:${DEPJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
-#     echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+    #---------------------------------------------------------------------------
+    export NGLOB_X=$(( ($NPROC_X)*($NPCPUS) ))
+    export NGLOB_Y=$(( ($NPROC_Y)*($NPCPUS) ))
+    export NGLOB_Z=$(( ($NPROC_Z)*($NPCPUS) ))
+    export L_X=$(( ($NPROC_X) ))
+    export L_Y=$(( ($NPROC_Y) ))
+    export L_Z=$(( ($NPROC_Z) ))
     
-#     DEPJOB_ID=$(sbatch --parsable \
-#                        -d afterok:${DEPJOB_ID} \
-#                        --job-name=${MYNAME} \
-#                        --account=${ACCOUNT} \
-#                        ${KERNEL_CLUSTER_SPEC} \
-#                        --partition=${PARTITION} \
-#                        --nodes=${NNODE} \
-#                        --ntasks-per-node=${NPROC_NODES} \
-#                        --time=${KERNEL_TIME} \
-#                        ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh)
-#     #---------------------------------------------------------------------------
-# done 
+    #---------------------------------------------------------------------------
+    # Loop on the provided version 
+    #---------------------------------------------------------------------------
+    export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
+    echo "    sbatch -d afterok:${COMPILEJOB_ID} \
+           --job-name=${MYNAME} \
+           --account=${ACCOUNT} \
+           ${KERNEL_CLUSTER_SPEC} \
+           --partition=${PARTITION} \
+           --nodes=${NNODE} \
+           --ntasks-per-node=${NPROC_NODES} \
+           --time=${KERNEL_TIME} \
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_xplore.sh"
+    echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+    
+    sbatch -d afterok:${COMPILEJOB_ID} \
+           --job-name=${MYNAME} \
+           --account=${ACCOUNT} \
+           ${KERNEL_CLUSTER_SPEC} \
+           --partition=${PARTITION} \
+           --nodes=${NNODE} \
+           --ntasks-per-node=${NPROC_NODES} \
+           --time=${KERNEL_TIME} \
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_xplore.sh
+    #---------------------------------------------------------------------------
+    
+    if [ $(($i%3)) -eq 0 ]
+    then
+        NPROC_Z=$((2*$NPROC_Z))
+    fi
+    if [ $((($i)%3)) -eq 1 ]
+    then
+        NPROC_Y=$((2*$NPROC_Y))
+    fi
+    if [ $(($i%3)) -eq 2 ]
+    then
+        NPROC_X=$((2*$NPROC_X))
+    fi
+done 
 
 
