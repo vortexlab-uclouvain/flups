@@ -21,7 +21,8 @@ export SCRIPT_MODULE=${HOME_FLUPS}/samples/validation/run/${CLUSTER}_modules.sh
 ## Go to the scratch directory and copy what's needed
 export COMPILE_OPTIONS=(" " "-DMPI_DEFAULT_ORDER")
 export COMPILE_PREFIXES=("priority_order" "default_order")
-export SCRATCH_DIR_LIST="(${SCRATCH_DIR}/${COMPILE_PREFIXES[0]}/" "${SCRATCH_DIR}/${COMPILE_PREFIXES[1]}/")
+export SCRATCH_DIR_LIST='priority_order default_order'
+
 
 for idx in "${!COMPILE_OPTIONS[@]}";
 do
@@ -97,7 +98,7 @@ do
     echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
     
     sbatch -d afterok:${COMPILEJOB_ID} \
-           --job-name=${MYNAME} \
+	   --job-name=${MYNAME} \
            --account=${ACCOUNT} \
            ${KERNEL_CLUSTER_SPEC} \
            --partition=${PARTITION} \
