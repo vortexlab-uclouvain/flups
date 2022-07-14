@@ -126,6 +126,13 @@
 #else
 #define FLUPS_PRIORITYLIST 0
 #endif
+
+#ifndef MPI_NO_ROLLING_RANK
+#define FLUPS_ROLLING_RANK 1
+#else
+#define FLUPS_ROLLING_RANK 0
+#endif
+
 //=============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS

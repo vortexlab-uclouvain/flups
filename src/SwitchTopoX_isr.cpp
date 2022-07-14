@@ -57,7 +57,11 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     auto setup_priority = [=](const int nchunks, MemChunk *chunks, int *send_order, int *prior_idx, int *noprior_idx) {
         for (int ir = 0; ir < nchunks; ++ir) {
             // we offset the starting index to avoid congestion
+#if (FLUPS_ROLLING_RANK)
             const int ichunk = (ir + sub_rank) % nchunks;
+#else
+            const int ichunk = ir;
+#endif
             // get the chunk informations
             MemChunk *cchunk = chunks + ichunk;
 

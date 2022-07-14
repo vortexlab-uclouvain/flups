@@ -70,7 +70,11 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         //......................................................................
         for (int ir = 0; ir < nchunks; ++ir) {
             // we offset the starting index to avoid congestion
+#if (FLUPS_ROLLING_RANK)
             const int ichunk = (ir + sub_rank) % nchunks;
+#else
+            const int ichunk = ir;
+#endif
             // get the chunk informations
             MemChunk *cchunk = chunks + ichunk;
 
