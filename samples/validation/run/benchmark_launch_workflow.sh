@@ -142,4 +142,5 @@ fi
 # ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh")
 
 # Exploration
-("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh")
+# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh")
+("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh")
