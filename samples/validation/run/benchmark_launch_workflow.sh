@@ -135,12 +135,12 @@ fi
 
 
 # Performance 
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh")
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh
 
 # Validation 
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh")
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh
 
 # Exploration
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh")
-("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh")
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh
+source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh

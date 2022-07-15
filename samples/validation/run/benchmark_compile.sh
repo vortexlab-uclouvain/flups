@@ -9,8 +9,8 @@ source ${SCRIPT_MODULE} ${MPI_VERSION}
 ## Compile H3LPR
 cd ${H3LPR_DIR}
 touch make_arch/make.${CLUSTER}
-echo "CXX=${MPICXX} " >> make_arch/make.${CLUSTER} 
-echo "CC=${MPICC} " > make_arch/make.${CLUSTER}
+echo "CXX=${MPICXX} " > make_arch/make.${CLUSTER} 
+echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
 echo "CXXFLAGS :=  ${H3LPR_CXXFLAGS}" >> make_arch/make.${CLUSTER}
 echo "LDFLAGS  := ${H3LPR_LDFLAGS}" >> make_arch/make.${CLUSTER}
 ARCH_FILE=make_arch/make.${CLUSTER} make clean
