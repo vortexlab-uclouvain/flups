@@ -77,7 +77,7 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     export ACCOUNT='p200053'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC='--qos=short'
+    export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
@@ -143,4 +143,5 @@ fi
 
 # Exploration
 # ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh")
-("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh")
+#("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh")
+("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh")
