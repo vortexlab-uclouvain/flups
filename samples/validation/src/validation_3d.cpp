@@ -371,6 +371,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_hdf5_dump(topo, msg, sol);
 #endif
 
+
+    //-------------------------------------------------------------------------
+    /** - Warm up */
+    //-------------------------------------------------------------------------
+    for (int is = 0; is < 5; is++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        flups_solve(mysolver, field, rhs,STD);
+        MPI_Barrier(MPI_COMM_WORLD);
+    }	
+
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
