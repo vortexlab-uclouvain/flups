@@ -48,38 +48,38 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X=1
-export NPROC_Y=16
-export NPROC_Z=16
-
-export L_X=1 #$(( ${NPROC_X} ))
-export L_Y=1 #$(( ${NPROC_Y} ))
-export L_Z=1 #$(( ${NPROC_Z} ))
-
 npcpu_list=(48)
-
-
-export NGLOB_X=$(( ${NPROC_Z}*48 )) # $(( ${NPROC_X}* ${NPCPU} ))
 
 echo " ------ Submitting Job scripts"
 
+export NPROC_X=(16 32 64 128)
+export NPROC_Y=(1  1  1  1  )
+export NPROC_Z=(16 32 64 128)
+
+## The number of points in the y direction is kept constant through all the simulations
+export NGLOB_Y=$(( ${NPROC_Z[0]}*48 ))
+
+export L_X=1 
+export L_Y=1 
+export L_Z=1 
+
 # Loop on the number of node needed for the test
-for i in {0..2}
+for idx in "${!NPROC_X[@]}"
 do
     for npcpu in ${npcpu_list[@]}
     do
-        export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} )) # $(( ${NPROC_Y}* ${NPCPU} ))
-        export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} )) # $(( ${NPROC_Z}* ${NPCPU} ))
-        export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
+        export NGLOB_X=$(( ${NPROC_X[$idx]}* ${npcpu} ))
+        export NGLOB_Z=$(( ${NPROC_Z[$idx]}* ${npcpu} ))
+        export NNODE=$(( (${NPROC_X[$idx]} * ${NPROC_Y[$idx]} * ${NPROC_Z[$idx]})/128 ))
 
         export NPCPU=${npcpu}
         #---------------------------------------------------------------------------
         # Loop on the provided version 
         #---------------------------------------------------------------------------
         
-        export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${npcpu}
+        export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X[$idx]}x${NPROC_Y[$idx]}x${NPROC_Z[$idx]}_NPCPU${npcpu}
         echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/compareACCFFT/run/${CLUSTER}_kernel_compare.sh "
-        echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+        echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X[$idx]} ${NPROC_Y[$idx]} ${NPROC_Z[$idx]} -- L = ${L_X} ${L_Y} ${L_Z}"
         sbatch -d afterok:${COMPILEJOB_ID} \
                --job-name=${MYNAME} \
                --account=${ACCOUNT} \
@@ -89,12 +89,8 @@ do
                --ntasks-per-node=${NPROC_NODES} \
                --time=${KERNEL_TIME} \
                ${FLUPS_DIR}/samples/compareACCFFT/run/benchmark_kernel_compare.sh
-        #---------------------------------------------------------------------------
-        
-        NPROC_Y=$((2*$NPROC_Y))
-        NPROC_Z=$((2*$NPROC_Z))
-        
-        L_Y=$((2*$L_Y))
+        #---------------------------------------------------------------------------    
+        L_X=$((2*$L_X))
         L_Z=$((2*$L_Z))
     done
 done 

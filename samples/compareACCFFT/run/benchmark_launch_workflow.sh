@@ -30,7 +30,7 @@ export COMPILE_TIME='05:00:00'
 export KERNEL_TIME='01:00:00'
 
 # ..................................................................
-export CLUSTER='vega'
+export CLUSTER='meluxina'
 
 # ..................................................................
 #---------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## .................................
     ## MPI information
-    export MPI_VERSION=4.1.3
+    export MPI_VERSION=4.1.4
     export MPICC='mpicc'
     export MPICXX='mpic++'
     export NPROC_NODES=128
@@ -58,7 +58,7 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     export ACCOUNT='p200053'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC='--qos=short'
+    export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
