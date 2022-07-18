@@ -44,7 +44,7 @@ do
     #-------------------------------------------------------------------------------
     ## Launch the compilations
     echo " ------ Rewriting the options ..."
-    export FLUPS_OPTS="-DMPI_BATCH_SEND=${bl}"
+    export FLUPS_OPTS="-DMPI_BATCH_SEND=${batch_length[$idx]}"
 
     echo " ------ Compiling with ${FLUPS_OPTS} -- Executable will be there ${FLUPS_DIR}/samples/validation/"
 
