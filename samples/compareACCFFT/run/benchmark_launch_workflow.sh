@@ -14,10 +14,11 @@ export CODE_VERSION='a2a nb isr dprec_nb dprec_a2a'
 export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'
 export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl -flto'
 
+export FLUPS_AR='gcc-ar'
 export FLUPS_CCFLAGS='-g -O3 -std=c99   -DMPI_BATCH_SEND=1 -DNDEBUG -march=native -flto'
 export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DMPI_BATCH_SEND=1 -DNDEBUG -march=native -flto'
 export FLUPS_LDFLAGS='-fopenmp -flto'
-export FLUPS_OPTS=''
+export FLUPS_OPTS='-DVERBOSE'
 
 # ..................................................................
 ## Compile bash options
@@ -39,6 +40,13 @@ export CLUSTER='meluxina'
 if [[ ${CLUSTER} == "meluxina" ]]; then
     export BASE_SCRATCHDIR=/project/scratch/p200053
     ## .................................
+    ## MPI information
+    export MPI_VERSION=4.1.4
+    export MPICC='mpicc'
+    export MPICXX='mpic++'
+    export NPROC_NODES=128
+    
+    ## .................................
     ## NEEDED dir
     export HOME_FLUPS=${HOME}/flups/
     export HOME_H3LPR=${HOME}/h3lpr/
@@ -46,12 +54,8 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     export FFTW_DIR=${EBROOTFFTW}
     export HDF5_DIR=${EBROOTHDF5}
 
+    export ACCFFT_DIR=${HOME}/lib-OpenMPI-${MPI_VERSION}
     ## .................................
-    ## MPI information
-    export MPI_VERSION=4.1.4
-    export MPICC='mpicc'
-    export MPICXX='mpic++'
-    export NPROC_NODES=128
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'

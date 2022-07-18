@@ -28,6 +28,7 @@ echo "CXXFLAGS := ${FLUPS_CXXFLAGS} " >> make_arch/make.${CLUSTER}
 echo "CCFLAGS  := ${FLUPS_CCFLAGS}" >> make_arch/make.${CLUSTER}
 
 echo "LDFLAGS  := ${FLUPS_LDFLAGS}"  >> make_arch/make.${CLUSTER}
+echo "AR := ${FLUPS_AR} " >> make_arch/make.${CLUSTER}
 
 echo "#---------------------------------------------------------   " >> make_arch/make.${CLUSTER}
 echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.${CLUSTER}
