@@ -212,7 +212,7 @@ void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk) {
     MPI_Type_commit(&(chunk->dtype));
 
     // free the now useless types
-    MPI_Type_free(&type_x);
+    // MPI_Type_free(&type_x);
     MPI_Type_free(&type_xy);
     MPI_Type_free(&type_xyz);
     //--------------------------------------------------------------------------
