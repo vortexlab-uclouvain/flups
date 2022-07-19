@@ -30,7 +30,6 @@
 
 #include "omp.h"
 
-
 using namespace std;
 
 void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const std::string output_dir) {
@@ -39,7 +38,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
 /**
  * @brief computes the reference solution and the numerical one, outputs errors in a file
- * 
+ *
  * @param myCase description of the domain and initial condition
  * @param typeGreen type of Green function
  * @param lda leading dimension of array = number of vector components
