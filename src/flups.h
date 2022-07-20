@@ -43,9 +43,15 @@ extern "C" {
 #define MAX(a, b) a > b ? a : b
 #endif
 
+#ifdef __cplusplus
 typedef class Solver   FLUPS_Solver;
 typedef class Topology FLUPS_Topology;
 typedef class Profiler FLUPS_Profiler;
+#else 
+typedef struct Solver   FLUPS_Solver;
+typedef struct Topology FLUPS_Topology;
+typedef struct Profiler FLUPS_Profiler;
+#endif 
 
 typedef enum BoundaryType FLUPS_BoundaryType;
 typedef enum GreenType    FLUPS_GreenType;
@@ -483,6 +489,13 @@ void flups_set_alpha(FLUPS_Solver* s, const double alpha);  // must be done befo
 //  * @param order
 //  */
 // void flups_set_OrderDiff(FLUPS_Solver* s, const int order);  //must be done before setup
+
+/**
+ * @brief Get the inner buffer used by flups
+ *
+ * @param s
+ */
+double* flups_get_innerBuffer(FLUPS_Solver* s);
 
 /**
  * @brief returns the physical topology, i.e. the one used for rhs and solution

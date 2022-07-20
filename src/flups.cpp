@@ -164,6 +164,10 @@ void flups_set_alpha(Solver* s, const double alpha) {
     s->set_alpha(alpha);
 }
 
+double* flups_get_innerBuffer(FLUPS_Solver* s){
+    return s->get_innerBuffer();
+}
+
 const Topology* flups_get_innerTopo_physical(Solver* s) {
     return s->get_innerTopo_physical();
 }
