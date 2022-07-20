@@ -304,6 +304,11 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "\tRolling rank  ? no\n");
 #endif
 
+#if (FLUPS_MPI_ALLOC)
+        fprintf(file, "\tMPI ALLOC ? yes\n");
+#else
+        fprintf(file, "\tMPI ALLOC ? no\n");
+#endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {
             fprintf(file, "\t%s\n", argv[i]);
