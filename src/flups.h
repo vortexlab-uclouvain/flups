@@ -43,15 +43,9 @@ extern "C" {
 #define MAX(a, b) a > b ? a : b
 #endif
 
-#ifdef __cplusplus
-typedef class Solver   FLUPS_Solver;
-typedef class Topology FLUPS_Topology;
-typedef class Profiler FLUPS_Profiler;
-#else 
 typedef struct Solver   FLUPS_Solver;
 typedef struct Topology FLUPS_Topology;
 typedef struct Profiler FLUPS_Profiler;
-#endif 
 
 typedef enum BoundaryType FLUPS_BoundaryType;
 typedef enum GreenType    FLUPS_GreenType;
