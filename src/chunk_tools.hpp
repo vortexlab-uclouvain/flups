@@ -55,10 +55,10 @@ void ChunkToDestMPIDataType(MemChunk* chunk);
  * @return size_t
  */
 inline size_t get_ChunkPaddedSize(const size_t nf, const MemChunk* chunk) {
-    FLUPS_CHECK(M_ALIGNMENT % sizeof(double) == 0, "The alignement %d must be a multiple of %zu", M_ALIGNMENT, sizeof(double));
+    FLUPS_CHECK(FLUPS_ALIGNMENT % sizeof(double) == 0, "The alignement %d must be a multiple of %zu", FLUPS_ALIGNMENT, sizeof(double));
     //----------------------------------------------------------------------
     const size_t total     = (size_t)(chunk->isize[0]) * (size_t)(chunk->isize[1]) * (size_t)(chunk->isize[2]) * nf;
-    const size_t align     = M_ALIGNMENT / sizeof(double);
+    const size_t align     = FLUPS_ALIGNMENT / sizeof(double);
     const size_t total_ext = total + (align - 1);
 
     return total_ext - (total_ext % align);

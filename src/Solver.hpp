@@ -51,8 +51,6 @@
 #include "metis.h"
 #endif
 
-// using namespace std;
-
 /**
  * @brief smartly determines in which order the FFTs will be executed
  * 
@@ -144,10 +142,15 @@ class Solver {
     SwitchTopoX*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
 #else    
     SwitchTopo*    switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
-#endif    
+#endif
 
-    opt_double_ptr sendBuf_       = NULL;               /**<@brief The send buffer for switchtopo_ */
-    opt_double_ptr recvBuf_       = NULL;               /**<@brief The recv buffer for switchtopo_ */
+#if (FLUPS_MPI_AGGRESSIVE)
+    m_ptr_t sendBuf_;
+    m_ptr_t recvBuf_;
+#else
+    opt_double_ptr sendBuf_             = NULL;               /**<@brief The send buffer for switchtopo_ */
+    opt_double_ptr recvBuf_             = NULL;               /**<@brief The recv buffer for switchtopo_ */
+#endif
     /**@} */
 
     /**
@@ -207,8 +210,8 @@ class Solver {
      * @{
      */
 #if (FLUPS_MPI_AGGRESSIVE)
-    void allocate_switchTopo_(const int ntopo, SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
-    void deallocate_switchTopo_(SwitchTopoX** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    
+    void allocate_switchTopo_(const int ntopo, SwitchTopoX** switchtopo, m_ptr_t* send_buff, m_ptr_t* recv_buff);
+    void deallocate_switchTopo_(SwitchTopoX** switchtopo, m_ptr_t* send_buff, m_ptr_t* recv_buff);    
 #else    
     void allocate_switchTopo_(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
     void deallocate_switchTopo_(SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);    

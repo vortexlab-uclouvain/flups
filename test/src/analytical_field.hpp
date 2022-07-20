@@ -2,7 +2,7 @@
 #define _SRC_ANALYTICAL_FIELD_
 
 #include "h3lpr/profiler.hpp"
-#include "flups.h"
+#include "define.h"
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
