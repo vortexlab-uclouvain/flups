@@ -52,12 +52,12 @@ npcpu_list=(48)
 
 echo " ------ Submitting Job scripts"
 
-export NPROC_X_ARR=(16 32 64 128)
-export NPROC_Y_ARR=(1  1  1  1  )
+export NPROC_X_ARR=(1  1  1  1  )
+export NPROC_Y_ARR=(16 32 64 128)
 export NPROC_Z_ARR=(16 32 64 128)
 
 ## The number of points in the y direction is kept constant through all the simulations
-export NGLOB_Y=$(( ${NPROC_Z_ARR[0]}*48 ))
+export NGLOB_Y=$(( ${NPROC_Y_ARR[0]}*48 ))
 
 export L_X=1 
 export L_Y=1 
@@ -73,7 +73,7 @@ do
 	export NPROC_Z=${NPROC_Z_ARR[$idx]}
 
 
-        export NGLOB_X=$(( ${NPROC_X}* ${npcpu} ))
+        export NGLOB_X=$(( ${NPROC_Y}* ${npcpu} ))
         export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} ))
         export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
 
