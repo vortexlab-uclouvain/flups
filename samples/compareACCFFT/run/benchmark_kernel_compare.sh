@@ -18,8 +18,8 @@ do
     echo "OMPI_MCA_osc == ${OMPI_MCA_osc}"
     echo "----------------- launching job -----------------"
     echo "Launching jobs with: "
-    echo "OMP_NUM_THREADS=1 srun --mpi=pmix --cpu_bind=cores ./${EXEC_FLUPS} --nproc=${NPROC_X},${NPROC_Y},${NPROC_Z} --nglob=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --profile --warm=0"
-    OMP_NUM_THREADS=1 mpirun ./${EXEC_FLUPS} --nproc=${NPROC_X},${NPROC_Y},${NPROC_Z} --nglob=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --profile --warm=5
+    echo "OMP_NUM_THREADS=1 srun ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --nproc=${NPROC_X},${NPROC_Y},${NPROC_Z} --nglob=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --profile --warm=0"
+    OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --nproc=${NPROC_X},${NPROC_Y},${NPROC_Z} --nglob=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --profile --warm=5
     echo "----------------- done           -----------------"
     cd -
 done

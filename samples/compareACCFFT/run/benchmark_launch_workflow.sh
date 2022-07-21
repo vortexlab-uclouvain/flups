@@ -32,7 +32,7 @@ export KERNEL_TIME='01:00:00'
 
 # ..................................................................
 export CLUSTER='meluxina'
-
+export LAUNCH_COMMAND='mpirun'
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
@@ -119,9 +119,4 @@ if [[ ${CLUSTER} == "vega" ]]; then
 fi
 
 
-# Performance 
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh")
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh")
-
-# Validation 
 ("${HOME_FLUPS}/samples/compareACCFFT/run/benchmark_workflow_compare.sh")
