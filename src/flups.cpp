@@ -168,12 +168,16 @@ double* flups_get_innerBuffer(FLUPS_Solver* s){
     return s->get_innerBuffer();
 }
 
-const Topology* flups_get_innerTopo_physical(Solver* s) {
+Topology* flups_get_innerTopo_physical(Solver* s) {
     return s->get_innerTopo_physical();
 }
 
-const Topology* flups_get_innerTopo_spectral(Solver* s) {
+Topology* flups_get_innerTopo_spectral(Solver* s) {
     return s->get_innerTopo_spectral();
+}
+
+void flups_skip_firstSwitchtopo(Solver* s){
+    s->skip_firstSwitchtopo();
 }
 
 void flups_do_copy(Solver* s, const Topology* topo, double* data, const int sign) {

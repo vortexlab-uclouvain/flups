@@ -492,19 +492,29 @@ void flups_set_alpha(FLUPS_Solver* s, const double alpha);  // must be done befo
 double* flups_get_innerBuffer(FLUPS_Solver* s);
 
 /**
- * @brief returns the physical topology, i.e. the one used for rhs and solution
+ * @brief returns the first pencil topology in the physical space, i.e. the one used for rhs and solution
  *
  * @param s
  * @return const FLUPS_Topology*
  */
-const FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s);
+FLUPS_Topology* flups_get_innerTopo_physical(FLUPS_Solver* s);
+
 /**
  * @brief returns the spectral topology, i.e. the one which is fully spectral
  *
  * @param s
  * @return const FLUPS_Topology*
  */
-const FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
+FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
+
+/**
+ * @brief Instruct flups to not perform the first SwitchTopology from the user topology to the first pencil one
+ *
+ * Use this option with care, to be used with @ref flups_get_innerTopo_physical()
+ *
+ * @param s flups solver
+ */
+void flups_skip_firstSwitchtopo(FLUPS_Solver* s);
 
 /**
  * @brief do the copy from the data provided by the user to FLUPS owned data arrays

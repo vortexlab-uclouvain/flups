@@ -526,10 +526,10 @@ Solver::~Solver() {
 }
 
 /**
- * @brief returns a copy of the topology corresponding to the physical space
+ * @brief returns a copy of the first topology in pencil decomposition (still in the physical space though!)
  *
  */
-const Topology *Solver::get_innerTopo_physical() {
+Topology *Solver::get_innerTopo_physical() {
     return topo_hat_[0];
 }
 
@@ -537,7 +537,7 @@ const Topology *Solver::get_innerTopo_physical() {
  * @brief returns a copy of the topology corresponding to the fully transformed space
  *
  */
-const Topology *Solver::get_innerTopo_spectral() {
+Topology *Solver::get_innerTopo_spectral() {
     return topo_hat_[ndim_ - 1];
 }
 
@@ -890,7 +890,7 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
 #if (FLUPS_MPI_AGGRESSIVE)
-            switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,\
+            switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
                                           need_recv ? (*recv_buff)() : nullptr);
 #else
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
