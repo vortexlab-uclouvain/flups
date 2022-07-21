@@ -7,7 +7,7 @@
 	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 	// "dockerFile": "docker/Dockerfile",
 	// Rather use an image from DockerHub, first download it or build it
-	"image": "vanreeslab/flups:v1.0",
+	"image": "vanreeslab/flups:v1.1",
 	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"terminal.integrated.shell.linux": null

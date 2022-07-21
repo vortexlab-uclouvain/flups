@@ -41,7 +41,7 @@ compil lm3 :
     - ssh-add <(echo "$H3LPR_SSHKEY")
     - echo $H3LPRKH >> ~/.ssh/known_hosts
     - git clone git@github.com:van-Rees-Lab/h3lpr.git
-    - cd h3lpr && git checkout origin/dev-make-static && cd - 
+    # - cd h3lpr && git checkout origin/dev-make-static && cd - 
     - tar -czf h3lpr_src.tar.gz h3lpr && du -sh h3lpr_src.tar.gz
     # Change the key before sending the data to lm3 
     - eval $(ssh-agent -s)

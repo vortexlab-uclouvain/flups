@@ -376,7 +376,6 @@ void DoShuffleChunk(MemChunk* chunk) {
  */
 void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
     BEGIN_FUNC;
-    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
@@ -397,7 +396,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // the chunk must be aligned all the time
-        FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned");
+        FLUPS_CHECK(m_isaligned(src_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
 #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
@@ -416,7 +415,6 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
 
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk) {
     BEGIN_FUNC;
-    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
@@ -439,7 +437,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         opt_double_ptr src_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // we alwas know that the chunk memory is aligned
-        FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
+        FLUPS_CHECK(m_isaligned(trg_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
         FLUPS_INFO("pointers are %p and %p", trg_data, src_data);
         FLUPS_INFO("copy %d %d %d from data to chunk", chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         FLUPS_INFO("copy %zu bytes in %zu loops", nmax_byte, n_loop);
