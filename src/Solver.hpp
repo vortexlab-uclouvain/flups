@@ -209,7 +209,7 @@ class Solver {
 
     double* get_innerBuffer() { return data_; };
 
-    // void skip_firstSwitchtopo() { skip_st0_ = true; };
+    void skip_firstSwitchtopo() { skip_st0_ = true; };
 
     /**
      * @brief Get the total allocated size of the pointer data (returned by setup)

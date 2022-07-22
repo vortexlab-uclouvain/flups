@@ -176,9 +176,9 @@ Topology* flups_get_innerTopo_spectral(Solver* s) {
     return s->get_innerTopo_spectral();
 }
 
-// void flups_skip_firstSwitchtopo(Solver* s){
-//     s->skip_firstSwitchtopo();
-// }
+void flups_skip_firstSwitchtopo(Solver* s){
+    s->skip_firstSwitchtopo();
+}
 
 void flups_do_copy(Solver* s, const Topology* topo, double* data, const int sign) {
     s->do_copy(topo, data, sign);

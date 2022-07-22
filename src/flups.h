@@ -510,8 +510,8 @@ FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
 /**
  * @brief Instruct flups to not perform the first SwitchTopology from the user topology to the first pencil one
  *
- * Use this option with care, to be used with @ref flups_get_innerTopo_physical()
- *
+ * @warning be very careful with these call, it might end up with undefined behavior
+ * 
  * @param s flups solver
  */
 void flups_skip_firstSwitchtopo(FLUPS_Solver* s);
