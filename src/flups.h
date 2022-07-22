@@ -542,7 +542,15 @@ void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
  */
 void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
-int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], FLUPS_BoundaryType* bc[3][2], const FLUPS_CenterType center_type[3]);
+// int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], FLUPS_BoundaryType* bc[3][2], const FLUPS_CenterType center_type[3]);
+
+/**
+ * @brief for a set of boundary conditions returns the succession of directions for the pencils
+ * 
+ * @param bc the boundary conditions
+ * @param dirs the different directions of the pencils ([0] is the first direction, etc.)
+ */
+void flups_pencilDirs(const FLUPS_BoundaryType* bc[3][2], int dirs[3]);
 
 /**
  * @brief Print information about the SwitchTopo used by a solver
