@@ -32,9 +32,9 @@
 
 #include "Solver.hpp"
 #include "Topology.hpp"
+#include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
-#include "toolsinterface.hpp"
 
 extern "C" {
 
@@ -192,8 +192,16 @@ void flups_do_mult(Solver* s, double* data, const SolverType type) {
     s->do_mult(data, type);
 }
 
-int flups_hint_proc_repartition(const int lda, const double h[3], const double L[3], BoundaryType* bc[3][2], const CenterType center_type[3]) {
-    return hint_proc_repartition(lda, h, L, bc, center_type);
+void flups_pencilDirs(const FLUPS_BoundaryType* bc[3][2], int dirs[3]) {
+    // get the priorities from the bcs
+    std::array<std::tuple<int, int>, 3> priority = {std::make_tuple(bc_to_types(bc[0]), 0),
+                                                    std::make_tuple(bc_to_types(bc[1]), 1),
+                                                    std::make_tuple(bc_to_types(bc[2]), 2)};
+    // sort the priority and get the direction of the pencils
+    sort_priority(&priority);
+    for (int id = 0; id < 3; ++id) {
+        dirs[id] = std::get<1>(priority[id]);
+    }
 }
 
 void flups_switchtopo_info(Solver* s) {
