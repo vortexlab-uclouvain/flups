@@ -5,7 +5,7 @@
 
 ## Definition of the directories 
 TAG=`date '+%Y-%m-%d-%H%M'`-`uuidgen -t | head -c 8`
-SUBMISSION_NAME=weak_scaling_flups-${MPI_VERSION}-${TAG}
+SUBMISSION_NAME=xplore_rolling_rank_flups-${MPI_VERSION}-${TAG}
 
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory
@@ -19,30 +19,44 @@ export SCRIPT_MODULE=${HOME_FLUPS}/samples/validation/run/${CLUSTER}_modules.sh
 
 ##-------------------------------------------------------------------------------------------------------------
 ## Go to the scratch directory and copy what's needed
-echo "------ Copying what's needed ..."
-export H3LPR_DIR=${SCRATCH_DIR}/h3lpr/
-export FLUPS_DIR=${SCRATCH_DIR}/flups/
-mkdir -p ${H3LPR_DIR}
-mkdir -p ${FLUPS_DIR}
+export COMPILE_OPTIONS=(" " "-DMPI_NO_ROLLING_RANK")
+export COMPILE_PREFIXES=("rolling_rank" "default_rank")
+export SCRATCH_DIR_LIST='rolling_rank default_rank'
 
-cd ${SCRATCH_DIR}
-rsync -r ${HOME_FLUPS} ${FLUPS_DIR}
-rsync -r ${HOME_H3LPR} ${H3LPR_DIR}
-echo " ------ ... done ! "
 
-#-------------------------------------------------------------------------------
-## Launch the compilations
-echo " ------ Compiling librairies ..."
-COMPILEJOB_ID=$(sbatch --parsable \
-                       --job-name=flups_compile_MPI_${MPI_VERSION} \
-                       --account=${ACCOUNT} \
-                       --partition=${PARTITION} \
-                       ${COMPILE_CLUSTER_SPEC} \
-                       --nodes=${COMPILE_NNODE} \
-                       --ntasks=${COMPILE_NTASK} \
-                       --time=${COMPILE_TIME} \
-                       ${FLUPS_DIR}/samples/validation/run/benchmark_compile.sh) 
-echo " ------ ... done ! "
+for idx in "${!COMPILE_OPTIONS[@]}";
+do
+    echo "------ Copying what's needed ..."
+    export H3LPR_DIR=${SCRATCH_DIR}/${COMPILE_PREFIXES[$idx]}/h3lpr/
+    export FLUPS_DIR=${SCRATCH_DIR}/${COMPILE_PREFIXES[$idx]}/flups/
+
+    mkdir -p ${H3LPR_DIR}
+    mkdir -p ${FLUPS_DIR}
+
+
+    cd ${SCRATCH_DIR}
+    rsync -r ${HOME_FLUPS} ${FLUPS_DIR}
+    rsync -r ${HOME_H3LPR} ${H3LPR_DIR}
+    echo " ------ ... done ! "
+
+    #-------------------------------------------------------------------------------
+    ## Launch the compilations
+    echo " ------ Rewriting the options ..."
+    export FLUPS_OPTS=${COMPILE_OPTIONS[$idx]}
+    echo " ------ Compiling with ${FLUPS_OPTS} -- Executable will be there ${FLUPS_DIR}/samples/validation/"
+
+    echo " ------ Compiling librairies ..."
+    COMPILEJOB_ID=$(sbatch --parsable \
+                           --job-name=flups_compile_MPI_${MPI_VERSION} \
+                           --account=${ACCOUNT} \
+                           --partition=${PARTITION} \
+                           ${COMPILE_CLUSTER_SPEC} \
+                           --nodes=${COMPILE_NNODE} \
+                           --ntasks=${COMPILE_NTASK} \
+                           --time=${COMPILE_TIME} \
+                           ${FLUPS_DIR}/samples/validation/run/benchmark_compile.sh) 
+    echo " ------ ... done ! "
+done
 
 #-------------------------------------------------------------------------------
 ## LAUNCH THE JOBS
@@ -72,10 +86,7 @@ do
     # Loop on the provided version 
     #---------------------------------------------------------------------------
     export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-    echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
-    echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
-    
-    sbatch -d afterok:${COMPILEJOB_ID} \
+    echo "    sbatch -d afterok:${COMPILEJOB_ID} \
            --job-name=${MYNAME} \
            --account=${ACCOUNT} \
            ${KERNEL_CLUSTER_SPEC} \
@@ -83,7 +94,18 @@ do
            --nodes=${NNODE} \
            --ntasks-per-node=${NPROC_NODES} \
            --time=${KERNEL_TIME} \
-           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_scaling.sh
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_xplore.sh"
+    echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+    
+    sbatch -d afterok:${COMPILEJOB_ID} \
+	   --job-name=${MYNAME} \
+           --account=${ACCOUNT} \
+           ${KERNEL_CLUSTER_SPEC} \
+           --partition=${PARTITION} \
+           --nodes=${NNODE} \
+           --ntasks-per-node=${NPROC_NODES} \
+           --time=${KERNEL_TIME} \
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_xplore.sh
     #---------------------------------------------------------------------------
     
     if [ $(($i%3)) -eq 0 ]

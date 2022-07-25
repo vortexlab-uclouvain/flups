@@ -90,6 +90,12 @@
 #define FLUPS_WISDOM_PATH HAVE_WISDOM
 #endif
 
+#ifdef HAVE_HDF5
+#define FLUPS_HDF5 1
+#else
+#define FLUPS_HDF5 0
+#endif
+
 // register the current git commit for tracking purpose
 #ifdef GIT_COMMIT
 #define FLUPS_GIT_COMMIT GIT_COMMIT
@@ -115,12 +121,30 @@
 #define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
 #endif
 
-//=============================================================================
+#ifndef MPI_DEFAULT_ORDER
+#define FLUPS_PRIORITYLIST 1
+#else
+#define FLUPS_PRIORITYLIST 0
+#endif
+
+#ifndef MPI_NO_ROLLING_RANK
+#define FLUPS_ROLLING_RANK 1
+#else
+#define FLUPS_ROLLING_RANK 0
+#endif
+
+#ifndef MPI_NO_ALLOC
+#define FLUPS_MPI_ALLOC 1
+#else
+#define FLUPS_MPI_ALLOC 0
+#endif
+
+//==============================================================================
 /**
  * @name STRUCTURES AND DEFINITIONS
  * @{
  */
-//=============================================================================
+//==============================================================================
 
 /**
  * @brief List of supported boundary conditions

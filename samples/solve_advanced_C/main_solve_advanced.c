@@ -66,7 +66,8 @@ int main(int argc, char *argv[]) {
     // solver creation and init
     FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L, NOD, center_type);
     flups_set_greenType(mysolver,CHAT_2);
-    double* solFLU = flups_setup(mysolver, true);
+    flups_setup(mysolver, true);
+    double* solFLU = flups_get_innerBuffer(mysolver);
 
     // recompute the communicator and the rank
     comm = flups_topo_get_comm(topoIn);
@@ -185,7 +186,6 @@ int main(int argc, char *argv[]) {
     }
 
     flups_hdf5_dump(topoSpec,"spectrum",solFLU);
-
     // //-------------------------------------------------------------------------
     // /** - Proceed to the BACKWARD 3D FFT */
     // //-------------------------------------------------------------------------

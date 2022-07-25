@@ -6,7 +6,7 @@ export FLUPS_MPICXX=mpic++
 export FLUPS_MPICC=mpicc
 export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF"
 export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
-export FLUPS_LDFLAGS="-fopenmp -lstdc++"
+export FLUPS_LDFLAGS="-fopenmp -lstdc++ -rdynamic -ldl"
 
 
 # Clone and compile google source test 

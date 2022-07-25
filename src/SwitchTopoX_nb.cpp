@@ -70,7 +70,11 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
         //......................................................................
         for (int ir = 0; ir < nchunks; ++ir) {
             // we offset the starting index to avoid congestion
+#if (FLUPS_ROLLING_RANK)
             const int ichunk = (ir + sub_rank) % nchunks;
+#else
+            const int ichunk = ir;
+#endif
             // get the chunk informations
             MemChunk *cchunk = chunks + ichunk;
 
@@ -91,6 +95,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
             MPI_Recv_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, cchunk->dest_rank, cchunk->comm, recv_rqst + ichunk);
 
             // store the id in the send order list together with the send request
+#if (FLUPS_PRIORITYLIST)
             if (!is_in_shared) {
                 send_order[prior_idx[0]] = ichunk;
                 MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, send_tag, cchunk->comm, send_rqst + prior_idx[0]);
@@ -102,6 +107,13 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
                 // increment the non-priority counter
                 (noprior_idx[0])--;
             }
+#else
+            send_order[prior_idx[0]] = ichunk;
+            MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, send_tag, cchunk->comm, send_rqst + prior_idx[0]);
+            // increment the counter
+            (prior_idx[0])++;
+#endif 
+
         }
         FLUPS_CHECK(noprior_idx[0] == (prior_idx[0] - 1), "the prior index = %d should be = %d + 1 = %d", prior_idx[0], noprior_idx[0], noprior_idx[0] + 1);
     };

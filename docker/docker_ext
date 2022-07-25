@@ -12,11 +12,13 @@ RUN apt-get -y update && apt-get install -y openssh-client git
 RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan git.immc.ucl.ac.be github.com >> ~/.ssh/known_hosts
 
 #-------------------------------------------------------------------------------
+ARG FLUPS_DATE=2042-07-19
 ### h3lpr
 RUN --mount=type=ssh git clone git@github.com:van-Rees-Lab/h3lpr.git
 RUN cd /h3lpr &&\
+    git checkout origin/develop &&\
     echo "CXX = mpic++" > make_arch/make.temp &&\
-    echo "CC = mpicc" >> make_arch/make.temp &&\
+    echo "CC  = mpicc" >> make_arch/make.temp &&\
     echo "CXXFLAGS := -O3 -std=c++17 -fopenmp -DCOLOR_PROF " >> make_arch/make.temp  &&\
     echo "CCFLAGS := -O3 -std=c99 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp &&\
     echo "LDFLAGS += -fopenmp -lstdc++ -lm" >> make_arch/make.temp &&\

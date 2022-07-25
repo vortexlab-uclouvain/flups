@@ -33,9 +33,43 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
-#include "flups_interface.h"
-#include "h3lpr/macros.hpp"
-#include "h3lpr/profiler.hpp"
+#include "flups_interface.h" // get the main defines
+#include "h3lpr/macros.hpp" // return the h3lpr macros
+#include "h3lpr/profiler.hpp" // profiler
+#include "h3lpr/ptr.hpp" // pointer allocation
+
+//==============================================================================
+#if (FLUPS_MPI_AGGRESSIVE)
+#if (FLUPS_MPI_ALLOC)
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
+#else
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
+#endif
+#endif
+
+/**
+ * @brief allocates size bytes using the flups allocation (alignement)
+ *
+ * this funaction relies on the POSIX allocation as defined by H3LPR because
+ * with a posix allocation the returned pointer is the one that needs to be freed
+ *
+ */
+#define m_calloc(size)                                                             \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
+
+/**
+ * @brief free the memory allocated using m_calloc
+ *
+ */
+#define m_free(data)     \
+    {                    \
+        std::free(data); \
+    }
+
 
 
 //=============================================================================
@@ -133,17 +167,17 @@
 
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
-    return ((uintptr_t)(const void*)a) % M_ALIGNMENT == 0;
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;
 }
 
 template <typename T>
 static inline int FLUPS_CMPT_ALIGNMENT(T a) {
-    return ((uintptr_t)(const void*)a) % M_ALIGNMENT;
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
 
-typedef int* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_int_ptr;
-typedef double* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_double_ptr;
-typedef fftw_complex* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_complex_ptr;
+typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
+typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
+typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
 #define m_profStarti(prof, name, ...)                                    \
     ({                                                                   \

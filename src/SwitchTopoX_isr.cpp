@@ -57,7 +57,11 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     auto setup_priority = [=](const int nchunks, MemChunk *chunks, int *send_order, int *prior_idx, int *noprior_idx) {
         for (int ir = 0; ir < nchunks; ++ir) {
             // we offset the starting index to avoid congestion
+#if (FLUPS_ROLLING_RANK)
             const int ichunk = (ir + sub_rank) % nchunks;
+#else
+            const int ichunk = ir;
+#endif
             // get the chunk informations
             MemChunk *cchunk = chunks + ichunk;
 
@@ -65,6 +69,7 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
             ChunkToNewComm(shared_comm_, shared_group, cchunk, &is_in_shared);
 
             // store the id in the send order list and update the comm + dest_rank if needed
+#if (FLUPS_PRIORITYLIST)
             if (is_in_shared) {
                 // store the priority list
                 send_order[noprior_idx[0]] = ichunk;
@@ -74,6 +79,10 @@ void SwitchTopoX_isr::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
                 send_order[prior_idx[0]] = ichunk;
                 (prior_idx[0])++;
             }
+#else
+            send_order[prior_idx[0]] = ichunk;
+            (prior_idx[0])++;
+#endif 
         }
     };
     // we store the priority requests in front of the order list and the non-priority ones at the end of the list

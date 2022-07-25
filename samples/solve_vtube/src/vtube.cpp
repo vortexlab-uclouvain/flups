@@ -306,7 +306,6 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                 }
             }
     }
-
 #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
@@ -326,6 +325,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     flups_profiler_disp(prof);
     flups_profiler_free(prof);
+
 
 #ifdef DUMP_DBG
     // write the source term and the solution
