@@ -140,14 +140,22 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 } else if (bc_[1][lia] == ODD) {
                     // We need to remove the 0 at the end of the input
-                    n_in_[lia]  = size[dimID_] - 1;
-                    n_out_ = size[dimID_];
+                    n_in_[lia] = size[dimID_] - 1;
+                    n_out_     = size[dimID_];
 
-                    corrtype_[lia] = CORRECTION_NODE_DCT_III;
-                    koffset_       = 0.0;
+                    koffset_ = 0.0;
                     // always the samed DCT
-                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT01;   // DCT type III
-                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT10;  // DCT type II (inverse of the type III)
+                    if (sign_ == FLUPS_FORWARD) {
+                        // DCT type III
+                        kind_[lia] = FFTW_REDFT01;
+                        // DCT type III: must set the flip-flop to 0
+                        corrtype_[lia] = CORRECTION_FLIPFLOP;
+                    } else if (sign_ == FLUPS_BACKWARD) {
+                        // DCT type II (inverse of the type III)
+                        kind_[lia]     = FFTW_REDFT10;
+                        // no correction is needed
+                        corrtype_[lia] = CORRECTION_NONE;
+                    }
                 }
 
                 //-------------------------------------------------------------------------
@@ -163,28 +171,44 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     n_out_ = size[dimID_];
 
                     // The first data of the memory is not given to fftw
-                    corrtype_[lia]  = CORRECTION_NODE_DST_I;
                     fftwstart_[lia] = 1;
                     koffset_        = 0.0;
                     fieldstart_     = 0;
 
                     // always the correct DST
-                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
-                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
+                    if (sign_ == FLUPS_FORWARD) {
+                        // DST type I
+                        kind_[lia]     = FFTW_RODFT00;
+                        // sets the zero mode to 0 + the flipflop mode
+                        corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                    }
+                    if (sign_ == FLUPS_BACKWARD) {
+                        kind_[lia]     = FFTW_RODFT00;  // DST type I
+                        // no correction
+                        corrtype_[lia] = CORRECTION_NONE;
+                    }
 
                 } else if (bc_[1][lia] == EVEN) {
-                    // The first data is not need by FFTW, we have to manually remove it 
-                    n_in_[lia]  = size[dimID_] - 1;
-                    n_out_ = size[dimID_];
-                    
-                    // A correction is needed to remove the first data and shift all the other to the right 
-                    corrtype_[lia]  = CORRECTION_NODE_DST_III;
+                    // The first data is not need by FFTW, we have to manually remove it
+                    n_in_[lia] = size[dimID_] - 1;
+                    n_out_     = size[dimID_];
+
                     fftwstart_[lia] = 1;
                     koffset_        = 0.0;
                     fieldstart_     = 0;
                     // always the samed DST
-                    if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT01;   // DST type III
-                    if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT10;  // DST type II
+                    if (sign_ == FLUPS_FORWARD) {
+                        // DST type III
+                        kind_[lia]     = FFTW_RODFT01;
+                        // shifts all the mode to the left (i -> i-1) + sets flipflop
+                        corrtype_[lia] = CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT;
+                    }
+                    if (sign_ == FLUPS_BACKWARD) {
+                        // DST type II
+                        kind_[lia]     = FFTW_RODFT10;
+                        // shifts all the mode to the right (i -> i+1) + sets zeromode
+                        corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_SHIFTRIGHT;
+                    }
                 }
             } else {
                 FLUPS_CHECK(false, "unable to init the solver required");
@@ -276,20 +300,25 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
                 if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;  // DCT type I
 
-            } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {  
+            } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {
                 // We have a DST - we are ODD - ODD over 2L
                 // we double the size of the data
-                n_in_[lia] = (2 * size[dimID_] - 1) - 2 ;
+                n_in_[lia] = (2 * size[dimID_] - 1) - 2;
                 // n_out_ must be equal to the n_out_ of the UNB EVEN transform
                 n_out_ = n_in_[lia] + 2;
                 // no offset after the correction
-                koffset_       = 0.0;
-                corrtype_[lia] = CORRECTION_NODE_DST_I;
+                koffset_ = 0.0;
                 // we do a DCT, so no imult
-                imult_[lia] = true;
+                imult_[lia]     = true;
                 fftwstart_[lia] = 1;
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_RODFT00;   // DST type I
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_RODFT00;  // DST type I
+                if (sign_ == FLUPS_FORWARD) {
+                    kind_[lia]     = FFTW_RODFT00;  // DST type I
+                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                }
+                if (sign_ == FLUPS_BACKWARD) {
+                    kind_[lia]     = FFTW_RODFT00;  // DST type I
+                    corrtype_[lia] = CORRECTION_NONE;
+                }
             } else {
                 FLUPS_CHECK(false, "unable to init the solver required");
             }

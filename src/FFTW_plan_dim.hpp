@@ -56,19 +56,39 @@ class FFTW_plan_dim {
     };
 
     /**
-     * @brief Type of real plan, this will drive the correction step in the execute function
+     * @brief Determines which correction must be performed on the output/input of the fft forward/backward
+     *
+     * the corrections combines 4 basic operations and therefore are encrypted on 4 bytes:
+     * - byte 0 obtained as `(correction>>0)%2` overwrites the 0-mode
+     * - byte 1 obtained as `(correction>>1)%2` overwrites the flip-flop mode
+     * - byte 2 obtained as `(correction>>2)%2` shifts mode to the left (i -> i+1)
+     * - byte 3 obtained as `(correction>>3)%2` shifts mode to the left (i -> i+1)
+     *
+     * The actual correction of a planned is asigned using the sum operator:
+     *      CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT = 2 + 4 = 6
+     * will lead to
+     * - (6>>0)%2 = 0 -> NO zero mode correction
+     * - (6>>1)%2 = 1 -> YES flip-flop mode correction
+     * - (6>>2)%2 = 1 -> YES shift left correction
+     * - (6>>3)%2 = 0 -> no shift right correction
+     *
      * - CORRECTION_NONE: no correction is needed
      * - CORRECTION_DCT: the correction of a DCT is needed (while going forward, put 0 in the flip-flop mode)
      * - CORRECTION_DST: the correction of a DST is needed (forward: shift the modes FORWARD and put 0, backward: shift the mode backward)
-     * 
+     *
      */
-    enum PlanCorrectionType{
-        CORRECTION_NONE = 0,
-        CORRECTION_DCT = 1,
-        CORRECTION_DST = 2,
-        CORRECTION_NODE_DCT_III = 3, 
-        CORRECTION_NODE_DST_I = 4, 
-        CORRECTION_NODE_DST_III = 5
+    enum PlanCorrectionType {
+        CORRECTION_NONE       = 0,  // no corrections
+        CORRECTION_ZEROMODE   = 1,  // byte 0, obtained as = 1<<0
+        CORRECTION_FLIPFLOP   = 2,  // byte 1, obtained as = 1<<1
+        CORRECTION_SHIFTLEFT  = 4,  // byte 2, obtained as = 1<<2
+        CORRECTION_SHIFTRIGHT = 8   // byte 3, obtained as = 1<<3
+        // CORRECTION_DCT = 1, //
+        // CORRECTION_DST = 2,
+        // CORRECTION_ALL = 3
+        // CORRECTION_NODE_DCT_III = 3,
+        // CORRECTION_NODE_DST_I = 4,
+        // CORRECTION_NODE_DST_III = 5
     };
 
    protected:
@@ -93,12 +113,12 @@ class FFTW_plan_dim {
     int*    n_in_        = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
     int*    fftwstart_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
 
-    PlanType            type_;                    /**< @brief type of this plan, see #PlanType*/
-    BoundaryType*       bc_[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
-    PlanCorrectionType* corrtype_ = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
-    bool*               imult_    = NULL;        /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
-    fftw_r2r_kind*      kind_     = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    fftw_plan*          plan_     = NULL;         /**< @brief the array of FFTW plan*/
+    PlanType       type_;                    /**< @brief type of this plan, see #PlanType*/
+    BoundaryType*  bc_[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
+    int*           corrtype_ = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
+    bool*          imult_    = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
+    fftw_r2r_kind* kind_     = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan*     plan_     = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -129,6 +149,19 @@ class FFTW_plan_dim {
     inline void   get_outsize(int* size) const { size[dimID_] = n_out_; };
     inline void   get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
     inline void   get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
+    /**@} */
+
+    /**
+     * @name correction helper functions
+     *
+     * return true if the correction required by the plan contains the associated operation
+     *
+     */
+    /**@{ */
+    bool do_reset_zero_correction(const int value) const { return ((value >> 0) % 2); };
+    bool do_reset_flipflop_correction(const int value) const { return ((value >> 1) % 2); };
+    bool do_shift_left_correction(const int value) const { return ((value >> 2) % 2); };
+    bool do_shift_right_correction(const int value) const { return ((value >> 3) % 2); };
     /**@} */
 
     void disp();

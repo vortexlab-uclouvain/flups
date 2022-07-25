@@ -441,38 +441,38 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
 
 /**
  * @brief corrects the plan executed depending on #corrtype_ and #sign_.
- * 
+ *
  * This function resets the correct mode at the correct place in the Topology
- * ............................................ 
+ * ............................................
  * Cell-centred version
  * ............................................
  * If going forward:
  * - the DST correction sets the 0-mode to 0 and shifts the modes by 1 on the right  (i-> i+1)
  * - the DCT correction sets the flip-flop mode to 0
- * 
+ *
  * If going backward:
  * - the DCT correction is not needed
  * - the DST correction shifts the mode to the left (i-> i-1)
- * 
- * ............................................ 
+ *
+ * ............................................
  * Node-centred version
  * ............................................
  * If going forward:
  * - the DCT-III correction sets the flipflop-mode to 0
- * - the DST-I correction sets the 0- and the flip-flop mode to 0 
+ * - the DST-I correction sets the 0- and the flip-flop mode to 0
  * - the DST-III correction shifts the modes by 1 to the left (i->i-1)
- * 
+ *
  * If going backward:
  * - the DCT-III correction is not needed
- * - the DST-I correction is not needed 
- * - the DST-III correction shifts the modes by 1 to the right (i->i+1) and set the first physical point to 0 
- * 
- * @param data 
+ * - the DST-I correction is not needed
+ * - the DST-III correction shifts the modes by 1 to the right (i->i+1) and set the first physical point to 0
+ *
+ * @param data
  */
 void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
     BEGIN_FUNC;
     // check the data alignment
-    check_dataAlign_(topo,data);
+    check_dataAlign_(topo, data);
 
     const int    nloc        = topo->nloc(topo->axis());
     const size_t howmany     = howmany_;
@@ -480,58 +480,82 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
     const size_t fftw_stride = (size_t)fftw_stride_;
 
     for (int lia = 0; lia < lda_; lia++) {
+        //----------------------------------------------------------------------
+        // given the correction, get which one we actually do
+        const int  correct        = corrtype_[lia];
+        const bool do_zero        = do_reset_zero_correction(correct);
+        const bool do_flipflop    = do_reset_flipflop_correction(correct);
+        const bool do_shift_left  = do_shift_left_correction(correct);
+        const bool do_shift_right = do_shift_right_correction(correct);
+
+        // now that we know which correction is requested form the type, we can ajdust them given the forward types
+        const bool no_shift = (!do_shift_left) && (!do_shift_right);
+        // simple memory corrections, no shift
+        const bool reset_zero          = do_zero && (!do_flipflop) && no_shift;  // && is_forward;
+        const bool reset_flipflop      = (!do_zero) && do_flipflop && no_shift;  // && is_forward;
+        const bool reset_zero_flipflop = do_zero && do_flipflop && no_shift;     // && is_forward;
+        // shift left or right?
+        const bool shift_right = (do_zero && (!do_flipflop) && do_shift_right);
+        const bool shift_left  = ((!do_zero) && do_flipflop && do_shift_left);
+        //----------------------------------------------------------------------
+
         // get the starting point of the
         opt_double_ptr mydata = data + lia * memdim;
-        // if we need a DCT correction and that we are doing forward (backward doesn't matter)
-        if (corrtype_[lia] == CORRECTION_DCT && sign_ == FLUPS_FORWARD) {
-            // we need to enforce the flip-flop mode to be zero and that's it
+        //----------------------------------------------------------------------
+        if (reset_zero) {
+            // we need to enforce the zero mode to 0
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // reset the zero mode
+                dataloc[0] = 0.0;
+            }
+        }
+        //----------------------------------------------------------------------
+        // DO FLIPFLOP + NO SHIFT
+        else if (reset_flipflop) {
+            // we need to enforce the flipflop mode to 0
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
                 // reset the flip-flop mode
-                dataloc[nloc - 1]       = 0.0;
+                dataloc[nloc - 1] = 0.0;
             }
         }
-        else if(corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_FORWARD){
+        //----------------------------------------------------------------------
+        // DO ZERO AND FLIPFLOP + NO SHIFT
+        else if (reset_zero_flipflop) {
+            // we need to properly set the zero and the flip flop mode to 0
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+            for (size_t io = 0; io < howmany; io++) {
+                // get the memory
+                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                // reset the zero mode
+                dataloc[0] = 0.0;
+                // reset the flip-flop mode
+                dataloc[nloc - 1] = 0.0;
+            }
+        }
+        //----------------------------------------------------------------------
+        // DO ZERO AND SHIFT RIGHT
+        else if (shift_right) {
             // we need to enforce the the mode 0 + shift everything from i to i+1
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
                 // shift everything i -> i+1
-                for(int ii=nloc-2; ii >= 0; ii--){
-                    dataloc[ii+1] = dataloc[ii];
+                for (int ii = nloc - 2; ii >= 0; ii--) {
+                    dataloc[ii + 1] = dataloc[ii];
                 }
                 dataloc[0] = 0.0;
             }
-        }    
-
-        else if (corrtype_[lia] == CORRECTION_NODE_DCT_III && sign_ == FLUPS_FORWARD) {
-            // we need to properly set the zero and the flip flop mode to 0
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // reset the flip-flop mode
-                dataloc[nloc - 1]       = 0.0;
-            }
-        } 
-
-        else if (corrtype_[lia] == CORRECTION_NODE_DST_I && sign_ == FLUPS_FORWARD) {
-            // we need to properly set the zero and the flip flop mode to 0
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // Reset the null mode
-                dataloc[0] = 0.0;
-                // reset the flip-flop mode
-                dataloc[nloc - 1]       = 0.0;
-            }
-        } 
-
-        else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_FORWARD) {
+        }
+        //----------------------------------------------------------------------
+        // DO FLIP_FLOP AND SHIFT LEFT
+        else if (shift_left) {
             // we need to shift everything from i+1 to i
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
@@ -541,35 +565,104 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 for (int ii = 1; ii < nloc; ii++) {
                     dataloc[ii - 1] = dataloc[ii];
                 }
+                dataloc[nloc - 1] = 0.0;
             }
-        } 
+        }
+        //----------------------------------------------------------------------
+        else {
+            FLUPS_CHECK(false,
+                        "The combination of correction is either illegual or not implemented: ZERO?%d FLIPFLOP?%d SHIFT_LEFT?%d SHIFT_RIGHT?%d",
+                        do_zero, do_flipflop, do_shift_left, do_shift_right);
+        }
 
-        else if (corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD) {
-            // we need to enforce the the mode 0 + shift everything from i to i-1
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i -> i+1
-                for(int ii=1; ii < nloc; ii++){
-                    dataloc[ii-1] = dataloc[ii];
-                }
-            }
-        }
-        else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_BACKWARD) {
-            // we need to shift everything from i to i+1
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i+1 -> i
-                for (int ii = nloc-2; ii >= 0; ii--) {
-                    dataloc[ii + 1] = dataloc[ii];
-                }
-                // enforce the first point in the physical domain to be 0
-                dataloc[0] = 0.0;
-            }
-        }
+        //         // if we need a DCT correction and that we are doing forward (backward doesn't matter)
+        //         if (corrtype_[lia] == CORRECTION_DCT && sign_ == FLUPS_FORWARD) {
+        //             // we need to enforce the flip-flop mode to be zero and that's it
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // reset the flip-flop mode
+        //                 dataloc[nloc - 1]       = 0.0;
+        //             }
+        //         }
+        //         else if(corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_FORWARD){
+        //             // we need to enforce the the mode 0 + shift everything from i to i+1
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // shift everything i -> i+1
+        //                 for(int ii=nloc-2; ii >= 0; ii--){
+        //                     dataloc[ii+1] = dataloc[ii];
+        //                 }
+        //                 dataloc[0] = 0.0;
+        //             }
+        //         }
+
+        //         else if (corrtype_[lia] == CORRECTION_NODE_DCT_III && sign_ == FLUPS_FORWARD) {
+        //             // we need to properly set the zero and the flip flop mode to 0
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // reset the flip-flop mode
+        //                 dataloc[nloc - 1]       = 0.0;
+        //             }
+        //         }
+
+        //         else if (corrtype_[lia] == CORRECTION_NODE_DST_I && sign_ == FLUPS_FORWARD) {
+        //             // we need to properly set the zero and the flip flop mode to 0
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // Reset the null mode
+        //                 dataloc[0] = 0.0;
+        //                 // reset the flip-flop mode
+        //                 dataloc[nloc - 1]       = 0.0;
+        //             }
+        //         }
+
+        //         else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_FORWARD) {
+        //             // we need to shift everything from i+1 to i
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // shift everything i+1 -> i
+        //                 for (int ii = 1; ii < nloc; ii++) {
+        //                     dataloc[ii - 1] = dataloc[ii];
+        //                 }
+        //             }
+        //         }
+
+        //         else if (corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD) {
+        //             // we need to enforce the the mode 0 + shift everything from i to i-1
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // shift everything i -> i+1
+        //                 for(int ii=1; ii < nloc; ii++){
+        //                     dataloc[ii-1] = dataloc[ii];
+        //                 }
+        //             }
+        //         }
+        //         else if (corrtype_[lia] == CORRECTION_NODE_DST_III && sign_ == FLUPS_BACKWARD) {
+        //             // we need to shift everything from i to i+1
+        // #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+        //             for (size_t io = 0; io < howmany; io++) {
+        //                 // get the memory
+        //                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+        //                 // shift everything i+1 -> i
+        //                 for (int ii = nloc-2; ii >= 0; ii--) {
+        //                     dataloc[ii + 1] = dataloc[ii];
+        //                 }
+        //                 // enforce the first point in the physical domain to be 0
+        //                 dataloc[0] = 0.0;
+        //             }
+        //         }
     }
     END_FUNC;
 }
