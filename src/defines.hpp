@@ -39,6 +39,125 @@
 #include "h3lpr/ptr.hpp" // pointer allocation
 
 //==============================================================================
+//                      Compilation flags
+//==============================================================================
+/**
+ * @brief FFTW planner flag driven by the NDEBUG flag
+ *
+ */
+#ifndef FFTW_FLAG
+#ifdef NDEBUG
+#define FLUPS_FFTW_FLAG FFTW_PATIENT
+#else
+#define FLUPS_FFTW_FLAG FFTW_ESTIMATE
+#endif
+#else
+#define FLUPS_FFTW_FLAG FFTW_FLAG
+#endif
+
+#ifndef COMM_DPREC
+#define FLUPS_MPI_AGGRESSIVE 1
+#else
+#define FLUPS_MPI_AGGRESSIVE 0
+#endif
+
+/**
+ * @brief enables the more evenly distributed balancing between ranks
+ *
+ * given N unknowns and P process, we try to evenly distribute the data
+ * every rank has defacto B=N/P unknows as a baseline.
+ * Then we are left with R = N%P unkowns to distribute among the P processes.
+ * To do so instead of setting the R unknowns on the R first ranks we distribute them by groups.
+ * We gather S (=stride) ranks together in a group and per group we add 1 unknow on the last rank of the group
+ * The size of a group is given by S = P/R, which is also the stride between two groups
+ * Exemple:
+ *     - N = 32, P = 6: B = 5, R = 2 and therefore S = 3.
+ *         So the rank distribution will be in two groups of 3 ranks:
+ *              rank 0 -> 0 * 5 + 0 / 3 = 0
+ *              rank 1 -> 1 * 5 + 1 / 3 = 5     (+5)
+ *              rank 2 -> 2 * 5 + 2 / 3 = 10    (+5)
+ *              rank 3 -> 3 * 5 + 3 / 3 = 16    (+6)
+ *              rank 4 -> 4 * 5 + 4 / 3 = 21    (+5)
+ *              rank 5 -> 5 * 5 + 5 / 3 = 26    (+5)
+ *              rank 6 -> 6 * 5 + 6 / 3 = 32    (+6)
+ *
+ * To get the starting id from a rank we have:
+ *       id = r * B + r/S
+ *
+ * To recover the rank from a global id (I) it's a bit longer.
+ * We use S * B + 1 which is the number of unknowns inside one group
+ * (1) get the group id:
+ *      group_id = I /(S*B + 1)
+ * (2) get the id within the group:
+ *      local_group_id = I%(S*B + 1)
+ * (3) get the rank within the group:
+ *      local_group_id/B
+ *
+ * the rank is then:
+ *      group_id * S + local_group_id/B
+ */
+#ifndef BALANCE_DPREC
+#define FLUPS_NEW_BALANCE 1
+#else
+#define FLUPS_NEW_BALANCE 0
+#endif
+
+#ifdef HAVE_WISDOM
+#define FLUPS_WISDOM_PATH HAVE_WISDOM
+#endif
+
+#ifdef HAVE_HDF5
+#define FLUPS_HDF5 1
+#else
+#define FLUPS_HDF5 0
+#endif
+
+// register the current git commit for tracking purpose
+#ifdef GIT_COMMIT
+#define FLUPS_GIT_COMMIT GIT_COMMIT
+#else
+#define FLUPS_GIT_COMMIT "?"
+#endif
+
+#ifndef MPI_40
+#define FLUPS_OLD_MPI 1
+#else
+#define FLUPS_OLD_MPI 0
+#endif
+
+#ifndef MPI_BATCH_SEND
+#define FLUPS_MPI_BATCH_SEND 1
+#else
+#define FLUPS_MPI_BATCH_SEND MPI_BATCH_SEND
+#endif
+
+#ifndef MPI_MAX_NBSEND
+#define FLUPS_MPI_MAX_NBSEND INT_MAX
+#else
+#define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
+#endif
+
+#ifndef MPI_DEFAULT_ORDER
+#define FLUPS_PRIORITYLIST 1
+#else
+#define FLUPS_PRIORITYLIST 0
+#endif
+
+#ifndef MPI_NO_ROLLING_RANK
+#define FLUPS_ROLLING_RANK 1
+#else
+#define FLUPS_ROLLING_RANK 0
+#endif
+
+#ifndef MPI_NO_ALLOC
+#define FLUPS_MPI_ALLOC 1
+#else
+#define FLUPS_MPI_ALLOC 0
+#endif
+
+//==============================================================================
+
+
 #if (FLUPS_MPI_AGGRESSIVE)
 #if (FLUPS_MPI_ALLOC)
 using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;

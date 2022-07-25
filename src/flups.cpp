@@ -249,7 +249,7 @@ void flups_info(int argc, char** argv) {
         // remove the "./" that might be in it
         filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end());
         filename.erase(std::remove(filename.begin(), filename.end(), '/'), filename.end());
-        filename += ".info";
+        filename += ".flups_info";
         FILE* file = fopen(filename.c_str(), "w+");
         fprintf(file, "FLUPS \n");
         fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
