@@ -440,32 +440,10 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
 }
 
 /**
- * @brief corrects the plan executed depending on #corrtype_ and #sign_.
+ * @brief corrects the plan executed depending on corrtype_
  *
- * This function resets the correct mode at the correct place in the Topology
- * ............................................
- * Cell-centred version
- * ............................................
- * If going forward:
- * - the DST correction sets the 0-mode to 0 and shifts the modes by 1 on the right  (i-> i+1)
- * - the DCT correction sets the flip-flop mode to 0
- *
- * If going backward:
- * - the DCT correction is not needed
- * - the DST correction shifts the mode to the left (i-> i-1)
- *
- * ............................................
- * Node-centred version
- * ............................................
- * If going forward:
- * - the DCT-III correction sets the flipflop-mode to 0
- * - the DST-I correction sets the 0- and the flip-flop mode to 0
- * - the DST-III correction shifts the modes by 1 to the left (i->i-1)
- *
- * If going backward:
- * - the DCT-III correction is not needed
- * - the DST-I correction is not needed
- * - the DST-III correction shifts the modes by 1 to the right (i->i+1) and set the first physical point to 0
+ * This function resets the correct mode at the correct place in the Topology. 
+ * The corrections are detailed in doc/Modes_correction
  *
  * @param data
  */

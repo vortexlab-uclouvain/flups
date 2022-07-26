@@ -72,10 +72,6 @@ class FFTW_plan_dim {
      * - (6>>2)%2 = 1 -> YES shift left correction
      * - (6>>3)%2 = 0 -> no shift right correction
      *
-     * - CORRECTION_NONE: no correction is needed
-     * - CORRECTION_DCT: the correction of a DCT is needed (while going forward, put 0 in the flip-flop mode)
-     * - CORRECTION_DST: the correction of a DST is needed (forward: shift the modes FORWARD and put 0, backward: shift the mode backward)
-     *
      */
     enum PlanCorrectionType {
         CORRECTION_NONE       = 0,  // no corrections
@@ -83,12 +79,6 @@ class FFTW_plan_dim {
         CORRECTION_FLIPFLOP   = 2,  // byte 1, obtained as = 1<<1
         CORRECTION_SHIFTLEFT  = 4,  // byte 2, obtained as = 1<<2
         CORRECTION_SHIFTRIGHT = 8   // byte 3, obtained as = 1<<3
-        // CORRECTION_DCT = 1, //
-        // CORRECTION_DST = 2,
-        // CORRECTION_ALL = 3
-        // CORRECTION_NODE_DCT_III = 3,
-        // CORRECTION_NODE_DST_I = 4,
-        // CORRECTION_NODE_DST_III = 5
     };
 
    protected:

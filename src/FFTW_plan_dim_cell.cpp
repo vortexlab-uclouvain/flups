@@ -110,12 +110,12 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
                 if (sign_ == FLUPS_FORWARD){
                     kind_[lia] = FFTW_REDFT10;   // DCT type II
                     // the correction is the one of the DCT = put 0 in the flip-flop mode
-                corrtype_[lia] = CORRECTION_FLIPFLOP ;
+                    corrtype_[lia] = CORRECTION_FLIPFLOP ;
                 }
                 if (sign_ == FLUPS_BACKWARD){
                     kind_[lia] = FFTW_REDFT01;  // DCT type III
                     // the correction is the one of the DCT = put 0 in the flip-flop mode
-                corrtype_[lia] = CORRECTION_NONE ;
+                    corrtype_[lia] = CORRECTION_NONE ;
                 }
             } else if (bc_[1][lia] == ODD) {
                 // no additional mode is required
@@ -317,7 +317,6 @@ void FFTW_plan_dim_cell::init_periodic_(const int size[3], const bool isComplex)
  * 
  * @param size the size
  * @param isComplex if the data is already complex
- * 
  * 
  *--------------------------------------
  * We do the following operations:

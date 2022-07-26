@@ -41,10 +41,6 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     /** - sanity checks */
     //-------------------------------------------------------------------------
     FLUPS_CHECK(isComplex == false,"the data cannot be complex");
-
-    //When removing this assert, we have to make sure that the computation of the normfact_ is consistent with 3D data
-    // FLUPS_CHECK(lda_<= 1 ,"For the moment, we can only handle scalar data in node centered simulation");
-
     //-------------------------------------------------------------------------
     /** - check that the BC given for the different component are compatible,
      *    i.e. the size of the transform is the same for every compoment */
