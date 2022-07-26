@@ -63,6 +63,7 @@ struct DomainDescr {
     int                nproc[3]       = {1, 2, 2};
     double             L[3]           = {1.0, 1.0, 1.0};
     FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
+    FLUPS_CenterType   center[3]      = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
 };
 
 /**

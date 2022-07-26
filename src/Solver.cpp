@@ -1215,6 +1215,7 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
  */
 void Solver::solve(double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
+    FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type !=ROT), "You need vectors when using the ROT solver");
     FLUPS_CHECK(!(type == ROT && odiff_ == NOD), "If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
     FLUPS_CHECK(field != NULL, "field is NULL");
     FLUPS_CHECK(rhs != NULL, "rhs is NULL");

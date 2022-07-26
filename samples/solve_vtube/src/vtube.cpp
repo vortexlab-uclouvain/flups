@@ -40,13 +40,26 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     const bool tube = type==0;
     const bool ring = type==1;
 
-    const int *   nglob  = myCase.nglob;
     const int *   nproc  = myCase.nproc;
     const double *L      = myCase.L;
+    
+    const bool is_cell = myCase.center[0] == CELL_CENTER; 
+    const double fact = (double) (!is_cell);
 
-    const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
+    // Ensure that 64 points in cell-centred mode is equivalent 64 points in node-centred mode
+    const int    nglob[3] = {myCase.nglob[0] + (int)fact,
+                             myCase.nglob[1] + (int)fact,
+                             myCase.nglob[2] + (int)fact};
 
-    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    // h definition depends on if we are cell- of node-centred
+    const double h[3] = {L[0] / (nglob[0] - fact),
+                         L[1] / (nglob[1] - fact),
+                         L[2] / (nglob[2] - fact)};
+
+    FLUPS_CenterType center_type[3];
+    for (int i = 0; i < 3; i++) {
+            center_type[i] = myCase.center[i];
+    }
 
     FLUPS_BoundaryType* mybc[3][2];
     for(int id=0; id<3; id++){
@@ -55,13 +68,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         }
     }
 
-        for (int id = 0; id < 3; id++) {
-            for (int is = 0; is < 2; is++) {
-                for (int lia = 0; lia < 3; lia++) {
-                    mybc[id][is][lia] = myCase.mybcv[id][is][lia];
-                }
+    for (int id = 0; id < 3; id++) {
+        for (int is = 0; is < 2; is++) {
+            for (int lia = 0; lia < 3; lia++) {
+                mybc[id][is][lia] = myCase.mybcv[id][is][lia];
             }
         }
+    }
 
     // create a real topology
     FLUPS_Topology *topo = flups_topo_new(0, 3, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
@@ -123,9 +136,10 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                     const size_t id     = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
-                    const double pos[3] = {(istart[ax0] + i0 + 0.5) * h[ax0],
-                                           (istart[ax1] + i1 + 0.5) * h[ax1],
-                                           (istart[ax2] + i2 + 0.5) * h[ax2]};
+                    const double shift  = is_cell ? 0.5 : 0.0;
+                    const double pos[3] = {(istart[ax0] + i0 + shift) * h[ax0],
+                                           (istart[ax1] + i1 + shift) * h[ax1],
+                                           (istart[ax2] + i2 + shift) * h[ax2]};
                     if (tube) {
                         //---------------------------------------------------------------
                         // main tube

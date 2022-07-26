@@ -54,6 +54,7 @@ static void print_help(){
     printf(" --type, -t t :                 t is the type of the solver: tube=0, ring=1 \n");
     printf(" --length, -L Lx Ly Lz :        Lx,Ly,Lz is the dimension of the physical domain \n");
     printf(" --kernel, -k {0-4}:            the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6 \n");
+    printf(" --center, -center {0-1}:       Indicate the location of the data: 0=Node-centred, 1=Cell-centred \n");
     printf(" --lda, -l {1,3}:               leading dimension of array, number of components (1=scalar, 3=vector)\n");
     printf(" --dir, -d {1,2,3}:             direction of the vortex tubes\n");
     printf(" --order, -o {1,2}:             derivation order asked for the velocity field\n");
@@ -62,7 +63,7 @@ static void print_help(){
     
 }
 
-int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type, int * vdir, FLUPS_DiffType* order){
+int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym[2], FLUPS_CenterType *center, FLUPS_GreenType *kernel, int *nsample, int **size, int *nsolve, int* type, int * vdir, FLUPS_DiffType* order){
 
     int startSize[3] = {d_startSize,d_startSize,d_startSize};
 
@@ -164,6 +165,14 @@ int static parse_args(int argc, char *argv[], int nprocs[3], double L[3],int sym
                 return 1;
             }  
             i++;
+        } else if ((arg == "-center") || (arg == "--center")) {
+            if (i + 1 < argc) {  // Make sure we aren't at the end of argv!
+                center[1] = (FLUPS_CenterType) atoi(argv[i + 1]);
+            } else {  //Missing argument
+                fprintf(stderr, "missing --center\n");
+                return 1;
+            }
+            i++;
         } else if ((arg == "-k") || (arg == "--kernel")) {
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
                 *kernel = (FLUPS_GreenType) atoi(argv[i+1]); 
@@ -225,6 +234,7 @@ int main(int argc, char *argv[]) {
     int nprocs[3];
     double L[3];
     int *size = NULL;
+    FLUPS_CenterType center;
     FLUPS_GreenType kernel;
     FLUPS_BoundaryType bcdef[3][2][3];
     int sym[2];
@@ -232,7 +242,7 @@ int main(int argc, char *argv[]) {
     FLUPS_DiffType order;
     int vdir;
 
-    int status = parse_args(argc, argv, nprocs, L, sym, &kernel, &nsample, &size, &nsolve, &type, &vdir, &order);
+    int status = parse_args(argc, argv, nprocs, L, sym, &center, &kernel, &nsample, &size, &nsolve, &type, &vdir, &order);
 
     if (status) exit(status);
     if (size==NULL){
@@ -259,6 +269,7 @@ int main(int argc, char *argv[]) {
         printf("  --nprocs: %d,%d,%d\n", nprocs[0], nprocs[1], nprocs[2]);
         printf("  -L: %lf,%lf,%lf\n", L[0], L[1], L[2]);
         printf("  --kernel: %d\n", kernel);
+        printf("  --center: %d\n", center);
         printf("  --nsolve: %d\n", nsolve);
         printf("  --vdir: %d\n", vdir);
         printf("  --order: %d\n", order);
@@ -274,6 +285,7 @@ int main(int argc, char *argv[]) {
             valCase.L[ip]     = L[ip];
             valCase.nproc[ip] = nprocs[ip];
             valCase.nglob[ip] = size[is * 3 + ip];
+            valCase.center[ip] = center;
             if (type == 0) {// this is the vortex tube
                 // the BC are imposed in the Z direction
                 int dir2 = vdir;
