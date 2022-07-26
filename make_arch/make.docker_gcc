@@ -14,9 +14,9 @@ CC = mpicc
 ## For profiling:
 # CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
 ## For production:
-CXXFLAGS := -g -O0 -std=c++17 -fsanitize=undefined -fsanitize=address
+CXXFLAGS := -g -O0 -std=c++17
 CCFLAGS := -O3 -std=c99
-LDFLAGS := -fopenmp -fsanitize=undefined -fsanitize=address
+LDFLAGS := -fopenmp
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

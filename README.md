@@ -314,3 +314,9 @@ The continuous integration of FLUPS is based on the tools provided by Gitlab. Di
 
 - Any `merge request` triggers some _validation tests_. We test all the possible combination of boundary conditions (1000 possibilities), kernels (8 kernels) and data location (node-centred or cell-centred) using the [Google test library](https://github.com/google/googletest). Basically, we test the spatial convergence of all the kernels with all the combination of boundary conditions. The source code cand be found in the `test` directory while details and explantion of the test can be found [here](test/Readme.md). However, this extremly large amount of tests (16 000 in total)  require extensive computationnal resources. We hence rely on _daily_ testing routine, that uses the `sample/validation/` source code. <br/>
 The _daily test_ is a smaller, in-house, test suite, that can be executed on a desktop machine. Diverse boundary conditions, domain size, resolution, procs repartition and kernels are tested and the results are compared to a dataset that has been generated with a validated version of the code. 
+
+
+### Resources
+
+- [CI testing](doc/CI.md)
+- [real to real FFT](doc/Mode_Correction.md)

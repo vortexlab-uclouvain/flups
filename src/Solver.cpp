@@ -150,6 +150,8 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
             // initialize the plan with the BC of the considered direction
             if (CELL_CENTER == centertype[id]) {
                 plan_backward_diff_[id] = new FFTW_plan_dim_cell(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
+            } else if (NODE_CENTER == centertype[id]) {
+                plan_backward_diff_[id] = new FFTW_plan_dim_node(lda_, dimID, h, L, diffbc[dimID], FLUPS_BACKWARD, false);
             } else {
                 FLUPS_CHECK(false, "The type of data you asked is not supported");
             }

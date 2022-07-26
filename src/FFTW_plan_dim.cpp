@@ -469,16 +469,15 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         // now that we know which correction is requested form the type, we can ajdust them given the forward types
         const bool no_shift = (!do_shift_left) && (!do_shift_right);
         // simple memory corrections, no shift
-        const bool reset_zero          = do_zero && (!do_flipflop) && no_shift;  // && is_forward;
-        const bool reset_flipflop      = (!do_zero) && do_flipflop && no_shift;  // && is_forward;
-        const bool reset_zero_flipflop = do_zero && do_flipflop && no_shift;     // && is_forward;
+        const bool reset_zero          = no_shift && do_zero && (!do_flipflop);
+        const bool reset_flipflop      = no_shift && (!do_zero) && do_flipflop;
+        const bool reset_zero_flipflop = no_shift && do_zero && do_flipflop;
         // shift left or right?
         const bool shift_right = (do_zero && (!do_flipflop) && do_shift_right);
         const bool shift_left  = ((!do_zero) && do_flipflop && do_shift_left);
-
-        const bool do_nothing = !do_zero && !do_flipflop && !do_shift_left && !do_shift_right;
+        // if we do nothing, do not fall into the assert
+        const bool do_nothing = (!do_zero) && (!do_flipflop) && (!do_shift_left) && (!do_shift_right);
         //----------------------------------------------------------------------
-
         // get the starting point of the
         opt_double_ptr mydata = data + lia * memdim;
         //----------------------------------------------------------------------
@@ -549,8 +548,8 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
             }
         }
         //----------------------------------------------------------------------
-        else if (do_nothing){
-            // There is nothing to do, no correction is applied. 
+        else if (do_nothing) {
+            // There is nothing to do, no correction is applied.
         }
         //----------------------------------------------------------------------
         else {
