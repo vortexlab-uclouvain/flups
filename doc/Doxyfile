@@ -5,10 +5,7 @@
 #
 # All text after a double hash (##) is considered a comment and is placed in
 # front of the TAG it is preceding.
-#
-# All text after a single hash (#) is considered a comment and will be ignored.
-# The format is:
-# TAG = value [value, ...]
+# # All text after a single hash (#) is considered a comment and will be ignored.  # The format is: # TAG = value [value, ...]
 # For lists, items can also be appended using:
 # TAG += value [value, ...]
 # Values that contain spaces should be placed between quotes (\" \").
@@ -467,7 +464,7 @@ LOOKUP_CACHE_SIZE      = 0
 # normally produced when WARNINGS is set to YES.
 # The default value is: NO.
 
-EXTRACT_ALL            = NO
+EXTRACT_ALL            = YES
 
 # If the EXTRACT_PRIVATE tag is set to YES, all private members of a class will
 # be included in the documentation.
