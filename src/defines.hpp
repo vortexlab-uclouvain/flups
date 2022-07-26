@@ -247,7 +247,11 @@ static const double c_73o768   = 73. / 768.;
 static const double c_11o768   = 11. / 768.;
 static const double c_23o768   = 23. / 768.;
 static const double c_1o768    = 1. / 768.;
-
+static const double c_4o3      = 4. / 3.;
+static const double c_1o6      = 1. / 6.;
+static const double c_3o2      = 3. / 2.;
+static const double c_3o10     = 3. / 10.;
+static const double c_1o30     = 1. / 30.;
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

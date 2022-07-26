@@ -195,7 +195,9 @@ enum SolverType {
 enum DiffType {
     NOD = 0, /**< @brief Default parameter to be used with the STD type solve */
     SPE = 1, /**< @brief Spectral derivation, \f$ \hat{K} = i \, k \, \hat{G} \f$ */
-    FD2 = 2  /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(k) \, \hat{G} \f$ */
+    FD2 = 2, /**< @brief Spectral equivalent of 2nd order finite difference, \f$ \hat{K} = i \, \sin(kh) \, \hat{G} \f$ */
+    FD4 = 4, /**< @brief Spectral equivalent of 4th order finite difference, \f$ \hat{K} = i \, ( 4/3 \sin(kh) - 1/6 \sin(2kh) ) \, \hat{G} \f$ */
+    FD6 = 6  /**< @brief Spectral equivalent of 6th order finite difference, \f$ \hat{K} = i \, ( 3/2 \sin(kh) - 3/10 \sin(2kh) + 1/30 \sin(3kh) ) \, \hat{G} \f$ */
 };
 
 /**

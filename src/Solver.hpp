@@ -229,6 +229,10 @@ class Solver {
     void dothemagic_rot_complex_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
     void dothemagic_rot_real_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
     void dothemagic_rot_complex_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_rot_real_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_rot_complex_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_rot_real_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_rot_complex_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
     /**@} */
 
     /**

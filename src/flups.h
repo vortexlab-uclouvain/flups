@@ -383,7 +383,7 @@ int flups_topo_rankindex(const FLUPS_Topology* topo, const int rankd[3]);
  * @param bc boundary conditions of the domain for the right hand side
  * @param h physical space increment in each direction
  * @param L physical length of the domain in each direction
- * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2 = 2nd order final differences). Can be set to NONE if only STD solve are called.
+ * @param orderdiff order of the derivatives for ROT solver (SPE = spectral, FD2/4/6 = finite differences). Can be set to NONE if only STD solve are called.
  * @return FLUPS_Solver* the new solver
  */
 FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3]);

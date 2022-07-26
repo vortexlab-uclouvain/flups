@@ -1500,7 +1500,7 @@ void Solver::do_mult(double *data, const SolverType type) {
         double symstart[3];
         get_spectralInfo(kabs, koffset, symstart);
 
-        // for each dim, comnput the kfact depening on the coordinate
+        // for each dim, comnput the kfact depending on the coordinate
         double kfact[3][3][2];  // kfact is COMPLEX
         for (int ip = 0; ip < 3; ip++) {
             const int dimID = plan_forward_[ip]->dimID();
@@ -1514,13 +1514,13 @@ void Solver::do_mult(double *data, const SolverType type) {
                     corrphase++;
                 }
                 // make the change if needed
-                if (corrphase == 0) {  // derivative = * (ik)
+                if (corrphase == 0) {  // derivative = * (ik) -> k is purely imaginary
                     kfact[dimID][lia][0] = 0.0;
                     kfact[dimID][lia][1] = kabs[dimID];
-                } else if (corrphase == +1) {  // deriv = * (i k) * (i) = -k
+                } else if (corrphase == +1) {  // deriv = * (i k) * (i) = -k -> k is real
                     kfact[dimID][lia][0] = -kabs[dimID];
                     kfact[dimID][lia][1] = 0.0;
-                } else if (corrphase == -1) {  // deriv = * (i k) * (-i) = k
+                } else if (corrphase == -1) {  // deriv = * (i k) * (-i) = k -> k is real
                     kfact[dimID][lia][0] = kabs[dimID];
                     kfact[dimID][lia][1] = 0.0;
                 }
@@ -1531,12 +1531,20 @@ void Solver::do_mult(double *data, const SolverType type) {
                 dothemagic_rot_real_o1(data, koffset, kfact, symstart);
             } else if (odiff_ == FD2) {
                 dothemagic_rot_real_o2(data, koffset, kfact, symstart, hgrid_);
+            } else if (odiff_ == FD4) {
+                dothemagic_rot_real_o4(data, koffset, kfact, symstart, hgrid_);
+            } else if (odiff_ == FD6) {
+                dothemagic_rot_real_o6(data, koffset, kfact, symstart, hgrid_);
             }
         } else {
             if (odiff_ == SPE) {
                 dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
             } else if (odiff_ == FD2) {
                 dothemagic_rot_complex_o2(data, koffset, kfact, symstart, hgrid_);
+            } else if (odiff_ == FD4) {
+                dothemagic_rot_complex_o4(data, koffset, kfact, symstart, hgrid_);
+            } else if (odiff_ == FD6) {
+                dothemagic_rot_complex_o6(data, koffset, kfact, symstart, hgrid_);
             }
         }
     }
@@ -1558,6 +1566,14 @@ void Solver::do_mult(double *data, const SolverType type) {
 #define KIND 02
 #include "dothemagic_rot.ipp"
 #undef KIND
+// 04= real to real, 4th order acc
+#define KIND 04
+#include "dothemagic_rot.ipp"
+#undef KIND
+// 06= real to real, 6th order acc
+#define KIND 06
+#include "dothemagic_rot.ipp"
+#undef KIND
 //---------------------------------
 // kind = 1: complex to complex
 #define KIND 1
@@ -1569,6 +1585,14 @@ void Solver::do_mult(double *data, const SolverType type) {
 #undef KIND
 // kind = 12: complex to complex 2nd order acc
 #define KIND 12
+#include "dothemagic_rot.ipp"
+#undef KIND
+// kind = 14: complex to complex 4th order
+#define KIND 14
+#include "dothemagic_rot.ipp"
+#undef KIND
+// kind = 16: complex to complex 6th order
+#define KIND 16
 #include "dothemagic_rot.ipp"
 #undef KIND
 
