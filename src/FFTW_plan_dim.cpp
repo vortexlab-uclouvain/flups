@@ -105,7 +105,7 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
         fftwstart_[lia] = 0;
     }
     normfact_ = 1.0;
-    corrtype_ = (PlanCorrectionType*)m_calloc(sizeof(int) * lda_);
+    corrtype_ = (int*)m_calloc(sizeof(int) * lda_);
     imult_    = (bool*)m_calloc(sizeof(bool) * lda_);
 
     for(int lia= 0 ; lia<lda_; lia++){
