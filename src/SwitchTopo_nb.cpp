@@ -1067,13 +1067,12 @@ void SwitchTopo_nb_test() {
 
     // printf("\n\n============ FORWARD =================");
     switchtopo->execute(data, FLUPS_FORWARD);
-
     hdf5_dump(topobig, "test_real_padd", data);
 
     // printf("\n\n============ BACKWARD =================");
     switchtopo->execute(data, FLUPS_BACKWARD);
-
     hdf5_dump(topo, "test_real_returned", data);
+
 
     m_free(data);
     delete (switchtopo);
@@ -1109,12 +1108,11 @@ void SwitchTopo_nb_test() {
     switchtopo = new SwitchTopo_nb(topo, topobig, fieldstart2, NULL);
 
     switchtopo->execute(data, FLUPS_FORWARD);
-
     hdf5_dump(topobig, "test_complex_padd", data);
 
     switchtopo->execute(data, FLUPS_BACKWARD);
-
     hdf5_dump(topo, "test_complex_returned", data);
+
 
     m_free(data);
     delete (switchtopo);

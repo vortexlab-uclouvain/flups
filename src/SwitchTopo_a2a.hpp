@@ -31,12 +31,14 @@
 #define SWITCHTOPO_A2A_HPP
 
 #include <cstring>
-#include "defines.hpp"
-#include "hdf5_io.hpp"
 #include "mpi.h"
+
+
+#include "defines.hpp"
 #include "Topology.hpp"
-// #include "h3lpr/profiler.hpp"
 #include "SwitchTopo.hpp"
+#include "hdf5_io.hpp"
+
 
 /**
  * @brief Takes care of the switch between to different topologies

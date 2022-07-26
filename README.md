@@ -32,26 +32,26 @@ The compilation of FLUPS was tested with Intel compilers (v19.1) and GCC (v7.5).
 ### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)
 
+- H3LPR in the `h3lpr_prefix` dir:
+```shell
+git clone git@github.com:van-Rees-Lab/h3lpr.git
+cd h3lpr 
+ARCH_FILE=... make install -j 
+```
+
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
 ```shell
 CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-openmp --enable-avx2 --enable-shared
 ```
 
-- HDF5 (> v1.10) in the `hdf5_prefix` dir:
+- For debugging purpose - HDF5 (> v1.10) in the `hdf5_prefix` dir:
 ```shell
 CC=mpiicc CXX=mpiicpc FC=mpif90 ./configure --prefix=hdf5_prefix --enable-build-mode=production --enable-parallel
 ```
 
-- H3LPR in the `h3lpr_prefix` dir:
-```shell
-git clone git@github.com:van-Rees-Lab/h3lpr.git
-cd h3lpr 
-make -j 
-```
-
 
 ### Compilation
-You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `FFTWDIR` and `HDF5DIR`.
+You need now to create a architecture/compiler dependent file in `make_arch` to define `CXX`, `CXXFLAGS`, `H3LPR_DIR`, `FFTW_DIR` and `HDF5_DIR`.
 For example:
 ```makefile
 #---------------------------------------------------------
@@ -62,14 +62,21 @@ CXX = mpiicpc
 
 # set the flag (optimisation or not)
 CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
+LDFLAGS := -fopenmp 
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
 #---------------------------------------------------------
-FFTWDIR  := fftw_prefix
-HDF5DIR  := hdf5_prefix
+H3LPR_DIR := h3lpr_prefix
+H3LPR_LIB := ${H3LPR_DIR}/lib
+H3LPR_INC := ${H3LPR_DIR}/include
+
+FFTW_DIR := fftw_prefix
 FFTW_LIB := ${FFTW_DIR}/lib
 FFTW_INC := ${FFTW_DIR}/include
+
+# If needed
+HDF5_DIR  := hdf5_prefix
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
 ```
@@ -103,14 +110,22 @@ ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 :warning: you must **install** the library. Indeed, we copy some data required by the solver.
 If you wish to keep everything local, simply do not give a prefix and the current directory will be selected.
 
+**Performance notes**:  To increase the performance of the code, we highly recommend compiling it with _Link Time Optimisation_ (LTO). To do that, add the flag ` -flto` to your `CXXFLAGS` and `LDFLAGS` variables. In addition, you must ensure that your utility tool to create the library archive can build an archive file that libLTO can use at link time. Finally, if you have an architecture which supports LTO, overwrite the `AR` variable in your `make_arch`. 
+```shell
+AR := gcc-ar 
+```
+By default, the Makefile use the open-source utility tool `ar`.
+
+
 ### Documentation
 
 The documentation is built using Doxygen.
 To build the documentation, go to the `./doc` subfolder and type `doxygen`.
-
+LDFLAGS := -fopenmp -fsanitize=undefined -fsanitize=address
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
-- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library.
+- `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library. /!\ When using this option, you should also use the flag  `HAVE-HDF5` and provide the path to your `HDF5` include and libs in your `make_arch`
+- `HAVE-HDF5` : Enable the use of function to dump flups fields. When using this flag, you should detail your `HDF5` lib and include in your `make_arch`
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to bypass various checks inside the library

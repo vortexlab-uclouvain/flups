@@ -23,6 +23,7 @@ cd -
 cd ${FLUPS_DIR} 
 echo "CXX=${MPICXX}" > make_arch/make.${CLUSTER}
 echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
+echo "AR=${FLUPS_AR} " >> make_arch/make.${CLUSTER}
 
 echo "CXXFLAGS := ${FLUPS_CXXFLAGS} " >> make_arch/make.${CLUSTER}
 echo "CCFLAGS  := ${FLUPS_CCFLAGS}" >> make_arch/make.${CLUSTER}

@@ -26,13 +26,14 @@
  * 
  */
 
+#include <algorithm>    // std::remove  
+
 #include "defines.hpp"
 #include "h3lpr/macros.hpp"
 #include "h3lpr/profiler.hpp"
 #include "toolsinterface.hpp"
 #include "Topology.hpp"
 #include "Solver.hpp"
-
 
 
 extern "C" {
@@ -98,6 +99,11 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "\tNon blocking implementation -- MPI data type \n");
         fprintf(file, "\tFLUPS_MPI_BATCH_SEND = %d\n", FLUPS_MPI_BATCH_SEND);
         fprintf(file, "\tFLUPS_MPI_MAX_NBSEND = %d\n", FLUPS_MPI_MAX_NBSEND);
+#endif
+#if (FLUPS_HDF5)
+        fprintf(file, "\tHDF5 ? yes\n");
+#else
+        fprintf(file, "\tHDF5 ? no\n");
 #endif
         fprintf(file, "- argument list:\n");
         for (int i = 1; i < argc; ++i) {
@@ -287,7 +293,6 @@ void flups_profiler_disp(H3LPR::Profiler* p) {
 //**********************************************************************
 //  HDF5
 //**********************************************************************
-
 void flups_hdf5_dump(const Topology *topo, const char filename[], const double *data){
     const std::string fn(filename);
     hdf5_dump(topo,fn, data);

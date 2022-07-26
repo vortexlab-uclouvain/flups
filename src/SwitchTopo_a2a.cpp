@@ -1037,9 +1037,9 @@ void SwitchTopo_a2a_test() {
         switchtopo->execute(data, FLUPS_FORWARD);
         hdf5_dump(topobig, "test_real_padd", data);
 
+
         // printf("\n\n============ BACKWARD =================");
         switchtopo->execute(data, FLUPS_BACKWARD);
-
         hdf5_dump(topo, "test_real_returned", data);
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -1091,11 +1091,9 @@ void SwitchTopo_a2a_test() {
         switchtopo->setup_buffers(send_buff, recv_buff);
 
         switchtopo->execute(data, FLUPS_FORWARD);
-
         hdf5_dump(topobig, "test_complex_padd", data);
 
         switchtopo->execute(data, FLUPS_BACKWARD);
-
         hdf5_dump(topo, "test_complex_returned", data);
 
         m_free(data);
@@ -1194,9 +1192,8 @@ void SwitchTopo_a2a_test2() {
                 }
             }
         }
-        // try the dump
+        // try the dump    
         hdf5_dump(topo, "test_real", data);
-
 
         // //CREATE THE SWITCHTOPO AFTER CHANGE IN TOPOS
         // // printf("\n=============================");
@@ -1221,9 +1218,8 @@ void SwitchTopo_a2a_test2() {
 
         // printf("\n\n============ BACKWARD =================");
         switchtopo->execute(data, FLUPS_BACKWARD);
-
         hdf5_dump(topo, "test_BCKWD", data);
-
+        
         MPI_Barrier(MPI_COMM_WORLD);
 
         m_free(data);

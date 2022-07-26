@@ -28,10 +28,12 @@
 using std::string;
 
 void hdf5_dump(const Topology *topo, const string filename, const double *data) {
+#if (FLUPS_HDF5)
     BEGIN_FUNC;
     xmf_write(topo, filename, "data");
     hdf5_write(topo, filename, "data", data);
     END_FUNC;
+#endif
 }
 
 /**
@@ -71,6 +73,7 @@ void hdf5_dump(const Topology *topo, const string filename, const double *data) 
  * 
  */
 void hdf5_write(const Topology *topo, const string filename, const string attribute, const double *data) {
+#if (FLUPS_HDF5)   
     BEGIN_FUNC;
 
     int mpi_size, mpi_rank;
@@ -245,6 +248,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
 
     END_FUNC;
     return;
+#endif
 }
 
 /**
@@ -259,6 +263,7 @@ void hdf5_write(const Topology *topo, const string filename, const string attrib
  * see also http://www.xdmf.org/index.php/XDMF_Model_and_Format
  */
 void xmf_write(const Topology *topo, const string filename, const string attribute) {
+#if (FLUPS_HDF5)
     BEGIN_FUNC;
 
     int rank;
@@ -345,6 +350,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
         fclose(xmf);
     }
     END_FUNC;
+#endif
 }
 
 /**
@@ -352,6 +358,7 @@ void xmf_write(const Topology *topo, const string filename, const string attribu
  * 
  */
 void hdf5_dumptest() {
+#if (FLUPS_HDF5)
     BEGIN_FUNC;
 
     int comm_size;
@@ -402,4 +409,5 @@ void hdf5_dumptest() {
     m_free(data);
     delete (topo);
     END_FUNC;
+#endif
 }

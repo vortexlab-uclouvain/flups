@@ -381,6 +381,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
     flups_profiler_disp(prof);
 
+
 #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);

@@ -90,6 +90,12 @@
 #define FLUPS_WISDOM_PATH HAVE_WISDOM
 #endif
 
+#ifdef HAVE_HDF5
+#define FLUPS_HDF5 1
+#else
+#define FLUPS_HDF5 0
+#endif
+
 // register the current git commit for tracking purpose
 #ifdef GIT_COMMIT
 #define FLUPS_GIT_COMMIT GIT_COMMIT
