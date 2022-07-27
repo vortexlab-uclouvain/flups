@@ -336,7 +336,6 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // determine the nf: since topo_in may have change, we take the max to have the correct one
     const int nf = std::max(topo_in_->nf(),topo_out_->nf());
-    const int lda = std::max(topo_in_->lda(),topo_out_->lda());
 
     int newrank;
     MPI_Comm_rank(subcomm_, &newrank);
@@ -526,8 +525,8 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     MPI_Request* recvRequest;
 
     int lda = topo_in_->lda();
-    int send_nBlock;
-    int recv_nBlock;
+    int send_nBlock = 0;
+    int recv_nBlock = 0;
 
     int inmem[3];
     int onmem[3];
