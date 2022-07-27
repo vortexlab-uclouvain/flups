@@ -76,6 +76,7 @@ compil vortex_rot:
     paths: 
       - ./samples/solve_vtube/flups_tube_nb
       - ./samples/solve_vtube/flups_tube_a2a
+      - ./samples/solve_vtube/flups_tube_isr
       - ./include/LGF_2d_sym_acc12_32.ker
       - ./include/LGF_3d_sym_acc12_64.ker
     when: on_success
