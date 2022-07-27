@@ -119,7 +119,6 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - For each dim, create the plans given the BC and sort them by type */
     //-------------------------------------------------------------------------
-
     // we allocate 3 plans
     // it might be empty ones but we keep them since we need some information inside...
     FLUPS_CHECK(centertype[0] == centertype[1] && centertype[0] == centertype[2], "We handle only data located at the same place in all the direction");
@@ -932,9 +931,11 @@ void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *sen
  */
 void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planmap[3], double *data) {
     BEGIN_FUNC;
+    //-------------------------------------------------------------------------
     for (int ip = 0; ip < ndim_; ip++) {
         planmap[ip]->allocate_plan(topo[ip], data);
     }
+    //-------------------------------------------------------------------------
     END_FUNC;
 }
 
@@ -947,6 +948,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
  */
 void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_phys, double **data) {
     BEGIN_FUNC;
+    //-------------------------------------------------------------------------
     //-------------------------------------------------------------------------
     /** - Sanity checks */
     //-------------------------------------------------------------------------
@@ -972,6 +974,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
     FLUPS_CHECK(FLUPS_ISALIGNED(*data), "FFTW alignement not compatible with FLUPS_ALIGNMENT (=%d)", FLUPS_ALIGNMENT);
+    //-------------------------------------------------------------------------
     END_FUNC;
 }
 
@@ -991,7 +994,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
  */
 void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
-
+    //-------------------------------------------------------------------------
     //-------------------------------------------------------------------------
     /** - get the direction where we need to do spectral diff and count them */
     //-------------------------------------------------------------------------
@@ -1159,6 +1162,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
+    //-------------------------------------------------------------------------
     END_FUNC;
 }
 
@@ -1217,6 +1221,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
     FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type !=ROT), "You need vectors when using the ROT solver");
     FLUPS_CHECK(!(type == ROT && odiff_ == NOD), "If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
+    FLUPS_CHECK((type == ROT && (odiff_ == SPE || odiff_ == FD2 || odiff_ == FD4 || odiff_ == FD6)) || (type != ROT), "The differenciation order asked does not exist ");
     FLUPS_CHECK(field != NULL, "field is NULL");
     FLUPS_CHECK(rhs != NULL, "rhs is NULL");
     //-------------------------------------------------------------------------

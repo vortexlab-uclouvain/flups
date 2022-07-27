@@ -76,11 +76,10 @@ void Solver::dothemagic_rot_real_o6(double *data,const double koffset[3],const d
  */
 void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],const double kfact[3][3][2], const double symstart[3],const double hgrid[3]){
 #endif
-
     BEGIN_FUNC;
     int cdim = ndim_ - 1;  // get current dim
 #if (KIND == 01 || KIND == 02)
-    FLUPS_CHECK(topo_hat_[cdim]->nf() == 1, "The topo_hat[2] (field) has to be complex");
+    FLUPS_CHECK(topo_hat_[cdim]->nf() == 1, "The topo_hat[2] (field) has to be real");
 #else
     FLUPS_CHECK(topo_hat_[cdim]->nf() == 2, "The topo_hat[2] (field) has to be complex");
 #endif
@@ -138,7 +137,7 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
             int is[3];
             cmpt_symID(ax0, ii, io % nloc_ax1, io / nloc_ax1, istart, symstart, 0, is);
 
-#if (KIND == 01 || KIND == 02)
+#if (KIND == 01 || KIND == 02 || KIND == 04 || KIND == 06)
             // data
             const double f0r = dataloc0[ii];
             const double f1r = dataloc1[ii];
@@ -224,7 +223,7 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
             dataloc0[ii] = normfact * rot0r * gr;
             dataloc1[ii] = normfact * rot1r * gr;
             dataloc2[ii] = normfact * rot2r * gr;
-#elif (KIND == 11 || KIND == 12)
+#elif (KIND == 11 || KIND == 12 || KIND == 14 || KIND == 16)
             // data
             const double f0r = dataloc0[ii * 2 + 0];
             const double f1r = dataloc1[ii * 2 + 0];
@@ -369,6 +368,5 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
 #endif
         }
     }
-
     END_FUNC;
 }
