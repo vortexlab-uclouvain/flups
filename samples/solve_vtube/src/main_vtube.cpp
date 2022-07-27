@@ -39,16 +39,6 @@
 
 using namespace std;
 
-// //default values
-// const static int                 d_nsolve    = 1;
-// const static int                 d_nsample   = 1;
-// const static int                 d_startSize = 16;
-// const static int                 d_nprocs[3] = {1, 1, 1};
-// const static double              d_L[3]      = {1., 1., 1.};
-// const static FLUPS_GreenType     d_kernel    = CHAT_2;
-// const static FLUPS_BoundaryType  d_bcdef     = UNB;
-
-
 int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     // Initialize MPI
@@ -75,12 +65,11 @@ int main(int argc, char *argv[]) {
     auto arg_nsolve    = parser.GetValue<int>("--nsolve", "the number of solves to perform", 1);
     auto arg_kernel    = parser.GetValue<int>("--kernel", "the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6", 0);
     auto arg_sol_t     = parser.GetValue<int>("--type", "the type of the solver: tube=0, ring=1", 0);
-    auto arg_lda       = parser.GetValue<int>("--lda", "the leading dimension fo array, number of component  (1=scalar, 3=vector)", 1);
     auto arg_nsample   = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_direction = parser.GetValue<int>("--dir", "direction of the vortex tubes (1=x,2=y,3=z)", 2);
     auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2) ", 1);
     auto arg_sym_x     = parser.GetValue<int>("--sym_x", "say if another vortex tube is added in the X direction: -1 = odd symmetry, 0 = none, 1 = even symmetry ", 0);
-    auto arg_sym_y     = parser.GetValue<int>("--sym_x", "ay if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry", 0);
+    auto arg_sym_y     = parser.GetValue<int>("--sym_y", "ay if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry", 0);
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});

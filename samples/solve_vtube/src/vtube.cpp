@@ -130,7 +130,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         int dir1 = (vdir + 2) % 3;
         int dir2 = vdir;
 
-        printf("center = %f %f - signs = %f %f",myCase.xcntr,myCase.ycntr,myCase.xsign,myCase.ysign);
+        // printf("center = %f %f - signs = %f %f",myCase.xcntr,myCase.ycntr,myCase.xsign,myCase.ysign);
 
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
@@ -396,8 +396,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     char   filename[512];
     string folder = "./data";
-
-    sprintf(filename, "%s/%s_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
+    string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
+    sprintf(filename, "%s/%s_%s_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};

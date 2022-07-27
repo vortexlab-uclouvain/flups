@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.vagrant_intel
+ARCH_FILE ?= make_arch/make.docker_gcc
 include ../../$(ARCH_FILE)
 
 ################################################################################
@@ -32,7 +32,8 @@ include ../../$(ARCH_FILE)
 NAME := flups
 # executable naming
 TARGET_EXE_A2A := $(NAME)_tube_a2a
-TARGET_EXE_NB := $(NAME)_tube_nb
+TARGET_EXE_NB  := $(NAME)_tube_nb
+TARGET_EXE_ISR := $(NAME)_tube_isr
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -94,11 +95,11 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 ################################################################################
 default: all
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 all2all: $(TARGET_EXE_A2A)
 
-nonblocking: $(TARGET_EXE_NB)
+nonblocking: $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
@@ -106,14 +107,16 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
+$(TARGET_EXE_ISR): $(OBJ)
+	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_isr -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
+
 clean:
 	rm -f $(OBJ_DIR)/*.o
+	rm -f $(TARGET_EXE_ISR)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
 
-destroy:
-	rm -f $(TARGET_EXE_A2A)
-	rm -f $(TARGET_EXE_NB)
+destroy: clean 
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib

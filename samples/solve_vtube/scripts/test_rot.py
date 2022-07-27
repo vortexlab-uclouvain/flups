@@ -1,6 +1,27 @@
 import subprocess
 import csv
+import sys 
 from check_res_3d import check_res_3d
+
+## Check which communication scheme you try to test
+try:
+    arg = sys.argv[1]
+except IndexError:
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You didn't choose any version of the code. ")
+    print("By default, we will test the a2a version")
+    arg = 'nb'
+
+if(arg != 'isr' and arg!= 'a2a' and arg!='nb'): 
+    print("/!\ /!\ /!\ WARNING /!\ /!\ /!\ ")
+    print("You choose a version which is not supported. ")
+    print("By default, we will test the non blocking version of the code")
+    version = 'nb'
+    centername = 'CellCenter'
+else :
+    version = arg
+    print(f"We will test the {version} version of the code")
+
 
 #List of combinations of boundary conditions in 1 direction:
 dirv = [["0"],["1"],["2"]]
@@ -21,8 +42,9 @@ for mid in dirv :
 
             print("----- %i -----"%i, flush=True)
             #Launching test
-            r = subprocess.run(["./flups_tube_nb"] + ["-np"] + ["1"] + ["1"] + ["1"] + ["-res"] + ["16"] + ["16"] + ["16"] + ["-k"] + ["0"] + ["-d"] + mid + ["-smx"] + smx + ["-smy"] + smy, capture_output=True)
-            
+            print(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])])
+            r = subprocess.run(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])], capture_output=True)
+
             if r.returncode != 0 :
                 print("test %i (BCs : "%i + code + ") failed with error code ",r.returncode)
                 print("=================================== STDOUT =============================================" )
@@ -34,8 +56,8 @@ for mid in dirv :
                 continue
 
             #Checking for exactness of results
-            print("checking: vtube_"+code+"_typeGreen=0.txt")
-            n_mistake = check_res_3d(i,'vtube_'+code+'_typeGreen=0.txt')
+            print("checking: vtube_CellCenter_"+code+"_typeGreen=0.txt")
+            n_mistake = check_res_3d(i,'vtube_CellCenter_'+code+'_typeGreen=0.txt')
 
             if n_mistake==0:
                 print("test (" + code + ") succeed")
