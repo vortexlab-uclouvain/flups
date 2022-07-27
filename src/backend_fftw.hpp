@@ -95,7 +95,7 @@ inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
     fftw_execute_dft_c2r(plan, in, out);
 }
 
-inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign) {
+inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     fftw_execute_r2r(plan, in, out);
 }
 

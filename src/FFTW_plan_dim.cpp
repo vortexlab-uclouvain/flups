@@ -589,7 +589,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             // get the memory offset
             int offset = lia*memdim + fftwstart_[lia];
             // execute the plan
-            flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset), sign);
+            flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset));
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {

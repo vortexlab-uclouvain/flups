@@ -12,6 +12,9 @@
 extern cublasHandle_t cuHandle;
 
 // Datatypes
+using flups_kind    = fftw_r2r_kind;
+using flups_complex = cufftDoubleComplex;
+
 struct flups_fft_arch {
     int dim;
     int howmany;
@@ -24,9 +27,14 @@ struct flups_shuffle_plan {
     int n1;
 };
 
-using flups_kind    = fftw_r2r_kind;      // currently unused
-using flups_plan    = cufftHandle;
-using flups_complex = cufftDoubleComplex;
+struct flups_plan {
+    cufftHandle cufft;
+    int dim;            // size of the fft
+    int howmany;        // number of fft to perform
+    int n;              // number of input/output values
+    int nmem;           // memory space required (for 1 fft)
+    flups_kind kind;    // kind of r2r transform
+};
 
 
 // Init & cleanup backend
@@ -59,17 +67,37 @@ inline void* flups_balloc(size_t size) {
     return ptr;
 }
 
+inline void flups_bfree(void *ptr) {
+    omp_target_free(ptr, omp_get_default_device());
+}
+
+
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
-    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
-    cufftHandle plan;
-    // TODO
+    flups_plan plan;
+    switch (kind) {
+        // DCT Type I
+        case FFTW_REDFT00:
+            plan.kind = kind;
+            plan.howmany = arch.howmany;
+            plan.dim = 2*arch.dim - 2;
+            plan.n = arch.dim;
+            plan.nmem = 2*arch.dim * plan.howmany;
+            cufftPlanMany(&plan.cufft, 1, &plan.dim,
+                          &plan.dim, 1, plan.dim,
+                          &plan.dim, 1, plan.dim / 2,
+                          CUFFT_D2Z, plan.howmany);
+            break;
+    default:
+        FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
+    }
+
     return plan;
 }
 
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
-    cufftHandle plan;
-    cufftPlanMany(&plan, 1, &arch.dim,
+    flups_plan plan;
+    cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist,
                   &arch.dim, 1, arch.dist / 2,
                   CUFFT_D2Z, arch.howmany);
@@ -78,8 +106,8 @@ inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex 
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
-    cufftHandle plan;
-    cufftPlanMany(&plan, 1, &arch.dim,
+    flups_plan plan;
+    cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist / 2,
                   &arch.dim, 1, arch.dist,
                   CUFFT_Z2D, arch.howmany);
@@ -87,8 +115,8 @@ inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double 
 }
 
 inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
-    cufftHandle plan;
-    cufftPlanMany(&plan, 1, &arch.dim,
+    flups_plan plan;
+    cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist,
                   &arch.dim, 1, arch.dist,
                   CUFFT_Z2Z, arch.howmany);
@@ -104,22 +132,61 @@ inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, dou
 
 // Execute functions
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
-    cufftExecZ2Z(plan, in, out, sign);
+    cufftExecZ2Z(plan.cufft, in, out, sign);
     cudaDeviceSynchronize();
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
-    cufftExecD2Z(plan, in, out);
+    cufftExecD2Z(plan.cufft, in, out);
     cudaDeviceSynchronize();
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
-    cufftExecZ2D(plan, in, out);
+    cufftExecZ2D(plan.cufft, in, out);
     cudaDeviceSynchronize();
 }
 
-inline void flups_execute_r2r(flups_plan plan, double *in, double *out, int sign) {
-    FLUPS_CHECK(false, "r2r transform are not yet implemented with CUDA backend !");
+inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
+    int n = plan.n;
+    int dim = plan.dim;
+    int howmany = plan.howmany;
+
+    switch (plan.kind) {
+        // DCT Type I
+        case FFTW_REDFT00:
+        {
+            double *mem = (double*) flups_balloc(plan.nmem*sizeof(double));
+            
+            // Pre-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    mem[j * dim + i] = in[j * n + i];
+                }
+            }
+            #pragma omp target teams distribute parallel for is_device_ptr(mem)
+            for (int j = 0; j < howmany; ++j) {
+                mem[j * dim] *= .5;
+                mem[j * dim + n - 1] *= .5;
+            }
+
+            flups_execute_r2c(plan, mem, (flups_complex*)mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    out[j * n + i] = 2.0*mem[2*(j * dim + i)];
+                }
+            }
+
+            flups_bfree(mem);
+            break;
+        }
+    default:
+        FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
+    }
+    cudaDeviceSynchronize();
 }
 
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
@@ -129,27 +196,23 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
                     &alpha, in, plan.n1,
-                    NULL  , NULL,    plan.n0,
-                    out, plan.n1);
+                    NULL, NULL, plan.n0,
+                    out, plan.n0);
     } else {
         flups_complex alpha = {1.0, 0.0};
         cublasZgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
                     &alpha, (flups_complex*)in, plan.n1,
-                    NULL  ,                    NULL, plan.n0,
+                    NULL, NULL, plan.n0,
                     (flups_complex*)out, plan.n0);
     }
     cudaDeviceSynchronize();
 }
 
 // Cleanup functions
-inline void flups_bfree(void *ptr) {
-    omp_target_free(ptr, omp_get_default_device());
-}
-
 inline void flups_destroy_plan(flups_plan plan) {
-    cufftDestroy(plan);
+    cufftDestroy(plan.cufft);
 }
 
 inline void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
