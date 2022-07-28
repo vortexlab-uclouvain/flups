@@ -27,6 +27,30 @@
 #include "omp.h"
 
 
+
+
+double vort_inf(const double r, const double sigma){
+    const double rho1  = r / sigma;
+    return 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
+}
+double vort_compact(const double r, const double R){
+    const double rho2  = r / (R);
+    const double oo_rad2 = 1.0/(R*R);
+    return (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / gexpint<2>(1.0)) * exp(-1.0 / (1.0 - rho2 * rho2)));
+}
+
+double vel_inf(const double r, const double sigma) {
+    const double eps  = 100 * std::numeric_limits<double>::epsilon();
+    const double rho1 = r / sigma;
+    return (r < eps) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
+}
+double vel_compact(const double r, const double R) {
+    const double eps  = 100 * std::numeric_limits<double>::epsilon();
+    const double rho2 = r / (R);
+    const double fact = (rho2 >= 1.0) ? (1.0) : (1.0 - (1.0 / gexpint<2>(1.0)) * (1.0 - rho2 * rho2) * gexpint<2>(1.0 / (1.0 - rho2 * rho2)));
+    return (r < eps) ? (0.0) : (fact / (c_2pi * r));
+}
+
 using namespace std;
 
 void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir) {
@@ -114,9 +138,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma   = 0.1;
-        const double rad     = 0.3;
-        const double oo_rad2 = 1.0/(rad*rad);
+        const bool compact = myCase.compact;
+        const double sigma   = myCase.sigma;
+        const double rad     = myCase.rad;
+        const double R       = myCase.rc;
+        const double oo_rad2 = 1.0 / (rad * rad);
         const int    ax0     = flups_topo_get_axis(topo);
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
@@ -147,22 +173,12 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                         //---------------------------------------------------------------
                         // main tube
                         {
-                            
                             const double x     = pos[dir0] - (myCase.xcntr * L[dir0]);
                             const double y     = pos[dir1] - (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);  // get the angle in the x-y plane
                             const double r     = sqrt(x * x + y * y);
-                            const double rho1  = r / sigma;
-                            const double rho2  = r / rad;
-                            
-                            const double E21 = gexpint<2>(1.0);
-                            const double vort  = (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / E21) * exp(-1.0 / (1.0 - rho2 * rho2)));
-                            const double tol = 100*std::numeric_limits<double>::epsilon();
-                            const double fact =  (rho2 >= 1.0) ? (1.0) : (1.0 - (1.0 / E21) * (1.0 - rho2 * rho2) * gexpint<2>(1.0 / (1.0 - rho2 * rho2)));
-                            const double vel   =(r < tol) ? (0.0) : (fact/ (c_2pi * r));
-
-                            // const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
-                            // const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
+                            const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                            const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
 
                             if (dir2 == 0) {
                                 rhs0[id] = -vort;
@@ -195,9 +211,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double y     = pos[dir1] - (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
-                            const double rho   = r / sigma;
-                            const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
-                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
+                            const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                            const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
 
                             if (dir2 == 0) {
                                 rhs0[id] += -vort * myCase.xsign;
@@ -230,9 +245,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double y     = pos[dir1] + (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
-                            const double rho   = r / sigma;
-                            const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
-                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
+                            const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                            const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
 
                             if (dir2 == 0) {
                                 rhs0[id] += -vort * myCase.ysign;
@@ -264,9 +278,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double y     = pos[dir1] + (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);
                             const double r     = sqrt(x * x + y * y);
-                            const double rho   = r / sigma;
-                            const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
-                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
+                            const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                            const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
 
                             if (dir2 == 0) {
                                 rhs0[id] += -vort * myCase.ysign * myCase.xsign;
@@ -292,32 +305,53 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             }
                         }
                         }else if (ring){
-
                             //---------------------------------------------------------------
-                            // main ring
+                            // main ring aligned in the Z direction
                             {
-                                const double x     = pos[0] - (myCase.xcntr * L[0]);
-                                const double y     = pos[1] - (myCase.ycntr * L[1]);
-                                const double z     = pos[2] - (myCase.zcntr * L[2]);
+                                const double x = pos[0] - (myCase.xcntr * L[0]);
+                                const double y = pos[1] - (myCase.ycntr * L[1]);
+                                const double z = pos[2] - (myCase.zcntr * L[2]);
 
-                                // get the coordinates in the radial plan
-                                const double xp = sqrt(x * x + y * y);
-                                const double alphap = atan2(y,x);
+                                // we decompose the problem as a symmetry in a plan (for a ring with a normal in Z)
+                                // we are looking for the plan in Z and passing by the origin, aka the solution plan
+                                // from this plan point of view the ring is a simple two guassian vortex system
 
+                                // get the angle of the solution plan -> using the plan in XY
+                                const double xp     = sqrt(x * x + y * y);
+                                const double alphap = atan2(y, x);
+
+                                // now switch to the solution plan in XP,Z
                                 // in the plan, the coordinates are (xp,z)
-                                // get the distance to the 1st vortex
-                                const double r1 = sqrt((xp-rad)*(xp-rad) + z*z);
-                                const double theta1 = std::atan2(z,(xp-rad));  // get the angle in the x-y plane
-                                const double rho1   = r1 / sigma;
-                                const double r2 = sqrt((xp+rad)*(xp+rad) + z*z);
-                                const double theta2 = std::atan2(z,(xp+rad));  // get the angle in the x-y plane
-                                const double rho2   = r2 / sigma;
+                                // the velocity comes from the sum of the two vortex blob in that plan
+                                /*
+                                                ^ xp           ^ (vel)
+                                                |              \
+                                                O (+ vort)      x
+                                                |               
+                                                |/ (theta1)
+                                    -----------------------------> Z
+                                                | 
+                                                |
+                                                O (-vort)
+                                                |
 
-                                const double vel1  = 1.0 / (c_2pi * r1) * (1.0 - exp(-rho1 * rho1 * 0.5));
-                                const double vel2 = - 1.0 / (c_2pi * r2) * (1.0 - exp(-rho2 * rho2 * 0.5));
-                                const double vn = cos(theta1)*vel1+cos(theta2)*vel2;
-                                const double vr = -sin(theta1)*vel1-sin(theta2)*vel2;
-                                const double vort = +1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5) - 1.0 / (c_2pi * sigma * sigma) * exp(-rho2 * rho2 * 0.5);
+
+                                */
+                                // get the distance to the 1st vortex
+                                const double r1     = sqrt((xp - rad) * (xp - rad) + z * z);
+                                const double theta1 = std::atan2(z, (xp - rad));  // get the angle wrt the first vortex
+                                // const double rho1   = r1 / sigma;
+                                // get the distance to the second vortex
+                                const double r2     = sqrt((xp + rad) * (xp + rad) + z * z);
+                                const double theta2 = std::atan2(z, (xp + rad));  // get the angle wrt to the second vortex
+                                // const double rho2   = r2 / sigma;
+                                const double vel1  = (compact) ? vel_compact(r1, R) : vel_inf(r1, sigma);
+                                const double vel2  = (compact) ? (-vel_compact(r2, R)) : (-vel_inf(r2, sigma));
+                                const double vn    = cos(theta1) * vel1 + cos(theta2) * vel2;
+                                const double vr    = -sin(theta1) * vel1 - sin(theta2) * vel2;
+                                const double vort1 = (compact) ? vort_compact(r1, R) : vort_inf(r1, sigma);
+                                const double vort2 = (compact) ? vort_compact(r2, R) : vort_inf(r2, sigma);
+                                const double vort  = vort1 - vort2;
 
                                 rhs0[id] = +sin(alphap) * (-vort);
                                 rhs1[id] = -cos(alphap) * (-vort);
@@ -331,14 +365,14 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                 }
             }
     }
-#ifdef DUMP_DBG
+// #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal");
     flups_hdf5_dump(topo, msg, sol);
-#endif
+// #endif
 
     //-------------------------------------------------------------------------
     /** - solve the equations */
@@ -352,11 +386,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_profiler_free(prof);
 
 
-#ifdef DUMP_DBG
+// #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, field);
-#endif
+// #endif
 
     //-------------------------------------------------------------------------
     /** - compute the error */

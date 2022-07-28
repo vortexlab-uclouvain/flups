@@ -85,12 +85,16 @@ struct DomainDescr {
     double             L[3]           = {1.0, 1.0, 1.0};
     FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
     FLUPS_CenterType   center[3]      = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    double             rc             = 0.1;
+    double             sigma          = 0.05;
+    bool               compact        = false;
+    double             rad            = 0.25;
 };
 
 /**********************************************************************/
 /**
  * @name validation of the solver using a gaussian blob
- * 
+ *
  */
 /**@{ */
 void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir);

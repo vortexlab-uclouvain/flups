@@ -56,32 +56,36 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     //--------------------------------------------------------------------------
-    // Parsing 
+    // Parsing
     //--------------------------------------------------------------------------
-    H3LPR::Parser parser(argc, (const char**) argv);
-    
+    H3LPR::Parser parser(argc, (const char **)argv);
+
     // Retreive the int values
+    bool arg_compact   = parser.GetFlag("--compact", "uses the compact gaussian instead of the infinite one");
     auto arg_center    = parser.GetValue<int>("--center", "Indicate the location of the data: 0=Node-centred, 1=Cell-centred", 1);
     auto arg_nsolve    = parser.GetValue<int>("--nsolve", "the number of solves to perform", 1);
     auto arg_kernel    = parser.GetValue<int>("--kernel", "the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6", 0);
-    auto arg_sol_t     = parser.GetValue<int>("--type", "the type of the solver: tube=0, ring=1", 0);
+    auto arg_sol_t     = parser.GetValue<int>("--case", "the testcase considered: tube=0, ring=1", 1);
     auto arg_nsample   = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_direction = parser.GetValue<int>("--dir", "direction of the vortex tubes (1=x,2=y,3=z)", 2);
     auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2, 4=FD4, 6=FD6) ", 1);
     auto arg_sym_x     = parser.GetValue<int>("--sym_x", "say if another vortex tube is added in the X direction: -1 = odd symmetry, 0 = none, 1 = even symmetry ", 0);
     auto arg_sym_y     = parser.GetValue<int>("--sym_y", "ay if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry", 0);
+    auto arg_rc        = parser.GetValue<double>("--rc", "the cutoff distance for compact fields", 0.1);
+    auto arg_rad       = parser.GetValue<double>("--rad", "radius of the ring case", 0.25);
+    auto arg_sigma     = parser.GetValue<double>("--sigma", "the sigma of the exponential", 0.05);
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});
     auto arg_nres   = parser.GetValues<int, 3>("--res", "the number of unknowns each direction", {16, 16, 16});
-    auto arg_L = parser.GetValues<double, 3>("--dom", "the size of the domain each direction", {1., 1., 1.});
+    auto arg_L      = parser.GetValues<double, 3>("--dom", "the size of the domain each direction", {1., 1., 1.});
     parser.Finalize();
-    
-    int *size = (int*) malloc((arg_nsample) * 3 * sizeof(int));
-    if (size==NULL){
-        exit(0); //we just printed help
+
+    int *size = (int *)malloc((arg_nsample)*3 * sizeof(int));
+    if (size == NULL) {
+        exit(0);  // we just printed help
     }
-    
+
     for (int i = 0; i < arg_nsample * 3; i += 3){
         size[i]   = arg_nres[0] * pow(2,i/3);
         size[i+1] = arg_nres[1] * pow(2,i/3);
@@ -97,11 +101,15 @@ int main(int argc, char *argv[]) {
         printf("  --kernel: %d\n", arg_kernel);
         printf("  --center: %d\n", arg_center);
         printf("  --nsolve: %d\n", arg_nsolve);
-        printf("  --type: %d\n", arg_sol_t);
+        printf("  --case: %d\n", arg_sol_t);
         printf("  --dir: %d\n", arg_direction);
         printf("  --order: %d\n", arg_order);
         printf("  --sym_x: %d\n", arg_sym_x);
         printf("  --sym_y: %d\n", arg_sym_y);
+        printf("  --rc: %e\n", arg_rc);
+        printf("  --rad: %e\n", arg_rad);
+        printf("  --sigma: %e\n", arg_sigma);
+        printf("  --compact? %d\n", arg_compact);
         for (int i = 0; i < arg_nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
@@ -112,16 +120,21 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     struct DomainDescr valCase;
     for (int is = 0; is < arg_nsample; is++) {
+        valCase.rc      = arg_rc;
+        valCase.sigma   = arg_sigma;
+        valCase.rad     = arg_rad;
+        valCase.compact = arg_compact;
         for (int ip = 0; ip < 3; ip++) {
             valCase.L[ip]      = arg_L[ip];
             valCase.nproc[ip]  = arg_nprocs[ip];
             valCase.nglob[ip]  = arg_nres[is * 3 + ip];
             valCase.center[ip] = (FLUPS_CenterType)arg_center;
-            if (arg_sol_t == 0) {// this is the vortex tube
+
+            if (arg_sol_t == 0) {  // this is the vortex tube
                 // the BC are imposed in the Z direction
                 int dir2 = arg_direction;
-                int dir0 = (arg_direction+1)%3;
-                int dir1 = (arg_direction+2)%3;
+                int dir0 = (arg_direction + 1) % 3;
+                int dir1 = (arg_direction + 2) % 3;
 
                 if (ip == dir2) {
                     valCase.mybcv[ip][0][dir0] = ODD;   // w_x on the left
@@ -191,7 +204,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else if (arg_sol_t == 1) {  // this is the vortex ring
-                                     // the BC are imposed in the Z direction
+                                          // the BC are imposed in the Z direction
                 valCase.xcntr = 0.5;
                 valCase.ycntr = 0.5;
                 valCase.zcntr = 0.5;
