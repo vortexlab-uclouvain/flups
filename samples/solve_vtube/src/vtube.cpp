@@ -114,7 +114,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma   = 0.025;
+        const double sigma   = 0.1;
         const double rad     = 0.3;
         const double oo_rad2 = 1.0/(rad*rad);
         const int    ax0     = flups_topo_get_axis(topo);
@@ -154,11 +154,15 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double r     = sqrt(x * x + y * y);
                             const double rho1  = r / sigma;
                             const double rho2  = r / rad;
-                            // const double vort  = (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / expint(2, 1)) * exp(-1. / (1. - rho2 * rho2)));
-                            // const double vel   = (rho2 >= 1.0) ? (1.0 / (c_2pi * r)) : (1.0 / (c_2pi * r) * (1.0 - (1.0 / expint(2, 1)) * (1 - rho2 * rho2) * expint(2, 1. / (1. - rho2 * rho2))));
+                            
+                            const double E21 = gexpint<2>(1.0);
+                            const double vort  = (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / E21) * exp(-1.0 / (1.0 - rho2 * rho2)));
+                            const double tol = 100*std::numeric_limits<double>::epsilon();
+                            const double fact =  (rho2 >= 1.0) ? (1.0) : (1.0 - (1.0 / E21) * (1.0 - rho2 * rho2) * gexpint<2>(1.0 / (1.0 - rho2 * rho2)));
+                            const double vel   =(r < tol) ? (0.0) : (fact/ (c_2pi * r));
 
-                            const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
-                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
+                            // const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
+                            // const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
 
                             if (dir2 == 0) {
                                 rhs0[id] = -vort;
