@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
     auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2, 4=FD4, 6=FD6) ", 1);
     auto arg_sym_x     = parser.GetValue<int>("--sym_x", "say if another vortex tube is added in the X direction: -1 = odd symmetry, 0 = none, 1 = even symmetry ", 0);
     auto arg_sym_y     = parser.GetValue<int>("--sym_y", "ay if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry", 0);
-    auto arg_rc        = parser.GetValue<double>("--rc", "the cutoff distance for compact fields", 0.1);
+    auto arg_rc        = parser.GetValue<double>("--rc", "the cutoff distance for compact fields", 0.2);
     auto arg_rad       = parser.GetValue<double>("--rad", "radius of the ring case", 0.25);
     auto arg_sigma     = parser.GetValue<double>("--sigma", "the sigma of the exponential", 0.05);
 
@@ -203,7 +203,39 @@ int main(int argc, char *argv[]) {
                         valCase.mybcv[ip][1][dir2] = UNB;   // w_z on the right
                     }
                 }
-            } else if (arg_sol_t == 1) {  // this is the vortex ring
+            } else if (arg_sol_t == 1) {  // we have tubes in all 3 directions
+                                          // the BC are imposed in the Z direction
+                valCase.xcntr = 0.5;
+                valCase.ycntr = 0.5;
+                valCase.zcntr = 0.5;
+                valCase.xsign = 1.0;
+                valCase.ysign = 1.0;
+                valCase.zsign = 1.0;
+
+                // here x means the normal distance to the face
+                valCase.mybcv[ip][0][(ip + 0) % 3] = EVEN;  // w_x on the left
+                valCase.mybcv[ip][0][(ip + 1) % 3] = ODD;   // w_y on the left
+                valCase.mybcv[ip][0][(ip + 2) % 3] = ODD;   // w_z on the left
+                valCase.mybcv[ip][1][(ip + 0) % 3] = EVEN;  // w_x on the right
+                valCase.mybcv[ip][1][(ip + 1) % 3] = ODD;   // w_y on the right
+                valCase.mybcv[ip][1][(ip + 2) % 3] = ODD;   // w_z on the right
+
+            } else if (arg_sol_t == 2) {  // gaussian blob
+                                          // the BC are imposed in the Z direction
+                valCase.xcntr = 0.5;
+                valCase.ycntr = 0.5;
+                valCase.zcntr = 0.5;
+                valCase.xsign = 1.0;
+                valCase.ysign = 1.0;
+                valCase.zsign = 1.0;
+
+                valCase.mybcv[ip][0][0] = UNB;  // w_x on the left
+                valCase.mybcv[ip][0][1] = UNB;  // w_y on the left
+                valCase.mybcv[ip][0][2] = UNB;  // w_z on the left
+                valCase.mybcv[ip][1][0] = UNB;  // w_x on the right
+                valCase.mybcv[ip][1][1] = UNB;  // w_y on the right
+                valCase.mybcv[ip][1][2] = UNB;  // w_z on the right
+            } else if (arg_sol_t == 3) {  // this is the vortex ring
                                           // the BC are imposed in the Z direction
                 valCase.xcntr = 0.5;
                 valCase.ycntr = 0.5;

@@ -28,23 +28,26 @@
 
 
 
-
 double vort_inf(const double r, const double sigma){
+    // Gregoire winckelmans 2004 encyclopedia
     const double rho1  = r / sigma;
     return 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
 }
-double vort_compact(const double r, const double R){
-    const double rho2  = r / (R);
-    const double oo_rad2 = 1.0/(R*R);
-    return (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / gexpint<2>(1.0)) * exp(-1.0 / (1.0 - rho2 * rho2)));
-}
-
 double vel_inf(const double r, const double sigma) {
+    // Gregoire winckelmans 2004 encyclopedia table 1
     const double eps  = 100 * std::numeric_limits<double>::epsilon();
     const double rho1 = r / sigma;
     return (r < eps) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
 }
+
+double vort_compact(const double r, const double R){
+    // Wincklemans 2015, hand-written notes (cfr vortexbib)
+    const double rho2  = r / (R);
+    const double oo_rad2 = 1.0/(R*R);
+    return (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / gexpint<2>(1.0)) * exp(-1.0 / (1.0 - rho2 * rho2)));
+}
 double vel_compact(const double r, const double R) {
+    // Wincklemans 2015, hand-written notes (cfr vortexbib)
     const double eps  = 100 * std::numeric_limits<double>::epsilon();
     const double rho2 = r / (R);
     const double fact = (rho2 >= 1.0) ? (1.0) : (1.0 - (1.0 / gexpint<2>(1.0)) * (1.0 - rho2 * rho2) * gexpint<2>(1.0 / (1.0 - rho2 * rho2)));
@@ -54,21 +57,23 @@ double vel_compact(const double r, const double R) {
 using namespace std;
 
 void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir) {
-    int rank, comm_size;
+    int      rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
-    const int lda =3;
+    const int lda = 3;
 
-    const bool tube = (type == 0);
-    const bool ring = (type == 1);
+    const bool tube  = (type == 0);
+    const bool cross = (type == 1);
+    const bool gauss = (type == 2);
+    const bool ring  = (type == 3);
 
     const int    *nproc = myCase.nproc;
     const double *L     = myCase.L;
 
-    const bool is_cell = myCase.center[0] == CELL_CENTER; 
-    const double fact = (double) (!is_cell);
+    const bool   is_cell = myCase.center[0] == CELL_CENTER;
+    const double fact    = (double)(!is_cell);
 
     // Ensure that 64 points in cell-centred mode is equivalent 64 points in node-centred mode
     const int    nglob[3] = {myCase.nglob[0] + (int)fact,
@@ -158,8 +163,6 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         int dir0 = (vdir + 1) % 3;
         int dir1 = (vdir + 2) % 3;
         int dir2 = vdir;
-
-        // printf("center = %f %f - signs = %f %f",myCase.xcntr,myCase.ycntr,myCase.xsign,myCase.ysign);
 
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
@@ -304,63 +307,116 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                                 sol2[id] += 0.0 * myCase.ysign * myCase.xsign;
                             }
                         }
-                        }else if (ring){
-                            //---------------------------------------------------------------
-                            // main ring aligned in the Z direction
-                            {
-                                const double x = pos[0] - (myCase.xcntr * L[0]);
-                                const double y = pos[1] - (myCase.ycntr * L[1]);
-                                const double z = pos[2] - (myCase.zcntr * L[2]);
+                    // } else if (cross) {
+                    //     const double lpos[3] = {pos[0] - (myCase.xcntr * L[0]),
+                    //                             pos[1] - (myCase.ycntr * L[1]),
+                    //                             pos[2] - (myCase.zcntr * L[2])};
+                    //     double      *lrhs[3] = {rhs0, rhs1, rhs2};
+                    //     double      *lsol[3] = {sol0, sol1, sol2};
 
-                                // we decompose the problem as a symmetry in a plan (for a ring with a normal in Z)
-                                // we are looking for the plan in Z and passing by the origin, aka the solution plan
-                                // from this plan point of view the ring is a simple two guassian vortex system
+                    //     for (int i = 0; i < 3; ++i) {
+                    //         lrhs[(i + 0) % 3][id] = 0.0;
+                    //         lrhs[(i + 1) % 3][id] = 0.0;
+                    //         lrhs[(i + 2) % 3][id] = 0.0;
+                    //         lsol[(i + 0) % 3][id] = 0.0;
+                    //         lsol[(i + 1) % 3][id] = 0.0;
+                    //         lsol[(i + 2) % 3][id] = 0.0;
+                    //     }
 
-                                // get the angle of the solution plan -> using the plan in XY
-                                const double xp     = sqrt(x * x + y * y);
-                                const double alphap = atan2(y, x);
+                    //     for (int i = 0; i < 3; ++i) {
+                    //         const double x = lpos[(i + 1) % 3];
+                    //         const double y = lpos[(i + 2) % 3];
+                    //         // tube in z
+                    //         const double theta = std::atan2(y, x);  // get the angle in the x-y plane
+                    //         const double r     = sqrt(x * x + y * y);
+                    //         const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                    //         const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
+                    //         lrhs[(i + 0) % 3][id] += -vort;
+                    //         lrhs[(i + 1) % 3][id] += 0.0;
+                    //         lrhs[(i + 2) % 3][id] += 0.0;
+                    //         lsol[(i + 0) % 3][id] += 0.0;
+                    //         lsol[(i + 1) % 3][id] += -sin(theta) * vel;
+                    //         lsol[(i + 2) % 3][id] += +cos(theta) * vel;
+                    //     }
+                    // } else if (gauss) {
+                    //     const double x = pos[0] - (myCase.xcntr * L[0]);
+                    //     const double y = pos[1] - (myCase.ycntr * L[1]);
+                    //     const double z = pos[2] - (myCase.zcntr * L[2]);
+                    //     // tube in z
+                    //     const double r     = sqrt(x * x + y * y + z*z);
+                    //     const double rho = r/sigma;
+                    //     const double vort  = 1.0/(4.0*M_PI*pow(sigma,3)) * sqrt(2.0/M_PI) * exp(-0.5 * rho * rho) ;
+                    //     const double vel   = 1.0;
+                    //     lrhs[(i + 0) % 3][id] += -vort;
+                    //     lrhs[(i + 1) % 3][id] += 0.0;
+                    //     lrhs[(i + 2) % 3][id] += 0.0;
+                    //     lsol[(i + 0) % 3][id] += 0.0;
+                    //     lsol[(i + 1) % 3][id] += -sin(theta) * vel;
+                    //     lsol[(i + 2) % 3][id] += +cos(theta) * vel;
+                    // }
+                    } else if (ring) {
+                        //---------------------------------------------------------------
+                        //                      WARNING
+                        // the analytical solution of this one is NOT correct!!
+                        //---------------------------------------------------------------
+                        // main ring aligned in the Z direction
+                        {
+                            const double x = pos[0] - (myCase.xcntr * L[0]);
+                            const double y = pos[1] - (myCase.ycntr * L[1]);
+                            const double z = pos[2] - (myCase.zcntr * L[2]);
 
-                                // now switch to the solution plan in XP,Z
-                                // in the plan, the coordinates are (xp,z)
-                                // the velocity comes from the sum of the two vortex blob in that plan
-                                /*
-                                                ^ xp           ^ (vel)
-                                                |              \
-                                                O (+ vort)      x
-                                                |               
-                                                |/ (theta1)
-                                    -----------------------------> Z
-                                                | 
-                                                |
-                                                O (-vort)
-                                                |
+                            // we decompose the problem as a symmetry in a plan (for a ring with a normal in Z)
+                            // we are looking for the plan in Z and passing by the origin, aka the solution plan
+                            // from this plan point of view the ring is a simple two guassian vortex system
+
+                            // get the angle of the solution plan -> using the plan in XY
+                            const double xp     = sqrt(x * x + y * y);
+                            const double alphap = atan2(y, x);
+
+                            // now switch to the solution plan in XP,Z
+                            // in the plan, the coordinates are (xp,z)
+                            // the velocity comes from the sum of the two vortex blob in that plan
+                            /*
+                                            ^ xp           ^ (vel)
+                                            |              \
+                                            O (+ vort)      x
+                                            |
+                                            |/ (theta1)
+                                -----------------------------> Z
+                                            |
+                                            |
+                                            O (-vort)
+                                            |
 
 
-                                */
-                                // get the distance to the 1st vortex
-                                const double r1     = sqrt((xp - rad) * (xp - rad) + z * z);
-                                const double theta1 = std::atan2(z, (xp - rad));  // get the angle wrt the first vortex
-                                // const double rho1   = r1 / sigma;
-                                // get the distance to the second vortex
-                                const double r2     = sqrt((xp + rad) * (xp + rad) + z * z);
-                                const double theta2 = std::atan2(z, (xp + rad));  // get the angle wrt to the second vortex
-                                // const double rho2   = r2 / sigma;
-                                const double vel1  = (compact) ? vel_compact(r1, R) : vel_inf(r1, sigma);
-                                const double vel2  = (compact) ? (-vel_compact(r2, R)) : (-vel_inf(r2, sigma));
-                                const double vn    = cos(theta1) * vel1 + cos(theta2) * vel2;
-                                const double vr    = -sin(theta1) * vel1 - sin(theta2) * vel2;
-                                const double vort1 = (compact) ? vort_compact(r1, R) : vort_inf(r1, sigma);
-                                const double vort2 = (compact) ? vort_compact(r2, R) : vort_inf(r2, sigma);
-                                const double vort  = vort1 - vort2;
+                            */
+                            // get the distance to the 1st vortex
+                            const double r1 = sqrt((xp - rad) * (xp - rad) + z * z);
+                            // const double theta1 = std::atan2(z, (xp - rad));  // get the angle wrt the first vortex
+                            const double theta1 = std::atan2((xp - rad), z);  // get the angle wrt the first vortex
+                            // const double rho1   = r1 / sigma;
+                            // get the distance to the second vortex
+                            const double r2 = sqrt((xp + rad) * (xp + rad) + z * z);
+                            // const double theta2 = std::atan2(z, (xp + rad));  // get the angle wrt to the second vortex
+                            const double theta2 = std::atan2((xp + rad), z);  // get the angle wrt to the second vortex
+                            // const double rho2   = r2 / sigma;
+                            const double vel1  = (compact) ? vel_compact(r1, R) : vel_inf(r1, sigma);
+                            const double vel2  = (compact) ? (-vel_compact(r2, R)) : (-vel_inf(r2, sigma));
+                            const double vz    = -sin(theta1) * vel1 - sin(theta2) * vel2;
+                            const double vr    = +cos(theta1) * vel1 + cos(theta2) * vel2;
+                            const double vort1 = (compact) ? vort_compact(r1, R) : vort_inf(r1, sigma);
+                            const double vort2 = (compact) ? vort_compact(r2, R) : vort_inf(r2, sigma);
+                            const double vort  = vort1 - vort2;
 
-                                rhs0[id] = +sin(alphap) * (-vort);
-                                rhs1[id] = -cos(alphap) * (-vort);
-                                rhs2[id] = 0.0;
-                                sol0[id] = cos(alphap) * vr;
-                                sol1[id] = sin(alphap) * vr;
-                                sol2[id] = vn;
-                            }
+                            // the -1.0 is because we solve curl(rhs) and NOT curl(-rhs)
+                            rhs0[id] = +sin(alphap) * (-vort) * (-1.0);
+                            rhs1[id] = -cos(alphap) * (-vort) * (-1.0);
+                            rhs2[id] = 0.0;
+                            sol0[id] = cos(alphap) * vr;
+                            sol1[id] = sin(alphap) * vr;
+                            sol2[id] = vz;
                         }
+                    }
                     }
                 }
             }
