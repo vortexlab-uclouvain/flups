@@ -17,7 +17,6 @@ if(arg != 'isr' and arg!= 'a2a' and arg!='nb'):
     print("You choose a version which is not supported. ")
     print("By default, we will test the non blocking version of the code")
     version = 'nb'
-    centername = 'CellCenter'
 else :
     version = arg
     print(f"We will test the {version} version of the code")

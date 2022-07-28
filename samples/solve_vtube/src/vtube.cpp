@@ -37,12 +37,12 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     const int lda =3;
 
-    const bool tube = type==0;
-    const bool ring = type==1;
+    const bool tube = (type == 0);
+    const bool ring = (type == 1);
 
-    const int *   nproc  = myCase.nproc;
-    const double *L      = myCase.L;
-    
+    const int    *nproc = myCase.nproc;
+    const double *L     = myCase.L;
+
     const bool is_cell = myCase.center[0] == CELL_CENTER; 
     const double fact = (double) (!is_cell);
 
@@ -103,6 +103,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::memset(rhs, 0, sizeof(double) * flups_topo_get_memsize(topo));
     std::memset(sol, 0, sizeof(double) * flups_topo_get_memsize(topo));
     std::memset(field, 0, sizeof(double) * flups_topo_get_memsize(topo));
+    
 
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
@@ -112,7 +113,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma   = 0.1;
+        const double sigma   = 0.05;
         const double rad     = 0.2;
         const int    ax0     = flups_topo_get_axis(topo);
         const int    ax1     = (ax0 + 1) % 3;
@@ -150,7 +151,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double theta = std::atan2(y, x);  // get the angle in the x-y plane
                             const double r     = sqrt(x * x + y * y);
                             const double rho   = r / sigma;
-                            const double vel   = 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
+                            const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
                             const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
 
                             if (dir2 == 0) {
@@ -379,7 +380,6 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
                         const size_t id  = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
                         const double err = sol[id] - field[id];
-
                         lerri[lia] = max(lerri[lia], fabs(err));
                         lerr2[lia] += (err * err) * vol;
                     }

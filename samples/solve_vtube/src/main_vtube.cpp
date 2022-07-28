@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     auto arg_sol_t     = parser.GetValue<int>("--type", "the type of the solver: tube=0, ring=1", 0);
     auto arg_nsample   = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_direction = parser.GetValue<int>("--dir", "direction of the vortex tubes (1=x,2=y,3=z)", 2);
-    auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2) ", 1);
+    auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2, 4=FD4, 6=FD6) ", 1);
     auto arg_sym_x     = parser.GetValue<int>("--sym_x", "say if another vortex tube is added in the X direction: -1 = odd symmetry, 0 = none, 1 = even symmetry ", 0);
     auto arg_sym_y     = parser.GetValue<int>("--sym_y", "ay if another vortex tube is added in the Y direction: -1 = odd symmetry, 0 = none, 1 = even symmetry", 0);
 
