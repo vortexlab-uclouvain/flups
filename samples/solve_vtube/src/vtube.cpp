@@ -100,10 +100,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     double *rhs   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *sol   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     double *field = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
+    double *error = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
     std::memset(rhs, 0, sizeof(double) * flups_topo_get_memsize(topo));
     std::memset(sol, 0, sizeof(double) * flups_topo_get_memsize(topo));
     std::memset(field, 0, sizeof(double) * flups_topo_get_memsize(topo));
-    
+    std::memset(error, 0, sizeof(double) * flups_topo_get_memsize(topo));
 
     //-------------------------------------------------------------------------
     /** - fill the rhs and the solution */
@@ -113,8 +114,9 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const double sigma   = 0.05;
-        const double rad     = 0.2;
+        const double sigma   = 0.025;
+        const double rad     = 0.3;
+        const double oo_rad2 = 1.0/(rad*rad);
         const int    ax0     = flups_topo_get_axis(topo);
         const int    ax1     = (ax0 + 1) % 3;
         const int    ax2     = (ax0 + 2) % 3;
@@ -150,9 +152,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double y     = pos[dir1] - (myCase.ycntr * L[dir1]);
                             const double theta = std::atan2(y, x);  // get the angle in the x-y plane
                             const double r     = sqrt(x * x + y * y);
-                            const double rho   = r / sigma;
-                            const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho * rho * 0.5));
-                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho * rho * 0.5);
+                            const double rho1  = r / sigma;
+                            const double rho2  = r / rad;
+                            // const double vort  = (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / expint(2, 1)) * exp(-1. / (1. - rho2 * rho2)));
+                            // const double vel   = (rho2 >= 1.0) ? (1.0 / (c_2pi * r)) : (1.0 / (c_2pi * r) * (1.0 - (1.0 / expint(2, 1)) * (1 - rho2 * rho2) * expint(2, 1. / (1. - rho2 * rho2))));
+
+                            const double vel   = (r < 100*std::numeric_limits<double>::epsilon()) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
+                            const double vort  = 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
 
                             if (dir2 == 0) {
                                 rhs0[id] = -vort;
@@ -382,6 +388,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                         const double err = sol[id] - field[id];
                         lerri[lia] = max(lerri[lia], fabs(err));
                         lerr2[lia] += (err * err) * vol;
+                        error[id]  = err; 
                     }
                 }
             }
@@ -393,6 +400,12 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     for (int i = 0; i < lda; i++) {
         err2[i] = sqrt(err2[i]);
     }
+
+#ifdef DUMP_DBG
+    // write the source term and the solution
+    sprintf(msg, "error_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
+    flups_hdf5_dump(topo, msg, error);
+#endif
 
     char   filename[512];
     string folder = "./data";
@@ -428,10 +441,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     free(lerri);
     free(err2);
     free(erri);
-
+    
     flups_free(sol);
     flups_free(rhs);
     flups_free(field);
+    flups_free(error);
     flups_cleanup(mysolver);
     flups_topo_free(topo);
 
