@@ -58,19 +58,20 @@ static const double c_2pi = 2.0 * M_PI;
 /*                      double expint()                              */
 /**********************************************************************/
 template <int P>
-constexpr double gexpint(const double z) {
+double gexpint(const double z) {
     // DLMF 8.19.12 (https://dlmf.nist.gov/8.19#E12)
     // or Abramowitz and stegun 5.1.14
     return (std::exp(-z) - z * gexpint<P - 1>(z)) / (P - 1.0);
 }
-template <>
-constexpr double gexpint<1>(const double z) {
-    // for real values E1(x) = -Ei(-x):
-    // according to
-    // https://en.cppreference.com/w/cpp/numeric/special_functions/expint and
-    // https://en.wikipedia.org/wiki/Exponential_integral
-    return (-std::expint(-z));
-}
+template <> 
+double gexpint<1>(const double z);
+//{
+//    // for real values E1(x) = -Ei(-x):
+//    // according to
+//    // https://en.cppreference.com/w/cpp/numeric/special_functions/expint and
+//    // https://en.wikipedia.org/wiki/Exponential_integral
+//    return (-std::expint(-z));
+//}
 
 /**********************************************************************/
 struct DomainDescr {

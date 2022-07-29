@@ -10,6 +10,9 @@ echo "---------------- UCX Flags ---------------------"
 echo "UCX_TLS == ${UCX_TLS}"
 echo "OMPI_MCA_pml == ${OMPI_MCA_pml}"
 echo "OMPI_MCA_osc == ${OMPI_MCA_osc}"
+echo "CODE_VERSION == ${CODE_VERSION}"
+echo "ORDER_DIFF   == ${ORDER_DIFF}"
+echo "CODE_CENTER  == ${CODE_CENTER}"
 
 for version in ${CODE_VERSION}
 do
@@ -26,8 +29,8 @@ do
         do
             echo "----------------- launching job -----------------"
             echo "Launching jobs with: "
-            echo "OMP_NUM_THREADS=1 srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --center=${FLUPS_CENTER} --order=${DIFF_ORDER} --kernel=${kernel} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z}"
-            OMP_NUM_THREADS=1 srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --case=${FIELD_TYPE} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --center=${CODE_CENTER} --kernel=${kernel} --order=${DIFF_ORDER} ${FIELD_COMPACT} 
+            echo "OMP_NUM_THREADS=1 srun --mpi=pmix --cpu_bind=cores ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --case=${FIELD_TYPE} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --center=${CODE_CENTER} --kernel=${kernel} --order=${diff_order} ${FIELD_COMPACT}" 
+            OMP_NUM_THREADS=1 srun --mpi=pmix --cpu_bind=cores ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --case=${FIELD_TYPE} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --center=${CODE_CENTER} --kernel=${kernel} --order=${diff_order} ${FIELD_COMPACT} 
             echo "----------------- done           -----------------"  
         done
         cd -

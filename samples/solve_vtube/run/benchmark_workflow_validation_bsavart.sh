@@ -96,7 +96,7 @@ do
     # Loop on the provided version 
     #---------------------------------------------------------------------------
     export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}
-    echo "sbatch -d afterok:${DEPJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/validation/run/${CLUSTER}_kernel_valid.sh "
+    echo "sbatch -d afterok:${DEPJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/solve_vtube/run/benchmark_kernel_tube.sh"
     echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
     
     DEPJOB_ID=$(sbatch --parsable \
@@ -108,7 +108,7 @@ do
                        --nodes=${NNODE} \
                        --ntasks-per-node=${NPROC_NODES} \
                        --time=${KERNEL_TIME} \
-                       ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh)
+                       ${FLUPS_DIR}/samples/solve_vtube/run/benchmark_kernel_tube.sh)
     #---------------------------------------------------------------------------
 done 
 

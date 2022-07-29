@@ -35,7 +35,7 @@ echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.${CLUSTER}
 echo "#---------------------------------------------------------  " >> make_arch/make.${CLUSTER}
 echo "  " >> make_arch/make.${CLUSTER}
 echo "## FFTW3  " >> make_arch/make.${CLUSTER}
-echo "FFTW_DIR  := ${FFTW_DIR}  " >> make_arch/make.${CLUSTER}
+echo "FFTW_DIR := ${FFTW_DIR}  " >> make_arch/make.${CLUSTER}
 echo "FFTW_LIB := ${FFTW_DIR}/lib  " >> make_arch/make.${CLUSTER}
 echo "FFTW_INC := ${FFTW_DIR}/include  " >> make_arch/make.${CLUSTER}
 echo "  " >> make_arch/make.${CLUSTER}

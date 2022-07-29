@@ -26,7 +26,14 @@
 #include "vtube.hpp"
 #include "omp.h"
 
-
+template <>
+double gexpint<1>(const double z){
+    // for real values E1(x) = -Ei(-x):
+    // according to
+    // https://en.cppreference.com/w/cpp/numeric/special_functions/expint and
+    // https://en.wikipedia.org/wiki/Exponential_integral
+    return (-std::expint(-z));
+}
 
 double vort_inf(const double r, const double sigma){
     // Gregoire winckelmans 2004 encyclopedia

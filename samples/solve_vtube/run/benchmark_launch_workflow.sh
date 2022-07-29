@@ -50,9 +50,10 @@ export COMPILE_TIME='00:10:00'
 export KERNEL_TIME='02:30:00'
 
 # ..................................................................
-#export CLUSTER='vega'
-export CLUSTER='meluxina'
+export CLUSTER='vega'
+#export CLUSTER='meluxina'
 # ..................................................................
+
 #---------------------------------------------------------------------------------------
 #               MELUXINA
 #---------------------------------------------------------------------------------------
@@ -118,7 +119,7 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export ACCOUNT='b2203-024-users'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC=''
+    export COMPILE_CLUSTER_SPEC='--mem=256000'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
