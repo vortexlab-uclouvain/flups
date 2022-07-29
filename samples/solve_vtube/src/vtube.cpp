@@ -26,7 +26,7 @@
 #include "vtube.hpp"
 #include "omp.h"
 
-template <>
+template <> 
 double gexpint<1>(const double z){
     // for real values E1(x) = -Ei(-x):
     // according to
@@ -71,10 +71,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     const int lda = 3;
 
-    const bool tube  = (type == 0);
-    const bool cross = (type == 1);
-    const bool gauss = (type == 2);
-    const bool ring  = (type == 3);
+    const bool tube     = (type == 0);
+    const bool cross    = (type == 1);
+    const bool gauss    = (type == 2);
+    const bool ring     = (type == 3);
+    const bool periodic = (type == 4);
 
     const int    *nproc = myCase.nproc;
     const double *L     = myCase.L;
@@ -150,7 +151,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_topo_get_istartGlob(topo, istart);
 
     {
-        const bool compact = myCase.compact;
+        const bool   compact = myCase.compact;
         const double sigma   = myCase.sigma;
         const double rad     = myCase.rad;
         const double R       = myCase.rc;
@@ -423,19 +424,35 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             sol1[id] = sin(alphap) * vr;
                             sol2[id] = vz;
                         }
+                    } else if (periodic) {
+                        {
+                            const double x = pos[0];
+                            const double y = pos[1];
+                            const double z = pos[2];
+
+                            const double fact = 0.5 * c_1o2pi * c_1o2pi;
+
+                            rhs0[id] = c_1o2pi * sin(2 * M_PI * y) * sin(2 * M_PI * z);
+                            rhs1[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * z);
+                            rhs2[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * y);
+
+                            sol0[id] = fact * sin(2.0 * M_PI * x) * (-cos(2.0 * M_PI * y) + cos(2.0 * M_PI * z));
+                            sol1[id] = fact * sin(2.0 * M_PI * y) * (-cos(2.0 * M_PI * z) + cos(2.0 * M_PI * x));
+                            sol2[id] = fact * sin(2.0 * M_PI * z) * (-cos(2.0 * M_PI * x) + cos(2.0 * M_PI * y));
+                        }
                     }
                     }
                 }
             }
     }
-#ifdef DUMP_DBG
+// #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal");
     flups_hdf5_dump(topo, msg, sol);
-#endif
+// #endif
 
     //-------------------------------------------------------------------------
     /** - solve the equations */
@@ -449,11 +466,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_profiler_free(prof);
 
 
-#ifdef DUMP_DBG
+// #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, field);
-#endif
+// #endif
 
     //-------------------------------------------------------------------------
     /** - compute the error */
@@ -502,16 +519,16 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         err2[i] = sqrt(err2[i]);
     }
 
-#ifdef DUMP_DBG
+// #ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "error_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, error);
-#endif
+// #endif
 
     char   filename[512];
     string folder = "./data";
     string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
-    sprintf(filename, "%s/%s_%s_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
+    sprintf(filename, "%s/%s_%s_%d_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), type, vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
