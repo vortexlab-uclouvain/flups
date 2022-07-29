@@ -118,7 +118,7 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
 #if (KIND == 01 || KIND == 11)
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart)
 #elif (KIND == 02 || KIND == 12 || KIND == 04 || KIND == 14 || KIND == 06 || KIND == 16)
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart,hgrid)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart,hgrid) firstprivate(c_4o3,c_1o6,c_3o2,c_3o10,c_1o30)
 #endif
     for (size_t io = 0; io < ondim; io++) {
         // get the starting pointer
@@ -223,6 +223,7 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
             dataloc0[ii] = normfact * rot0r * gr;
             dataloc1[ii] = normfact * rot1r * gr;
             dataloc2[ii] = normfact * rot2r * gr;
+            printf("[%d %d %d]: f = %e %e %e, rot = %e %e %e -> data = %e %e %e\n",is[0],is[1],is[2],f0r,f1r,f2r,rot0r,rot1r,rot2r,dataloc0[ii],dataloc1[ii],dataloc2[ii]);
 #elif (KIND == 11 || KIND == 12 || KIND == 14 || KIND == 16)
             // data
             const double f0r = dataloc0[ii * 2 + 0];

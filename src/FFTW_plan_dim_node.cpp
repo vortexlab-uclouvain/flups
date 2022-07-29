@@ -137,7 +137,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 n_in_[lia] = size[dimID_] - 1;
                 n_out_     = size[dimID_];
 
-                koffset_ = 0.0;
+                koffset_ = 0.5;
                 // always the samed DCT
                 if (sign_ == FLUPS_FORWARD) {
                     // DCT type III
@@ -188,7 +188,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 n_out_     = size[dimID_];
 
                 fftwstart_[lia] = 1;
-                koffset_        = 0.0;
+                koffset_        = 0.5;
                 fieldstart_     = 0;
                 // always the samed DST
                 if (sign_ == FLUPS_FORWARD) {
@@ -336,17 +336,16 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     /** - get the memory details (#n_in_[lia], #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
     if (isComplex) {
-        n_in_[0]  = size[dimID_] - 1;   // takes n complex, return n complex
-        n_out_ = size[dimID_] - 1;
-        isr2c_ = false;
+        n_in_[0] = size[dimID_] - 1;  // takes n complex, return n complex
+        n_out_   = size[dimID_] - 1;
+        isr2c_   = false;
 
     } else {
-        n_in_[0]  = size[dimID_] - 1;   // takes n-1 real
-        n_out_ = n_in_[0] / 2 + 1;      // return n_in/2 + 1 complex
-
-        isr2c_ = true;
+        n_in_[0] = size[dimID_] - 1;  // takes n-1 real
+        n_out_   = n_in_[0] / 2 + 1;  // return n_in/2 + 1 complex
+        isr2c_   = true;
     }
-    
+
     fieldstart_ = 0;
 
     //-------------------------------------------------------------------------

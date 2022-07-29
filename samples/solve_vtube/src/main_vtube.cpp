@@ -258,6 +258,21 @@ int main(int argc, char *argv[]) {
                 valCase.mybcv[ip][1][0] = PER;  // w_x on the right
                 valCase.mybcv[ip][1][1] = PER;  // w_y on the right
                 valCase.mybcv[ip][1][2] = PER;  // w_z on the right
+            } else if (arg_sol_t == 5) {        // this is the even-even
+                valCase.mybcv[ip][0][0] = EVEN;  // w_x on the left
+                valCase.mybcv[ip][0][1] = EVEN;  // w_y on the left
+                valCase.mybcv[ip][0][2] = EVEN;  // w_z on the left
+                valCase.mybcv[ip][1][0] = EVEN;  // w_x on the right
+                valCase.mybcv[ip][1][1] = EVEN;  // w_y on the right
+                valCase.mybcv[ip][1][2] = EVEN;  // w_z on the right
+            } else if (arg_sol_t == 6) {        // this is the odd-even
+                // bc for direction ip
+                valCase.mybcv[ip][0][0] = ODD;  // w_x on the left
+                valCase.mybcv[ip][0][1] = ODD;  // w_y on the left
+                valCase.mybcv[ip][0][2] = ODD;  // w_z on the left
+                valCase.mybcv[ip][1][0] = EVEN;  // w_x on the right
+                valCase.mybcv[ip][1][1] = EVEN;  // w_y on the right
+                valCase.mybcv[ip][1][2] = EVEN;  // w_z on the right
             } 
         }
         // let's gooo

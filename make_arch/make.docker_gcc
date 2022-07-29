@@ -7,6 +7,7 @@ CC = mpicc
 # Set the options 
 #OPTS=  -DVERBOSE 
 #OPTS=  -DMPI_AGGRESSIVE -DPROF -DVERBOSE 
+OPTS = -DHAVE_HDF5
 
 # set the flag (optimisation or not)
 ## For debugging:

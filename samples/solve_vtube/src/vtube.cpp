@@ -76,6 +76,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     const bool gauss    = (type == 2);
     const bool ring     = (type == 3);
     const bool periodic = (type == 4);
+    const bool even     = (type == 5);
+    const bool oddeven  = (type == 6);
 
     const int    *nproc = myCase.nproc;
     const double *L     = myCase.L;
@@ -430,20 +432,64 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double y = pos[1];
                             const double z = pos[2];
 
-                            const double fact = 0.5 * c_1o2pi * c_1o2pi;
+                            // const double fact = 0.5 * c_1o2pi * c_1o2pi;
 
-                            rhs0[id] = c_1o2pi * sin(2 * M_PI * y) * sin(2 * M_PI * z);
-                            rhs1[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * z);
-                            rhs2[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * y);
+                            // rhs0[id] = c_1o2pi * sin(2 * M_PI * y) * sin(2 * M_PI * z);
+                            // rhs1[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * z);
+                            // rhs2[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * y);
 
-                            sol0[id] = fact * sin(2.0 * M_PI * x) * (-cos(2.0 * M_PI * y) + cos(2.0 * M_PI * z));
-                            sol1[id] = fact * sin(2.0 * M_PI * y) * (-cos(2.0 * M_PI * z) + cos(2.0 * M_PI * x));
-                            sol2[id] = fact * sin(2.0 * M_PI * z) * (-cos(2.0 * M_PI * x) + cos(2.0 * M_PI * y));
+                            // sol0[id] = fact * sin(2.0 * M_PI * x) * (-cos(2.0 * M_PI * y) + cos(2.0 * M_PI * z));
+                            // sol1[id] = fact * sin(2.0 * M_PI * y) * (-cos(2.0 * M_PI * z) + cos(2.0 * M_PI * x));
+                            // sol2[id] = fact * sin(2.0 * M_PI * z) * (-cos(2.0 * M_PI * x) + cos(2.0 * M_PI * y));
+                            const double k[3] = {2.0 * M_PI, 2.0 * M_PI, 2.0 * M_PI};
+                            rhs0[id] = cos(k[1] * y) / k[1];
+                            rhs1[id] = cos(k[2] * z) / k[2];
+                            rhs2[id] = cos(k[0] * x) / k[0];
+                            // rot_x = sin(k[2] * z) -> sol = -1/k[2] * sin(k[2] * z)
+                            // rot_y = sin(k[0] * x) -> sol = -1/k[0] * sin(k[0] * x)
+                            // rot_z = sin(k[1] * y) -> sol = -1/k[1] * sin(k[1] * y)
+                            sol0[id] = -1.0 / (k[2] * k[2]) * sin(k[2] * z);
+                            sol1[id] = -1.0 / (k[0] * k[0]) * sin(k[0] * x);
+                            sol2[id] = -1.0 / (k[1] * k[1]) * sin(k[1] * y);
                         }
-                    }
+                    } else if (even) {
+                        {
+                            const double x    = pos[0];
+                            const double y    = pos[1];
+                            const double z    = pos[2];
+                            const double k[3] = {2.0 * M_PI, 2.0 * M_PI, 2.0 * M_PI};
+
+                            rhs0[id] = 0.0;//cos(k[1] * y) / k[1];
+                            rhs1[id] = cos(k[2] * z) / k[2];
+                            rhs2[id] = 0.0;//cos(k[0] * x) / k[0];
+                            // rot_x = sin(k[2] * z) -> sol = -1/k[2] * sin(k[2] * z)
+                            // rot_y = sin(k[0] * x) -> sol = -1/k[0] * sin(k[0] * x)
+                            // rot_z = sin(k[1] * y) -> sol = -1/k[1] * sin(k[1] * y)
+                            sol0[id] = -1.0 / (k[2] * k[2]) * sin(k[2] * z);
+                            sol1[id] = 0.0;//-1.0 / (k[0] * k[0]) * sin(k[0] * x);
+                            sol2[id] = 0.0;//-1.0 / (k[1] * k[1]) * sin(k[1] * y);
+                        }
+                    } else if (oddeven) {
+                        {
+                            const double x    = pos[0];
+                            const double y    = pos[1];
+                            const double z    = pos[2];
+                            const double k[3] = {1.5 * M_PI, 1.5 * M_PI, 1.5 * M_PI};
+
+                            rhs0[id] = sin(k[1] * y) / k[1];
+                            rhs1[id] = sin(k[2] * z) / k[2];
+                            rhs2[id] = sin(k[0] * x) / k[0];
+                            // rot_x = cos(k[2] * z) -> sol = -1/k[2]^2 * cos(k[2] * z)
+                            // rot_y = cos(k[0] * x) -> sol = -1/k[0]^2 * cos(k[0] * x)
+                            // rot_z = cos(k[1] * y) -> sol = -1/k[1]^2 * cos(k[1] * y)
+                            sol0[id] = -1.0 / (k[2] * k[2]) * cos(k[2] * z);
+                            sol1[id] = -1.0 / (k[0] * k[0]) * cos(k[0] * x);
+                            sol2[id] = -1.0 / (k[1] * k[1]) * cos(k[1] * y);
+                        }
                     }
                 }
             }
+        }
     }
 // #ifdef DUMP_DBG
     char msg[512];

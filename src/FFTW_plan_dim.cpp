@@ -500,6 +500,7 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
                 // reset the flip-flop mode
+                printf("flipflop correction overwrites %e to 0.0\n",dataloc[nloc-1]);
                 dataloc[nloc - 1] = 0.0;
             }
         }
@@ -512,8 +513,10 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
                 // reset the zero mode
+                printf("zero and flipflop correction overwrites %e to 0.0\n",dataloc[0]);
                 dataloc[0] = 0.0;
                 // reset the flip-flop mode
+                printf("zero and flipflop correction overwrites %e to 0.0\n",dataloc[nloc-1]);
                 dataloc[nloc - 1] = 0.0;
             }
         }
@@ -615,7 +618,22 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             // get the memory
             double* mydata = (double*)data + lia * memdim + io * fftw_stride;
             // execute the plan on it
+            printf("----------------------------------------------------------\n");
+            printf("before FFT #%d = (%d, %d) -> fftwstart = %d\n",id,lia,io,fftwstart_[lia]);
+            for(int i=0; i<fftw_stride; ++i){
+                // printf(" %e",(mydata+fftwstart_[lia])[i]);
+                printf(" %e",(mydata)[i]);
+            }
+            // fftw_execute_r2r(plan[lia],
+            //                 (double*)mydata + (sign_ == FLUPS_FORWARD) * fftwstart_[lia],
+            //                 (double*)mydata + (sign_ == FLUPS_BACKWARD) * fftwstart_[lia]);
             fftw_execute_r2r(plan[lia], (double*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+            printf("\nafter FFT #%d = (%d, %d)\n",id,lia,io);
+            for(int i=0; i<fftw_stride; ++i){
+                // printf(" %e",(mydata+fftwstart_[lia])[i]);
+                printf(" %e",(mydata)[i]);
+            }
+            printf("\n");
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
