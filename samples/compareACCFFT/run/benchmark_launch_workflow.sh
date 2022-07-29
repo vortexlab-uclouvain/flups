@@ -31,8 +31,10 @@ export COMPILE_TIME='05:00:00'
 export KERNEL_TIME='01:00:00'
 
 # ..................................................................
-export CLUSTER='meluxina'
+#export CLUSTER='meluxina'
+export CLUSTER='vega'
 export LAUNCH_COMMAND='mpirun'
+
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
@@ -105,7 +107,7 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export ACCOUNT='b2203-024-users'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC=''
+    export COMPILE_CLUSTER_SPEC='--mem=256000'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
