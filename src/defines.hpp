@@ -75,26 +75,29 @@ using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>
 //=============================================================================
 // Debug
 //=============================================================================
-#define FLUPS_print_data(topo, data)                                                                                                               \
-    ({                                                                                                                                             \
-        const int    ax0     = topo->axis();                                                                                                       \
-        const int    ax1     = (ax0 + 1) % 3;                                                                                                      \
-        const int    ax2     = (ax0 + 2) % 3;                                                                                                      \
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                      \
-        const size_t memdim  = topo->memdim();                                                                                                     \
-        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
-        const size_t inmax   = topo->nloc(ax0) * topo->nf();                                                                                       \
-        printf("ax0 = %d nmem = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], topo->nloc(0), topo->nloc(1), topo->nloc(2)); \
-        for (int id = 0; id < onmax; id++) {                                                                                                       \
-            const size_t   lia    = id / ondim;                                                                                                    \
-            const size_t   io     = id % ondim;                                                                                                    \
-            opt_double_ptr argloc = data + collapsedIndex(ax0, 0, io, nmem, topo->nf());                                                           \
-            for (size_t ii = 0; ii < inmax; ii++) {                                                                                                \
-                printf("%f \t ", argloc[ii]);                                                                                                   \
-            }                                                                                                                                      \
-            printf("\n");                                                                                                                          \
-        }                                                                                                                                          \
+#define FLUPS_print_data(topo, data)                                                                                                                         \
+    ({                                                                                                                                                       \
+        const int    ax0     = topo->axis();                                                                                                                 \
+        const int    ax1     = (ax0 + 1) % 3;                                                                                                                \
+        const int    ax2     = (ax0 + 2) % 3;                                                                                                                \
+        const int    lda     = topo->lda();                                                                                                                  \
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                                \
+        const size_t memdim  = topo->memdim();                                                                                                               \
+        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                            \
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                            \
+        const size_t inmax   = topo->nloc(ax0) * topo->nf();                                                                                                 \
+        printf("ax0 = %d -- lda =%d nmem = %d %d %d-- end = %d %d %d \n", ax0, lda, nmem[0], nmem[1], nmem[2], topo->nloc(0), topo->nloc(1), topo->nloc(2)); \
+        for (int lia = 0; lia < lda; lia++) {                                                                                                                \
+            printf("lia == %d \n", lia);                                                                                                                     \
+            for (int id = 0; id < onmax; id++) {                                                                                                             \
+                const size_t   io     = id % ondim;                                                                                                          \
+                opt_double_ptr argloc = data + lia * memdim + collapsedIndex(ax0, 0, io, nmem, topo->nf());                                                  \
+                for (size_t ii = 0; ii < inmax; ii++) {                                                                                                      \
+                    printf("%e \t ", argloc[ii]);                                                                                                            \
+                }                                                                                                                                            \
+                printf("\n");                                                                                                                                \
+            }                                                                                                                                                \
+        }                                                                                                                                                    \
     })
 
 //=============================================================================
