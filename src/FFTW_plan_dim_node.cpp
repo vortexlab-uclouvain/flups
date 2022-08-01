@@ -179,7 +179,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 if (sign_ == FLUPS_BACKWARD) {
                     kind_[lia] = FFTW_RODFT00;  // DST type I
                     // no correction
-                    corrtype_[lia] = CORRECTION_NONE;
+                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
                 }
 
             } else if (bc_[1][lia] == EVEN) {
