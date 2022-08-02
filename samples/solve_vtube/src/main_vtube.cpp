@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     auto arg_center    = parser.GetValue<int>("--center", "Indicate the location of the data: 0=Node-centred, 1=Cell-centred", 1);
     auto arg_nsolve    = parser.GetValue<int>("--nsolve", "the number of solves to perform", 1);
     auto arg_kernel    = parser.GetValue<int>("--kernel", "the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6", 0);
-    auto arg_sol_t     = parser.GetValue<int>("--case", "the testcase considered: tube=0, ring=1, compact blob=3, periodic=4", 1);
+    auto arg_sol_t     = parser.GetValue<int>("--case", "the testcase considered: tube=0, ring=1, compact blob=3, periodic=4", 0);
     auto arg_nsample   = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_direction = parser.GetValue<int>("--dir", "direction of the vortex tubes (1=x,2=y,3=z)", 2);
     auto arg_order     = parser.GetValue<int>("--order", "derivation order asked for the velocity field (1=spectral, 2=FD2, 4=FD4, 6=FD6) ", 1);
@@ -252,19 +252,19 @@ int main(int argc, char *argv[]) {
                 valCase.mybcv[ip][1][1] = UNB;  // w_y on the right
                 valCase.mybcv[ip][1][2] = UNB;  // w_z on the right
             } else if (arg_sol_t == 4) {        // this is the fully periodic case
-                valCase.mybcv[ip][0][0] = PER;  // w_x on the left
-                valCase.mybcv[ip][0][1] = PER;  // w_y on the left
-                valCase.mybcv[ip][0][2] = PER;  // w_z on the left
-                valCase.mybcv[ip][1][0] = PER;  // w_x on the right
-                valCase.mybcv[ip][1][1] = PER;  // w_y on the right
-                valCase.mybcv[ip][1][2] = PER;  // w_z on the right
+                valCase.mybcv[ip][0][0] = PER;  
+                valCase.mybcv[ip][0][1] = PER;  
+                valCase.mybcv[ip][0][2] = PER;  
+                valCase.mybcv[ip][1][0] = PER;  
+                valCase.mybcv[ip][1][1] = PER;  
+                valCase.mybcv[ip][1][2] = PER;  
             } else if (arg_sol_t == 5) {        // this is the even-even
-                valCase.mybcv[ip][0][0] = EVEN;  // w_x on the left
-                valCase.mybcv[ip][0][1] = EVEN;  // w_y on the left
-                valCase.mybcv[ip][0][2] = EVEN;  // w_z on the left
-                valCase.mybcv[ip][1][0] = EVEN;  // w_x on the right
-                valCase.mybcv[ip][1][1] = EVEN;  // w_y on the right
-                valCase.mybcv[ip][1][2] = EVEN;  // w_z on the right
+                valCase.mybcv[ip][0][0] = PER; 
+                valCase.mybcv[ip][0][1] = EVEN; 
+                valCase.mybcv[ip][0][2] = PER; 
+                valCase.mybcv[ip][1][0] = PER; 
+                valCase.mybcv[ip][1][1] = EVEN; 
+                valCase.mybcv[ip][1][2] = PER; 
             } else if (arg_sol_t == 6) {        // this is the odd-even
                 // bc for direction ip
                 valCase.mybcv[ip][0][0] = ODD;  // w_x on the left

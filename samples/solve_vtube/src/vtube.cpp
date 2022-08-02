@@ -82,7 +82,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     const int    *nproc = myCase.nproc;
     const double *L     = myCase.L;
 
-    const bool   is_cell = myCase.center[0] == CELL_CENTER;
+    const bool   is_cell = (myCase.center[0] == CELL_CENTER);
     const double fact    = (double)(!is_cell);
 
     // Ensure that 64 points in cell-centred mode is equivalent 64 points in node-centred mode
@@ -459,15 +459,15 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double z    = pos[2];
                             const double k[3] = {2.0 * M_PI, 2.0 * M_PI, 2.0 * M_PI};
 
-                            rhs0[id] = 0.0;//cos(k[1] * y) / k[1];
+                            rhs0[id] = cos(k[1] * y) / k[1];
                             rhs1[id] = cos(k[2] * z) / k[2];
-                            rhs2[id] = 0.0;//cos(k[0] * x) / k[0];
+                            rhs2[id] = cos(k[0] * x) / k[0];
                             // rot_x = sin(k[2] * z) -> sol = -1/k[2] * sin(k[2] * z)
                             // rot_y = sin(k[0] * x) -> sol = -1/k[0] * sin(k[0] * x)
                             // rot_z = sin(k[1] * y) -> sol = -1/k[1] * sin(k[1] * y)
                             sol0[id] = -1.0 / (k[2] * k[2]) * sin(k[2] * z);
-                            sol1[id] = 0.0;//-1.0 / (k[0] * k[0]) * sin(k[0] * x);
-                            sol2[id] = 0.0;//-1.0 / (k[1] * k[1]) * sin(k[1] * y);
+                            sol1[id] = -1.0 / (k[0] * k[0]) * sin(k[0] * x);
+                            sol2[id] = -1.0 / (k[1] * k[1]) * sin(k[1] * y);
                         }
                     } else if (oddeven) {
                         {
@@ -476,29 +476,29 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double z    = pos[2];
                             const double k[3] = {1.5 * M_PI, 1.5 * M_PI, 1.5 * M_PI};
 
-                            rhs0[id] = sin(k[1] * y) / k[1];
+                            rhs0[id] = 0.0; //sin(k[1] * y) / k[1];
                             rhs1[id] = sin(k[2] * z) / k[2];
-                            rhs2[id] = sin(k[0] * x) / k[0];
+                            rhs2[id] = 0.0; //sin(k[0] * x) / k[0];
                             // rot_x = cos(k[2] * z) -> sol = -1/k[2]^2 * cos(k[2] * z)
                             // rot_y = cos(k[0] * x) -> sol = -1/k[0]^2 * cos(k[0] * x)
                             // rot_z = cos(k[1] * y) -> sol = -1/k[1]^2 * cos(k[1] * y)
                             sol0[id] = -1.0 / (k[2] * k[2]) * cos(k[2] * z);
-                            sol1[id] = -1.0 / (k[0] * k[0]) * cos(k[0] * x);
-                            sol2[id] = -1.0 / (k[1] * k[1]) * cos(k[1] * y);
+                            sol1[id] = 0.0; //-1.0 / (k[0] * k[0]) * cos(k[0] * x);
+                            sol2[id] = 0.0; //-1.0 / (k[1] * k[1]) * cos(k[1] * y);
                         }
                     }
                 }
             }
         }
     }
-// #ifdef DUMP_DBG
+#ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
     sprintf(msg, "rhs_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, rhs);
     sprintf(msg, "anal");
     flups_hdf5_dump(topo, msg, sol);
-// #endif
+#endif
 
     //-------------------------------------------------------------------------
     /** - solve the equations */
@@ -512,11 +512,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_profiler_free(prof);
 
 
-// #ifdef DUMP_DBG
+#ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "sol_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, field);
-// #endif
+#endif
 
     //-------------------------------------------------------------------------
     /** - compute the error */
@@ -545,9 +545,18 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
         for (int lia = 0; lia < lda; lia++) {
-            for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
-                for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
-                    for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
+            // Check if flups is able to compute the last point of the domain. If at least one of the direction is periodic, 
+            // and we are in an node centred framework, then the last point in each direction may be influenced
+            const bool last_point_valid = !(!is_cell && ( mybc[lia][0][0] == PER || mybc[lia][0][1] == PER || mybc[lia][0][2] == PER ));
+            
+            // If the last point is not valid, remove it from the error computation
+            const int iend[3] = {flups_topo_get_nloc(topo, ax0) - !last_point_valid,
+                                 flups_topo_get_nloc(topo, ax1) - !last_point_valid,
+                                 flups_topo_get_nloc(topo, ax2) - !last_point_valid};
+            
+            for (int i2 = 0; i2 < iend[2]; i2++) {
+                for (int i1 = 0; i1 < iend[1]; i1++) {
+                    for (int i0 = 0; i0 < iend[0]; i0++) {
                         const size_t id  = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
                         const double err = sol[id] - field[id];
                         lerri[lia] = max(lerri[lia], fabs(err));
@@ -565,11 +574,11 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         err2[i] = sqrt(err2[i]);
     }
 
-// #ifdef DUMP_DBG
+#ifdef DUMP_DBG
     // write the source term and the solution
     sprintf(msg, "error_%d%d%d%d%d%d_%dx%dx%d", mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], nglob[0], nglob[1], nglob[2]);
     flups_hdf5_dump(topo, msg, error);
-// #endif
+#endif
 
     char   filename[512];
     string folder = "./data";
