@@ -41,8 +41,8 @@ for mid in dirv :
 
             print("----- %i -----"%i, flush=True)
             #Launching test
-            print(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])])
-            r = subprocess.run(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])], capture_output=True)
+            print(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])] + ["--sigma=0.1"] )
+            r = subprocess.run(["./flups_tube_"+version] + ["--np=1,1,1"] + ["--res=16,16,16"] + ["--kernel=0"] + ["--dir="+str(mid[0])] + ["--sym_x="+str(smx[0])] + ["--sym_y="+str(smy[0])] + ["--sigma=0.1"], capture_output=True)
 
             if r.returncode != 0 :
                 print("test %i (BCs : "%i + code + ") failed with error code ",r.returncode)
