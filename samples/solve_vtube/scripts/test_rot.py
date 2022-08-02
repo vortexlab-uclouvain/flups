@@ -56,7 +56,7 @@ for mid in dirv :
 
             #Checking for exactness of results
             print("checking: vtube_CellCenter_"+code+"_typeGreen=0.txt")
-            n_mistake = check_res_3d(i,'vtube_CellCenter_'+code+'_typeGreen=0.txt')
+            n_mistake = check_res_3d(i,'vtube_CellCenter_0_'+code+'_typeGreen=0.txt')
 
             if n_mistake==0:
                 print("test (" + code + ") succeed")
