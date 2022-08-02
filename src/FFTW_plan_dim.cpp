@@ -469,20 +469,21 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         const int  correct        = corrtype_[lia];
         const bool do_zero        = do_reset_zero_correction(correct);
         const bool do_flipflop    = do_reset_flipflop_correction(correct);
-        const bool do_shift_left  = do_shift_left_correction(correct);
-        const bool do_shift_right = do_shift_right_correction(correct);
+        // const bool do_shift_left  = do_shift_left_correction(correct);
+        // const bool do_shift_right = do_shift_right_correction(correct);
 
         // now that we know which correction is requested form the type, we can ajdust them given the forward types
-        const bool no_shift = (!do_shift_left) && (!do_shift_right);
+        // const bool no_shift = (!do_shift_left) && (!do_shift_right);
         // simple memory corrections, no shift
-        const bool reset_zero          = no_shift && do_zero && (!do_flipflop);
-        const bool reset_flipflop      = no_shift && (!do_zero) && do_flipflop;
-        const bool reset_zero_flipflop = no_shift && do_zero && do_flipflop;
+        const bool reset_zero          = do_zero && (!do_flipflop);
+        const bool reset_flipflop      = (!do_zero) && do_flipflop;
+        const bool reset_zero_flipflop = do_zero && do_flipflop;
         // shift left or right?
-        const bool shift_right = (do_zero && (!do_flipflop) && do_shift_right);
-        const bool shift_left  = ((!do_zero) && do_flipflop && do_shift_left);
+        // const bool shift_right = (do_zero && (!do_flipflop) && do_shift_right);
+        // const bool shift_left  = ((!do_zero) && do_flipflop && do_shift_left);
         // if we do nothing, do not fall into the assert
-        const bool do_nothing = (!do_zero) && (!do_flipflop) && (!do_shift_left) && (!do_shift_right);
+        // const bool do_nothing = (!do_zero) && (!do_flipflop) && (!do_shift_left) && (!do_shift_right);
+        const bool do_nothing = (!do_zero) && (!do_flipflop);
         //----------------------------------------------------------------------
         // get the starting point of the
         opt_double_ptr mydata = data + lia * memdim;
@@ -524,44 +525,47 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
             }
         }
         //----------------------------------------------------------------------
-        // DO ZERO AND SHIFT RIGHT
-        else if (shift_right) {
-            // we need to enforce the the mode 0 + shift everything from i to i+1
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i -> i+1
-                for (int ii = nloc - 2; ii >= 0; ii--) {
-                    dataloc[ii + 1] = dataloc[ii];
-                }
-                dataloc[0] = 0.0;
-            }
-        }
+//         // DO ZERO AND SHIFT RIGHT
+//         else if (shift_right) {
+//             // we need to enforce the the mode 0 + shift everything from i to i+1
+// #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+//             for (size_t io = 0; io < howmany; io++) {
+//                 // get the memory
+//                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+//                 // shift everything i -> i+1
+//                 for (int ii = nloc - 2; ii >= 0; ii--) {
+//                     dataloc[ii + 1] = dataloc[ii];
+//                 }
+//                 dataloc[0] = 0.0;
+//             }
+//         }
         //----------------------------------------------------------------------
         // DO FLIP_FLOP AND SHIFT LEFT
-        else if (shift_left) {
-            // we need to shift everything from i+1 to i
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i+1 -> i
-                for (int ii = 1; ii < nloc; ii++) {
-                    dataloc[ii - 1] = dataloc[ii];
-                }
-                dataloc[nloc - 1] = 0.0;
-            }
-        }
+//         else if (shift_left) {
+//             // we need to shift everything from i+1 to i
+// #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+//             for (size_t io = 0; io < howmany; io++) {
+//                 // get the memory
+//                 opt_double_ptr dataloc = mydata + io * fftw_stride;
+//                 // shift everything i+1 -> i
+//                 for (int ii = 1; ii < nloc; ii++) {
+//                     dataloc[ii - 1] = dataloc[ii];
+//                 }
+//                 dataloc[nloc - 1] = 0.0;
+//             }
+//         }
         //----------------------------------------------------------------------
         else if (do_nothing) {
             // There is nothing to do, no correction is applied.
         }
         //----------------------------------------------------------------------
         else {
+            // FLUPS_CHECK(false,
+            //             "The combination of correction is either illegual or not implemented: ZERO?%d FLIPFLOP?%d SHIFT_LEFT?%d SHIFT_RIGHT?%d",
+            //             do_zero, do_flipflop, do_shift_left, do_shift_right);
             FLUPS_CHECK(false,
-                        "The combination of correction is either illegual or not implemented: ZERO?%d FLIPFLOP?%d SHIFT_LEFT?%d SHIFT_RIGHT?%d",
-                        do_zero, do_flipflop, do_shift_left, do_shift_right);
+                        "The combination of correction is either illegual or not implemented: ZERO?%d FLIPFLOP?%d",
+                        do_zero, do_flipflop);
         }
     }
     END_FUNC;

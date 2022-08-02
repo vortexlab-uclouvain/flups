@@ -77,8 +77,8 @@ class FFTW_plan_dim {
         CORRECTION_NONE       = 0,  // no corrections
         CORRECTION_ZEROMODE   = 1,  // byte 0, obtained as = 1<<0
         CORRECTION_FLIPFLOP   = 2,  // byte 1, obtained as = 1<<1
-        CORRECTION_SHIFTLEFT  = 4,  // byte 2, obtained as = 1<<2
-        CORRECTION_SHIFTRIGHT = 8   // byte 3, obtained as = 1<<3
+        // CORRECTION_SHIFTLEFT  = 4,  // byte 2, obtained as = 1<<2
+        // CORRECTION_SHIFTRIGHT = 8   // byte 3, obtained as = 1<<3
     };
 
    protected:
