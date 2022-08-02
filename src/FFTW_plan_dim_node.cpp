@@ -80,8 +80,10 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         //-------------------------------------------------------------------------
         if (isGreen_) {
             // In this case, the green functions are spectral. There is no need for correction
-            corrtype_[lia] = CORRECTION_NONE;
-            imult_[lia]    = false;
+            corrtype_[lia]       = CORRECTION_NONE;
+            fftwstart_phys_[lia] = 0;
+            fftwstart_spec_[lia] = 0;
+            imult_[lia]          = false;
 
             if (bc_[0][lia] == EVEN) {
                 if (bc_[1][lia] == EVEN) {
@@ -127,6 +129,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 // No correction or offset needed
                 corrtype_[lia] = CORRECTION_NONE;
+                fftwstart_phys_[lia] = 0;
+                fftwstart_spec_[lia] = 0;
                 koffset_       = 0.0;
 
                 // Both the forward and the backward tranform uses a REDFT00 transform
@@ -142,7 +146,9 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 if (sign_ == FLUPS_FORWARD) {
                     // DCT type III
                     kind_[lia] = FFTW_REDFT01;
-                    // DCT type III: must set the flip-flop to 0
+                    fftwstart_phys_[lia] = 0;
+                    fftwstart_spec_[lia] = 0;
+                    //Ensure that the last point in the vector is set to 0
                     corrtype_[lia] = CORRECTION_FLIPFLOP;
                 } else if (sign_ == FLUPS_BACKWARD) {
                     // DCT type II (inverse of the type III)
@@ -156,16 +162,17 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         /** - Take care of the DSTs                                              */
         //-------------------------------------------------------------------------
         } else if (bc_[0][lia] == ODD) {  // We have a DST
-
             // we do a DST, so imult
             imult_[lia] = true;
             if (bc_[1][lia] == ODD) {
-                // -> we remove the first and the last data, as FFTW don't need them
+                // -> we remove the first and the last data, as fftw don't need them
                 n_in_[lia] = size[dimID_] - 2;
                 n_out_     = size[dimID_];
 
                 // The first data of the memory is not given to fftw
-                fftwstart_[lia] = 1;
+                // The last data of the memory is not taken in to account by fftw
+                fftwstart_phys_[lia] = 1;
+                fftwstart_spec_[lia] = 1;
                 koffset_        = 0.0;
                 fieldstart_     = 0;
 
@@ -186,8 +193,9 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 // The first data is not need by FFTW, we have to manually remove it
                 n_in_[lia] = size[dimID_] - 1;
                 n_out_     = size[dimID_];
-
-                fftwstart_[lia] = 1;
+                fftwstart_phys_[lia] = 1;
+                fftwstart_spec_[lia] = 0;
+                
                 koffset_        = 0.5;
                 fieldstart_     = 0;
                 // always the samed DST
@@ -195,13 +203,15 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // DST type III
                     kind_[lia] = FFTW_RODFT01;
                     // shifts all the mode to the left (i -> i-1) + sets flipflop
-                    corrtype_[lia] = CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT;
+                    // corrtype_[lia] = CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT;
+                    corrtype_[lia] = CORRECTION_FLIPFLOP;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
                     // DST type II
                     kind_[lia] = FFTW_RODFT10;
                     // shifts all the mode to the right (i -> i+1) + sets zeromode
-                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_SHIFTRIGHT;
+                    // corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_SHIFTRIGHT;
+                    corrtype_[lia] = CORRECTION_ZEROMODE;
                 }
             }
         } else {
@@ -248,7 +258,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    kind_     = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_ = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
 
     //-------------------------------------------------------------------------
     /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/
@@ -272,6 +282,8 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 koffset_ = 0.0;
             }
             // no correction is needed
+            fftwstart_phys_[lia] = 0;
+            fftwstart_spec_[lia] = 0;
             corrtype_[lia] = CORRECTION_NONE;
             // we do a DCT, so no imult
             imult_[lia] = false;
@@ -287,7 +299,9 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 n_out_ = n_in_[lia];
                 // no offset after the correction
                 koffset_ = 0.0;
-                // we need a DCT correction
+                // All the information are needed to do a DCT
+                fftwstart_phys_[lia] = 0;
+                fftwstart_spec_[lia] = 0;
                 corrtype_[lia] = CORRECTION_NONE;
                 // we do a DCT, so no imult
                 imult_[lia] = false;
@@ -304,7 +318,8 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 koffset_ = 0.0;
                 // we do a DST, so imult
                 imult_[lia]     = true;
-                fftwstart_[lia] = 1;
+                fftwstart_phys_[lia] = 1;
+                fftwstart_spec_[lia] = 1;
                 if (sign_ == FLUPS_FORWARD) {
                     kind_[lia]     = FFTW_RODFT00;  // DST type I
                     corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
@@ -366,6 +381,8 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
+        fftwstart_phys_[lia] = 0;
+        fftwstart_spec_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }
@@ -413,6 +430,8 @@ void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
+        fftwstart_phys_[lia] = 0;
+        fftwstart_spec_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }

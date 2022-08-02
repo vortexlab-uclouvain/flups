@@ -78,6 +78,8 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
     for (int lia = 0; lia < lda_; lia++) {
         if (isGreen_) {
             corrtype_[lia] = CORRECTION_NONE;
+            fftwstart_phys_[lia] = 0;
+            fftwstart_spec_[lia] = 0;
             imult_[lia]    = false;
             // if we are doing odd-even we have to use shifted FFTW plans
             if (bc_[0][lia] != bc_[1][lia]) {
@@ -101,6 +103,8 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
             n_in_[lia] = size[dimID_];
             // we do a DCT, so no imult
             imult_[lia] = false;
+            fftwstart_phys_[lia] = 0;
+            fftwstart_spec_[lia] = 0;
             if (bc_[1][lia] == EVEN) {
                 // -> we add the flip-flop mode by hand
                 n_out_ = size[dimID_] + 1;
@@ -137,14 +141,18 @@ void FFTW_plan_dim_cell::init_real2real_(const int size[3], const bool isComplex
                 n_out_ = size[dimID_] + 1;
 
                 koffset_ = 0.0;
+                fftwstart_phys_[lia] = 0;
+                fftwstart_spec_[lia] = 1;
                 // always the correct DST
                 if (sign_ == FLUPS_FORWARD) {
                     kind_[lia]     = FFTW_RODFT10;  // DST type II
-                    corrtype_[lia] = CORRECTION_SHIFTRIGHT + CORRECTION_ZEROMODE;
+                    // corrtype_[lia] = CORRECTION_SHIFTRIGHT + CORRECTION_ZEROMODE;
+                    corrtype_[lia] = CORRECTION_ZEROMODE;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
                     kind_[lia]     = FFTW_RODFT01;  // DST type III
-                    corrtype_[lia] = CORRECTION_SHIFTLEFT + CORRECTION_FLIPFLOP;
+                    // corrtype_[lia] = CORRECTION_SHIFTLEFT + CORRECTION_FLIPFLOP;
+                    corrtype_[lia] = CORRECTION_NONE;
                 }
             } else if (bc_[1][lia] == EVEN) {
                 // no additional mode is required
@@ -214,6 +222,8 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
             // since we do a pure DCT/DST, no offset
             koffset_ = 0.0;
             // no correction is needed
+            fftwstart_phys_[lia] = 0;
+            fftwstart_spec_[lia] = 0;
             corrtype_[lia] = CORRECTION_NONE;
             // we do a DCT, so no imult
             imult_[lia] = false;
@@ -232,6 +242,8 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
                 // we do a DCT, so no imult
                 imult_[lia] = false;
+                fftwstart_phys_[lia] = 0;
+                fftwstart_spec_[lia] = 0;
                 if (sign_ == FLUPS_FORWARD) {
                     kind_[lia]     = FFTW_REDFT10;  // DCT type II
                     corrtype_[lia] = CORRECTION_FLIPFLOP;
@@ -243,13 +255,17 @@ void FFTW_plan_dim_cell::init_mixunbounded_(const int size[3], const bool isComp
             } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {  // We have a DST - we are ODD - ODD over 2L
                 // we do a DCT, so no imult
                 imult_[lia] = true;
+                fftwstart_phys_[lia] = 0;
+                fftwstart_spec_[lia] = 1;
                 if (sign_ == FLUPS_FORWARD) {
                     kind_[lia]     = FFTW_RODFT10;  // DST type II
-                    corrtype_[lia] = CORRECTION_SHIFTRIGHT + CORRECTION_ZEROMODE;
+                    // corrtype_[lia] = CORRECTION_SHIFTRIGHT + CORRECTION_ZEROMODE;
+                    corrtype_[lia] = CORRECTION_ZEROMODE;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
                     kind_[lia]     = FFTW_RODFT01;  // DST type III
-                    corrtype_[lia] = CORRECTION_SHIFTLEFT + CORRECTION_FLIPFLOP;
+                    // corrtype_[lia] = CORRECTION_SHIFTLEFT + CORRECTION_FLIPFLOP;
+                    corrtype_[lia] = CORRECTION_NONE;
                 }
                 koffset_ = 0.0;
             } else {
@@ -306,6 +322,8 @@ void FFTW_plan_dim_cell::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
         corrtype_[lia] = CORRECTION_NONE;
+        fftwstart_phys_[lia] = 0;
+        fftwstart_spec_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }
@@ -351,6 +369,8 @@ void FFTW_plan_dim_cell::init_unbounded_(const int size[3], const bool isComplex
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
+        fftwstart_phys_[lia] = 0;
+        fftwstart_spec_[lia] = 0;
         corrtype_[lia] = CORRECTION_NONE;
         // we do a DFT, so no imult
         imult_[lia] = false;

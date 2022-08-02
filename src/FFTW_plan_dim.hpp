@@ -100,8 +100,9 @@ class FFTW_plan_dim {
     double kfact_       = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
     double koffset_     = 0.0;   /**< @brief additive factor to have the correct k numbers*/
 
-    int*    n_in_        = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
-    int*    fftwstart_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
+    int*    n_in_             = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
+    int*    fftwstart_phys_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
+    int*    fftwstart_spec_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
 
     PlanType       type_;                    /**< @brief type of this plan, see #PlanType*/
     BoundaryType*  bc_[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/

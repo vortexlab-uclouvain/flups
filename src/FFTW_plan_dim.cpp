@@ -98,11 +98,13 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     // Allocate the component dependent stuffs
     //-------------------------------------------------------------------------
     n_in_     = (int*)m_calloc(sizeof(int) * lda_);
-    fftwstart_= (int*)m_calloc(sizeof(int) * lda_);
+    fftwstart_phys_ = (int*)m_calloc(sizeof(int) * lda_);
+    fftwstart_spec_ = (int*)m_calloc(sizeof(int) * lda_);
     // normfact_ = (double*)m_calloc(sizeof(double) * lda_);
     for(int lia = 0; lia < lda_; lia ++){
-        n_in_[lia]      = 1;
-        fftwstart_[lia] = 0;
+        n_in_[lia]           = 1;
+        fftwstart_phys_[lia] = 0;
+        fftwstart_spec_[lia] = 0;
     }
     normfact_ = 1.0;
     corrtype_ = (int*)m_calloc(sizeof(int) * lda_);
@@ -137,7 +139,8 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     if (bc_[1] != NULL) m_free(bc_[1]);
 
     if (n_in_ != NULL) m_free(n_in_);
-    if (fftwstart_ != NULL) m_free(fftwstart_);
+    if (fftwstart_phys_ != NULL) m_free(fftwstart_phys_);
+    if (fftwstart_spec_ != NULL) m_free(fftwstart_spec_);
     if (imult_ != NULL) m_free(imult_);
     if (kind_ != NULL) m_free(kind_);
     if (corrtype_ != NULL) m_free(corrtype_);
@@ -271,15 +274,16 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
 
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
+        double *data_in  = (FLUPS_FORWARD == sign_) ? data + fftwstart_phys_[lia] : data + fftwstart_spec_[lia];
+        double *data_out = (FLUPS_FORWARD == sign_) ? data + fftwstart_spec_[lia] : data + fftwstart_phys_[lia];
         if (topo->nf() == 1) {
-            fftw_stride_ = memsize[dimID_];
-            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FLUPS_FFTW_FLAG);
-
+            fftw_stride_ = memsize[dimID_];            
+            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data_in, data_out, kind_[lia], FLUPS_FFTW_FLAG);
         } else if (topo->nf() == 2) {
             fftw_stride_ = memsize[dimID_] * topo->nf();
             plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_[lia]), 1,
-                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(),
-                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FLUPS_FFTW_FLAG);
+                                            data_in,  NULL, topo->nf(), memsize[dimID_] * topo->nf(),
+                                            data_out, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FLUPS_FFTW_FLAG);
         }
     }
 
@@ -367,9 +371,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data, (fftw_complex*)data, FLUPS_FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data + fftwstart_phys_[0], (fftw_complex*)data + fftwstart_spec_[0], FLUPS_FFTW_FLAG);
         } else {
-            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data, data, FLUPS_FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data + fftwstart_spec_[0], data+ fftwstart_phys_[0], FLUPS_FFTW_FLAG);
         }
 
     } else {
@@ -391,8 +395,10 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
+        double *data_in  = (FLUPS_FORWARD == sign_) ? data + fftwstart_phys_[0] : data + fftwstart_spec_[0];
+        double *data_out = (FLUPS_FORWARD == sign_) ? data + fftwstart_spec_[0] : data + fftwstart_phys_[0];
 
-        plan_[0] = fftw_plan_dft_1d(n_in_[0], (fftw_complex*)data, (fftw_complex*)data, sign_, FLUPS_FFTW_FLAG);
+        plan_[0] = (fftw_plan_dft_1d(n_in_[0], (fftw_complex*) data_in, (fftw_complex*)data_out, sign_, FLUPS_FFTW_FLAG));
     }
 
     // the plan is the same in every other direction
@@ -608,51 +614,55 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (type_ == SYMSYM || type_ == MIXUNB) {  // R2R
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_phys_, fftwstart_spec_)
         for (size_t id = 0; id < onmax; id++) {
             size_t lia = id / howmany;
             size_t io  = id % howmany;
             // get the memory
             double* mydata = (double*)data + lia * memdim + io * fftw_stride;
+            double *data_in  = (FLUPS_FORWARD == sign_) ? mydata + fftwstart_phys_[lia] : mydata + fftwstart_spec_[lia];
+            double *data_out = (FLUPS_FORWARD == sign_) ? mydata + fftwstart_spec_[lia] : mydata + fftwstart_phys_[lia];
             // execute the plan on it
-            fftw_execute_r2r(plan[lia], (double*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+            fftw_execute_r2r(plan[lia], (double*)data_in, (double*)data_out);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
             if (sign_ == FLUPS_FORWARD) {  // DFT - R2C
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_phys_, fftwstart_spec_)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // get the memory
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
+                    fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_phys_[lia], (fftw_complex*)mydata  + fftwstart_spec_[lia]);
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_phys_, fftwstart_spec_)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_spec_[lia], (double*)mydata + fftwstart_phys_[lia]);
                 }
             }
 
         } else {  // DFT
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_phys_, fftwstart_spec_)
             for (size_t id = 0; id < onmax; id++) {
                 size_t lia = id / howmany;
                 size_t io  = id % howmany;
                 // we access complex info with a fftw_stride real
                 double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
+                double *data_in  = (FLUPS_FORWARD == sign_) ? mydata + fftwstart_phys_[lia] : mydata + fftwstart_spec_[lia];
+                double *data_out = (FLUPS_FORWARD == sign_) ? mydata + fftwstart_spec_[lia] : mydata + fftwstart_phys_[lia];
                 // execute the plan on it
-                fftw_execute_dft(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
+                fftw_execute_dft(plan[lia], (fftw_complex*)data_in, (fftw_complex*)data_out);
             }
         }
     }
