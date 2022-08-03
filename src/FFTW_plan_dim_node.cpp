@@ -80,10 +80,10 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         //-------------------------------------------------------------------------
         if (isGreen_) {
             // In this case, the green functions are spectral. There is no need for correction
-            corrtype_[lia]       = CORRECTION_NONE;
-            fftwstart_phys_[lia] = 0;
-            fftwstart_spec_[lia] = 0;
-            imult_[lia]          = false;
+            postpro_type_[lia]  = POSTPRO_NONE;
+            fftwstart_in_[lia]  = 0;
+            fftwstart_out_[lia] = 0;
+            imult_[lia]         = false;
 
             if (bc_[0][lia] == EVEN) {
                 if (bc_[1][lia] == EVEN) {
@@ -128,10 +128,10 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 n_out_     = size[dimID_];
 
                 // No correction or offset needed
-                corrtype_[lia] = CORRECTION_NONE;
-                fftwstart_phys_[lia] = 0;
-                fftwstart_spec_[lia] = 0;
-                koffset_       = 0.0;
+                postpro_type_[lia]  = POSTPRO_NONE;
+                fftwstart_in_[lia]  = 0;
+                fftwstart_out_[lia] = 0;
+                koffset_            = 0.0;
 
                 // Both the forward and the backward tranform uses a REDFT00 transform
                 kind_[lia] = FFTW_REDFT00;  // DCT type I
@@ -145,16 +145,21 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 // always the samed DCT
                 if (sign_ == FLUPS_FORWARD) {
                     // DCT type III
-                    kind_[lia] = FFTW_REDFT01;
-                    fftwstart_phys_[lia] = 0;
-                    fftwstart_spec_[lia] = 0;
-                    //Ensure that the last point in the vector is set to 0
-                    corrtype_[lia] = CORRECTION_FLIPFLOP;
+                    kind_[lia]          = FFTW_REDFT01;
+                    fftwstart_in_[lia]  = 0;
+                    fftwstart_out_[lia] = 0;
+                    //When performing a type-III DCT, fftw only takes care of the n-1 first points
+                    // we need to ensure that the last point is 0. 
+                    postpro_type_[lia] = NULL_LAST_POINT;
+                
                 } else if (sign_ == FLUPS_BACKWARD) {
                     // DCT type II (inverse of the type III)
                     kind_[lia] = FFTW_REDFT10;
                     // no correction is needed
-                    corrtype_[lia] = CORRECTION_NONE;
+                    fftwstart_in_[lia]  = 0;
+                    fftwstart_out_[lia] = 0;
+                    // The boundary should be ODD - i.e. the last point (not touched by fftw) must be 0.
+                    postpro_type_[lia]  = NULL_LAST_POINT;
                 }
             }
 
@@ -164,54 +169,76 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         } else if (bc_[0][lia] == ODD) {  // We have a DST
             // we do a DST, so imult
             imult_[lia] = true;
+            // ------------ ODD - ODD ------------
             if (bc_[1][lia] == ODD) {
-                // -> we remove the first and the last data, as fftw don't need them
+                // The BCs in the ODD - ODD case are null and fftw does not take them in the argument
+                // We remove the first and last point of the input 
                 n_in_[lia] = size[dimID_] - 2;
                 n_out_     = size[dimID_];
 
-                // The first data of the memory is not given to fftw
-                // The last data of the memory is not taken in to account by fftw
-                fftwstart_phys_[lia] = 1;
-                fftwstart_spec_[lia] = 1;
+                // No offset or symmetries are required
                 koffset_        = 0.0;
                 fieldstart_     = 0;
 
                 // always the correct DST
                 if (sign_ == FLUPS_FORWARD) {
-                    // DST type I
+                    //  --------- DST type-I forward ------------
                     kind_[lia] = FFTW_RODFT00;
-                    // sets the zero mode to 0 + the flipflop mode
-                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                    // The first data and last data of the memory are not taken in to account by fftw
+                    // We shift the data of the input. 
+                    // In the output, we need to add the null mode and the flip-flop mode which are
+                    // null when performing a DFT on a odd-odd signal. Therefore the output is shifted by 
+                    // 1 and we enforce the first and in the last point of the memory to 0
+                    fftwstart_in_[lia] = 1;
+                    fftwstart_out_[lia] = 1;
+                    postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
-                    kind_[lia] = FFTW_RODFT00;  // DST type I
-                    // no correction
-                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                    //  --------- DST type-I backward ------------
+                    kind_[lia] = FFTW_RODFT00;  
+                    // The first data and last data of the memory are not taken in to account by fftw, as they are null
+                    // We shift the data of the input to remove the mean mode of the input of fftw
+                    // In the output, we need to enforce the boundary conditions which are null on both side.
+                    // Therefore the output is shifted by 1 and we enforce 0 in the first and in the last point of the memory
+                    fftwstart_in_[lia] = 1;
+                    fftwstart_out_[lia] = 1;
+                    postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
-
-            } else if (bc_[1][lia] == EVEN) {
-                // The first data is not need by FFTW, we have to manually remove it
+            // ------------ ODD - EVEN ------------
+            } else if (bc_[1][lia] == EVEN) { // We have a DST
+                // When performing a odd-even or an even-odd transform in the node centred configuration
+                // the null points are discarded by fftw. n[in] is set accordingly
                 n_in_[lia] = size[dimID_] - 1;
                 n_out_     = size[dimID_];
-                fftwstart_phys_[lia] = 1;
-                fftwstart_spec_[lia] = 0;
                 
+                // In the output, the modes are those that would have been obtained using a DFT on a domain of 
+                // size 4N, applying all the symmetries explicitely. The modes are ten shifted by 0.5 when 
+                // computing the Green functions and the spectral differentiation
                 koffset_        = 0.5;
                 fieldstart_     = 0;
-                // always the samed DST
+
+                // In the forward transform, we use a type-III DST. The inverse of a type-III DST 
+                // is a type-II DST, used in the backward transform.
                 if (sign_ == FLUPS_FORWARD) {
-                    // DST type III
-                    kind_[lia] = FFTW_RODFT01;
-                    // shifts all the mode to the left (i -> i-1) + sets flipflop
-                    // corrtype_[lia] = CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT;
-                    corrtype_[lia] = CORRECTION_FLIPFLOP;
+                    //  --- DST type III ---
+                    // The first point of the input data is null and not taken into account by fftw. 
+                    // Therefore, the data given to fftw as input start at 1 while the output start at 0. 
+                    // In the output, the last data is not touched by fftw and we ensure that it is equal to 0 to 
+                    // avoid the influence of any spurious value in the memory space
+                    kind_[lia]          = FFTW_RODFT01;
+                    fftwstart_in_[lia]  = 1;
+                    fftwstart_out_[lia] = 0;
+                    postpro_type_[lia]  = NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
-                    // DST type II
-                    kind_[lia] = FFTW_RODFT10;
-                    // shifts all the mode to the right (i -> i+1) + sets zeromode
-                    // corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_SHIFTRIGHT;
-                    corrtype_[lia] = CORRECTION_ZEROMODE;
+                    //  --- DST type II ---
+                    // The first point of the input data is non zero and is needed by fftw. 
+                    // In the output, the first point given by fftw correspond to the first point inside the domain
+                    // The boundary is null and we enforce it in the post-processing of the plan.
+                    kind_[lia]          = FFTW_RODFT10;
+                    fftwstart_in_[lia]  = 0;
+                    fftwstart_out_[lia] = 1;
+                    postpro_type_[lia]  = NULL_FIRST_POINT;
                 }
             }
         } else {
@@ -241,7 +268,6 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     /** - get the memory details: #fieldstart_ and #isr2c_ */
     //-------------------------------------------------------------------------
     isr2c_ = false;
-    
 
     if (isGreen_)
         fieldstart_ = 0;
@@ -270,21 +296,23 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
             // We have a DCT - we are EVEN - EVEN over 2L
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {
                 // In node centered, we need to remove one point when doubling the domain
-                n_in_[lia]  = 2 * size[dimID_] - 1;
-                n_out_ = n_in_[lia];
+                n_in_[lia] = 2 * size[dimID_] - 1;
+                n_out_     = n_in_[lia];
                 // since we do a pure DCT/DST, no offset
                 koffset_ = 0.0;
             } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {
                 //In node centered, we need to remove one point when doubling the domain
-                n_in_[lia]  = (2 * size[dimID_] - 1);
-                n_out_ = n_in_[lia];
+                n_in_[lia] = (2 * size[dimID_] - 1);
+                n_out_     = n_in_[lia];
+                
                 // since we do a pure DCT/DST, no offset
                 koffset_ = 0.0;
             }
             // no correction is needed
-            fftwstart_phys_[lia] = 0;
-            fftwstart_spec_[lia] = 0;
-            corrtype_[lia] = CORRECTION_NONE;
+            fftwstart_in_[lia]  = 0;
+            fftwstart_out_[lia] = 0;
+            postpro_type_[lia] = POSTPRO_NONE;
+            
             // we do a DCT, so no imult
             imult_[lia] = false;
             // The Green function is ALWAYS EVEN - EVEN
@@ -294,15 +322,17 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
         } else {
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
                 // In node centered, we need to remove one point when doubling the domain
-                n_in_[lia] = 2 * size[dimID_] - 1 ;
+                n_in_[lia] = 2 * size[dimID_] - 1 ;            
                 // we add a mode for the outgoing dct/dst
                 n_out_ = n_in_[lia];
                 // no offset after the correction
                 koffset_ = 0.0;
-                // All the information are needed to do a DCT
-                fftwstart_phys_[lia] = 0;
-                fftwstart_spec_[lia] = 0;
-                corrtype_[lia] = CORRECTION_NONE;
+
+                // All the information are needed when performing a DCT
+                fftwstart_in_[lia]  = 0;
+                fftwstart_out_[lia] = 0;
+                postpro_type_[lia] = POSTPRO_NONE;
+                
                 // we do a DCT, so no imult
                 imult_[lia] = false;
                 if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
@@ -312,21 +342,30 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 // We have a DST - we are ODD - ODD over 2L
                 // we double the size of the data
                 n_in_[lia] = (2 * size[dimID_] - 1) - 2;
+
                 // n_out_ must be equal to the n_out_ of the UNB EVEN transform
                 n_out_ = n_in_[lia] + 2;
+                
                 // no offset after the correction
                 koffset_ = 0.0;
+                
                 // we do a DST, so imult
                 imult_[lia]     = true;
-                fftwstart_phys_[lia] = 1;
-                fftwstart_spec_[lia] = 1;
                 if (sign_ == FLUPS_FORWARD) {
-                    kind_[lia]     = FFTW_RODFT00;  // DST type I
-                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                    //  --- DST type I ---
+                    // See the ODD-ODD case for details on the correction
+                    kind_[lia]     = FFTW_RODFT00;  
+                    fftwstart_in_[lia]  = 1;
+                    fftwstart_out_[lia] = 1;
+                    postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
+                    //  --- DST type I ---
+                    // See the ODD-ODD case for details on the correction
                     kind_[lia]     = FFTW_RODFT00;  // DST type I
-                    corrtype_[lia] = CORRECTION_ZEROMODE + CORRECTION_FLIPFLOP;
+                    fftwstart_in_[lia]  = 1;
+                    fftwstart_out_[lia] = 1;
+                    postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
             } else {
                 FLUPS_CHECK(false, "unable to init the solver required");
@@ -380,9 +419,9 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
-        corrtype_[lia] = CORRECTION_NONE;
-        fftwstart_phys_[lia] = 0;
-        fftwstart_spec_[lia] = 0;
+        postpro_type_[lia] = POSTPRO_NONE;
+        fftwstart_in_[lia] = 0;
+        fftwstart_out_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }
@@ -429,9 +468,9 @@ void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
-        corrtype_[lia] = CORRECTION_NONE;
-        fftwstart_phys_[lia] = 0;
-        fftwstart_spec_[lia] = 0;
+        postpro_type_[lia] = POSTPRO_NONE;
+        fftwstart_in_[lia]  = 0;
+        fftwstart_out_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }

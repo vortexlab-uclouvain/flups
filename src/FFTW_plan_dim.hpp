@@ -56,29 +56,23 @@ class FFTW_plan_dim {
     };
 
     /**
-     * @brief Determines which correction must be performed on the output/input of the fft forward/backward
+     * @brief Determines which post processing operation must be performed on the output of the fft forward/backward
      *
-     * the corrections combines 4 basic operations and therefore are encrypted on 4 bytes:
-     * - byte 0 obtained as `(correction>>0)%2` overwrites the 0-mode
-     * - byte 1 obtained as `(correction>>1)%2` overwrites the flip-flop mode
-     * - byte 2 obtained as `(correction>>2)%2` shifts mode to the left (i -> i+1)
-     * - byte 3 obtained as `(correction>>3)%2` shifts mode to the left (i -> i+1)
+     * the corrections combines 2 basic operations and therefore are encrypted on 2 bytes:
+     * - byte 0 obtained as `(correction>>0)%2` overwrites the first data of the transform
+     * - byte 1 obtained as `(correction>>1)%2` overwrites the last data of the transform
      *
      * The actual correction of a planned is asigned using the sum operator:
-     *      CORRECTION_FLIPFLOP + CORRECTION_SHIFTLEFT = 2 + 4 = 6
+     *       correction = NULL_LAST_POINT = 2 
      * will lead to
-     * - (6>>0)%2 = 0 -> NO zero mode correction
-     * - (6>>1)%2 = 1 -> YES flip-flop mode correction
-     * - (6>>2)%2 = 1 -> YES shift left correction
-     * - (6>>3)%2 = 0 -> no shift right correction
+     * - (2>>0)%2 = 0 -> NO first point correction
+     * - (6>>1)%2 = 1 -> YES last point correction
      *
      */
-    enum PlanCorrectionType {
-        CORRECTION_NONE       = 0,  // no corrections
-        CORRECTION_ZEROMODE   = 1,  // byte 0, obtained as = 1<<0
-        CORRECTION_FLIPFLOP   = 2,  // byte 1, obtained as = 1<<1
-        // CORRECTION_SHIFTLEFT  = 4,  // byte 2, obtained as = 1<<2
-        // CORRECTION_SHIFTRIGHT = 8   // byte 3, obtained as = 1<<3
+    enum PlanPostproType {
+        POSTPRO_NONE     = 0,  // no corrections
+        NULL_FIRST_POINT = 1,  // byte 0, obtained as = 1<<0
+        NULL_LAST_POINT  = 2,  // byte 1, obtained as = 1<<1
     };
 
    protected:
@@ -87,29 +81,29 @@ class FFTW_plan_dim {
     const int  dimID_;              /**< @brief the dimension of the plan in the field reference */
     const int  sign_;               /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool   isr2c_       = false; /**< @brief is this plan the one that changes to complex?*/
-    bool   isSpectral_  = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
-    int    fftw_stride_ = 0;     /**<@brief the memory space between two ffts */
-    int    howmany_     = 0;     /**<@brief the number of FFT's to do */
+    bool   isr2c_       = false;    /**< @brief is this plan the one that changes to complex?*/
+    bool   isSpectral_  = false;    /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    int    fftw_stride_ = 0;        /**<@brief the memory space between two ffts */
+    int    howmany_     = 0;        /**<@brief the number of FFT's to do */
     
-    int    n_out_       = 1;     /**< @brief the number of element coming out of the transform*/
-    int    fieldstart_  = 0;     /**< @brief the starting index for the field copy in the direction of the plan*/
-    double symstart_    = 0.0;   /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double volfact_     = 1.0;   /**< @brief volume factor*/
-    double normfact_    = 1.0;   /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double kfact_       = 0.0;   /**< @brief multiplication factor to have the correct k numbers*/
-    double koffset_     = 0.0;   /**< @brief additive factor to have the correct k numbers*/
+    int    n_out_       = 1;        /**< @brief the number of element coming out of the transform. When dealing with vector, this number must be constant throughout the different components*/
+    int    fieldstart_  = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
+    double symstart_    = 0.0;      /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
+    double volfact_     = 1.0;      /**< @brief volume factor*/
+    double normfact_    = 1.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double kfact_       = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
+    double koffset_     = 0.0;      /**< @brief additive factor to have the correct k numbers*/
 
-    int*    n_in_             = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
-    int*    fftwstart_phys_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
-    int*    fftwstart_spec_   = NULL;     /**< @brief the starting index for the field to be given to FFTW functions*/
+    int* n_in_          = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
+    int* fftwstart_in_  = NULL;     /**< @brief the starting index for the input field to be given to FFTW functions*/
+    int* fftwstart_out_ = NULL;     /**< @brief the starting index for the output field to be given to FFTW functions*/
 
-    PlanType       type_;                    /**< @brief type of this plan, see #PlanType*/
-    BoundaryType*  bc_[2]    = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
-    int*           corrtype_ = NULL;         /**< @brief correction type of this plan, see #PlanCorrectionType*/
-    bool*          imult_    = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
-    fftw_r2r_kind* kind_     = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    fftw_plan*     plan_     = NULL;         /**< @brief the array of FFTW plan*/
+    PlanType       type_;                        /**< @brief type of this plan, see #PlanType*/
+    BoundaryType*  bc_[2]        = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
+    int*           postpro_type_ = NULL;         /**< @brief correction type of this plan, see #PlanPostproType*/
+    bool*          imult_        = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
+    fftw_r2r_kind* kind_         = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    fftw_plan*     plan_         = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -118,8 +112,8 @@ class FFTW_plan_dim {
     void init(const int size[3], const bool isComplex);
 
     void allocate_plan(const Topology* topo, double* data);
-    void correct_plan(const Topology*, double* data);
     void execute_plan(const Topology* topo, double* data) const;
+    void postprocess_plan(const Topology*, double* data);
 
     /**
      * @name Getters - return the value
@@ -149,10 +143,8 @@ class FFTW_plan_dim {
      *
      */
     /**@{ */
-    bool do_reset_zero_correction(const int value) const { return ((value >> 0) % 2); };
-    bool do_reset_flipflop_correction(const int value) const { return ((value >> 1) % 2); };
-    bool do_shift_left_correction(const int value) const { return ((value >> 2) % 2); };
-    bool do_shift_right_correction(const int value) const { return ((value >> 3) % 2); };
+    bool do_reset_first_point(const int value) const { return ((value >> 0) % 2); };
+    bool do_reset_last_point(const int value) const { return ((value >> 1) % 2); };
     /**@} */
 
     void disp();

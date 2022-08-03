@@ -1420,11 +1420,6 @@ void Solver::do_FFT(double *data, const int sign) {
 
     if (sign == FLUPS_FORWARD) {
         for (int ip = 0; ip < ndim_; ip++) {
-            // if(ip==0){
-            //     FLUPS_print_data(topo_phys_, mydata);
-            // }else{
-            //     FLUPS_print_data(topo_hat_[ip-1], mydata);
-            // }
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
@@ -1435,7 +1430,7 @@ void Solver::do_FFT(double *data, const int sign) {
             // run the FFT
             m_profStarti(prof_, "fftw");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            plan_forward_[ip]->correct_plan(topo_hat_[ip], mydata);
+            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
@@ -1445,8 +1440,8 @@ void Solver::do_FFT(double *data, const int sign) {
     } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
-            plan_backward_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
+            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
@@ -1461,8 +1456,8 @@ void Solver::do_FFT(double *data, const int sign) {
     } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
-            plan_backward_diff_[ip]->correct_plan(topo_hat_[ip], mydata);
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
+            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
