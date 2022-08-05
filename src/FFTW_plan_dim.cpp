@@ -547,7 +547,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             // when the transform is a transform from real to complex in the backward 
             // direction
             const bool real_dmn = ((isr2c_) && (FLUPS_BACKWARD == sign_)) ? true : false;
-            
+
             // we need to properly copy the first point into the last point
             if(real_dmn){
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
@@ -556,7 +556,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                     dataloc[nfftw] = dataloc[0];
                 }
             } else {
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftwstride, howmany, nffftw)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
                 for (size_t io = 0; io < howmany; io++) {
                     // get the memory
                     opt_double_ptr dataloc = mydata + io * fftw_stride;
