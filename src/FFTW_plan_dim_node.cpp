@@ -391,12 +391,12 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     if (isComplex) {
         n_in_[0] = size[dimID_] - 1;  // takes n complex, return n complex
-        n_out_   = size[dimID_] - 1;
+        n_out_   = size[dimID_];
         isr2c_   = false;
 
     } else {
         n_in_[0] = size[dimID_] - 1;  // takes n-1 real
-        n_out_   = n_in_[0] / 2 + 1;  // return n_in/2 + 1 complex
+        n_out_   = n_in_[0] / 2 + 1 + 1;  // return n_in/2 + 1 complex
         isr2c_   = true;
     }
 
@@ -419,8 +419,9 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     /** - Get the #koffset_ factor */
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
-        postpro_type_[lia] = POSTPRO_NONE;
-        fftwstart_in_[lia] = 0;
+        postpro_type_[lia]  = ENFORCE_PERIOD;
+        // postpro_type_[lia]  = POSTPRO_NONE;
+        fftwstart_in_[lia]  = 0;
         fftwstart_out_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;

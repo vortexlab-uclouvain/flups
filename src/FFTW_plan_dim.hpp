@@ -58,21 +58,23 @@ class FFTW_plan_dim {
     /**
      * @brief Determines which post processing operation must be performed on the output of the fft forward/backward
      *
-     * the corrections combines 2 basic operations and therefore are encrypted on 2 bytes:
+     * the corrections combines 3 basic operations and therefore are encrypted on 3 bytes:
      * - byte 0 obtained as `(correction>>0)%2` overwrites the first data of the transform
      * - byte 1 obtained as `(correction>>1)%2` overwrites the last data of the transform
+     * - byte 2 obtained as `(correction>>1)%2` copy the value of the first data in the last data
      *
      * The actual correction of a planned is asigned using the sum operator:
      *       correction = NULL_LAST_POINT = 2 
      * will lead to
      * - (2>>0)%2 = 0 -> NO first point correction
-     * - (6>>1)%2 = 1 -> YES last point correction
-     *
+     * - (2>>1)%2 = 1 -> YES last point correction
+     * - (2>>2)%2 = 1 -> NO periodic correction
      */
     enum PlanPostproType {
         POSTPRO_NONE     = 0,  // no corrections
         NULL_FIRST_POINT = 1,  // byte 0, obtained as = 1<<0
         NULL_LAST_POINT  = 2,  // byte 1, obtained as = 1<<1
+        ENFORCE_PERIOD   = 4,  // byte 2, obtained as = 2<<1
     };
 
    protected:
@@ -145,6 +147,7 @@ class FFTW_plan_dim {
     /**@{ */
     bool do_reset_first_point(const int value) const { return ((value >> 0) % 2); };
     bool do_reset_last_point(const int value) const { return ((value >> 1) % 2); };
+    bool do_enforce_period(const int value) const { return ((value >> 2) % 2); };
     /**@} */
 
     void disp();

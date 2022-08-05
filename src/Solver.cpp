@@ -1426,27 +1426,26 @@ void Solver::do_FFT(double *data, const int sign) {
                 switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
             }
             m_profStopi(prof_, "SwitchTopo");
-            // FLUPS_print_data(topo_hat_[ip], mydata);
             // run the FFT
             m_profStarti(prof_, "fftw");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
+            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
         }
     } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
+            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
                 switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
@@ -1457,12 +1456,13 @@ void Solver::do_FFT(double *data, const int sign) {
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fftw");
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
-            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata);
             m_profStopi(prof_, "fftw");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
+            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
                 switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);

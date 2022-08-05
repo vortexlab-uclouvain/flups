@@ -431,16 +431,6 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double x = pos[0];
                             const double y = pos[1];
                             const double z = pos[2];
-
-                            // const double fact = 0.5 * c_1o2pi * c_1o2pi;
-
-                            // rhs0[id] = c_1o2pi * sin(2 * M_PI * y) * sin(2 * M_PI * z);
-                            // rhs1[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * z);
-                            // rhs2[id] = c_1o2pi * sin(2 * M_PI * x) * sin(2 * M_PI * y);
-
-                            // sol0[id] = fact * sin(2.0 * M_PI * x) * (-cos(2.0 * M_PI * y) + cos(2.0 * M_PI * z));
-                            // sol1[id] = fact * sin(2.0 * M_PI * y) * (-cos(2.0 * M_PI * z) + cos(2.0 * M_PI * x));
-                            // sol2[id] = fact * sin(2.0 * M_PI * z) * (-cos(2.0 * M_PI * x) + cos(2.0 * M_PI * y));
                             const double k[3] = {2.0 * M_PI, 2.0 * M_PI, 2.0 * M_PI};
                             rhs0[id] = cos(k[1] * y) / k[1];
                             rhs1[id] = cos(k[2] * z) / k[2];
@@ -550,9 +540,9 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
             const bool last_point_valid = !(!is_cell && ( mybc[lia][0][0] == PER || mybc[lia][0][1] == PER || mybc[lia][0][2] == PER ));
             
             // If the last point is not valid, remove it from the error computation
-            const int iend[3] = {flups_topo_get_nloc(topo, ax0) - !last_point_valid,
-                                 flups_topo_get_nloc(topo, ax1) - !last_point_valid,
-                                 flups_topo_get_nloc(topo, ax2) - !last_point_valid};
+            const int iend[3] = {flups_topo_get_nloc(topo, ax0),
+                                 flups_topo_get_nloc(topo, ax1),
+                                 flups_topo_get_nloc(topo, ax2)};
             
             for (int i2 = 0; i2 < iend[2]; i2++) {
                 for (int i1 = 0; i1 < iend[1]; i1++) {

@@ -393,6 +393,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
+        printf("nin[0] == %d -- fftwstart_in_[0] = %d - fftwstart_out_[0] = %d \n", n_in_[0],  fftwstart_in_[0], fftwstart_out_[0]);
         plan_[0] = (fftw_plan_dft_1d(n_in_[0], (fftw_complex*) data + fftwstart_in_[0], (fftw_complex*)data + fftwstart_out_[0], sign_, FLUPS_FFTW_FLAG));
     }
 
@@ -452,29 +453,43 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
     BEGIN_FUNC;
     // check the data alignment
     check_dataAlign_(topo, data);
+    printf("Entering post process \n");
 
     const int    nloc        = topo->nloc(topo->axis());
+    const int    nf          = topo->nf();
     const size_t howmany     = howmany_;
     const size_t memdim      = topo->memdim();
-    const size_t fftw_stride = (size_t)fftw_stride_;
+    // The fftw stride is always given as the number of elements separating two sets of data 
+    // given to the fft. Therefore, three different case can happen:
+    //      - when the transform is a complex to complex one, the 
+    //        stride need to be multiplied by two as we deal with 
+    //        complex numbers (one complex contains two doubles).
+    //      - when doing a real to real transform, the fftw stride can be taken as such.
+    //      - when performing a real to complex transform, the stide is taken in the input 
+    //        frame of reference, and is therefore kept as the number of real.  
+    const size_t fftw_stride = (size_t)(fftw_stride_ * (isr2c_ ? 1 : nf));
 
     for (int lia = 0; lia < lda_; lia++) {
         //----------------------------------------------------------------------
         // given the correction, get which one we actually do
-        // do first 
-        const int  correct  = postpro_type_[lia];
-        const bool do_first = do_reset_first_point(correct);
-        const bool do_last  = do_reset_last_point(correct);
+        // do first
+        const int  correct   = postpro_type_[lia];
+        const bool do_first  = do_reset_first_point(correct);
+        const bool do_last   = do_reset_last_point(correct);
+        const bool do_period = do_enforce_period(correct);
+        printf("I have do first %d - do last %d and do period %d \n", do_first, do_last, do_period);
 
         // now that we know which correction is requested form the type, we can ajdust them given the forward types
         // Here are the memory corrections
         const bool reset_first      = do_first && (!do_last);
         const bool reset_last       = (!do_first) && do_last;
         const bool reset_first_last = do_first && do_last;
-        const bool do_nothing       = (!do_first) && (!do_last);
+        const bool enforce_period   = do_period;
+        const bool do_nothing       = (!do_first) && (!do_last) && (!enforce_period);
         //----------------------------------------------------------------------
-        // get the starting point of the
+        // get the starting point of the data
         opt_double_ptr mydata = data + lia * memdim;
+
         //----------------------------------------------------------------------
         if (reset_first) {
             // we need to reset the first point of the memory space to 0
@@ -499,7 +514,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             }
         }
         //----------------------------------------------------------------------
-        // DO FIRST AND LAST
+        //Do first and last point 
         else if (reset_first_last) {
             // we need to properly set the first and the last point of the transform to 0
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
@@ -510,6 +525,44 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 dataloc[0] = 0.0;
                 // reset the last point
                 dataloc[nloc - 1] = 0.0;
+            }
+        }
+        //----------------------------------------------------------------------
+        // Enforce period
+        // For the moment, this correction is only applied in the case of a PER-PER pencil
+        // with node-centred data. Indeed, the data on both boundaries contains the same info
+        // The point on the last boundary is then discarded by fftw. We need to enforce the 
+        // periodicity on the boundary by hand. 
+        else if (enforce_period) {
+            // ......................
+            // When proceeding to a forward transform, the point on the boundary is the point 
+            // reserved for this in the output data layout (See FFTW_plan_dim_node.cpp). When going
+            // in the backward direction, the point on the boundary is the last point in the input 
+            // configuration, i.e. the index n_in_ 
+            const int  nfftw    = (FLUPS_FORWARD == sign_) ? n_out_ - 1 : n_in_[lia];
+
+            // ......................
+            // This correction is done in the complex domain in most of the case. 
+            // The only times the correction is done in the physical domain is 
+            // when the transform is a transform from real to complex in the backward 
+            // direction
+            const bool real_dmn = ((isr2c_) && (FLUPS_BACKWARD == sign_)) ? true : false;
+            
+            // we need to properly copy the first point into the last point
+            if(real_dmn){
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
+                for (size_t io = 0; io < howmany; io++) {
+                    opt_double_ptr dataloc = mydata + io * fftw_stride;
+                    dataloc[nfftw] = dataloc[0];
+                }
+            } else {
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftwstride, howmany, nffftw)
+                for (size_t io = 0; io < howmany; io++) {
+                    // get the memory
+                    opt_double_ptr dataloc = mydata + io * fftw_stride;
+                    dataloc[2*nfftw] = dataloc[0];
+                    dataloc[2*nfftw + 1] = dataloc[1];
+                }
             }
         }
         //----------------------------------------------------------------------
