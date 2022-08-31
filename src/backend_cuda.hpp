@@ -30,6 +30,7 @@ struct flups_shuffle_plan {
 struct flups_plan {
     cufftHandle cufft;
     int dim;            // size of the fft
+    int dist;           // dist between two successive fft
     int howmany;        // number of fft to perform
     int n;              // number of input/output values
     int nmem;           // memory space required (for 1 fft)
@@ -73,8 +74,6 @@ inline void flups_bfree(void *ptr) {
 
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
-    FLUPS_CHECK(arch.dim == arch.dist, "dim = %d, dist = %d - should be equal", arch.dim, arch.dist);
-
     flups_plan plan;
     switch (kind) {
         // DCT Type I
@@ -82,6 +81,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.kind = kind;
             plan.howmany = arch.howmany;
             plan.dim = 2*arch.dim - 2;
+            plan.dist = arch.dist;
             plan.n = arch.dim;
             plan.nmem = 2*arch.dim * arch.howmany;
             cufftPlanMany(&plan.cufft, 1, &plan.dim,
@@ -151,6 +151,7 @@ inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
 inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     int n = plan.n;
     int dim = plan.dim;
+    int dist = plan.dist;
     int howmany = plan.howmany;
 
     switch (plan.kind) {
@@ -163,7 +164,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * 2*n + i] = in[j * n + i];
+                    mem[j * 2*n + i] = in[j * dist + i];
                 }
             }
             #pragma omp target teams distribute parallel for is_device_ptr(mem)
@@ -178,7 +179,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * n + i] = 2.0*mem[2*n*j + 2*i];
+                    out[j * dist + i] = 2.0*mem[2*n*j + 2*i];
                 }
             }
 
