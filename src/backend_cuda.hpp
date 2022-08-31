@@ -28,13 +28,18 @@ struct flups_shuffle_plan {
 };
 
 struct flups_plan {
+    // cuFFT plan handle
     cufftHandle cufft;
-    int dim;            // size of the fft
-    int dist;           // dist between two successive fft
-    int howmany;        // number of fft to perform
-    int n;              // number of input/output values
-    int nmem;           // memory space required (for 1 fft)
-    flups_kind kind;    // kind of r2r transform
+    // parameters for the r2r transform
+    int n;              // number of inputs/output real values
+    int dist;           // distance between two successive fft's
+    int howmany;        // number of fft's to perform
+    flups_kind kind;    // kinf of the r2r transform
+    // parameters for the equivalent r2c transform
+    int dim;            // size of the equivalent r2c fft
+    int idist;          // input  distance between two successive fft's
+    int odist;          // output distance between two successive fft's
+    int nmem;           // size of the needed memory space
 };
 
 
@@ -75,24 +80,28 @@ inline void flups_bfree(void *ptr) {
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
     flups_plan plan;
+    // parameters for the r2r transform
+    plan.n = arch.dim;
+    plan.dist = arch.dist;
+    plan.howmany = arch.howmany;
+    plan.kind = kind;
+
     switch (kind) {
         // DCT Type I
         case FFTW_REDFT00:
-            plan.kind = kind;
-            plan.howmany = arch.howmany;
-            plan.dim = 2*arch.dim - 2;
-            plan.dist = arch.dist;
-            plan.n = arch.dim;
-            plan.nmem = 2*arch.dim * arch.howmany;
-            cufftPlanMany(&plan.cufft, 1, &plan.dim,
-                          &plan.dim, 1, 2*plan.n,
-                          &plan.dim, 1,   plan.n,
-                          CUFFT_D2Z, plan.howmany);
+            plan.dim   = 2*plan.n - 2;
+            plan.idist = 2*plan.n;      // for some reason, cufft fucks up with 2n-2...
+            plan.odist = plan.n;
+            plan.nmem  = 2*plan.n * plan.howmany;
             break;
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
+    cufftPlanMany(&plan.cufft, 1, &plan.dim,
+                    &plan.dim, 1, plan.idist,
+                    &plan.dim, 1, plan.odist,
+                    CUFFT_D2Z, plan.howmany);
     return plan;
 }
 
@@ -152,6 +161,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     int n = plan.n;
     int dim = plan.dim;
     int dist = plan.dist;
+    int idist = plan.idist;
+    int odist = plan.odist;
     int howmany = plan.howmany;
 
     switch (plan.kind) {
@@ -164,13 +175,13 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * 2*n + i] = in[j * dist + i];
+                    mem[j * idist + i] = in[j * dist + i];
                 }
             }
             #pragma omp target teams distribute parallel for is_device_ptr(mem)
             for (int j = 0; j < howmany; ++j) {
-                mem[j * 2*n]         *= .5;
-                mem[j * 2*n + n - 1] *= .5;
+                mem[j * idist]         *= .5;
+                mem[j * idist + n - 1] *= .5;
             }
 
             flups_execute_r2c(plan, mem, (flups_complex*)mem);
@@ -179,7 +190,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * dist + i] = 2.0*mem[2*n*j + 2*i];
+                    out[j * dist + i] = 2.0*mem[2*(j * odist + i)];
                 }
             }
 
