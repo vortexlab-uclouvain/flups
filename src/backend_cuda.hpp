@@ -73,6 +73,8 @@ inline void flups_bfree(void *ptr) {
 
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
+    FLUPS_CHECK(arch.dim == arch.dist, "dim = %d, dist = %d - should be equal", arch.dim, arch.dist);
+
     flups_plan plan;
     switch (kind) {
         // DCT Type I
@@ -81,10 +83,10 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.howmany = arch.howmany;
             plan.dim = 2*arch.dim - 2;
             plan.n = arch.dim;
-            plan.nmem = 2*arch.dim * plan.howmany;
+            plan.nmem = 2*arch.dim * arch.howmany;
             cufftPlanMany(&plan.cufft, 1, &plan.dim,
-                          &plan.dim, 1, plan.dim,
-                          &plan.dim, 1, plan.dim / 2,
+                          &plan.dim, 1, 2*plan.n,
+                          &plan.dim, 1,   plan.n,
                           CUFFT_D2Z, plan.howmany);
             break;
     default:
@@ -161,13 +163,13 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * dim + i] = in[j * n + i];
+                    mem[j * 2*n + i] = in[j * n + i];
                 }
             }
             #pragma omp target teams distribute parallel for is_device_ptr(mem)
             for (int j = 0; j < howmany; ++j) {
-                mem[j * dim] *= .5;
-                mem[j * dim + n - 1] *= .5;
+                mem[j * 2*n]         *= .5;
+                mem[j * 2*n + n - 1] *= .5;
             }
 
             flups_execute_r2c(plan, mem, (flups_complex*)mem);
@@ -176,7 +178,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * n + i] = 2.0*mem[2*(j * dim + i)];
+                    out[j * n + i] = 2.0*mem[2*n*j + 2*i];
                 }
             }
 
@@ -186,7 +188,6 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
-    cudaDeviceSynchronize();
 }
 
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
