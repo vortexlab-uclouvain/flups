@@ -485,7 +485,11 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         }
         else if(corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_FORWARD){
             // we need to enforce the the mode 0 + shift everything from i to i+1
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata)
+#endif
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
@@ -499,7 +503,11 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         } 
         else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_FORWARD) {
             // we need to shift everything from i+1 to i
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata)
+#endif
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
@@ -512,7 +520,11 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
 
         else if (corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD) {
             // we need to enforce the the mode 0 + shift everything from i to i-1
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata)
+#endif
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
@@ -524,7 +536,11 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         }
         else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_BACKWARD) {
             // we need to shift everything from i to i+1
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata)
+#endif
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;

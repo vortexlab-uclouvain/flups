@@ -96,15 +96,17 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.odist =   plan.n;
             plan.nmem  = (2*plan.n) * plan.howmany;
             break;
-        // DCT Type II
+        // DCT/DST Type II
         case FFTW_REDFT10:
+        case FFTW_RODFT10:
             plan.dim   = 2*plan.n;
             plan.idist = 2*plan.n + 2;  // should be 2n (but cufft doesn't like it)
             plan.odist =   plan.n + 1;
             plan.nmem  = (2*plan.n + 2) * plan.howmany;
             break;
-        // DCT Type III
+        // DCT/DST Type III
         case FFTW_REDFT01:
+        case FFTW_RODFT01:
             plan.dim   = 2*plan.n;
             plan.idist =   plan.n + 1;
             plan.odist = 2*plan.n;
@@ -112,8 +114,9 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             // this is a c2r transform
             type = CUFFT_Z2D;
             break;
-        // DCT Type IV
+        // DCT/DST Type IV
         case FFTW_REDFT11:
+        case FFTW_RODFT11:
             plan.dim   = 8*plan.n;
             plan.idist = 8*plan.n + 2;  //  should be 8n (but cufft doesn't like it)
             plan.odist = 4*plan.n + 1;
@@ -315,6 +318,54 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     out[j * dist + i] = -2.0*mem[3 + 2*(j * odist + i)];
+                }
+            }
+            break;
+        }
+        // DST Type II
+        case FFTW_RODFT10:
+        {
+            // Pre-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    if (0 == (i % 2))   mem[j * idist + i] =  in[j * dist + i];
+                    else                mem[j * idist + i] = -in[j * dist + i];
+                }
+            }
+
+            flups_execute_r2c(plan, mem, (flups_complex*)mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    double t = -i*M_PI / (2.0*n);
+                    out[j * dist + (n-1) - i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
+                }
+            }
+            break;
+        }
+        // DST Type III
+        case FFTW_RODFT01:
+        {
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    double t = -i*M_PI / (2.0*n);
+                    mem[2*(j * idist + i)]     = in[j * dist + (n-1) - i]*std::cos(t);
+                    mem[2*(j * idist + i) + 1] = in[j * dist + (n-1) - i]*std::sin(t);
+                }
+            }
+
+            flups_execute_c2r(plan, (flups_complex*)mem, mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    if (0 == (i % 2))   out[j * dist + i] =  mem[1 + j * odist + i];
+                    else                out[j * dist + i] = -mem[1 + j * odist + i];
                 }
             }
             break;
