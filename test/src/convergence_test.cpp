@@ -49,7 +49,7 @@ class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterTyp
                                                                 std::array<FLUPS_BoundaryType,2> > >{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {4, 4, 4};
+    const int    nproc_[3]  = {1, 1, 1};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
@@ -241,7 +241,8 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
 INSTANTIATE_TEST_SUITE_P(AllTest,
                          ConvergenceTest,
                          testing::Combine(testing::Values(NODE_CENTER, CELL_CENTER), 
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
+                                          //testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
+                                          testing::Values(CHAT_2),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
