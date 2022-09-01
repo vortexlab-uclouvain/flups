@@ -109,13 +109,17 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
+    const int    nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
+    firstprivate(nf, ax0, ax1, ax2, length, GN) map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3])
+    for (int i2 = 0; i2 < nloc[2]; i2++) {
+        for (int i1 = 0; i1 < nloc[1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+            for (int i0 = 0; i0 < nloc[0]; i0++) {
                 int is[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
 
@@ -132,13 +136,13 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 // and the others 5 ones are aimed for LGFs only
                 // the symmetrized indexes will be negative!!
                 const double tmp[9] = {r, length, 0, 0, static_cast<double>(std::abs(is[ax0])), static_cast<double>(std::abs(is[ax1])), static_cast<double>(std::abs(is[ax2])), static_cast<double>(GN), hfact[ax0]};
-                green[id + i0 * nf] = G(tmp,Gdata);
+                green[id + i0 * nf] = chat_2_3unb0spe_(tmp, Gdata); //G(tmp,Gdata);
             }
         }
     }
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
     if (typeGreen != LGF_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        green[0] = G0;
+        flups_memset(green, G0, 1*sizeof(double));
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -259,15 +263,19 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     const int    ax0     = topo->axis();
     const int    ax1     = (ax0 + 1) % 3;
     const int    ax2     = (ax0 + 2) % 3;
+    const int    nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     const double r_eq2D  = c_1osqrtpi * sqrt(hfact[ax0] * hfact[ax1] + hfact[ax1] * hfact[ax2] + hfact[ax2] * hfact[ax0]);
 
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+// TODO: need to offload the Gdata for LGF kernels on the GPU
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
+        firstprivate(nf, ax0, ax1, ax2, length, r_eq2D, GN) map(to: nmem[:3], nloc[:3], kfact[:3], hfact[:3], koffset[:3], symstart[:3], istart[:3])
+    for (int i2 = 0; i2 < nloc[2]; i2++) {
+        for (int i1 = 0; i1 < nloc[1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+            for (int i0 = 0; i0 < nloc[0]; i0++) {
                 // global indexes
                 int is[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
@@ -292,12 +300,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 // this routine with a high readability and lower efficency than the opposite.
                 if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
                     // we should enter this case for 2d and 3d cases
-                    green[id + i0 * topo->nf()] = Gr0(tmp, Gdata);
+                    green[id + i0 * nf] = chat_2_2unb1spe_r0_(tmp, Gdata);  //Gr0(tmp, Gdata);
                 } else if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
                     // we should always enter this routine for 2d case and sometimes for 3d cases
-                    green[id + i0 * topo->nf()] = Gk0(tmp, Gdata);
+                    green[id + i0 * nf] = chat_2_2unb1spe_k0_(tmp, Gdata);  //Gk0(tmp, Gdata);
                 } else {
-                    green[id + i0 * topo->nf()] = G(tmp, Gdata);
+                    green[id + i0 * nf] = chat_2_2unb1spe_(tmp, Gdata);     //G(tmp, Gdata);
                 }
             }
         }
@@ -306,7 +314,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
+        //caution: mistake in [Chatelain2010]
+        flups_memset(green, - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D)), 1*sizeof(double));
     }
     END_FUNC;
 }
@@ -385,16 +394,20 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     const int ax0     = topo->axis();
     const int ax1     = (ax0 + 1) % 3;
     const int ax2     = (ax0 + 2) % 3;
+    const int nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
     // FLUPS_INFO("Koff= %lf %lf %lf", koffset[0],koffset[1],koffset[2]);
     // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
-    for (int i2 = 0; i2 < topo->nloc(ax2); i2++) {
-        for (int i1 = 0; i1 < topo->nloc(ax1); i1++) {
+
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
+        firstprivate(ax0, ax1, ax2, length, nf) map(to: kfact[:3], nloc[:3], koffset[:3], hfact[:3], istart[:3], symstart[:3])
+    for (int i2 = 0; i2 < nloc[2]; i2++) {
+        for (int i1 = 0; i1 < nloc[1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < topo->nloc(ax0); i0++) {
+            for (int i0 = 0; i0 < nloc[0]; i0++) {
                 int is[3];
                 cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
@@ -416,10 +429,10 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * nf] = G0(tmp,NULL);
+                    green[id + i0 * nf] = chat_2_1unb2spe_k0_(tmp, NULL);   //G0(tmp,NULL);
                 }
                 else{
-                    green[id + i0 * nf] = G(tmp,NULL);
+                    green[id + i0 * nf] = chat_2_1unb2spe_(tmp, NULL);      //G(tmp,NULL);
                 }
             }
         }
@@ -545,8 +558,8 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     const int ax2     = (ax0 + 2) % 3;
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
-#pragma omp target teams distribute parallel for is_device_ptr(green) collapse(2) \
-        schedule(static) firstprivate(ie, is, istart, nmem) map(to: kfact[:3], koffset[:3], symstart[:3])
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
+        firstprivate(ie, is, istart, nmem) map(to: kfact[:3], koffset[:3], symstart[:3])
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
@@ -568,7 +581,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
 
                 // TODO: how to call G() ?
-                green[id + i0 * nf] = -1.0 / ksqr; // G(tmp, NULL);
+                green[id + i0 * nf] = chat_2_0unb3spe_(tmp, NULL);  // G(tmp, NULL);
             }
         }
     }
