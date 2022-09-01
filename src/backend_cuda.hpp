@@ -119,6 +119,13 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.odist = 4*plan.n + 1;
             plan.nmem  = (8*plan.n + 2) * plan.howmany;
             break;
+        // DST Type I
+        case FFTW_RODFT00:
+            plan.dim   = 2*plan.n + 2;
+            plan.idist = 2*plan.n + 4;  // should be 2n+2 (but cufft doesn't like it)
+            plan.odist =   plan.n + 3;
+            plan.nmem  = (2*plan.n + 6) * plan.howmany;
+            break;
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
@@ -286,6 +293,28 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     out[j * dist + i] = mem[2 * (j*odist + (2*i + 1))];
+                }
+            }
+            break;
+        }
+        // DST Type I
+        case FFTW_RODFT00:
+        {
+            // Pre-processing
+            #pragma omp target teams distribute parallel for is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    mem[1 + j * idist + i] = in[j * dist + i];
+                }
+            }
+
+            flups_execute_r2c(plan, mem, (flups_complex*)mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    out[j * dist + i] = -2.0*mem[3 + 2*(j * odist + i)];
                 }
             }
             break;
