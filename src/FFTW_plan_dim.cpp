@@ -471,7 +471,11 @@ void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
         // if we need a DCT correction and that we are doing forward (backward doesn't matter)
         if (corrtype_[lia] == CORRECTION_DCT && sign_ == FLUPS_FORWARD) {
             // we need to enforce the flip-flop mode to be zero and that's it
+#if defined(FLUPS_FFTW_BACKEND)
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
+#else
+#pragma omp target teams distribute parallel for is_device_ptr(mydata)
+#endif
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
