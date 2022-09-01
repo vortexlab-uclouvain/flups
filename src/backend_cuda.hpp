@@ -85,14 +85,32 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     plan.dist = arch.dist;
     plan.howmany = arch.howmany;
     plan.kind = kind;
+    // check whether we need to plan a r2c or c2r (by default it's a r2c)
+    cufftType type = CUFFT_D2Z;
 
     switch (kind) {
         // DCT Type I
         case FFTW_REDFT00:
             plan.dim   = 2*plan.n - 2;
             plan.idist = 2*plan.n;      // should be 2n-2 (but cufft doesn't like it)
-            plan.odist = plan.n;
-            plan.nmem  = 2*plan.n * plan.howmany;
+            plan.odist =   plan.n;
+            plan.nmem  = (2*plan.n) * plan.howmany;
+            break;
+        // DCT Type II
+        case FFTW_REDFT10:
+            plan.dim   = 2*plan.n;
+            plan.idist = 2*plan.n + 2;  // should be 2n (but cufft doesn't like it)
+            plan.odist =   plan.n + 1;
+            plan.nmem  = (2*plan.n + 2) * plan.howmany;
+            break;
+        // DCT Type III
+        case FFTW_REDFT01:
+            plan.dim   = 2*plan.n;
+            plan.idist =   plan.n + 1;
+            plan.odist = 2*plan.n;
+            plan.nmem  = (2*plan.n + 2) * plan.howmany;
+            // this is a c2r transform
+            type = CUFFT_Z2D;
             break;
         // DCT Type IV
         case FFTW_REDFT11:
@@ -108,7 +126,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     cufftPlanMany(&plan.cufft, 1, &plan.dim,
                     &plan.dim, 1, plan.idist,
                     &plan.dim, 1, plan.odist,
-                    CUFFT_D2Z, plan.howmany);
+                    type, plan.howmany);
     return plan;
 }
 
@@ -202,13 +220,60 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             }
             break;
         }
+        // DCT Type II
+        case FFTW_REDFT10:
+        {
+            // Pre-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    mem[j * idist + i] = in[j * dist + i];
+                }
+            }
+
+            flups_execute_r2c(plan, mem, (flups_complex*)mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    double t = -i*M_PI / (2.0*n);
+                    out[j * dist + i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
+                }
+            }
+            break;
+        }
+        // DCT Type III
+        case FFTW_REDFT01:
+        {
+            // Pre-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    double t = -i*M_PI / (2.0*n);
+                    mem[2*(j * idist + i)]     = in[j * dist + i]*std::cos(t);
+                    mem[2*(j * idist + i) + 1] = in[j * dist + i]*std::sin(t);
+                }
+            }
+
+            flups_execute_c2r(plan, (flups_complex*)mem, mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    out[j * dist + i] = mem[1 + j * odist + i];
+                }
+            }
+            break;
+        }
         // DCT Type IV
         case FFTW_REDFT11:
         {
             // Pre-processing
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
-                for (int i = n-1; i >= 0; --i) {
+                for (int i = 0; i < n; ++i) {
                     mem[j * idist + (2*i+1)]         =  in[j * dist + i];
                     mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + i];
                 }
