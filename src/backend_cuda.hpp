@@ -370,6 +370,30 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             }
             break;
         }
+        // DST Type IV
+        case FFTW_RODFT11:
+        {
+            // Pre-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    mem[j * idist + (2*i+1)]         =  in[j * dist + (n-1) - i];
+                    mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + (n-1) - i];
+                }
+            }
+
+            flups_execute_r2c(plan, mem, (flups_complex*)mem);
+
+            // Post-processing
+            #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
+            for (int j = 0; j < howmany; ++j) {
+                for (int i = 0; i < n; ++i) {
+                    if (0 == (i % 2))   out[j * dist + i] =  mem[2 * (j*odist + (2*i + 1))];
+                    else                out[j * dist + i] = -mem[2 * (j*odist + (2*i + 1))];
+                }
+            }
+            break;
+        }
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
