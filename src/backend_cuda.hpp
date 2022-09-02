@@ -33,6 +33,7 @@ struct flups_plan {
     // parameters for the r2r transform
     int n;              // number of inputs/output real values
     int dist;           // distance between two successive fft's
+    int stride;         // data stride
     int howmany;        // number of fft's to perform
     flups_kind kind;    // kinf of the r2r transform
     // parameters for the equivalent r2c transform
@@ -83,6 +84,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     // parameters for the r2r transform
     plan.n = arch.dim;
     plan.dist = arch.dist;
+    plan.stride = arch.stride;
     plan.howmany = arch.howmany;
     plan.kind = kind;
     // check whether we need to plan a r2c or c2r (by default it's a r2c)
@@ -133,6 +135,9 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
+    // Note: some plans (typically involved in the computation of the Green function
+    //       for mixed BC's) require a non-unit stride of 2. Here, we handle that 
+    //       directly during the pre- and post-processing (thus the plan has unit stride).
     cufftPlanMany(&plan.cufft, 1, &plan.dim,
                     &plan.dim, 1, plan.idist,
                     &plan.dim, 1, plan.odist,
@@ -198,6 +203,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     int dist = plan.dist;
     int idist = plan.idist;
     int odist = plan.odist;
+    int stride = plan.stride;
     int howmany = plan.howmany;
  
     // Allocate memory
@@ -212,7 +218,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 #pragma omp parallel for
                 for (int i = 0; i < n; ++i) {
-                    mem[j * idist + i] = in[j * dist + i];
+                    mem[j * idist + i] = in[j * dist + stride*i];
                 }
 
                 mem[j * idist]         *= .5;
@@ -225,7 +231,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * dist + i] = 2.0*mem[2*(j * odist + i)];
+                    out[j * dist + stride*i] = 2.0*mem[2*(j * odist + i)];
                 }
             }
             break;
@@ -237,7 +243,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * idist + i] = in[j * dist + i];
+                    mem[j * idist + i] = in[j * dist + stride*i];
                 }
             }
 
@@ -248,7 +254,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     double t = -i*M_PI / (2.0*n);
-                    out[j * dist + i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
+                    out[j * dist + stride*i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
                 }
             }
             break;
@@ -261,8 +267,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     double t = -i*M_PI / (2.0*n);
-                    mem[2*(j * idist + i)]     = in[j * dist + i]*std::cos(t);
-                    mem[2*(j * idist + i) + 1] = in[j * dist + i]*std::sin(t);
+                    mem[2*(j * idist + i)]     = in[j * dist + stride*i]*std::cos(t);
+                    mem[2*(j * idist + i) + 1] = in[j * dist + stride*i]*std::sin(t);
                 }
             }
 
@@ -272,7 +278,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * dist + i] = mem[1 + j * odist + i];
+                    out[j * dist + stride*i] = mem[1 + j * odist + i];
                 }
             }
             break;
@@ -284,8 +290,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * idist + (2*i+1)]         =  in[j * dist + i];
-                    mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + i];
+                    mem[j * idist + (2*i+1)]         =  in[j * dist + stride*i];
+                    mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + stride*i];
                 }
             }
 
@@ -295,7 +301,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * dist + i] = mem[2 * (j*odist + (2*i + 1))];
+                    out[j * dist + stride*i] = mem[2 * (j*odist + (2*i + 1))];
                 }
             }
             break;
@@ -307,7 +313,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[1 + j * idist + i] = in[j * dist + i];
+                    mem[1 + j * idist + i] = in[j * dist + stride*i];
                 }
             }
 
@@ -317,7 +323,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    out[j * dist + i] = -2.0*mem[3 + 2*(j * odist + i)];
+                    out[j * dist + stride*i] = -2.0*mem[3 + 2*(j * odist + i)];
                 }
             }
             break;
@@ -329,8 +335,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    if (0 == (i % 2))   mem[j * idist + i] =  in[j * dist + i];
-                    else                mem[j * idist + i] = -in[j * dist + i];
+                    if (0 == (i % 2))   mem[j * idist + i] =  in[j * dist + stride*i];
+                    else                mem[j * idist + i] = -in[j * dist + stride*i];
                 }
             }
 
@@ -341,7 +347,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     double t = -i*M_PI / (2.0*n);
-                    out[j * dist + (n-1) - i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
+                    out[j * dist + (n-1) - stride*i] = 2.0 * (mem[2*(j*odist + i)]*std::cos(t) - mem[2*(j*odist + i) + 1]*std::sin(t)) ;
                 }
             }
             break;
@@ -353,8 +359,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
                     double t = -i*M_PI / (2.0*n);
-                    mem[2*(j * idist + i)]     = in[j * dist + (n-1) - i]*std::cos(t);
-                    mem[2*(j * idist + i) + 1] = in[j * dist + (n-1) - i]*std::sin(t);
+                    mem[2*(j * idist + i)]     = in[j * dist + (n-1) - stride*i]*std::cos(t);
+                    mem[2*(j * idist + i) + 1] = in[j * dist + (n-1) - stride*i]*std::sin(t);
                 }
             }
 
@@ -364,8 +370,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    if (0 == (i % 2))   out[j * dist + i] =  mem[1 + j * odist + i];
-                    else                out[j * dist + i] = -mem[1 + j * odist + i];
+                    if (0 == (i % 2))   out[j * dist + stride*i] =  mem[1 + j * odist + i];
+                    else                out[j * dist + stride*i] = -mem[1 + j * odist + i];
                 }
             }
             break;
@@ -377,8 +383,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(in, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    mem[j * idist + (2*i+1)]         =  in[j * dist + (n-1) - i];
-                    mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + (n-1) - i];
+                    mem[j * idist + (2*i+1)]         =  in[j * dist + (n-1) - stride*i];
+                    mem[j * idist + (4*n - (2*i+1))] = -in[j * dist + (n-1) - stride*i];
                 }
             }
 
@@ -388,8 +394,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(out, mem)
             for (int j = 0; j < howmany; ++j) {
                 for (int i = 0; i < n; ++i) {
-                    if (0 == (i % 2))   out[j * dist + i] =  mem[2 * (j*odist + (2*i + 1))];
-                    else                out[j * dist + i] = -mem[2 * (j*odist + (2*i + 1))];
+                    if (0 == (i % 2))   out[j * dist + stride*i] =  mem[2 * (j*odist + (2*i + 1))];
+                    else                out[j * dist + stride*i] = -mem[2 * (j*odist + (2*i + 1))];
                 }
             }
             break;
