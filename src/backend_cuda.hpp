@@ -28,6 +28,8 @@ struct flups_shuffle_plan {
 };
 
 struct flups_plan {
+    // memory pointer (used only for r2r plans)
+    double *mem = NULL;
     // cuFFT plan handle
     cufftHandle cufft;
     // parameters for the r2r transform
@@ -36,11 +38,12 @@ struct flups_plan {
     int stride;         // data stride
     int howmany;        // number of fft's to perform
     flups_kind kind;    // kinf of the r2r transform
+    bool is_r2r = false;
     // parameters for the equivalent r2c transform
     int dim;            // size of the equivalent r2c fft
     int idist;          // input  distance between two successive fft's
     int odist;          // output distance between two successive fft's
-    int nmem;           // size of the needed memory space
+    int memsize;        // size of the needed memory space
 };
 
 
@@ -87,6 +90,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     plan.stride = arch.stride;
     plan.howmany = arch.howmany;
     plan.kind = kind;
+    plan.is_r2r = true;
     // check whether we need to plan a r2c or c2r (by default it's a r2c)
     cufftType type = CUFFT_D2Z;
 
@@ -96,7 +100,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.dim   = 2*plan.n - 2;
             plan.idist = 2*plan.n;      // should be 2n-2 (but cufft doesn't like it)
             plan.odist =   plan.n;
-            plan.nmem  = (2*plan.n) * plan.howmany;
+            plan.memsize  = (2*plan.n) * plan.howmany;
             break;
         // DCT/DST Type II
         case FFTW_REDFT10:
@@ -104,7 +108,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.dim   = 2*plan.n;
             plan.idist = 2*plan.n + 2;  // should be 2n (but cufft doesn't like it)
             plan.odist =   plan.n + 1;
-            plan.nmem  = (2*plan.n + 2) * plan.howmany;
+            plan.memsize  = (2*plan.n + 2) * plan.howmany;
             break;
         // DCT/DST Type III
         case FFTW_REDFT01:
@@ -112,7 +116,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.dim   = 2*plan.n;
             plan.idist =   plan.n + 1;
             plan.odist = 2*plan.n;
-            plan.nmem  = (2*plan.n + 2) * plan.howmany;
+            plan.memsize  = (2*plan.n + 2) * plan.howmany;
             // this is a c2r transform
             type = CUFFT_Z2D;
             break;
@@ -122,14 +126,14 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.dim   = 8*plan.n;
             plan.idist = 8*plan.n + 2;  //  should be 8n (but cufft doesn't like it)
             plan.odist = 4*plan.n + 1;
-            plan.nmem  = (8*plan.n + 2) * plan.howmany;
+            plan.memsize  = (8*plan.n + 2) * plan.howmany;
             break;
         // DST Type I
         case FFTW_RODFT00:
             plan.dim   = 2*plan.n + 2;
             plan.idist = 2*plan.n + 4;  // should be 2n+2 (but cufft doesn't like it)
             plan.odist =   plan.n + 3;
-            plan.nmem  = (2*plan.n + 6) * plan.howmany;
+            plan.memsize  = (2*plan.n + 6) * plan.howmany;
             break;
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
@@ -206,8 +210,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     int stride = plan.stride;
     int howmany = plan.howmany;
  
-    // Allocate memory
-    double *mem = (double*) flups_balloc(plan.nmem*sizeof(double));
+    // Working memory
+    double *mem = plan.mem;
 
     switch (plan.kind) {
         // DCT Type I
@@ -404,8 +408,8 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
-    // Free memory
-    flups_bfree(mem);
+    // Reset memory
+    flups_memset(mem, 0, plan.memsize*sizeof(double));
 }
 
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {

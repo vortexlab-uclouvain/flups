@@ -114,20 +114,22 @@ class FFTW_plan_dim {
      * 
      */
     /**@{ */
-    inline bool   isSpectral() const { return isSpectral_; }
-    inline bool   isr2c() const { return isr2c_; }
-    inline bool   imult(const int lia) const { return imult_[lia]; }
-    inline bool   isr2c_doneByFFT() const { return isr2c_ && (!isSpectral_); }
-    inline int    dimID() const { return dimID_; }
-    inline int    type() const { return type_; }
-    inline double symstart() const { return symstart_; }
-    inline double normfact() const { return normfact_; }
-    inline double volfact() const { return volfact_; }
-    inline double kfact() const { return kfact_; }
-    inline double koffset() const { return koffset_; }
-    inline void   get_outsize(int* size) const { size[dimID_] = n_out_; };
-    inline void   get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
-    inline void   get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
+    inline bool         isSpectral() const { return isSpectral_; }
+    inline bool         isr2c() const { return isr2c_; }
+    inline bool         imult(const int lia) const { return imult_[lia]; }
+    inline bool         isr2c_doneByFFT() const { return isr2c_ && (!isSpectral_); }
+    inline int          dimID() const { return dimID_; }
+    inline int          type() const { return type_; }
+    inline int          lda() const { return lda_; }
+    inline double       symstart() const { return symstart_; }
+    inline double       normfact() const { return normfact_; }
+    inline double       volfact() const { return volfact_; }
+    inline double       kfact() const { return kfact_; }
+    inline double       koffset() const { return koffset_; }
+    inline void         get_outsize(int* size) const { size[dimID_] = n_out_; };
+    inline void         get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
+    inline void         get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
+    inline flups_plan*  get_plan() const { return plan_; }
     /**@} */
 
     void disp();

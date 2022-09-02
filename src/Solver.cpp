@@ -544,6 +544,22 @@ const Topology* Solver::get_innerTopo_spectral() {
  */
 void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
+#if !defined(FLUPS_FFTW_BACKEND)
+    // deallocate working mem buffer
+    for (int ip = 0; ip < ndim_; ip++) {
+        int lda = planmap[ip]->lda();
+        for (int ida = 0; ida < lda; ida++) {
+            flups_plan *plan = planmap[ip]->get_plan();
+            // if we have a r2r plan, take the memsize
+            if (plan != NULL && plan[ida].mem != NULL) {
+                flups_bfree(plan[ida].mem);
+                goto end_loop;
+            }
+        }
+    }
+    end_loop: ;
+#endif
+
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
         delete planmap[ip];
@@ -912,6 +928,38 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     for (int ip = 0; ip < ndim_; ip++) {
         planmap[ip]->allocate_plan(topo[ip], data);
     }
+
+#if !defined(FLUPS_FFTW_BACKEND)
+    // get the biggest mem size
+    int size_tot = -1;
+    for (int ip = 0; ip < ndim_; ip++) {
+        int lda = planmap[ip]->lda();
+        for (int ida = 0; ida < lda; ida++) {
+            flups_plan *plan = planmap[ip]->get_plan();
+            // if we have a r2r plan, take the memsize
+            if (plan != NULL && plan[ida].is_r2r) {
+                size_tot = std::max(plan[ida].memsize, size_tot);
+            }
+        }
+    }
+
+
+    if (size_tot > 0) {
+        // allocate memory
+        double *mem = (double*)flups_balloc(size_tot*sizeof(double));
+        // every plan get the same memory location
+        for (int ip = 0; ip < ndim_; ip++) {
+            int lda = planmap[ip]->lda();
+            for (int ida = 0; ida < lda; ida++) {
+                flups_plan *plan = planmap[ip]->get_plan();
+                // if we have a r2r plan
+                if (plan != NULL && plan[ida].is_r2r) {
+                    plan[ida].mem = mem;
+                }
+            }
+        }
+    }
+#endif
     END_FUNC;
 }
 
