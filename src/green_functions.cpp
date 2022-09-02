@@ -114,12 +114,12 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
     firstprivate(nf, ax0, ax1, ax2, length, GN) map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3])
-    for (int i2 = 0; i2 < nloc[2]; i2++) {
-        for (int i1 = 0; i1 < nloc[1]; i1++) {
+    for (int i2 = 0; i2 < nloc[ax2]; i2++) {
+        for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < nloc[0]; i0++) {
+            for (int i0 = 0; i0 < nloc[ax0]; i0++) {
                 int is[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
 
@@ -270,12 +270,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 // TODO: need to offload the Gdata for LGF kernels on the GPU
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
         firstprivate(nf, ax0, ax1, ax2, length, r_eq2D, GN) map(to: nmem[:3], nloc[:3], kfact[:3], hfact[:3], koffset[:3], symstart[:3], istart[:3])
-    for (int i2 = 0; i2 < nloc[2]; i2++) {
-        for (int i1 = 0; i1 < nloc[1]; i1++) {
+    for (int i2 = 0; i2 < nloc[ax2]; i2++) {
+        for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < nloc[0]; i0++) {
+            for (int i0 = 0; i0 < nloc[ax0]; i0++) {
                 // global indexes
                 int is[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, is);
@@ -402,12 +402,12 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
         firstprivate(ax0, ax1, ax2, length, nf) map(to: kfact[:3], nloc[:3], koffset[:3], hfact[:3], istart[:3], symstart[:3])
-    for (int i2 = 0; i2 < nloc[2]; i2++) {
-        for (int i1 = 0; i1 < nloc[1]; i1++) {
+    for (int i2 = 0; i2 < nloc[ax2]; i2++) {
+        for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-            for (int i0 = 0; i0 < nloc[0]; i0++) {
+            for (int i0 = 0; i0 < nloc[ax0]; i0++) {
                 int is[3];
                 cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
 
