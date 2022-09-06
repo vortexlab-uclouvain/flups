@@ -174,49 +174,49 @@ typedef fftw_complex* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_compl
 // typedef enum FLUPS_BoundaryType BoundaryType;
 // typedef enum FLUPS_GreenType    GreenType;
 
-static const double c_1opi     = 1.0 / (1.0 * M_PI);
-static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
-static const double c_1o2pi2   = 1.0 / (2.0 * M_PI*M_PI);
-static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
-static const double c_1osqrtpi = 1.0 / sqrt(M_PI);
-static const double c_sqrtpi   = sqrt(M_PI);
-static const double c_1o2      = 1.0 / 2.0;
-static const double c_1o4      = 1.0 / 4.0;
-static const double c_7o4      = 7. / 4.;
-static const double c_19o8     = 19. / 8;
-static const double c_2o3      = 2. / 3;
-static const double c_1o12     = 1. / 12.;
-static const double c_1o24     = 1. / 24;
-static const double c_5o16     = 5. / 16.;
-static const double c_1o16     = 1. / 16.;
-static const double c_187o64   = 187. / 64.;
-static const double c_233o192  = 233. / 192.;
-static const double c_29o192   = 29. / 192.;
-static const double c_13o192   = 13. / 192.;
-static const double c_1o192    = 1. / 192.;
-static const double c_11o12    = 11. / 12.;
-static const double c_7o24     = 7. / 24.;
-static const double c_25o24    = 25. / 24.;
-static const double c_1o48     = 1. / 48.;
-static const double c_23o48    = 23. / 48.;
-static const double c_1o384    = 1. / 384.;
-static const double c_17o384   = 17. / 384.;
-static const double c_23o384   = 23. / 384.;
-static const double c_11o32    = 11. / 32.;
-static const double c_1o96     = 1. / 96.;
-static const double c_35o128   = 35. / 128.;
-static const double c_47o128   = 47. / 128.;
-static const double c_93o256   = 93. / 256.;
-static const double c_47o256   = 47. / 256.;
-static const double c_1o256    = 1. / 256.;
-static const double c_73o768   = 73. / 768.;
-static const double c_11o768   = 11. / 768.;
-static const double c_23o768   = 23. / 768.;
-static const double c_1o768    = 1. / 768.;
+#define c_1opi     (1.0 / (1.0 * M_PI))
+#define c_1o2pi    (1.0 / (2.0 * M_PI))
+#define c_1o2pi2   (1.0 / (2.0 * M_PI*M_PI))
+#define c_1o4pi    (1.0 / (4.0 * M_PI))
+#define c_1osqrtpi (1.0 / sqrt(M_PI))
+#define c_sqrtpi   (sqrt(M_PI))
+#define c_1o2      (1.0 / 2.0)
+#define c_1o4      (1.0 / 4.0)
+#define c_7o4      (7. / 4.)
+#define c_19o8     (19. / 8)
+#define c_2o3      (2. / 3)
+#define c_1o12     (1. / 12.)
+#define c_1o24     (1. / 24)
+#define c_5o16     (5. / 16.)
+#define c_1o16     (1. / 16.)
+#define c_187o64   (187. / 64.)
+#define c_233o192  (233. / 192.)
+#define c_29o192   (29. / 192.)
+#define c_13o192   (13. / 192.)
+#define c_1o192    (1. / 192.)
+#define c_11o12    (11. / 12.)
+#define c_7o24     (7. / 24.)
+#define c_25o24    (25. / 24.)
+#define c_1o48     (1. / 48.)
+#define c_23o48    (23. / 48.)
+#define c_1o384    (1. / 384.)
+#define c_17o384   (17. / 384.)
+#define c_23o384   (23. / 384.)
+#define c_11o32    (11. / 32.)
+#define c_1o96     (1. / 96.)
+#define c_35o128   (35. / 128.)
+#define c_47o128   (47. / 128.)
+#define c_93o256   (93. / 256.)
+#define c_47o256   (47. / 256.)
+#define c_1o256    (1. / 256.)
+#define c_73o768   (73. / 768.)
+#define c_11o768   (11. / 768.)
+#define c_23o768   (23. / 768.)
+#define c_1o768    (1. / 768.)
 
 
-static const double c_1osqrt2 = 1.0 / M_SQRT2;
+#define c_1osqrt2  (1.0 / M_SQRT2)
 
-static const double c_2pi = 2.0 * M_PI;
+#define c_2pi      (2.0 * M_PI)
 
 #endif

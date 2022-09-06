@@ -16,7 +16,7 @@
 
 #include <math.h>
 
-static const double c_gamma = 0.5772156649015328606;
+#define c_gamma (0.5772156649015328606)
 
 static double expint1(double x);
 static double expint2(double x);

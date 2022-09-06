@@ -27,11 +27,6 @@
 #include "green_kernels.hpp"
 #include "ji0.hpp"
 
-/**
- * @brief generic type for Green kernel, takes a table of parameters that can be used depending on the kernel
- * 
- */
-typedef double (*GreenKernel)(const void*,const double*);
 
 /**
  * @brief Compute the Green function for 0 dir spectral (i.e. 3 dir unbounded or 2 dirunbounded)
@@ -54,7 +49,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
     // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
     
-    GreenKernel G;
+    GreenKernel *G;
 
     double  G0;  //value of G in 0
     int     GN    = 0;
@@ -113,7 +108,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-    firstprivate(nf, ax0, ax1, ax2, length, GN) map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3])
+    firstprivate(nf, ax0, ax1, ax2, length, GN) map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3], Gdata[:GN*GN*GN])
     for (int i2 = 0; i2 < nloc[ax2]; i2++) {
         for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
@@ -136,7 +131,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
                 // and the others 5 ones are aimed for LGFs only
                 // the symmetrized indexes will be negative!!
                 const double tmp[9] = {r, length, 0, 0, static_cast<double>(std::abs(is[ax0])), static_cast<double>(std::abs(is[ax1])), static_cast<double>(std::abs(is[ax2])), static_cast<double>(GN), hfact[ax0]};
-                green[id + i0 * nf] = chat_2_3unb0spe_(tmp, Gdata); //G(tmp,Gdata);
+                green[id + i0 * nf] = (*G)(tmp,Gdata);
             }
         }
     }
@@ -190,9 +185,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
 
-    GreenKernel G;    // the Green kernel (general expression in the whole domain)
-    GreenKernel Gk0;  // the Green kernel (particular expression in k=0)
-    GreenKernel Gr0;  // the Green kernel (particular expression in r=0)
+    GreenKernel *G;    // the Green kernel (general expression in the whole domain)
+    GreenKernel *Gk0;  // the Green kernel (particular expression in k=0)
+    GreenKernel *Gr0;  // the Green kernel (particular expression in r=0)
 
     int     GN    = 0;
     double *Gdata = NULL;
@@ -230,12 +225,16 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &hej_10_2unb1spe_r0_;
             break;        
         case HEJ_0:
+#if defined(FLUPS_FFTW_BACKEND)
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
             init_Ji0();
             G   = &zero_;
             Gk0 = &hej_0_2unb1spe_k0_;
             Gr0 = &hej_0_2unb1spe_k0_;
-            break;        
+#else
+            FLUPS_CHECK(false, "HEJ0 kernel for 2D unbounded not implemented on GPU.");
+#endif
+            break;
         case CHAT_2:
             G   = &chat_2_2unb1spe_;
             Gk0 = &chat_2_2unb1spe_k0_;
@@ -267,9 +266,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
     const double r_eq2D  = c_1osqrtpi * sqrt(hfact[ax0] * hfact[ax1] + hfact[ax1] * hfact[ax2] + hfact[ax2] * hfact[ax0]);
 
-// TODO: need to offload the Gdata for LGF kernels on the GPU
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-        firstprivate(nf, ax0, ax1, ax2, length, r_eq2D, GN) map(to: nmem[:3], nloc[:3], kfact[:3], hfact[:3], koffset[:3], symstart[:3], istart[:3])
+        firstprivate(nf, ax0, ax1, ax2, length, r_eq2D, GN) \
+        map(to: nmem[:3], nloc[:3], kfact[:3], hfact[:3], koffset[:3], symstart[:3], istart[:3], Gdata[:GN*GN*GN])
     for (int i2 = 0; i2 < nloc[ax2]; i2++) {
         for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
@@ -300,12 +299,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 // this routine with a high readability and lower efficency than the opposite.
                 if (r <= (hfact[ax0] + hfact[ax1] + hfact[ax2]) * .2) {
                     // we should enter this case for 2d and 3d cases
-                    green[id + i0 * nf] = chat_2_2unb1spe_r0_(tmp, Gdata);  //Gr0(tmp, Gdata);
+                    green[id + i0 * nf] = (*Gr0)(tmp, Gdata);
                 } else if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
                     // we should always enter this routine for 2d case and sometimes for 3d cases
-                    green[id + i0 * nf] = chat_2_2unb1spe_k0_(tmp, Gdata);  //Gk0(tmp, Gdata);
+                    green[id + i0 * nf] = (*Gk0)(tmp, Gdata);
                 } else {
-                    green[id + i0 * nf] = chat_2_2unb1spe_(tmp, Gdata);     //G(tmp, Gdata);
+                    green[id + i0 * nf] = (*G)(tmp, Gdata);
                 }
             }
         }
@@ -349,8 +348,8 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
     // double* mygreen = green; //casting of the Green function to be able to access real and complex part
 
-    GreenKernel G;   // the Green kernel (general expression in the whole domain)
-    GreenKernel G0;  // the Green kernel (particular expression in k=0)
+    GreenKernel *G;   // the Green kernel (general expression in the whole domain)
+    GreenKernel *G0;  // the Green kernel (particular expression in k=0)
 
     switch (typeGreen) {
         case HEJ_2:
@@ -429,10 +428,10 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
                 // this routine with a high readability and lower efficency than the opposite.
                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-                    green[id + i0 * nf] = chat_2_1unb2spe_k0_(tmp, NULL);   //G0(tmp,NULL);
+                    green[id + i0 * nf] = (*G0)(tmp,NULL);
                 }
                 else{
-                    green[id + i0 * nf] = chat_2_1unb2spe_(tmp, NULL);      //G(tmp,NULL);
+                    green[id + i0 * nf] = (*G)(tmp,NULL);
                 }
             }
         }
@@ -490,7 +489,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     FLUPS_CHECK(kfact[1] != 0.0, "dk cannot be 0");
     // FLUPS_CHECK(kfact[2] != 0.0, "dk cannot be 0");
 
-    GreenKernel G;   // the Green kernel (general expression in the whole domain)
+    GreenKernel *G;   // the Green kernel (general expression in the whole domain)
 
     switch (typeGreen) {
         case HEJ_2:
@@ -580,8 +579,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
                 // const double tmp[2] = {ksqr, eps};
                 const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
 
-                // TODO: how to call G() ?
-                green[id + i0 * nf] = chat_2_0unb3spe_(tmp, NULL);  // G(tmp, NULL);
+                green[id + i0 * nf] = (*G)(tmp, NULL);
             }
         }
     }
