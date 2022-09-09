@@ -394,8 +394,8 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
 #if defined(FLUPS_FFTW_BACKEND)
 #pragma omp for schedule(static)
 #else
-#pragma omp target teams distribute parallel for collapse(2) \
-        schedule(static) firstprivate(isize, ax) map(to: nmem[:3]) is_device_ptr(src_data, trg_data)
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(src_data, trg_data) \
+        firstprivate(src_data, trg_data, n_loop, ax0, nf, nmax) map(to: nmem[:3], isize[:3], ax[:3])
 #endif
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
@@ -451,8 +451,8 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
 #if defined(FLUPS_FFTW_BACKEND)
 #pragma omp for schedule(static)
 #else
-#pragma omp target teams distribute parallel for collapse(2) \
-        schedule(static) firstprivate(isize, ax) map(to: nmem[:3]) is_device_ptr(src_data, trg_data)
+#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(src_data, trg_data) \
+        firstprivate(src_data, trg_data, n_loop, ax0, nf, nmax) map(to: nmem[:3], isize[:3], ax[:3])
 #endif
         for (int il = 0; il < n_loop; ++il) {
             // get the local indexes (we cannot used the collaspedIndex one!!!)
