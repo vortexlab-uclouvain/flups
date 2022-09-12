@@ -8,7 +8,7 @@
 # MPI_datatypes              = isr
 # First version all to all   = dprec_a2a 
 # First version non blocking = dprec_nb
-export CODE_VERSION='nb isr'
+export CODE_VERSION='nb isr a2a'
 
 ## Kernels : 
 # CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
@@ -51,6 +51,9 @@ export KERNEL_TIME='02:30:00'
 # ..................................................................
 #export CLUSTER='vega'
 export CLUSTER='meluxina'
+
+export LAUNCH_COMMAND='mpirun'
+
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
@@ -87,8 +90,6 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_UD_TX_QUEUE_LEN=4096
 
-    ## .................................
-    export LCOMMAND='srun'
 fi
 
 
@@ -129,8 +130,6 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export OMPI_MCA_pml=ucx
     export OMPI_MCA_osc=ucx
 
-    ## .................................
-    export LCOMMAND='mpirun'
 fi
 
 
@@ -142,6 +141,7 @@ fi
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh
 
 # Exploration
-# ("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh")
-#("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh")
-("${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh")
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh
+source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_mpi_alloc.sh

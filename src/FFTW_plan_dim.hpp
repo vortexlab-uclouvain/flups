@@ -2,29 +2,32 @@
  * @file FFTW_plan_dim.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2020
- * 
+ *
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
+ *
  * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
+ *
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 #ifndef FFTW_PLAN_DIM_HPP
 #define FFTW_PLAN_DIM_HPP
+
+#include <array>
+#include <tuple>
 
 #include "Topology.hpp"
 #include "defines.hpp"
@@ -32,18 +35,18 @@
 
 /**
  * @brief A FFTW plan in one dimension
- * 
+ *
  */
 class FFTW_plan_dim {
    public:
     /**
      * @brief PlanType is the type of plan considered and is computed as the sum of both BoundaryType variables
-     * 
+     *
      * The integer value associated gives is the priority of processing.
      * We first have to do the real to real transforms, then the padded real to real (mix direction = unbounded + boundary condition),
      * then the periodic (DFT) directions and finally the padded periodic boundary condition.
      * This order is chosen in order to reduce the computational cost.
-     * 
+     *
      * If a multi-dimension FFT is asked, one plan is created for each dimension as it may be different.
      * If the plans are the same, we keep the first plan issued
      */
@@ -109,7 +112,7 @@ class FFTW_plan_dim {
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
-    virtual ~FFTW_plan_dim(); // Virtual, following http://www.gotw.ca/publications/mill18.htm 
+    virtual ~FFTW_plan_dim();  // Virtual, following http://www.gotw.ca/publications/mill18.htm
 
     void init(const int size[3], const bool isComplex);
 
@@ -119,7 +122,7 @@ class FFTW_plan_dim {
 
     /**
      * @name Getters - return the value
-     * 
+     *
      */
     /**@{ */
     inline bool   isSpectral() const { return isSpectral_; }
@@ -154,7 +157,7 @@ class FFTW_plan_dim {
 
    protected:
     void check_dataAlign_(const Topology* topo, double* data) const;
-    
+
     /**
      * @name Plan allocation
      */
@@ -163,18 +166,21 @@ class FFTW_plan_dim {
     void allocate_plan_complex_(const Topology* topo, double* data);
     /**@} */
 
-
     /**
      * @name Initialization
      */
     /**@{ */
-    virtual void init_real2real_(const int size[3], bool isComplex)    = 0;
-    virtual void init_mixunbounded_(const int size[3], bool isComplex) = 0;
-    virtual void init_periodic_(const int size[3], bool isComplex)     = 0;
-    virtual void init_unbounded_(const int size[3], bool isComplex)    = 0;
-    virtual void init_empty_(const int size[3], bool isComplex)        = 0;
-    virtual std::string disp_data_center() const                       = 0;
+    virtual void        init_real2real_(const int size[3], bool isComplex)    = 0;
+    virtual void        init_mixunbounded_(const int size[3], bool isComplex) = 0;
+    virtual void        init_periodic_(const int size[3], bool isComplex)     = 0;
+    virtual void        init_unbounded_(const int size[3], bool isComplex)    = 0;
+    virtual void        init_empty_(const int size[3], bool isComplex)        = 0;
+    virtual std::string disp_data_center() const                              = 0;
     /**@} */
 };
+
+void sort_priority(std::array<std::tuple<int, int>, 3>* priority);
+void sort_plans(FFTW_plan_dim* plan[3]);
+int  bc_to_types(const BoundaryType* bc[2]);
 
 #endif

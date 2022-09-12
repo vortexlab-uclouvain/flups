@@ -28,6 +28,8 @@
 
 #include <cstring>
 #include <map>
+#include <array>
+#include <tuple>
 
 #include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
@@ -49,51 +51,6 @@
 #ifdef HAVE_METIS
 #include "metis.h"
 #endif
-
-/**
- * @brief smartly determines in which order the FFTs will be executed
- *
- * @param plan the list of plan, which will be reordered
- */
-static int sort_plans(FFTW_plan_dim* plan[3]) {
-    BEGIN_FUNC;
-    int id_min, val_min = INT_MAX;
-    int priority[3];
-    for (int id = 0; id < 3; id++) {
-        priority[id] = plan[id]->type();
-        if (priority[id] < val_min) {
-            id_min  = id;
-            val_min = priority[id];
-        }
-    }
-    if (id_min == 0) {
-        if (priority[1] > priority[2]) {
-            FFTW_plan_dim* temp_plan = plan[2];
-            plan[2]                  = plan[1];
-            plan[1]                  = temp_plan;
-        }
-    } else {
-        // do the sort by hand...
-        int            temp_priority = priority[id_min];
-        FFTW_plan_dim* temp_plan     = plan[id_min];
-        plan[id_min]                 = plan[0];
-        plan[0]                      = temp_plan;
-        priority[id_min]             = priority[0];
-        priority[0]                  = temp_priority;
-
-        // printf("priority now = %d %d %d -> idim = %d",plan[0]->type(), plan[1]->type(),plan[2]->type());
-
-        if (priority[1] > priority[2]) {
-            FFTW_plan_dim* temp_plan = plan[2];
-            plan[2]                  = plan[1];
-            plan[1]                  = temp_plan;
-        }
-    }
-
-    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
-    END_FUNC;
-    return id_min;
-}
 
 /**
  * @brief The Poisson solver
@@ -325,67 +282,11 @@ class Solver {
     };
 };
 
-// /**
-//  * @brief compute the pencil layout given the pencil direction
-//  *
-//  * The pencil layout is computed so as to obtain pencils with an aspect
-//  * ratio close to 1, i.e. the same number points per proc in the the 2 other directions than id.
-//  *
-//  * @param id the pencil direction
-//  * @param nproc the number of proc in each direction
-//  * @param comm_size the total communicator size
-//  * @param nglob the domain size in each direction
-//  */
-// static inline void pencil_nproc(const int id, int nproc[3], const int comm_size, const int nglob[3]) {
-//     int id1 = (id + 1) % 3;
-//     int id2 = (id + 2) % 3;
-
-//     nproc[id] = 1;
-
-//     double       n1       = 1;
-//     double       n2       = (double) comm_size;
-//     //invert indexes so that id1 is the dimension where nglob is the smallest
-//     if( nglob[id1] > nglob[id2]){
-//         const int tmp = id2;
-//         id2 = id1;
-//         id1 = tmp;
-//     }
-//     double       np1      = (double) nglob[id1];
-//     double       np2      = (double) nglob[id2]/ comm_size;
-//     const double npsquare = sqrt((double)(nglob[id1] * nglob[id2]) / comm_size);  //target number of points per dimension
-
-//     //keep on deviding as long as ncurr/2>nsquare
-//     //we want to leave n1=1, and we do not want to reach n2=1
-//     while ( (np1 > npsquare) && std::floor(n2*.5) == n2*.5) {
-//         n1  *= 2.0;
-//         np1 *= 0.5;
-//         n2  *= 0.5;
-//         np2 *= 2.0;
-//     }
-//     nproc[id1] = (int)n1;
-//     nproc[id2] = (int)n2;
-
-//     FLUPS_INFO("my proc repartition is %d %d %d",nproc[0],nproc[1],nproc[2]);
-//     if(nproc[0] * nproc[1] * nproc[2] != comm_size){
-//         FLUPS_ERROR("the number of proc %d %d %d does not match the comm size %d", nproc[0], nproc[1], nproc[2], comm_size);
-//     }
-//     if(comm_size>8 && (n1==1||n2==1)){
-//         FLUPS_WARNING("A slab decomposition was used instead of a pencil decomposition in direction %d. This may increase communication time.",id);
-//         //Loss of performance may originate in slab decompositions, as an actual All2All communication is required, whereas with the pencils,
-//         // we manage to do All2All communications in subcoms of size sqrt(comm_size).
-//         //We could prevent this to happen by doing something like:
-//         // if(n2==1){
-//         //     n2*=2;
-//         //     n1*=0.5;
-//         // }
-//     }
-// }
-
 /**
  * @brief compute the pencil layout given the pencil direction, compatible with another pencil decoposition given as a hint
  *
- * @param id the pencil direction
- * @param nproc the number of proc in each direction
+ * @param id the desired pencil direction
+ * @param nproc the targeted number of proc in each direction (output)
  * @param comm_size the total communicator size
  * @param id_hint the axis where we allow the proc decomposition to change
  * @param nproc_hint the number of procs in the other decomposition we want to be compatible with

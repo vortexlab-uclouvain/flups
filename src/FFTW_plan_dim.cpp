@@ -25,6 +25,64 @@
 
 #include "FFTW_plan_dim.hpp"
 
+#include <algorithm>
+
+using std::tuple;
+using std::array;
+using std::make_tuple;
+using std::get;
+
+/**
+ * @brief given a list of priorities, sort them in ascending order
+ *
+ * @param priority
+ */
+void sort_priority(array<tuple<int, int>, 3>* priority) {
+    BEGIN_FUNC;
+    // get the priority list from the plans and sort them preserving the order for equal priorities
+    // sorting tuples works on a first element basis and compares the second one if the first one is the same
+    // cfr: https://en.cppreference.com/w/cpp/utility/tuple/operator_cmp
+    std::stable_sort(priority->begin(), priority->end());
+    END_FUNC;
+}
+
+/**
+ * @brief (smartly) determines in which order the FFTs will be executed based on the plans
+ *
+ * @param plan the list of plan, which will be reordered
+ */
+void sort_plans(FFTW_plan_dim* plan[3]) {
+    BEGIN_FUNC;
+    // get the priorities from the plan
+    array<tuple<int, int>, 3> priority = {make_tuple(plan[0]->type(), 0),
+                                          make_tuple(plan[1]->type(), 1),
+                                          make_tuple(plan[2]->type(), 2)};
+    sort_priority(&priority);
+
+    // now we have to relocate all the plans in the correct order
+    FFTW_plan_dim* old_plan[3] = {plan[0], plan[1], plan[2]};
+    for (int i = 0; i < 3; ++i) {
+        const int r_id = std::get<1>(priority[i]);
+        plan[i]        = old_plan[r_id];
+    }
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
+    END_FUNC;
+}
+
+/**
+ * @brief returns the type of the plan for a given set of BC
+ * 
+ * @param bc the bc to be used
+ * @return int the type of the plan
+ */
+int bc_to_types(const BoundaryType* bc[2]) {
+    BEGIN_FUNC;
+    // get the type as the sum on the bc:
+    const int type = bc[0][0] + bc[1][0];
+    END_FUNC;
+    return type;
+}
+
 /**
  * @brief Construct a new FFTW_plan_dim object
  *
@@ -49,40 +107,45 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     // get the boundary conditions for each dimnension
     //-------------------------------------------------------------------------
     // allocate the bc space
-    bc_[0] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
-    bc_[1] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
+    bc_[0] = (BoundaryType*)m_calloc(sizeof(int) * lda_);
+    bc_[1] = (BoundaryType*)m_calloc(sizeof(int) * lda_);
 
-    //store the other dimension and check if the type is correct
+    // store the other dimension and check if the type is correct
     for (int lia = 0; lia < lda_; lia++) {
         bc_[0][lia] = mybc[0][lia];
         bc_[1][lia] = mybc[1][lia];
     }
 
     // setup the type of solver, given by the first dimension
-    int mytype = bc_[0][0] + bc_[1][0];
+    const BoundaryType* bc_4_type[2] = {bc_[0], bc_[1]};
+    int                 mytype       = bc_to_types(bc_4_type);
 
     //-------------------------------------------------------------------------
     // Get type and mult factors
     //-------------------------------------------------------------------------
     if (mytype <= SYMSYM) {
-        type_     = SYMSYM;
-        volfact_  = 1.0;  // no convolution so no multiplication by h
-        kfact_    = c_2pi / (2.0 * L[dimID_]);
-        if (isGreen_) isSpectral_ = true;
+        type_    = SYMSYM;
+        volfact_ = 1.0;  // no convolution so no multiplication by h
+        kfact_   = c_2pi / (2.0 * L[dimID_]);
+        if (isGreen_) {
+            isSpectral_ = true;
+        }
     } else if (mytype <= MIXUNB) {
         type_       = MIXUNB;
         volfact_    = h[dimID_];
         kfact_      = c_2pi / (4.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == PERPER) {
-        type_     = PERPER;
-        volfact_  = 1.0;  // no convolution so no multiplication by h
-        kfact_    = c_2pi / (L[dimID_]);
-        if (isGreen_) isSpectral_ = true;
+        type_    = PERPER;
+        volfact_ = 1.0;  // no convolution so no multiplication by h
+        kfact_   = c_2pi / (L[dimID_]);
+        if (isGreen_) {
+            isSpectral_ = true;
+        }
     } else if (mytype == UNBUNB) {
-        type_     = UNBUNB;
-        volfact_  = h[dimID_];
-        kfact_    = c_2pi / (2.0 * L[dimID_]);
+        type_       = UNBUNB;
+        volfact_    = h[dimID_];
+        kfact_      = c_2pi / (2.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == EMPTY) {
         type_ = EMPTY;
