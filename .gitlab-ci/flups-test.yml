@@ -780,3 +780,4 @@ run plan postprocessing:
   script:
     - cd ./test/
     - mpirun -np 8 --oversubscribe ./flups_test_a2a --gtest_filter=PostPro* --gtest_output=xml:report_test_plan_postprocessing.xml
+    - cd -; mv ./test/report_test_plan_postprocessing.xml .   
