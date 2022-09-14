@@ -23,12 +23,19 @@ int main(int argc, char** argv) {
                 sprintf(argv[ia], "--gtest_output=xml:report_valid_rank%d.xml", rank);
             }
         }
-        printf("Starting the tests...  \n");
+        if (rank == 0) {
+            printf("Starting the tests...  \n");
+        }
         // init google and remove Google Test arguments
         ::testing::InitGoogleTest(&argc, argv);
+        // only rank 0 should output test results
+        ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
+        if (rank != 0) {
+            delete listeners.Release(listeners.default_result_printer());
+        }
+        // run !
         err = RUN_ALL_TESTS();
-
-        if (rank == 0){
+        if (rank == 0) {
             printf("Tests are over \n");
         }
     }
