@@ -104,11 +104,12 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const int ax0 = topo->axis();
     const int ax1 = (ax0 + 1) % 3;
     const int ax2 = (ax0 + 2) % 3;
-    const int    nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
+    const int nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-    firstprivate(nf, ax0, ax1, ax2, length, GN) map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3], Gdata[:GN*GN*GN])
+        firstprivate(nf, ax0, ax1, ax2, length, GN) \
+        map(to: nmem[:3], nloc[:3], hfact[:3], symstart[:3], istart[:3], Gdata[:GN*GN*GN])
     for (int i2 = 0; i2 < nloc[ax2]; i2++) {
         for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
@@ -137,7 +138,8 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     }
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
     if (typeGreen != LGF_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        flups_memset(green, G0, 1*sizeof(double));
+        #pragma omp target is_device_ptr(green)
+        green[0] = G0;
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -314,7 +316,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
         //caution: mistake in [Chatelain2010]
-        flups_memset(green, - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D)), 1*sizeof(double));
+        #pragma omp target is_device_ptr(green)
+        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));
     }
     END_FUNC;
 }
@@ -400,7 +403,8 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-        firstprivate(ax0, ax1, ax2, length, nf) map(to: kfact[:3], nloc[:3], koffset[:3], hfact[:3], istart[:3], symstart[:3])
+        firstprivate(ax0, ax1, ax2, length, nf) \
+        map(to: kfact[:3], nloc[:3], koffset[:3], hfact[:3], istart[:3], symstart[:3])
     for (int i2 = 0; i2 < nloc[ax2]; i2++) {
         for (int i1 = 0; i1 < nloc[ax1]; i1++) {
             //local indexes start
@@ -558,7 +562,8 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-        firstprivate(ie, is, istart, nmem) map(to: kfact[:3], koffset[:3], symstart[:3])
+        firstprivate(ie, is, istart, nmem) \
+        map(to: kfact[:3], koffset[:3], symstart[:3])
     for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
         for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
             //local indexes start
@@ -586,7 +591,8 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        flups_memset(green, 0, 1*sizeof(double));
+        #pragma omp target is_device_ptr(green)
+        green[0] = 0.0;
     }
     END_FUNC;
 }
