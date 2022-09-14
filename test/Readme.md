@@ -1,9 +1,12 @@
 # Testing in FLUPS
 
-Tests performed on a cluster in Flups use the Google Test framework, which organizes individual tests into a series of test suites and returns a xml reports which can be post processed by the Gitlab platform. 
+Some of the tests performed in Flups use the Google Test framework, which organizes individual tests into a series of test suites and returns a xml reports which can be post processed by the Gitlab platform. 
 
 ## Test description 
-The tests verify the spatial convergence of the solver using all the available kernels with various combination of boundary conditions. For each test, we solve the Poisson equation 
+Two types of test are implemented using the Google library: convergence tests and unit tests. 
+
+### Convergence test 
+Those tests verify the spatial convergence of the solver using all the available kernels with various combination of boundary conditions. For each test, we solve the Poisson equation 
 <p align="center"><img src="https://latex.codecogs.com/gif.latex?\nabla^2 \phi = f, " title="Poisson equation" /></p>
  and the convergence of the solver is measured using the infinite norm of the error, defined as 
  <p align="center"><img src="https://latex.codecogs.com/gif.latex?  E_\infty = \sup_{x,y,z} \{|\phi(x,y,z) - \phi_{ref}(x,y,z)|\} " title="Error inf" /></p>
@@ -11,6 +14,13 @@ where <p align="center"><img src="https://latex.codecogs.com/gif.latex?  \phi_{r
 <p align="center"><img src="https://latex.codecogs.com/gif.latex?\nabla^2 f(x,y,z) = \frac{d^2}{dx^2}a(x)b(y)c(z) + a(x)\frac{d^2}{dy^2}b(y)c(z) + a(x)b(y)\frac{d^2}{dz^2}c(z), " title="Poisson equation" /></p>
 
 The analytical solutions are detailed in the FLUPS paper. 
+
+### Unit test 
+We here check that the post-processing of the plan when using a node-centred layout is correct. For the moment, two tests have been implemented. 
+The first one checks the DST and DCT. The boundary conditions are: ODD-ODD; EVEN-ODD; ODD-EVEN. In each direction, we fill the data which are not used by fftw and which are corrected by flups with spurious values. We then check that we retrieve the correct solution. 
+
+The second one checks the DFTs. The test is basically the same than the first one, except that the boundary conditions are all periodic. 
+
 
 ## Implementation notes 
 The heart of the tests is composed by two classes: the `AnalyticalField` and the `ConvergenceTest`. 
