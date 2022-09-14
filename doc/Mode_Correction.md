@@ -17,16 +17,16 @@ In the cell-centred case, the RHS is computed in a cell-centred framework while 
 
 | BCs            | Direction| RHS <br> FFT types |  RHS <br>  Correction | Green's function <br>  Correction |
 | ----           | ---------|----     |-                  |-|                   
-| PER - PER      | Forward  | DFT     | `CORRECTION_NONE` |`CORRECTION_NONE`|
-|                | Backward | DFT     | `CORRECTION_NONE` |`CORRECTION_NONE`|
-| ODD - ODD      | Forward  | DST-II - `RODFT10`   | `CORRECTION_SHIFTRIGHT` + `CORRECTION_ZEROMODE`| `CORRECTION_NONE`|
-|                | Backward | DST-III - `RODFT01`  | `CORRECTION_SHIFTRIGHT` + `CORRECTION_ZEROMODE`|`CORRECTION_NONE`|
-| ODD - EVEN     | Forward  | DST-IV - `RODFT11`   | `CORRECTION_NONE`                              | modes shifted by 1/2|
-|                | Backward | DST-IV - `RODFT11`   | `CORRECTION_NONE`                              | modes shifted by 1/2|
-| EVEN - ODD     | Forward  | DCT-IV - `REDFT11`   | `CORRECTION_NONE`                              | modes shifted by 1/2|
-|                | Backward | DCT-IV - `REDFT11`   | `CORRECTION_NONE`                              | modes shifted by 1/2|
-| EVEN - EVEN    | Forward  | DCT-II - `REDFT10`   | `CORRECTION_FLIPFLOP`                          |`CORRECTION_NONE`|
-|                | Backward | DCT-III - `REDFT01`  | `CORRECTION_NONE`                              | `CORRECTION_NONE`|
+| PER - PER      | Forward  | DFT     | `POSTPRO_NONE` |`POSTPRO_NONE`|
+|                | Backward | DFT     | `POSTPRO_NONE` |`POSTPRO_NONE`|
+| ODD - ODD      | Forward  | DST-II - `RODFT10`   | `CORRECTION_SHIFTRIGHT` + `CORRECTION_ZEROMODE`| `POSTPRO_NONE`|
+|                | Backward | DST-III - `RODFT01`  | `CORRECTION_SHIFTRIGHT` + `CORRECTION_ZEROMODE`|`POSTPRO_NONE`|
+| ODD - EVEN     | Forward  | DST-IV - `RODFT11`   | `POSTPRO_NONE`                              | modes shifted by 1/2|
+|                | Backward | DST-IV - `RODFT11`   | `POSTPRO_NONE`                              | modes shifted by 1/2|
+| EVEN - ODD     | Forward  | DCT-IV - `REDFT11`   | `POSTPRO_NONE`                              | modes shifted by 1/2|
+|                | Backward | DCT-IV - `REDFT11`   | `POSTPRO_NONE`                              | modes shifted by 1/2|
+| EVEN - EVEN    | Forward  | DCT-II - `REDFT10`   | `CORRECTION_FLIPFLOP`                          |`POSTPRO_NONE`|
+|                | Backward | DCT-III - `REDFT01`  | `POSTPRO_NONE`                              | `POSTPRO_NONE`|
 
 
 
@@ -36,13 +36,13 @@ In the node-centred case, both the RHS and the Green's function are computed in 
 
 | BCs            | Direction| RHS <br> FFT types |  RHS <br>  Correction | Green's function <br>  Correction |
 | ----           | ---------|----     |-                  |-|                   
-| PER - PER      | Forward  | DFT     | `CORRECTION_NONE` |`CORRECTION_NONE`|
-|                | Backward | DFT     | `CORRECTION_NONE` |`CORRECTION_NONE`|
-| ODD - ODD      | Forward  | DST-I - `RODFT00`    | `CORRECTION_ZEROMODE` + `CORRECTION_FLIPFLOP`| `CORRECTION_NONE`|
-|                | Backward | DST-I - `RODFT00`    | `CORRECTION_NONE`                            |`CORRECTION_NONE`|
+| PER - PER      | Forward  | DFT     | `POSTPRO_NONE` |`POSTPRO_NONE`|
+|                | Backward | DFT     | `POSTPRO_NONE` |`POSTPRO_NONE`|
+| ODD - ODD      | Forward  | DST-I - `RODFT00`    | `CORRECTION_ZEROMODE` + `CORRECTION_FLIPFLOP`| `POSTPRO_NONE`|
+|                | Backward | DST-I - `RODFT00`    | `POSTPRO_NONE`                            |`POSTPRO_NONE`|
 | ODD - EVEN     | Forward  | DST-III - `RODFT01`  | `CORRECTION_SHIFTLEFT` + `CORRECTION_FLIPFLOP`| modes shifted by 1/2|
 |                | Backward | DST-II  - `RODFT10`  | `CORRECTION_SHIFTRIGHT` + `CORRECTION_ZEROMODE`| modes shifted by 1/2|
 | EVEN - ODD     | Forward  | DCT-IV - `REDFT11`   | `CORRECTION_FLIPFLOP`                          | modes shifted by 1/2|
-|                | Backward | DCT-IV - `REDFT11`   | `CORRECTION_NONE`                              | modes shifted by 1/2|
-| EVEN - EVEN    | Forward  | DCT-I - `REDFT00`    | `CORRECTION_NONE`                              |`CORRECTION_NONE`|
-|                | Backward | DCT-I - `REDFT00`    | `CORRECTION_NONE`                              | `CORRECTION_NONE`|
+|                | Backward | DCT-IV - `REDFT11`   | `POSTPRO_NONE`                              | modes shifted by 1/2|
+| EVEN - EVEN    | Forward  | DCT-I - `REDFT00`    | `POSTPRO_NONE`                              |`POSTPRO_NONE`|
+|                | Backward | DCT-I - `REDFT00`    | `POSTPRO_NONE`                              | `POSTPRO_NONE`|

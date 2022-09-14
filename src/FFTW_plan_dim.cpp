@@ -456,7 +456,6 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
-        printf("nin[0] == %d -- fftwstart_in_[0] = %d - fftwstart_out_[0] = %d \n", n_in_[0],  fftwstart_in_[0], fftwstart_out_[0]);
         plan_[0] = (fftw_plan_dft_1d(n_in_[0], (fftw_complex*) data + fftwstart_in_[0], (fftw_complex*)data + fftwstart_out_[0], sign_, FLUPS_FFTW_FLAG));
     }
 
@@ -516,8 +515,6 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
     BEGIN_FUNC;
     // check the data alignment
     check_dataAlign_(topo, data);
-    printf("Entering post process \n");
-
     const int    nloc        = topo->nloc(topo->axis());
     const int    nf          = topo->nf();
     const size_t howmany     = howmany_;
@@ -540,7 +537,6 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         const bool do_first  = do_reset_first_point(correct);
         const bool do_last   = do_reset_last_point(correct);
         const bool do_period = do_enforce_period(correct);
-        printf("I have do first %d - do last %d and do period %d \n", do_first, do_last, do_period);
 
         // now that we know which correction is requested form the type, we can ajdust them given the forward types
         // Here are the memory corrections

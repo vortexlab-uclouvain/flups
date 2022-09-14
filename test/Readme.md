@@ -36,6 +36,14 @@ GTEST_INC := /soft/googletest/include
 GTEST_LIB := /soft/googletest/lib
 ```
 
+Afterwards, you have to compile the flups library. 
+Finally, you can compile the test using 
+```shell
+make destroy; 
+make -j
+```
+
+
 You can launch the test using 
 ```shell
 mpirun -n 8 ./flups_test_a2a 

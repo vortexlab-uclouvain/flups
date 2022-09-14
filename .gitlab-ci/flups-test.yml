@@ -753,3 +753,30 @@ run comm isr 2:1:
     - mpirun -np 3 ./flups_validation_isr --np=1,3,1 --res=17,17,17 --bc=3,3,4,1,1,1 
     - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_334111_typeGreen=0.txt'))"
 
+
+
+
+################################################################################
+#checks that the postprocessing of the plan works properly
+################################################################################
+
+run plan postprocessing:
+  stage: test
+  rules:
+    - if: ($TEST_MERGE_REQUEST == "yes") && ($CI_OPEN_MERGE_REQUESTS)
+    - if: ($TEST_PUSH_MAIN == "yes") && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: ($TEST_FAILEDJOB == "yes") && ($CI_COMMIT_BRANCH =~ /^[0-9]-job-failed.*$/i)
+    - if: ($TEST_BRANCH == "yes") && $CI_COMMIT_BRANCH
+  artifacts: 
+    paths: 
+      - report_test_plan_postprocessing.xml
+    reports:
+        junit: 
+          - report_test_plan_postprocessing.xml
+    when: always
+  needs: [compil gtest]
+  dependencies: 
+    - compil gtest  
+  script:
+    - cd ./test/
+    - mpirun -np 8 --oversubscribe ./flups_test_a2a --gtest_filter=PostPro* --gtest_output=xml:report_test_plan_postprocessing.xml

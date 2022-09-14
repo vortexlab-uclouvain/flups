@@ -86,18 +86,18 @@ compil vortex_rot:
     - cd ./samples/solve_vtube
     - make all -j4
 
-# compil google_test :
-#   stage: build
-#   artifacts: 
-#     paths: 
-#       - ./test/flups_test_nb
-#       - ./test/flups_test_a2a
-#       - ./include/LGF_2d_sym_acc12_32.ker
-#       - ./include/LGF_3d_sym_acc12_64.ker
-#     when: on_success
-#   script:
-#     - export ARCH_FILE=make_arch/make.docker_gcc_test
-#     - make install_static -j4
-#     - cd ./test/
-#     - make all -j4
+compil gtest :
+  stage: build
+  artifacts: 
+    paths: 
+      - ./test/flups_test_nb
+      - ./test/flups_test_a2a
+      - ./include/LGF_2d_sym_acc12_32.ker
+      - ./include/LGF_3d_sym_acc12_64.ker
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_gcc_test
+    - make install_static -j4
+    - cd ./test/
+    - make all -j4
 
