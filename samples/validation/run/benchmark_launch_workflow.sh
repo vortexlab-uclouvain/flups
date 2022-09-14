@@ -132,6 +132,40 @@ if [[ ${CLUSTER} == "vega" ]]; then
 
 fi
 
+#---------------------------------------------------------------------------------------
+#               LUMI
+#---------------------------------------------------------------------------------------
+if [[ ${CLUSTER} == "lumi" ]]; then
+    export BASE_SCRATCHDIR=/scratch/project_465000098/
+    ## .................................
+    ## NEEDED dir
+    export HOME_FLUPS=${HOME}/flups/
+    export HOME_H3LPR=${HOME}/h3lpr/
+
+    export FFTW_DIR=${FFTW_DIR}
+    export HDF5_DIR=${HDF5_DIR}
+
+    ## .................................
+    ## MPI information
+    export MPI_VERSION=8.1.17
+    export MPICC='cc'
+    export MPICXX='CC'
+    export NPROC_NODES=128
+
+    ## BASH OPTIONS -- GENERAL
+    export PARTITION='standard'
+    export ACCOUNT='project_465000098'
+
+    ## BASH OPTIONS -- Compilation job 
+    export COMPILE_CLUSTER_SPEC=''
+
+    ## .................................
+    ## BASH OPTIONS -- kernel job 
+    export KERNEL_CLUSTER_SPEC=''
+
+    ## .................................
+    export LCOMMAND='srun'
+fi
 
 # Performance 
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
