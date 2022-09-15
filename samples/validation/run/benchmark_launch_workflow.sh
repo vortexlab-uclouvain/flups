@@ -84,7 +84,7 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    export KERNEL_CLUSTER_SPEC='--qos=default'
+    export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
 
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_TLS=self,shm,rc,ud
