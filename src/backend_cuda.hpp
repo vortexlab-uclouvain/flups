@@ -49,7 +49,8 @@ struct flups_plan {
 
 // Init & cleanup backend
 inline void init_backend() {
-    cublasCreate(&cuHandle);
+    cublasStatus_t res = cublasCreate(&cuHandle);
+    FLUPS_CHECK(CUBLAS_STATUS_SUCCESS == res, "A cuBLAS API error of type %d has occurred.", res);
 
     // Set default GPU device
     int rank;
@@ -60,12 +61,20 @@ inline void init_backend() {
 }
 
 inline void finalize_backend() {
-    cublasDestroy(cuHandle);
+    cublasStatus_t res = cublasDestroy(cuHandle);
+    FLUPS_CHECK(CUBLAS_STATUS_SUCCESS == res, "A cuBLAS API error of type %d has occurred.", res);
+}
+
+inline void flups_device_sync() {
+    cudaError_t res = cudaDeviceSynchronize();
+    FLUPS_CHECK(cudaSuccess == res, "A CUDART API error of type %d has occurred.", res);
 }
 
 // Allocation functions
 inline void flups_memset(void *ptr, int val, size_t size) {
-    cudaMemset(ptr, val, size);
+    cudaError_t res = cudaMemset(ptr, val, size);
+    FLUPS_CHECK(cudaSuccess == res, "A CUDART API error of type %d has occurred.", res);
+    flups_device_sync();
 }
 
 inline void* flups_balloc(size_t size) {
@@ -142,39 +151,43 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
     // Note: some plans (typically involved in the computation of the Green function
     //       for mixed BC's) require a non-unit stride of 2. Here, we handle that 
     //       directly during the pre- and post-processing (thus the plan has unit stride).
-    cufftPlanMany(&plan.cufft, 1, &plan.dim,
+    cufftResult_t res = cufftPlanMany(&plan.cufft, 1, &plan.dim,
                     &plan.dim, 1, plan.idist,
                     &plan.dim, 1, plan.odist,
                     type, plan.howmany);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
     return plan;
 }
 
 inline flups_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_plan plan;
-    cufftPlanMany(&plan.cufft, 1, &arch.dim,
+    cufftResult_t res = cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist,
                   &arch.dim, 1, arch.dist / 2,
                   CUFFT_D2Z, arch.howmany);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
     return plan;
 }
 
 inline flups_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_plan plan;
-    cufftPlanMany(&plan.cufft, 1, &arch.dim,
+    cufftResult_t res = cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist / 2,
                   &arch.dim, 1, arch.dist,
                   CUFFT_Z2D, arch.howmany);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
     return plan;
 }
 
 inline flups_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     flups_plan plan;
-    cufftPlanMany(&plan.cufft, 1, &arch.dim,
+    cufftResult_t res = cufftPlanMany(&plan.cufft, 1, &arch.dim,
                   &arch.dim, 1, arch.dist,
                   &arch.dim, 1, arch.dist,
                   CUFFT_Z2Z, arch.howmany);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
     return plan;
 }
 
@@ -187,18 +200,21 @@ inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, dou
 
 // Execute functions
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
-    cufftExecZ2Z(plan.cufft, in, out, sign);
-    cudaDeviceSynchronize();
+    cufftResult_t res = cufftExecZ2Z(plan.cufft, in, out, sign);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
+    flups_device_sync();
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
-    cufftExecD2Z(plan.cufft, in, out);
-    cudaDeviceSynchronize();
+    cufftResult_t res = cufftExecD2Z(plan.cufft, in, out);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
+    flups_device_sync();
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
-    cufftExecZ2D(plan.cufft, in, out);
-    cudaDeviceSynchronize();
+    cufftResult_t res = cufftExecZ2D(plan.cufft, in, out);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
+    flups_device_sync();
 }
 
 inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
@@ -415,27 +431,30 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
     if (!iscomplex) {
         double alpha = 1.0;
-        cublasDgeam(cuHandle,
+        cublasStatus_t res = cublasDgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
                     &alpha, in, plan.n1,
                     NULL, NULL, plan.n0,
                     out, plan.n0);
+        FLUPS_CHECK(CUBLAS_STATUS_SUCCESS == res, "A cuBLAS API error of type %d has occurred.", res);
     } else {
         flups_complex alpha = {1.0, 0.0};
-        cublasZgeam(cuHandle,
+        cublasStatus_t res = cublasZgeam(cuHandle,
                     CUBLAS_OP_T, CUBLAS_OP_N,
                     plan.n0, plan.n1,
                     &alpha, (flups_complex*)in, plan.n1,
                     NULL, NULL, plan.n0,
                     (flups_complex*)out, plan.n0);
+        FLUPS_CHECK(CUBLAS_STATUS_SUCCESS == res, "A cuBLAS API error of type %d has occurred.", res);
     }
-    cudaDeviceSynchronize();
+    flups_device_sync();
 }
 
 // Cleanup functions
 inline void flups_destroy_plan(flups_plan plan) {
-    cufftDestroy(plan.cufft);
+    cufftResult_t res = cufftDestroy(plan.cufft);
+    FLUPS_CHECK(CUFFT_SUCCESS == res, "A cuFFT API error of type %d has occurred.", res);
 }
 
 inline void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
