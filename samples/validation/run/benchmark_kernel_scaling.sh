@@ -9,7 +9,7 @@ for version in ${CODE_VERSION}
 do
     for kernel in ${CODE_KERNEL}
     do 
-        export BC_IDX = 0 
+        export BC_IDX=0 
         for bcs in ${CODE_BCS}
         do
             

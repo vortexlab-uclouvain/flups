@@ -53,7 +53,8 @@ int main(int argc, char *argv[]) {
     int rank;
     int provided;
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
-    int requested = MPI_THREAD_FUNNELED;
+    // int requested = MPI_THREAD_FUNNELED;
+    int requested = MPI_THREAD_SINGLE;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         printf("The MPI-provided thread behavior does not match\n");

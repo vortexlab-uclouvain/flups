@@ -59,7 +59,8 @@ export LAUNCH_COMMAND='mpirun'
 #               MELUXINA
 #---------------------------------------------------------------------------------------
 if [[ ${CLUSTER} == "meluxina" ]]; then
-    export BASE_SCRATCHDIR=/project/scratch/p200053
+    #export BASE_SCRATCHDIR=/project/scratch/p200053
+    export BASE_SCRATCHDIR=/project/scratch/p200067
     ## .................................
     ## NEEDED dir
     export HOME_FLUPS=${HOME}/flups/
@@ -70,14 +71,16 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## .................................
     ## MPI information
-    export MPI_VERSION=4.1.4
+    #export MPI_VERSION=4.1.4
+    export MPI_VERSION=4.1.3
     export MPICC='mpicc'
     export MPICXX='mpic++'
     export NPROC_NODES=128
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'
-    export ACCOUNT='p200053'
+    #export ACCOUNT='p200053'
+    export ACCOUNT='p200067'
 
     ## BASH OPTIONS -- Compilation job 
     export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
@@ -86,8 +89,9 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     ## BASH OPTIONS -- kernel job 
     export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
 
-    # export UCX_TLS=self,shm,rc,ud
-    # export UCX_TLS=self,shm,rc,ud
+    # export UCX_TLS=self,shm,rc,dc
+    # export OMPI_MCA_pml=ucx
+    # export OMPI_MCA_osc=ucx
     # export UCX_UD_TX_QUEUE_LEN=4096
 
 fi
@@ -178,4 +182,5 @@ fi
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh
-source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_mpi_alloc.sh
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_mpi_alloc.sh
+source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_xplore_strong.sh
