@@ -49,7 +49,7 @@ class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterTyp
                                                                 std::array<FLUPS_BoundaryType,2> > >{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {1, 1, 1};
+    const int    nproc_[3]  = {2, 2, 1};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
@@ -168,47 +168,57 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         analytics[1].SetFreq(2.);
         analytics[2].SetFreq(4.);
 
-        for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
-            for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
-                for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
-                    const size_t id = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
-                    sol[id] = 1.0;
-                }
-            }
-        }
+        double local_err = std::numeric_limits<double>::lowest();
+        double global_err = std::numeric_limits<double>::lowest();
 
-
-        for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
-            for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
-                for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
-                    const size_t id = flups_locID(0, i0, i1, i2, 0, ax0, nmem, 1);
-                    const double x[3] = {(istart[ax0] + i0 + shift_) * h[ax0],
-                                         (istart[ax1] + i1 + shift_) * h[ax1],
-                                         (istart[ax2] + i2 + shift_) * h[ax2]};
-                    for (int dir0 = 0; dir0 < 3; dir0++){
-                        const int dir1 = (dir0 + 1) % 3;
-                        const int dir2 = (dir0 + 2) % 3;
-                        sol[id] *= analytics[dir0].Sol(x[dir0], L_[dir0]);
-                        rhs[id] += analytics[dir0].Rhs(x[dir0], L_[dir0]) * analytics[dir1].Sol(x[dir1], L_[dir1]) * analytics[dir2].Sol(x[dir2], L_[dir2]);
+        #pragma omp parallel
+        {
+            #pragma omp for collapse(3) schedule(static)
+            for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
+                for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
+                        const size_t id = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
+                        sol[id] = 1.0;
                     }
                 }
             }
-        }
 
-        //-------------------------------------------------------------------------
-        // solve the equations
-        test_log("Solve the equation");
-        for (int is = 0; is < 1; is++){
-            flups_solve(mysolver, field, rhs, STD);
-        }
+            #pragma omp for collapse(3) schedule(static)
+            for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
+                for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
+                        const size_t id = flups_locID(0, i0, i1, i2, 0, ax0, nmem, 1);
+                        const double x[3] = {(istart[ax0] + i0 + shift_) * h[ax0],
+                                            (istart[ax1] + i1 + shift_) * h[ax1],
+                                            (istart[ax2] + i2 + shift_) * h[ax2]};
+                        for (int dir0 = 0; dir0 < 3; dir0++){
+                            const int dir1 = (dir0 + 1) % 3;
+                            const int dir2 = (dir0 + 2) % 3;
+                            sol[id] *= analytics[dir0].Sol(x[dir0], L_[dir0]);
+                            rhs[id] += analytics[dir0].Rhs(x[dir0], L_[dir0]) * analytics[dir1].Sol(x[dir1], L_[dir1]) * analytics[dir2].Sol(x[dir2], L_[dir2]);
+                        }
+                    }
+                }
+            }
 
-        double local_err = std::numeric_limits<double>::lowest();
-        double global_err = std::numeric_limits<double>::lowest();
-        for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
-            for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
-                for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
-                    const size_t id = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
-                    local_err = std::max(local_err, abs(field[id] - sol[id]));
+            //-------------------------------------------------------------------------
+            // solve the equations
+            #pragma omp master
+            {
+                test_log("Solve the equation");
+                for (int is = 0; is < 1; is++){
+                    flups_solve(mysolver, field, rhs, STD);
+                }
+            }
+            #pragma omp barrier
+
+            #pragma omp for collapse(3) reduction(max:local_err) schedule(static)
+            for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
+                for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
+                    for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
+                        const size_t id = flups_locID(0, i0, i1, i2, 0, 0, nmem, 1);
+                        local_err = std::max(local_err, abs(field[id] - sol[id]));
+                    }
                 }
             }
         }
