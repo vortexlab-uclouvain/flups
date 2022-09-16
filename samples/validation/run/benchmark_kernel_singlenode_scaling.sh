@@ -26,6 +26,8 @@ do
     export L_Y=$(( ($NPROC_Y) ))
     export L_Z=$(( ($NPROC_Z) ))
 
+    export NCPUs=$(( ($NPROC_X)*($NPROC_Y)*($NPROC_Z) ))
+
     for version in ${CODE_VERSION}
     do
         for kernel in ${CODE_KERNEL}
@@ -46,7 +48,7 @@ do
             echo "Launching jobs with: "
             echo "OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=4,4,4,4,4,4 --nres=1 --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}"
 
-            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=4,4,4,4,4,4 --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
+            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} -n${NCPUs} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=4,4,4,4,4,4 --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
             echo "----------------- done           -----------------"
             cd -
         done 
