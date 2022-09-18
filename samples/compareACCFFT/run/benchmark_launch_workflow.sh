@@ -18,7 +18,7 @@ export FLUPS_AR='gcc-ar'
 export FLUPS_CCFLAGS='-g -O3 -std=c99   -DMPI_BATCH_SEND=1 -DNDEBUG -march=native -flto'
 export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DMPI_BATCH_SEND=1 -DNDEBUG -march=native -flto'
 export FLUPS_LDFLAGS='-fopenmp -flto'
-export FLUPS_OPTS='-DVERBOSE'
+export FLUPS_OPTS='-DMPI_NO_ALLOC'
 
 # ..................................................................
 ## Compile bash options
@@ -32,13 +32,13 @@ export KERNEL_TIME='01:00:00'
 
 # ..................................................................
 export CLUSTER='meluxina'
-export LAUNCH_COMMAND='mpirun'
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
 #---------------------------------------------------------------------------------------
 if [[ ${CLUSTER} == "meluxina" ]]; then
     export BASE_SCRATCHDIR=/project/scratch/p200053
+    # export BASE_SCRATCHDIR=/project/scratch/p200067
     ## .................................
     ## MPI information
     export MPI_VERSION=4.1.4
@@ -59,19 +59,23 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'
-    export ACCOUNT='p200053'
+    #export ACCOUNT='p200053'
+    export ACCOUNT='p200067'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
-
+    #export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
+    export COMPILE_CLUSTER_SPEC='--mem=491520 --res verylargecpu --qos=large --begin=2022-09-18T00:05:00'
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    export KERNEL_CLUSTER_SPEC='--qos=default'
-
+    #export KERNEL_CLUSTER_SPEC='--qos=default'
+    export KERNEL_CLUSTER_SPEC='--res verylargecpu --qos=large --begin=2022-09-18T00:05:00'
+    
+    export UCX_TLS=self,shm,rc,ud
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_UD_TX_QUEUE_LEN=4096
 
+    export LAUNCH_COMMAND='mpirun'
 fi
 
 

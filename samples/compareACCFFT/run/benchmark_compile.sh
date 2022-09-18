@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH --job-name="Flups Compilation"
-#SBATCH --output=flups_compile%j.out
-#SBATCH --error=flups_compile%j.err
+##SBATCH --job-name="Flups Compilation"
+##SBATCH --output=flups_compile%j.out
+##SBATCH --error=flups_compile%j.err
 
 echo "sourcing the modules"
 source ${SCRIPT_MODULE} ${MPI_VERSION}
