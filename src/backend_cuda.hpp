@@ -111,6 +111,13 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.odist =   plan.n;
             plan.memsize  = (2*plan.n) * plan.howmany;
             break;
+        // DST Type I
+        case FFTW_RODFT00:
+            plan.dim   = 2*plan.n + 2;
+            plan.idist = 2*plan.n + 4;  // should be 2n+2 (but cufft doesn't like it)
+            plan.odist =   plan.n + 2;
+            plan.memsize  = (2*plan.n + 4) * plan.howmany;
+            break;
         // DCT/DST Type II
         case FFTW_REDFT10:
         case FFTW_RODFT10:
@@ -124,7 +131,7 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
         case FFTW_RODFT01:
             plan.dim   = 2*plan.n;
             plan.idist =   plan.n + 1;
-            plan.odist = 2*plan.n;
+            plan.odist = 2*plan.n + 2;  // here too !
             plan.memsize  = (2*plan.n + 2) * plan.howmany;
             // this is a c2r transform
             type = CUFFT_Z2D;
@@ -136,13 +143,6 @@ inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, f
             plan.idist = 8*plan.n + 2;  //  should be 8n (but cufft doesn't like it)
             plan.odist = 4*plan.n + 1;
             plan.memsize  = (8*plan.n + 2) * plan.howmany;
-            break;
-        // DST Type I
-        case FFTW_RODFT00:
-            plan.dim   = 2*plan.n + 2;
-            plan.idist = 2*plan.n + 4;  // should be 2n+2 (but cufft doesn't like it)
-            plan.odist =   plan.n + 3;
-            plan.memsize  = (2*plan.n + 6) * plan.howmany;
             break;
     default:
         FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
