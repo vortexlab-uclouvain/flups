@@ -7,8 +7,6 @@
 #include "h3lpr/parser.hpp"
 #include "flups.h"
 
-using H3LPR::Profiler;
-using H3LPR::Parser;
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
@@ -75,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     //--------------------------------------------------------------------------
     std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
-    Profiler    prof(prof_name);
+    H3LPR::Profiler    prof(prof_name);
 
     //--------------------------------------------------------------------------
     /** - Initialize FLUPS */
@@ -83,7 +81,7 @@ int main(int argc, char *argv[]) {
     FLUPS_INFO("Initialization of FLUPS");
 
     // create a real topology
-    Profiler* flups_prof = (profile)? &prof:nullptr;
+    H3LPR::Profiler* flups_prof = (profile)? &prof:nullptr;
     FLUPS_Topology topoTmp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoTmp, mybc, h, L, NOD, center_type, flups_prof);
 

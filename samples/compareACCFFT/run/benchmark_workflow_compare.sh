@@ -49,55 +49,55 @@ echo " ------ ... done ! "
 
 ## 1 Node == 128 CPUS
 npcpu_list=(32 64 96)
-#
-#echo " ------ Submitting Job scripts"
-#
-#export NPROC_X_ARR=(1  1  1  1   1   1)
-#export NPROC_Y_ARR=(16 32 64 128 192 224)
-#export NPROC_Z_ARR=(16 32 64 128 192 224)
-#
-### The number of points in the y direction is kept constant through all the simulations
-#
-#export L_X=1 
-#export L_Y=1 
-#export L_Z=1 
-#
-## Loop on the number of node needed for the test
-#for idx in "${!NPROC_X_ARR[@]}"
-#do
-#    for npcpu in ${npcpu_list[@]}
-#    do
-#	export NPROC_X=${NPROC_X_ARR[$idx]}
-#	export NPROC_Y=${NPROC_Y_ARR[$idx]}
-#	export NPROC_Z=${NPROC_Z_ARR[$idx]}
-#
-#
-#        export NGLOB_X=$(( ${NPROC_X}* ${npcpu} ))
-#        export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} ))
-#        export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} ))
-#        export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
-#
-#        export NPCPU=${npcpu}
-#        #---------------------------------------------------------------------------
-#        # Loop on the provided version 
-#        #---------------------------------------------------------------------------
-#        
-#        export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${npcpu}
-#        echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/compareACCFFT/run/${CLUSTER}_kernel_compare.sh "
-#        echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
-#        sbatch -d afterok:${COMPILEJOB_ID} \
-#               --job-name=${MYNAME} \
-#               --account=${ACCOUNT} \
-#               ${KERNEL_CLUSTER_SPEC} \
-#               --partition=${PARTITION} \
-#               --nodes=${NNODE} \
-#               --ntasks-per-node=${NPROC_NODES} \
-#               --time=${KERNEL_TIME} \
-#               ${FLUPS_DIR}/samples/compareACCFFT/run/benchmark_kernel_compare.sh
-#        #---------------------------------------------------------------------------    
-#        L_Y=$((2*$L_Y))
-#        L_Z=$((2*$L_Z))
-#    done
-#done 
-#
-#
+
+echo " ------ Submitting Job scripts"
+
+export NPROC_X_ARR=(1  1  1  1   1   1)
+export NPROC_Y_ARR=(16 32 64 128 192 224)
+export NPROC_Z_ARR=(16 32 64 128 192 224)
+
+## The number of points in the y direction is kept constant through all the simulations
+
+export L_X=1 
+export L_Y=1 
+export L_Z=1 
+
+# Loop on the number of node needed for the test
+for idx in "${!NPROC_X_ARR[@]}"
+do
+    for npcpu in ${npcpu_list[@]}
+    do
+	export NPROC_X=${NPROC_X_ARR[$idx]}
+	export NPROC_Y=${NPROC_Y_ARR[$idx]}
+	export NPROC_Z=${NPROC_Z_ARR[$idx]}
+
+
+        export NGLOB_X=$(( ${NPROC_X}* ${npcpu} ))
+        export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} ))
+        export NGLOB_Z=$(( ${NPROC_Z}* ${npcpu} ))
+        export NNODE=$(( (${NPROC_X} * ${NPROC_Y} * ${NPROC_Z})/128 ))
+
+        export NPCPU=${npcpu}
+        #---------------------------------------------------------------------------
+        # Loop on the provided version 
+        #---------------------------------------------------------------------------
+        
+        export MYNAME=flups_MPI${MPI_VERSION}_N${NPROC_X}x${NPROC_Y}x${NPROC_Z}_NPCPU${npcpu}
+        echo "sbatch -d afterok:${COMPILEJOB_ID} --nodes=${NNODE} --job-name=${MYNAME} ${FLUPS_DIR}/samples/compareACCFFT/run/${CLUSTER}_kernel_compare.sh "
+        echo "NGLOB = ${NGLOB_X} ${NGLOB_Y} ${NGLOB_Z} -- NPROC = ${NPROC_X} ${NPROC_Y} ${NPROC_Z} -- L = ${L_X} ${L_Y} ${L_Z}"
+        sbatch -d afterok:${COMPILEJOB_ID} \
+               --job-name=${MYNAME} \
+               --account=${ACCOUNT} \
+               ${KERNEL_CLUSTER_SPEC} \
+               --partition=${PARTITION} \
+               --nodes=${NNODE} \
+               --ntasks-per-node=${NPROC_NODES} \
+               --time=${KERNEL_TIME} \
+               ${FLUPS_DIR}/samples/compareACCFFT/run/benchmark_kernel_compare.sh
+        #---------------------------------------------------------------------------    
+        L_Y=$((2*$L_Y))
+        L_Z=$((2*$L_Z))
+    done
+done 
+
+

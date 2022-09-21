@@ -21,7 +21,7 @@ cd -
 
 
 ## Compile Flups 
-echo "Compiling flups"
+echo "Compiling flups -- with options OPTS=${FLUPS_OPTS}"
 ## Warning -- Only the static librairies are installed as we move the executable of place.. 
 cd ${FLUPS_DIR} 
 echo " ## This make_arch has been created by the run/benchmark_scripts architecture" > make_arch/make.${CLUSTER} 

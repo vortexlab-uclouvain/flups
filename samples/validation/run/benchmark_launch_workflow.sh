@@ -9,6 +9,7 @@
 # First version all to all   = dprec_a2a 
 # First version non blocking = dprec_nb
 export CODE_VERSION='nb isr a2a'
+#export CODE_VERSION='nb'
 
 ## Kernels : 
 # CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
@@ -33,10 +34,10 @@ export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'
 export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl -flto'
 
 export FLUPS_AR='gcc-ar'
-export FLUPS_CCFLAGS='-g -O3 -std=c99 -march=native -DNDEBUG -flto'
-export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -march=native -DNDEBUG -flto'
+export FLUPS_CCFLAGS='-g -O3 -std=c99 -march=native -flto'
+export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -march=native -flto'
 export FLUPS_LDFLAGS='-fopenmp -flto'
-export FLUPS_OPTS=''
+export FLUPS_OPTS='-DNDEBUG -DMPI_NO_ALLOC'
 
 # ..................................................................
 ## Compile bash options
@@ -52,15 +53,14 @@ export KERNEL_TIME='02:30:00'
 #export CLUSTER='vega'
 export CLUSTER='meluxina'
 
-export LAUNCH_COMMAND='mpirun'
 
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
 #---------------------------------------------------------------------------------------
 if [[ ${CLUSTER} == "meluxina" ]]; then
-    #export BASE_SCRATCHDIR=/project/scratch/p200053
-    export BASE_SCRATCHDIR=/project/scratch/p200067
+    export BASE_SCRATCHDIR=/project/scratch/p200053
+    #export BASE_SCRATCHDIR=/project/scratch/p200067
     ## .................................
     ## NEEDED dir
     export HOME_FLUPS=${HOME}/flups/
@@ -71,28 +71,33 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## .................................
     ## MPI information
-    #export MPI_VERSION=4.1.4
-    export MPI_VERSION=4.1.3
+    export MPI_VERSION=4.1.4
+    #export MPI_VERSION=4.1.3
     export MPICC='mpicc'
     export MPICXX='mpic++'
     export NPROC_NODES=128
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'
-    #export ACCOUNT='p200053'
-    export ACCOUNT='p200067'
+    export ACCOUNT='p200053'
+    #export ACCOUNT='p200067'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
+    export COMPILE_CLUSTER_SPEC='--mem=491520 --res verylargecpu --qos=large'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
+    # export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
+    #export KERNEL_CLUSTER_SPEC='--qos=default '
+    export KERNEL_CLUSTER_SPEC='--res verylargecpu --qos=large --mem=491520'
 
-    # export UCX_TLS=self,shm,rc,dc
+    export UCX_TLS=self,shm,rc,ud
     # export OMPI_MCA_pml=ucx
     # export OMPI_MCA_osc=ucx
     # export UCX_UD_TX_QUEUE_LEN=4096
+
+    #export LAUNCH_COMMAND='srun'
+    export LAUNCH_COMMAND='mpirun'
 
 fi
 
@@ -172,8 +177,8 @@ if [[ ${CLUSTER} == "lumi" ]]; then
 fi
 
 # Performance 
-# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
-# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh
+source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh
 
 # Validation 
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh
@@ -183,4 +188,4 @@ fi
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_mpi_alloc.sh
-source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_xplore_strong.sh
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_xplore_strong.sh

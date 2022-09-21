@@ -59,8 +59,8 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'
-    #export ACCOUNT='p200053'
-    export ACCOUNT='p200067'
+    export ACCOUNT='p200053'
+    #export ACCOUNT='p200067'
 
     ## BASH OPTIONS -- Compilation job 
     #export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
