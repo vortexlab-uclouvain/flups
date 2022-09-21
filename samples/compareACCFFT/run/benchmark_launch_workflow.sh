@@ -109,7 +109,7 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export ACCOUNT='b2203-024-users'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC=''
+    export COMPILE_CLUSTER_SPEC='--mem=256000'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
