@@ -250,8 +250,9 @@ void flups_print_data(const Topology* topo, double* data) {
  * @brief writes the file murphy.info used for tracking of the results, bookkeeping etc
  */
 void flups_info(int argc, char** argv) {
-    int rank;
+    int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     if (rank == 0) {
         std::string filename(argv[0]);
         // remove the "./" that might be in it
@@ -261,8 +262,9 @@ void flups_info(int argc, char** argv) {
         FILE* file = fopen(filename.c_str(), "w+");
         fprintf(file, "FLUPS \n");
         fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
+        fprintf(file, "- comm_world size: %d\n", comm_size);
         fprintf(file, "- defines:\n");
-        fprintf(file, "\tFLUPS_FFTW_FLAG = %d\n", FLUPS_FFTW_FLAG);
+        fprintf(file, "\tFLUPS_FFTW_FLAG = %d (estimate: %d, measure: %d, patient: %d)\n", FLUPS_FFTW_FLAG, FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT);
         fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
 #if (FLUPS_MPI_AGGRESSIVE)
         fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
