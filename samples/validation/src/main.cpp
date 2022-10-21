@@ -28,7 +28,9 @@
 
 #include "mpi.h"
 #include "h3lpr/profiler.hpp"
+#include "h3lpr/macros.hpp"
 #include "h3lpr/parser.hpp"
+#include "h3lpr/ptr.hpp"
 #include "flups.h"
 #include <iostream>
 #include <cstring>
@@ -36,16 +38,12 @@
 
 using namespace std;
 
-// //default values
-// const static int                 d_nsolve    = 1;
-// const static int                 d_nsample   = 1;
-// const static int                 d_startSize = 16;
-// const static int                 d_nprocs[3] = {1, 1, 1};
-// const static double              d_L[3]      = {1., 1., 1.};
-// const static FLUPS_GreenType     d_kernel    = CHAT_2;
-// const static FLUPS_CenterType    d_center    = CELL_CENTER;
-// const static FLUPS_BoundaryType  d_bcdef     = UNB;
-// const static int                 d_lda       = 1;
+#define validation_calloc(size)                                                    \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
 
 int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
@@ -86,12 +84,12 @@ int main(int argc, char *argv[]) {
     
     
     parser.Finalize();
-    
-    int *size = (int*) malloc((arg_nsample) * 3 * sizeof(int));
-    if (size==NULL){
-        exit(0); //we just printed help
+
+    int *size = (int *)validation_calloc((arg_nsample)*3 * sizeof(int));
+    if (size == NULL) {
+        MPI_Abort(MPI_COMM_WORLD, MPI_ERR_ASSERT);
     }
-    
+
     for (int i = 0; i < arg_nsample * 3; i += 3){
         size[i]   = arg_nres[0] * pow(2,i/3);
         size[i+1] = arg_nres[1] * pow(2,i/3);
