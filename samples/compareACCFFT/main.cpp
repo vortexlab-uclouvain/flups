@@ -1,7 +1,6 @@
 #include <cmath>
 #include <iostream>
 
-#include "Solver.hpp"
 #include "accfft.h"
 #include "h3lpr/profiler.hpp"
 #include "h3lpr/parser.hpp"
@@ -45,7 +44,6 @@ int main(int argc, char *argv[]) {
 
     // get the grid spacing
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
-    FLUPS_CHECK(h[0] == h[1] && h[1] == h[2], "The grid spacing must be the same");
 
     // get the PER PER PER BC everywhere
     const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
@@ -72,28 +70,30 @@ int main(int argc, char *argv[]) {
 
 
     //--------------------------------------------------------------------------
-    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
+    //std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
+    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) +"_"+ std::to_string(nglob[1]) + "_" + std::to_string(nglob[2]) + "_nrank" + std::to_string(comm_size);
     H3LPR::Profiler    prof(prof_name);
 
     //--------------------------------------------------------------------------
     /** - Initialize FLUPS */
     //--------------------------------------------------------------------------
-    FLUPS_INFO("Initialization of FLUPS");
+    if (rank == 0) printf("Initialization of FLUPS\n");
 
     // create a real topology
-    H3LPR::Profiler* flups_prof = (profile)? &prof:nullptr;
-    FLUPS_Topology topoTmp(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
-    FLUPS_Solver  *mysolver = new FLUPS_Solver(&topoTmp, mybc, h, L, NOD, center_type, flups_prof);
+    FLUPS_Profiler* flups_prof = (profile)? (FLUPS_Profiler*) &prof : nullptr;
+    FLUPS_Topology *topoTmp = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Solver  *mysolver = flups_init_timed(topoTmp, mybc, h, L, NOD, center_type, flups_prof);
 
     // set the CHAT2 green type (even if it's not used)
-    mysolver->set_GreenType(CHAT_2);
-    mysolver->setup(true);
-    double *solFLU = mysolver->get_innerBuffer();
+    flups_set_greenType(mysolver, CHAT_2);
+    flups_setup(mysolver, true);
+    double *solFLU = flups_get_innerBuffer(mysolver);  
 
     // to fill the data we use the inner topo
-    const Topology *topoIn = mysolver->get_innerTopo_physical();
+    const Topology *topoIn =flups_get_innerTopo_physical(mysolver);
     // instruct the solver to skip the first ST
-    mysolver->skip_firstSwitchtopo();
+    flups_skip_firstSwitchtopo(mysolver);
+
     //..........................................................................
     if (rank == 0) {
         printf("--------------------------------------------------------------\n");
@@ -108,17 +108,22 @@ int main(int argc, char *argv[]) {
 
     //..........................................................................
     // set some straightforward data
-    int topo_nmem[3] = {topoIn->nmem(0), topoIn->nmem(1), topoIn->nmem(2)};
+    int start_id[3]; 
+    flups_topo_get_istartGlob(topoIn, start_id);
+    int topo_nmem[3] = {flups_topo_get_nmem(topoIn, 0), flups_topo_get_nmem(topoIn, 1), flups_topo_get_nmem(topoIn, 2)};
 
     // set a simple expression
     double val = 0.0;
-    for (int i2 = 0; i2 < topoIn->nloc(2); i2++) {
-        for (int i1 = 0; i1 < topoIn->nloc(1); i1++) {
-            for (int i0 = 0; i0 < topoIn->nloc(0); i0++) {
-                double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
-                double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
-                double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
-                size_t id  = localIndex(0, i0, i1, i2, 0, topo_nmem, 1, 0);
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topoIn, 2); ++i2){
+	for(int i1 = 0; i1 < flups_topo_get_nloc(topoIn, 1); ++ i1){
+	      for(int i0 = 0; i0 < flups_topo_get_nloc(topoIn, 0); ++i0){
+                //double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
+                //double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
+                //double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
+                double x   = 2.0 * M_PI / nglob[0] * (i0 + start_id[0]);
+                double y   = 2.0 * M_PI / nglob[1] * (i1 + start_id[1]);
+                double z   = 2.0 * M_PI / nglob[2] * (i2 + start_id[2]);
+                size_t id  = flups_locID(0, i0, i1, i2, 0, 0, topo_nmem, 1);
                 solFLU[id] = sin(x) + sin(y) + sin(z);
             }
         }
@@ -181,8 +186,8 @@ int main(int argc, char *argv[]) {
         accfft_execute_c2r(plan, (Complex *)data_acc, data_acc);
 
         // warm up flups
-        mysolver->do_FFT(solFLU, FLUPS_FORWARD);
-        mysolver->do_FFT(solFLU, FLUPS_BACKWARD);
+        flups_do_FFT(mysolver, solFLU, FLUPS_FORWARD);
+        flups_do_FFT(mysolver, solFLU, FLUPS_BACKWARD);
     }
 
     //--------------------------------------------------------------------------
@@ -226,7 +231,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(comm);
         m_profStart(&prof, "flups");
         m_profStart(&prof, "flups - forward");
-        mysolver->do_FFT(solFLU, FLUPS_FORWARD);
+        flups_do_FFT(mysolver, solFLU, FLUPS_FORWARD);
         m_profStop(&prof, "flups - forward");
         m_profStop(&prof, "flups");
 
@@ -234,7 +239,7 @@ int main(int argc, char *argv[]) {
 
         m_profStart(&prof, "flups");
         m_profStart(&prof, "flups - backward");
-        mysolver->do_FFT(solFLU, FLUPS_BACKWARD);
+        flups_do_FFT(mysolver, solFLU, FLUPS_BACKWARD);
         m_profStop(&prof, "flups - backward");
         m_profStop(&prof, "flups");
     }
@@ -256,12 +261,12 @@ int main(int argc, char *argv[]) {
     // --- FLUPS -------
 
     // force the call to destructor of the solver to cleanup the comm patterns
-    delete (mysolver);
+    flups_cleanup(mysolver);
+    flups_topo_free(topoTmp);
 
     // free the bcs
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
-            // mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
             flups_free(mybc[id][is]);
         }
     }
