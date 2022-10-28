@@ -50,8 +50,8 @@ export COMPILE_TIME='00:10:00'
 export KERNEL_TIME='02:30:00'
 
 # ..................................................................
-#export CLUSTER='vega'
-export CLUSTER='meluxina'
+export CLUSTER='vega'
+#export CLUSTER='meluxina'
 
 
 # ..................................................................
@@ -116,12 +116,15 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export HOME_FLUPS=${HOME}/flups/
     export HOME_H3LPR=${HOME}/h3lpr/
 
-    export FFTW_DIR=${EBROOTFFTW}
-    export HDF5_DIR=${EBROOTHDF5}
+    #export FFTW_DIR=${EBROOTFFTW}
+    #export HDF5_DIR=${EBROOTHDF5}
+    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1
+    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1
 
     ## .................................
     ## MPI information
-    export MPI_VERSION=4.1.3
+    #export MPI_VERSION=4.1.3
+    export MPI_VERSION=4.1a1
     export MPICC='mpicc'
     export MPICXX='mpic++'
     export NPROC_NODES=128
@@ -131,18 +134,25 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export ACCOUNT='b2203-024-users'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC=''
+    export COMPILE_CLUSTER_SPEC='--mem=256000 --reservation=Benchmark-2301733'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    export KERNEL_CLUSTER_SPEC=''
+    export KERNEL_CLUSTER_SPEC='--mem=256000 --reservation=Benchmark-2301733 --exclude=gn[01-60]'
 
     ## .................................
-    # export UCX_TLS=ud,sm
-    export UCX_TLS=self,shm,rc,dc
-    export OMPI_MCA_pml=ucx
-    export OMPI_MCA_osc=ucx
+    export UCX_TLS=self,shm,dc_x
+    export UCX_DC_MLX5_RX_MAX_BUFS=65536
+    export UCX_DC_MLX5_TX_MAX_BUFS=65536
+    #export UCX_UD_RX_QUEUE_LEN=8192
+    #export UCX_DC_MLX5_NUM_DCI=16
+#    export UCX_DC_MLX5_AR_ENABLE=no
+    #export UCX_RNDV_SCHEME=get_zcopy
+    #export UCX_TLS=self,shm,rc,dc
+    #export OMPI_MCA_pml=ucx
+    #export OMPI_MCA_osc=ucx
 
+    export LAUNCH_COMMAND='mpiexec -bind-to core'
 fi
 
 #---------------------------------------------------------------------------------------
