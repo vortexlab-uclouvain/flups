@@ -8,7 +8,7 @@
  * @brief A "chunk" is a memory block belonging to an input topology. The block is sent over to the output topology and shuffled
  *
  */
-typedef struct
+struct MemChunk
 {
     int axis;       //!< the principal axis in the "input" topology, where the chunk is defined
     int istart[3];  //!< local start index for the memory chunk (012 indexing), in the "input" topology
@@ -30,7 +30,11 @@ typedef struct
     size_t         size_padded;  //!< padded size for the data ptr
     opt_double_ptr data;         //!< the pointer to the data in the buffer
 
-} MemChunk;
+    ~MemChunk(){
+        MPI_Type_free(&dtype);
+        MPI_Type_free(&dest_dtype);
+    }
+};
 
 void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* topo_out, int* n_chunks, MemChunk** chunks);
 
