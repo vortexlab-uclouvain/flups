@@ -9,7 +9,7 @@ source ${SCRIPT_MODULE} ${MPI_VERSION}
 ## Compile H3LPR
 cd ${H3LPR_DIR}
 touch make_arch/make.${CLUSTER}
-echo "This make file has been created by the scripts architecture" > make_arch/make.${CLUSTER}
+echo "# This make file has been created by the scripts architecture" > make_arch/make.${CLUSTER}
 echo "CXX=${MPICXX} " >> make_arch/make.${CLUSTER} 
 echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
 echo "CXXFLAGS :=  ${H3LPR_CXXFLAGS}" >> make_arch/make.${CLUSTER}
@@ -22,7 +22,7 @@ cd -
 ## Compile Flups 
 ## Warning -- Only the static librairies are installed as we move the executable of place.. 
 cd ${FLUPS_DIR} 
-echo "This make file has been created by the scripts architecture" > make_arch/make.${CLUSTER}
+echo "# This make file has been created by the scripts architecture" > make_arch/make.${CLUSTER}
 echo "CXX=${MPICXX}" >> make_arch/make.${CLUSTER}
 echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
 

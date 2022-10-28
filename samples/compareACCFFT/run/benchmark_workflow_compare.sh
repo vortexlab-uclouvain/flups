@@ -48,7 +48,8 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-npcpu_list=(32 64 96)
+#npcpu_list=(32 64 96)
+npcpu_list=(128 256)
 
 echo " ------ Submitting Job scripts"
 
@@ -58,9 +59,6 @@ export NPROC_Z_ARR=(16 32 64 128 192 224)
 
 ## The number of points in the y direction is kept constant through all the simulations
 
-export L_X=1 
-export L_Y=1 
-export L_Z=1 
 
 # Loop on the number of node needed for the test
 for idx in "${!NPROC_X_ARR[@]}"
@@ -71,6 +69,9 @@ do
 	export NPROC_Y=${NPROC_Y_ARR[$idx]}
 	export NPROC_Z=${NPROC_Z_ARR[$idx]}
 
+	export L_X=${NPROC_X_ARR[$idx]}
+	export L_Y=${NPROC_Y_ARR[$idx]}
+	export L_Z=${NPROC_Z_ARR[$idx]}
 
         export NGLOB_X=$(( ${NPROC_X}* ${npcpu} ))
         export NGLOB_Y=$(( ${NPROC_Y}* ${npcpu} ))
@@ -95,8 +96,6 @@ do
                --time=${KERNEL_TIME} \
                ${FLUPS_DIR}/samples/compareACCFFT/run/benchmark_kernel_compare.sh
         #---------------------------------------------------------------------------    
-        L_Y=$((2*$L_Y))
-        L_Z=$((2*$L_Z))
     done
 done 
 
