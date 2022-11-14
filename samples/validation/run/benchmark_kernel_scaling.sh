@@ -31,16 +31,27 @@ do
             cd ${SCRATCH_FLUPS}
             cp ${FLUPS_DIR}/samples/validation/${EXEC_FLUPS} ${SCRATCH_FLUPS}
 
-            echo "---------------- UCX Flags ---------------------"
+            echo "---------------- additional options ---------------------"
             echo "UCX_TLS == ${UCX_TLS}"
+	    echo "UCX_DC_MLX5_NUM_DCI == ${UCX_DC_MLX5_NUM_DCI}"
+            echo "UCX_DC_MLX5_RX_MAX_BUFS == ${UCX_DC_MLX5_RX_MAX_BUFS}"
+            echo "UCX_DC_MLX5_TX_MAX_BUFS ==${UCX_DC_MLX5_TX_MAX_BUFS}"
             echo "OMPI_MCA_pml == ${OMPI_MCA_pml}"
             echo "OMPI_MCA_osc == ${OMPI_MCA_osc}"
+            echo "---------------- mpich info ---------------------"
+            which mpiexec
+            mpichversion
 
+	    echo "--------------- ucx info -----------------------"
+	    which ucx_info 
+	    ucx_info -v 
             echo "----------------- launching job -----------------"
             echo "Launching jobs with: "
-            echo "OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=4,4,4,4,4,4 --nres=1 --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}"
-
-            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
+            echo "OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} -np ${SLURM_NTASKS} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=4,4,4,4,4,4 --nres=1 --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}"
+            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} -np ${SLURM_NTASKS} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
+            #OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
+            #MACHINEFILE="nodes.$SLURM_JOBID"
+            #srun -l /bin/hostname | sort -n | awk '{print $2}' > $MACHINEFILE
             echo "----------------- done           -----------------"
 
             cd -
