@@ -105,17 +105,23 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
+## Up-to-date version
 default: all
 
-all: info $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB) $(TARGET_EXE_ISR)
+all: info $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 all2all: $(TARGET_EXE_A2A)  
 
 nonblocking: $(TARGET_EXE_NB) $(TARGET_EXE_ISR) 
 
+################################################################################
+## Dprec version 
+
+dprec: $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
+
 all2all_dprec: $(TARGET_EXE_DPREC_A2A)
 
-nonblocking: $(TARGET_EXE_DPREC_NB)
+nonblocking_dprec: $(TARGET_EXE_DPREC_NB)
 
 $(TARGET_EXE_ISR): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_isr -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
