@@ -10,6 +10,7 @@ SUBMISSION_NAME=weak_scaling_flups-${MPI_VERSION}-${TAG}
 #-------------------------------------------------------------------------------
 ## Ceation of the scratch directory
 export SCRATCH_DIR=${BASE_SCRATCHDIR}/${SUBMISSION_NAME}  
+#export SCRATCH_DIR=${BASE_SCRATCHDIR}/weak_scaling_flups-4.1a1-2022-11-08-0059-2b746b2c  
 echo "scratch directory = ${SCRATCH_DIR}"
 
 #-------------------------------------------------------------------------------
@@ -54,9 +55,13 @@ echo " ------ ... done ! "
 #export ARR_NPROC_Y=(16 16 32 32 32 40 40)
 #export ARR_NPROC_Z=(16 32 32 32 48 40 48)
 
-export ARR_NPROC_X=(16 16 32)
-export ARR_NPROC_Y=(16 16 32)
-export ARR_NPROC_Z=(16 32 32)
+export ARR_NPROC_X=(16)
+export ARR_NPROC_Y=(32)
+export ARR_NPROC_Z=(32)
+
+#export ARR_NPROC_X=(4 4 8 8  8  16 32 32 32)
+#export ARR_NPROC_Y=(4 8 8 8  16 32 32 40 40)
+#export ARR_NPROC_Z=(8 8 8 16 16 32 48 40 48)
 
 export NRES=1
 
@@ -71,7 +76,7 @@ do
     export NPROC_Y=${ARR_NPROC_Y[$idx]}
     export NPROC_Z=${ARR_NPROC_Z[$idx]}
     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
-    
+    export NTASKS=$(( $NNODE * 128 ))  
     #---------------------------------------------------------------------------
     export NGLOB_X=$(( ($NPROC_X)*($NPCPUS) ))
     export NGLOB_Y=$(( ($NPROC_Y)*($NPCPUS) ))
@@ -93,6 +98,7 @@ do
            ${KERNEL_CLUSTER_SPEC} \
            --partition=${PARTITION} \
            --nodes=${NNODE} \
+    	   --ntasks=${NTASKS}\
            --ntasks-per-node=${NPROC_NODES} \
            --time=${KERNEL_TIME} \
            ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_scaling.sh

@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 
     //--------------------------------------------------------------------------
-    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_nrank" + std::to_string(comm_size);
+    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) +"_"+ std::to_string(nglob[1]) + "_" + std::to_string(nglob[2]) + "_nrank" + std::to_string(comm_size);
     H3LPR::Profiler    prof(prof_name);
 
     //--------------------------------------------------------------------------
