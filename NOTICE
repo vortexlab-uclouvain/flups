@@ -8,10 +8,16 @@ FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
 Copyright (C) <2020> <Universite catholique de Louvain (UCLouvain), Belgique>
 	
 The contributors to the development of FLUPS are (all authors are or were affiliate to the Universite catholique de Louvain, UCLouvain, when they developed FLUPS):
-	Thomas Gillis
-	Denis-Gabriel Caprace
+	v1:
+        Thomas Gillis
+	    Denis-Gabriel Caprace
+        
+        The authors particularly thank Dr. Jonathan Lambrecht and Prof. Philippe Chatelain for helpfull discussions.
 
-The authors particularly thank Dr. Jonathan Lambrecht and Prof. Philippe Chatelain for helpfull discussions.
+    v2:
+        Pierre Balty
+        Thomas Gillis
+
 
 Website:
    https://github.com/vortexlab_uclouvain/flups
@@ -19,15 +25,13 @@ Website:
 Contact:
    Thomas Gillis           thomas.gillis@uclouvain.be
    Denis-Gabriel Caprace   denis-gabriel.caprace@uclouvain.be
+   Pierre Balty            pierre.balty@uclouvain.be
 
 FLUPS General
 -----------------------------------------
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the BSD 3-Clause License (the "License");
 you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,10 +49,10 @@ The documentation for this program is under a creative commons attribution share
 This program has dependencies on other libraries and Website depedencies which are or not under Apache license and that are commonly used with this program core libraries.
 
 Dependencies are as follows:
-fftw3.h				2-clause BSD	http://www.fftw.org
-HDF5				   3-clause BSD   https://www.hdfgroup.org
+fftw3.h				2-clause BSD   http://www.fftw.org
+HDF5				3-clause BSD   https://www.hdfgroup.org
 OpenMPI          	3-clause BSD   https://www.open-mpi.org	
-si.hpp            2-clause BSD   https://github.com/GalSim-developers/GalSim
+si.hpp              2-clause BSD   https://github.com/GalSim-developers/GalSim
 
 Licences & Credits of dependencies
 ----------------------------------
