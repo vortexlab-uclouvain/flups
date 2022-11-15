@@ -8,8 +8,10 @@
 # MPI_datatypes              = isr
 # First version all to all   = dprec_a2a 
 # First version non blocking = dprec_nb
-export CODE_VERSION='nb isr a2a'
-#export CODE_VERSION='nb'
+#export CODE_VERSION='nb isr a2a dprec_a2a dprec_nb'
+#export CODE_VERSION='dprec_nb'
+#export CODE_VERSION='a2a'
+export CODE_VERSION='nb isr'
 
 ## Kernels : 
 # CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
@@ -50,8 +52,8 @@ export COMPILE_TIME='00:10:00'
 export KERNEL_TIME='02:30:00'
 
 # ..................................................................
-export CLUSTER='vega'
-#export CLUSTER='meluxina'
+#export CLUSTER='vega'
+export CLUSTER='meluxina'
 
 
 # ..................................................................
@@ -68,8 +70,8 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     #export FFTW_DIR=${EBROOTFFTW}
     #export HDF5_DIR=${EBROOTHDF5}
-    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1
-    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1
+    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1-fast
+    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1-fast
 
     ## .................................
     ## MPI information
@@ -81,8 +83,8 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## BASH OPTIONS -- GENERAL
     export PARTITION='cpu'
-    #export ACCOUNT='p200053'
-    export ACCOUNT='p200067'
+    export ACCOUNT='p200053'
+    #export ACCOUNT='p200067'
 
     ## BASH OPTIONS -- Compilation job 
     export COMPILE_CLUSTER_SPEC='--mem=491520 --qos=default'
@@ -90,11 +92,12 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    # export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
-    export KERNEL_CLUSTER_SPEC='--qos=default '
+    export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
+    #export KERNEL_CLUSTER_SPEC='--qos=default '
     #export KERNEL_CLUSTER_SPEC='--res verylargecpu --qos=large --mem=491520'
 
     export UCX_TLS=self,shm,dc
+    export UCX_DC_MLX5_NUM_DCI=16
     # export OMPI_MCA_pml=ucx
     # export OMPI_MCA_osc=ucx
     # export UCX_UD_TX_QUEUE_LEN=4096
@@ -122,8 +125,7 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export HDF5_DIR=${HOME}/lib-MPICH-4.1a1
 
     ## .................................
-    ## MPI information
-    #export MPI_VERSION=4.1.3
+    ## MPI informationr    #export MPI_VERSION=4.1.3
     export MPI_VERSION=4.1a1
     export MPICC='mpicc'
     export MPICXX='mpic++'
@@ -191,15 +193,15 @@ if [[ ${CLUSTER} == "lumi" ]]; then
 fi
 
 # Performance 
-source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_weak.sh
 #source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_strong.sh
 
 # Validation 
-# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_validation.sh
 
 # Exploration
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_order_list.sh
-# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh
-# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh
+#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_rolling_rank.sh
+source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_send_batch.sh
 # source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_mpi_alloc.sh
-#source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_xplore_strong.sh
+# source ${HOME_FLUPS}/samples/validation/run/benchmark_workflow_xplore_strong.sh

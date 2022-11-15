@@ -56,6 +56,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+     //..........................................................................
+    // Display
+    flups_info(argc, argv);
     if (rank == 0) {
         printf("form the command line: %d %d %d unknowns on %d %d %d proc\n", nglob[0], nglob[1], nglob[2], nproc[0], nproc[1], nproc[2]);
     }

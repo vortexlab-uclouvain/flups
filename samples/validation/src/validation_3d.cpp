@@ -487,6 +487,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     free(lerr2);
     free(lerri);
     free(err2);

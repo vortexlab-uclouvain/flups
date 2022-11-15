@@ -53,10 +53,13 @@ npcpu_list=(128 256)
 
 echo " ------ Submitting Job scripts"
 
-export NPROC_X_ARR=(1  1  1  1   1   1)
-export NPROC_Y_ARR=(16 32 64 128 192 224)
-export NPROC_Z_ARR=(16 32 64 128 192 224)
+#export NPROC_X_ARR=(1  1  1  1  1   1   1)
+#export NPROC_Y_ARR=(16 16 32 64 128 192 224)
+#export NPROC_Z_ARR=(8  16 32 64 128 192 224)
 
+export NPROC_X_ARR=(1  1  1  1  1)
+export NPROC_Y_ARR=(16 16 32 64 128)
+export NPROC_Z_ARR=(8  16 32 64 128)
 ## The number of points in the y direction is kept constant through all the simulations
 
 

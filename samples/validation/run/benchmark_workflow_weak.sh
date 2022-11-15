@@ -46,17 +46,21 @@ echo " ------ ... done ! "
 
 #-------------------------------------------------------------------------------
 ## LAUNCH THE JOBS
-#export ARR_NPROC_X=(4 4 8 8  8  16 16 16 32 32 32 32)
-#export ARR_NPROC_Y=(4 8 8 8  16 16 16 32 32 32 40 40)
-#export ARR_NPROC_Z=(8 8 8 16 16 16 32 32 32 48 40 48)
+export ARR_NPROC_X=(4 4 8 8  8  16 16 16 32 32 32 32)
+export ARR_NPROC_Y=(4 8 8 8  16 16 16 32 32 32 40 40)
+export ARR_NPROC_Z=(8 8 8 16 16 16 32 32 32 48 40 48)
+
+#export ARR_NPROC_X=(4 4)
+#export ARR_NPROC_Y=(4 8) 
+#export ARR_NPROC_Z=(8 8)
 
 #export ARR_NPROC_X=(16 16 16 32 32 32 32)
 #export ARR_NPROC_Y=(16 16 32 32 32 40 40)
 #export ARR_NPROC_Z=(16 32 32 32 48 40 48)
 
-export ARR_NPROC_X=(16 16 32)
-export ARR_NPROC_Y=(16 16 32)
-export ARR_NPROC_Z=(16 32 32)
+#export ARR_NPROC_X=(16 16 32)
+#export ARR_NPROC_Y=(16 16 32)
+#export ARR_NPROC_Z=(16 32 32)
 
 export NRES=1
 

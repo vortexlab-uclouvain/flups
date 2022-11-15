@@ -18,7 +18,7 @@ export FLUPS_AR='gcc-ar'
 export FLUPS_CCFLAGS='-g -O3 -std=c99   -DMPI_BATCH_SEND=1 -march=native -flto'
 export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DMPI_BATCH_SEND=1  -march=native -flto'
 export FLUPS_LDFLAGS='-fopenmp -flto'
-export FLUPS_OPTS='-DMPI_NO_ALLOC -DNDEBUG'
+export FLUPS_OPTS='-DNDEBUG -DFFTW_FLAG=FFTW_MEASURE'
 
 # ..................................................................
 ## Compile bash options
@@ -47,8 +47,8 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     #export FFTW_DIR=${EBROOTFFTW}
     #export HDF5_DIR=${EBROOTHDF5}
-    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1
-    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1
+    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1-fast
+    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1-fast
 
     ## .................................
     ## MPI information
@@ -59,7 +59,7 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     export NPROC_NODES=128
     
     #export ACCFFT_DIR=${HOME}/lib-OpenMPI-${MPI_VERSION}
-    export ACCFFT_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1
+    export ACCFFT_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1-fast
 
     ## .................................
 
@@ -70,18 +70,20 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
 
     ## BASH OPTIONS -- Compilation job 
     export COMPILE_CLUSTER_SPEC='--qos=short --mem=491520'
+#    export COMPILE_CLUSTER_SPEC='--res verylargecpu --qos=large --mem=491520'
     ## .................................
     ## BASH OPTIONS -- kernel job 
     export KERNEL_CLUSTER_SPEC='--qos=default --mem=491520'
+    #export KERNEL_CLUSTER_SPEC='--res verylargecpu --qos=large --mem=491520'
     
-    export UCX_TLS=self,shm,rc,dc
+    export UCX_TLS=self,shm,dc
     export UCX_DC_MLX5_NUM_DCI=16
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_UD_TX_QUEUE_LEN=4096
 
     #export LAUNCH_COMMAND='mpirun'
-    export LAUNCH_COMMAND='mpiexec -v -bind-to core'
+    export LAUNCH_COMMAND='mpiexec -bind-to core'
 fi
 
 

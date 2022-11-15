@@ -48,20 +48,20 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-#export NGLOB=(32 64 128 256 512 1024 2048)
+export NGLOB=(32 64 128 256 512 1024 2048)
 
 ## Number of proc per dimension for each case
-#export ARR_NPROC_X=(4 4 4 4 4 8 16)
-#export ARR_NPROC_Y=(4 4 4 4 4 8 16)
-#export ARR_NPROC_Z=(8 8 8 8 8 8 16)
+export ARR_NPROC_X=(4 4 4 4 4 8 16)
+export ARR_NPROC_Y=(4 4 4 4 4 8 16)
+export ARR_NPROC_Z=(8 8 8 8 8 8 16)
 
 
-export NGLOB=(1024 2048)
+#export NGLOB=(1024 2048)
 
-## Number of proc per dimension for each case
-export ARR_NPROC_X=(16 16)
-export ARR_NPROC_Y=(16 16)
-export ARR_NPROC_Z=(16 32)
+### Number of proc per dimension for each case
+#export ARR_NPROC_X=(16 16)
+#export ARR_NPROC_Y=(16 16)
+#export ARR_NPROC_Z=(16 32)
 
 ## Number of resolution to be tested inside a single job
 export NRES=1
@@ -77,7 +77,7 @@ export ORDER_DIFF='1 2 4 6'
 # 0 - vortex tube
 # 1 - Vortex Ring /!\ the analytical solution is not correct
 # 4 - Fully periodic case
-export FIELD_CASE='4'
+export FIELD_CASE='0'
 
 ## Is the field compact (options used with the tube or the ring)
 #export FIELD_COMPACT='--compact'

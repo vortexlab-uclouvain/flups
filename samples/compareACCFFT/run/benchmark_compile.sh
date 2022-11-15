@@ -3,7 +3,7 @@
 ##SBATCH --output=flups_compile%j.out
 ##SBATCH --error=flups_compile%j.err
 
-echo "sourcing the modules"
+echo "sourcing the modules -- ${SCRIPT_MODULE} ${MPI_VERSION}"
 source ${SCRIPT_MODULE} ${MPI_VERSION}
 
 ## Compile H3LPR
@@ -20,17 +20,18 @@ cd -
 
 
 ## Compile Flups 
+echo "Compiling flups -- with options OPTS=${FLUPS_OPTS}"
 ## Warning -- Only the static librairies are installed as we move the executable of place.. 
 cd ${FLUPS_DIR} 
 echo "# This make file has been created by the scripts architecture" > make_arch/make.${CLUSTER}
 echo "CXX=${MPICXX}" >> make_arch/make.${CLUSTER}
 echo "CC=${MPICC} " >> make_arch/make.${CLUSTER}
+echo "AR := ${FLUPS_AR} " >> make_arch/make.${CLUSTER}
 
 echo "CXXFLAGS := ${FLUPS_CXXFLAGS} " >> make_arch/make.${CLUSTER}
 echo "CCFLAGS  := ${FLUPS_CCFLAGS}" >> make_arch/make.${CLUSTER}
-
 echo "LDFLAGS  := ${FLUPS_LDFLAGS}"  >> make_arch/make.${CLUSTER}
-echo "AR := ${FLUPS_AR} " >> make_arch/make.${CLUSTER}
+echo "OPTS  := ${FLUPS_OPTS}"  >> make_arch/make.${CLUSTER}
 
 echo "#---------------------------------------------------------   " >> make_arch/make.${CLUSTER}
 echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.${CLUSTER}
