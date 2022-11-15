@@ -46,6 +46,7 @@ NAME := flups
 TARGET_LIB_ISR := build/lib$(NAME)_isr
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
 TARGET_LIB_NB  := build/lib$(NAME)_nb
+
 TARGET_LIB_DPREC_A2A := build/lib$(NAME)_dprec_a2a
 TARGET_LIB_DPREC_NB  := build/lib$(NAME)_dprec_nb
 
@@ -164,9 +165,13 @@ nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so $(TARGE
 
 nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so 
 
-lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_ISR).a
+lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_ISR).a
 
-lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_ISR).so
+lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so
+
+lib_static_deprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
+
+lib_dynamic_deprec: $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
 
 lib: lib_static
 
@@ -219,11 +224,25 @@ install_static: lib_static
 	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
+
+
+install_dprec_static: lib_static_deprec
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_DPREC_NB).a $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
+install_dprec_dynamic: lib_dynamic_deprec
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
 # for a standard installation, do the dynamic link	
 install: 
 	@$(MAKE) info
