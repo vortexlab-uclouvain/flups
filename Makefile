@@ -224,11 +224,25 @@ install_static: lib_static
 	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
+
+
+install_dprec_static: lib_static_deprec
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_DPREC_NB).a $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
+install_dprec_dynamic: lib_dynamic_deprec
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
+	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
 # for a standard installation, do the dynamic link	
 install: 
 	@$(MAKE) info
