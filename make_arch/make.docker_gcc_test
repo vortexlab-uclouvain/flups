@@ -1,11 +1,12 @@
 CXX = mpic++
 CC = mpicc
 
-OPTS += -DVERBOSE #-DPB_DBG
 
-CXXFLAGS := -O3 -std=c++17 -fopenmp -fsanitize=undefined -fsanitize=address -DDUMP_DBG #-DPB_DBG #-DNDEBUG
-CCFLAGS := -O3 -std=c99 -fopenmp -fsanitize=undefined -fsanitize=address  -DDUMP_DBG  #-DPB_DBG
-LDFLAGS += -fopenmp -lstdc++ -lm -fsanitize=undefined -fsanitize=address -DDUMP_DBG 
+OPTS = -DHAVE_HDF5
+
+CXXFLAGS := -O3 -std=c++17 -fopenmp 
+CCFLAGS := -O3 -std=c99 -fopenmp 
+LDFLAGS += -fopenmp -lstdc++ -lm 
 
 ## FFTW3
 FFTW_DIR  :=  /usr/local/fftw

@@ -46,16 +46,30 @@ echo " ------ ... done ! "
 
 #-------------------------------------------------------------------------------
 ## LAUNCH THE JOBS
+#export ARR_NPROC_X=(4 4 8 8  8  16 16 16 32 32 32 32)
+#export ARR_NPROC_Y=(4 8 8 8  16 16 16 32 32 32 40 40)
+#export ARR_NPROC_Z=(8 8 8 16 16 16 32 32 32 48 40 48)
 
-## 1 Node == 128 CPUS
-export NPROC_X=4
-export NPROC_Y=4
-export NPROC_Z=8
+#export ARR_NPROC_X=(16 16 16 32 32 32 32)
+#export ARR_NPROC_Y=(16 16 32 32 32 40 40)
+#export ARR_NPROC_Z=(16 32 32 32 48 40 48)
+
+export ARR_NPROC_X=(16 16 32)
+export ARR_NPROC_Y=(16 16 32)
+export ARR_NPROC_Z=(16 32 32)
+
+export NRES=1
+
+export CODE_BCS='4,4,4,4,4,4 
+                 3,3,3,3,3,3'
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
-for i in {1..10}
-do
+for idx in "${!ARR_NPROC_X[@]}";
+do    
+    export NPROC_X=${ARR_NPROC_X[$idx]}
+    export NPROC_Y=${ARR_NPROC_Y[$idx]}
+    export NPROC_Z=${ARR_NPROC_Z[$idx]}
     export NNODE=$(( ($NPROC_X * $NPROC_Y * $NPROC_Z)/ ($NPROC_NODES) ))
     
     #---------------------------------------------------------------------------
@@ -81,21 +95,8 @@ do
            --nodes=${NNODE} \
            --ntasks-per-node=${NPROC_NODES} \
            --time=${KERNEL_TIME} \
-           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_scaling.sh
     #---------------------------------------------------------------------------
-    
-    if [ $(($i%3)) -eq 0 ]
-    then
-        NPROC_Z=$((2*$NPROC_Z))
-    fi
-    if [ $((($i)%3)) -eq 1 ]
-    then
-        NPROC_Y=$((2*$NPROC_Y))
-    fi
-    if [ $(($i%3)) -eq 2 ]
-    then
-        NPROC_X=$((2*$NPROC_X))
-    fi
 done 
 
 

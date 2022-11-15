@@ -187,18 +187,24 @@ void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk) {
                                    sizeof(double) * nf * nmem[ax[0]] * nmem[ax[1]],
                                    sizeof(double) * offset_dim};
     // create the 3D datatype
-    MPI_Datatype type_x, type_xy, type_xyz;
+    // MPI_Datatype type_x, type_xy, type_xyz;
+    MPI_Datatype type_xy, type_xyz;
     // stride in x = 1, count = chunk size
-    MPI_Type_create_hvector(size[0], 1, stride_byte[0], MPI_DOUBLE, &type_x);
+    // MPI_Type_create_hvector(size[0], 1, stride_byte[0], MPI_DOUBLE, &type_x);
     FLUPS_INFO("puting %d %d-doubles together with strides = %zu", size[0], nf, stride_byte[0]);
     // stride in y = nmem[0]a, count = chunk sie
-    MPI_Type_create_hvector(size[1], 1, stride_byte[1], type_x, &type_xy);
+    // MPI_Type_create_hvector(size[1], 1, stride_byte[1], type_x, &type_xy);
+    MPI_Type_create_hvector(size[1], size[0], stride_byte[1], MPI_DOUBLE, &type_xy);
     FLUPS_INFO("puting %d type_x together with strides = %zu", size[1], stride_byte[1]);
     // stride in z = nmem[0]*nmem[1], count = chunk size
     MPI_Type_create_hvector(size[2], 1, stride_byte[2], type_xy, &type_xyz);
     FLUPS_INFO("puting %d type_xy together with strides = %zu", size[2], stride_byte[2]);
     // finally get the different dimensions together
-    MPI_Type_create_hvector(size[3], 1, stride_byte[3], type_xyz, &(chunk->dtype));
+    if (size[3] > 1) {
+        MPI_Type_create_hvector(size[3], 1, stride_byte[3], type_xyz, &(chunk->dtype));
+    } else {
+        MPI_Type_dup(type_xyz, &(chunk->dtype));
+    }
     FLUPS_INFO("puting %d type_xyz together with strides = %zu", size[3], stride_byte[3]);
 
     //..........................................................................
@@ -206,7 +212,7 @@ void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk) {
     MPI_Type_commit(&(chunk->dtype));
 
     // free the now useless types
-    MPI_Type_free(&type_x);
+    // MPI_Type_free(&type_x);
     MPI_Type_free(&type_xy);
     MPI_Type_free(&type_xyz);
     //--------------------------------------------------------------------------
@@ -370,7 +376,6 @@ void DoShuffleChunk(MemChunk* chunk) {
  */
 void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
     BEGIN_FUNC;
-    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
@@ -391,7 +396,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // the chunk must be aligned all the time
-        FLUPS_CHECK(m_isaligned(src_data), "The chunk memory should be aligned");
+        FLUPS_CHECK(m_isaligned(src_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
 #pragma omp for schedule(static)
         for (int il = 0; il < n_loop; ++il) {
@@ -410,7 +415,6 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
 
 void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk) {
     BEGIN_FUNC;
-    FLUPS_CHECK(FLUPS_ALIGNMENT == M_ALIGNMENT, "This is only temporary, the alignement should not be in H3LPR");
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
@@ -433,7 +437,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         opt_double_ptr src_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // we alwas know that the chunk memory is aligned
-        FLUPS_CHECK(m_isaligned(trg_data), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
+        FLUPS_CHECK(m_isaligned(trg_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
         FLUPS_INFO("pointers are %p and %p", trg_data, src_data);
         FLUPS_INFO("copy %d %d %d from data to chunk", chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         FLUPS_INFO("copy %zu bytes in %zu loops", nmax_byte, n_loop);

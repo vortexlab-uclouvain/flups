@@ -25,6 +25,64 @@
 
 #include "FFTW_plan_dim.hpp"
 
+#include <algorithm>
+
+using std::tuple;
+using std::array;
+using std::make_tuple;
+using std::get;
+
+/**
+ * @brief given a list of priorities, sort them in ascending order
+ *
+ * @param priority
+ */
+void sort_priority(array<tuple<int, int>, 3>* priority) {
+    BEGIN_FUNC;
+    // get the priority list from the plans and sort them preserving the order for equal priorities
+    // sorting tuples works on a first element basis and compares the second one if the first one is the same
+    // cfr: https://en.cppreference.com/w/cpp/utility/tuple/operator_cmp
+    std::stable_sort(priority->begin(), priority->end());
+    END_FUNC;
+}
+
+/**
+ * @brief (smartly) determines in which order the FFTs will be executed based on the plans
+ *
+ * @param plan the list of plan, which will be reordered
+ */
+void sort_plans(FFTW_plan_dim* plan[3]) {
+    BEGIN_FUNC;
+    // get the priorities from the plan
+    array<tuple<int, int>, 3> priority = {make_tuple(plan[0]->type(), 0),
+                                          make_tuple(plan[1]->type(), 1),
+                                          make_tuple(plan[2]->type(), 2)};
+    sort_priority(&priority);
+
+    // now we have to relocate all the plans in the correct order
+    FFTW_plan_dim* old_plan[3] = {plan[0], plan[1], plan[2]};
+    for (int i = 0; i < 3; ++i) {
+        const int r_id = std::get<1>(priority[i]);
+        plan[i]        = old_plan[r_id];
+    }
+    FLUPS_CHECK((plan[0]->type() <= plan[1]->type()) && (plan[1]->type() <= plan[2]->type()), "Wrong order in the plans: %d %d %d", plan[0]->type(), plan[1]->type(), plan[2]->type());
+    END_FUNC;
+}
+
+/**
+ * @brief returns the type of the plan for a given set of BC
+ * 
+ * @param bc the bc to be used
+ * @return int the type of the plan
+ */
+int bc_to_types(const BoundaryType* bc[2]) {
+    BEGIN_FUNC;
+    // get the type as the sum on the bc:
+    const int type = bc[0][0] + bc[1][0];
+    END_FUNC;
+    return type;
+}
+
 /**
  * @brief Construct a new FFTW_plan_dim object
  *
@@ -49,40 +107,45 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     // get the boundary conditions for each dimnension
     //-------------------------------------------------------------------------
     // allocate the bc space
-    bc_[0] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
-    bc_[1] =(BoundaryType*) m_calloc(sizeof(int)*lda_);
+    bc_[0] = (BoundaryType*)m_calloc(sizeof(int) * lda_);
+    bc_[1] = (BoundaryType*)m_calloc(sizeof(int) * lda_);
 
-    //store the other dimension and check if the type is correct
+    // store the other dimension and check if the type is correct
     for (int lia = 0; lia < lda_; lia++) {
         bc_[0][lia] = mybc[0][lia];
         bc_[1][lia] = mybc[1][lia];
     }
 
     // setup the type of solver, given by the first dimension
-    int mytype = bc_[0][0] + bc_[1][0];
+    const BoundaryType* bc_4_type[2] = {bc_[0], bc_[1]};
+    int                 mytype       = bc_to_types(bc_4_type);
 
     //-------------------------------------------------------------------------
     // Get type and mult factors
     //-------------------------------------------------------------------------
     if (mytype <= SYMSYM) {
-        type_     = SYMSYM;
-        volfact_  = 1.0;  // no convolution so no multiplication by h
-        kfact_    = c_2pi / (2.0 * L[dimID_]);
-        if (isGreen_) isSpectral_ = true;
+        type_    = SYMSYM;
+        volfact_ = 1.0;  // no convolution so no multiplication by h
+        kfact_   = c_2pi / (2.0 * L[dimID_]);
+        if (isGreen_) {
+            isSpectral_ = true;
+        }
     } else if (mytype <= MIXUNB) {
         type_       = MIXUNB;
         volfact_    = h[dimID_];
         kfact_      = c_2pi / (4.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == PERPER) {
-        type_     = PERPER;
-        volfact_  = 1.0;  // no convolution so no multiplication by h
-        kfact_    = c_2pi / (L[dimID_]);
-        if (isGreen_) isSpectral_ = true;
+        type_    = PERPER;
+        volfact_ = 1.0;  // no convolution so no multiplication by h
+        kfact_   = c_2pi / (L[dimID_]);
+        if (isGreen_) {
+            isSpectral_ = true;
+        }
     } else if (mytype == UNBUNB) {
-        type_     = UNBUNB;
-        volfact_  = h[dimID_];
-        kfact_    = c_2pi / (2.0 * L[dimID_]);
+        type_       = UNBUNB;
+        volfact_    = h[dimID_];
+        kfact_      = c_2pi / (2.0 * L[dimID_]);
         isSpectral_ = false;
     } else if (mytype == EMPTY) {
         type_ = EMPTY;
@@ -97,15 +160,17 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     //-------------------------------------------------------------------------
     // Allocate the component dependent stuffs
     //-------------------------------------------------------------------------
-    n_in_     = (int*)m_calloc(sizeof(int) * lda_);
-    fftwstart_= (int*)m_calloc(sizeof(int) * lda_);
+    n_in_          = (int*)m_calloc(sizeof(int) * lda_);
+    fftwstart_in_  = (int*)m_calloc(sizeof(int) * lda_);
+    fftwstart_out_ = (int*)m_calloc(sizeof(int) * lda_);
     // normfact_ = (double*)m_calloc(sizeof(double) * lda_);
     for(int lia = 0; lia < lda_; lia ++){
-        n_in_[lia]      = 1;
-        fftwstart_[lia] = 0;
+        n_in_[lia]           = 1;
+        fftwstart_in_[lia] = 0;
+        fftwstart_out_[lia] = 0;
     }
     normfact_ = 1.0;
-    corrtype_ = (PlanCorrectionType*)m_calloc(sizeof(int) * lda_);
+    postpro_type_ = (int*)m_calloc(sizeof(int) * lda_);
     imult_    = (bool*)m_calloc(sizeof(bool) * lda_);
 
     for(int lia= 0 ; lia<lda_; lia++){
@@ -137,10 +202,11 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     if (bc_[1] != NULL) m_free(bc_[1]);
 
     if (n_in_ != NULL) m_free(n_in_);
-    if (fftwstart_ != NULL) m_free(fftwstart_);
+    if (fftwstart_in_ != NULL) m_free(fftwstart_in_);
+    if (fftwstart_out_ != NULL) m_free(fftwstart_out_);
     if (imult_ != NULL) m_free(imult_);
     if (kind_ != NULL) m_free(kind_);
-    if (corrtype_ != NULL) m_free(corrtype_);
+    if (postpro_type_ != NULL) m_free(postpro_type_);
     if (plan_ != NULL) m_free(plan_);
     //-------------------------------------------------------------------
     END_FUNC;
@@ -272,14 +338,13 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
         if (topo->nf() == 1) {
-            fftw_stride_ = memsize[dimID_];
-            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia], data, data, kind_[lia], FLUPS_FFTW_FLAG);
-
+            fftw_stride_ = memsize[dimID_];            
+            plan_[lia]   = fftw_plan_r2r_1d(n_in_[lia],  data + fftwstart_in_[lia],  data + fftwstart_out_[lia], kind_[lia], FLUPS_FFTW_FLAG);
         } else if (topo->nf() == 2) {
             fftw_stride_ = memsize[dimID_] * topo->nf();
             plan_[lia]   = fftw_plan_many_r2r(1, (int*)(&n_in_[lia]), 1,
-                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(),
-                                            data, NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FLUPS_FFTW_FLAG);
+                                            data + fftwstart_in_[lia],  NULL, topo->nf(), memsize[dimID_] * topo->nf(),
+                                            data + fftwstart_out_[lia], NULL, topo->nf(), memsize[dimID_] * topo->nf(), kind_ + lia, FLUPS_FFTW_FLAG);
         }
     }
 
@@ -367,9 +432,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data, (fftw_complex*)data, FLUPS_FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_r2c_1d(n_in_[0], data + fftwstart_in_[0], (fftw_complex*)data + fftwstart_out_[0], FLUPS_FFTW_FLAG);
         } else {
-            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data, data, FLUPS_FFTW_FLAG);
+            plan_[0] = fftw_plan_dft_c2r_1d(n_in_[0], (fftw_complex*)data + fftwstart_in_[0], data+ fftwstart_out_[0], FLUPS_FFTW_FLAG);
         }
 
     } else {
@@ -391,8 +456,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("fftw stride   = %d", fftw_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
-
-        plan_[0] = fftw_plan_dft_1d(n_in_[0], (fftw_complex*)data, (fftw_complex*)data, sign_, FLUPS_FFTW_FLAG);
+        plan_[0] = (fftw_plan_dft_1d(n_in_[0], (fftw_complex*) data + fftwstart_in_[0], (fftw_complex*)data + fftwstart_out_[0], sign_, FLUPS_FFTW_FLAG));
     }
 
     // the plan is the same in every other direction
@@ -440,95 +504,135 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
 }
 
 /**
- * @brief corrects the plan executed depending on #corrtype_ and #sign_.
- * 
- * This function resets the correct mode at the correct place in the Topology
- * If going forward:
- * - the DST correction sets the 0-mode to 0 and shifts the modes by 1 on the right  (i-> i+1)
- * - the DCT correction sets the flip-flop mode to 0
- * 
- * If going backward:
- * - the DCT correction is not needed
- * - the DST correction shifts the mode to the left (i-> i-1)
- * 
- * @param data 
+ * @brief corrects the plan executed depending on postpro_type_
+ *
+ * This function resets the correct mode at the correct place in the Topology. 
+ * The corrections are detailed in doc/Modes_correction
+ *
+ * @param data
  */
-void FFTW_plan_dim::correct_plan(const Topology* topo, double* data) {
+void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
     BEGIN_FUNC;
     // check the data alignment
-    check_dataAlign_(topo,data);
-
+    check_dataAlign_(topo, data);
     const int    nloc        = topo->nloc(topo->axis());
+    const int    nf          = topo->nf();
     const size_t howmany     = howmany_;
     const size_t memdim      = topo->memdim();
-    const size_t fftw_stride = (size_t)fftw_stride_;
+    // The fftw stride is always given as the number of elements separating two sets of data 
+    // given to the fft. Therefore, three different case can happen:
+    //      - when the transform is a complex to complex one, the 
+    //        stride need to be multiplied by two as we deal with 
+    //        complex numbers (one complex contains two doubles).
+    //      - when doing a real to real transform, the fftw stride can be taken as such.
+    //      - when performing a real to complex transform, the stide is taken in the input 
+    //        frame of reference, and is therefore kept as the number of real.  
+    const size_t fftw_stride = (size_t)(fftw_stride_ * (isr2c_ ? 1 : nf));
 
     for (int lia = 0; lia < lda_; lia++) {
-        // get the starting point of the
+        //----------------------------------------------------------------------
+        // given the correction, get which one we actually do
+        // do first
+        const int  correct   = postpro_type_[lia];
+        const bool do_first  = do_reset_first_point(correct);
+        const bool do_last   = do_reset_last_point(correct);
+        const bool do_period = do_enforce_period(correct);
+
+        // now that we know which correction is requested form the type, we can ajdust them given the forward types
+        // Here are the memory corrections
+        const bool reset_first      = do_first && (!do_last);
+        const bool reset_last       = (!do_first) && do_last;
+        const bool reset_first_last = do_first && do_last;
+        const bool enforce_period   = do_period;
+        const bool do_nothing       = (!do_first) && (!do_last) && (!enforce_period);
+        //----------------------------------------------------------------------
+        // get the starting point of the data
         opt_double_ptr mydata = data + lia * memdim;
-        // if we need a DCT correction and that we are doing forward (backward doesn't matter)
-        if (corrtype_[lia] == CORRECTION_DCT && sign_ == FLUPS_FORWARD) {
-            // we need to enforce the flip-flop mode to be zero and that's it
+
+        //----------------------------------------------------------------------
+        if (reset_first) {
+            // we need to reset the first point of the memory space to 0
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // reset the flip-flop mode
-                dataloc[nloc - 1]       = 0.0;
-            }
-        }
-        else if(corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_FORWARD){
-            // we need to enforce the the mode 0 + shift everything from i to i+1
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i -> i+1
-                for(int ii=nloc-2; ii >= 0; ii--){
-                    dataloc[ii+1] = dataloc[ii];
-                }
+                // reset the first point of each 1-D transform
                 dataloc[0] = 0.0;
             }
-
-        } 
-        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_FORWARD) {
-            // we need to shift everything from i+1 to i
+        }
+        //----------------------------------------------------------------------
+        // Do last point 
+        else if (reset_last) {
+            // we need to reset the last point of the memory space to 0
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i+1 -> i
-                for (int ii = 1; ii < nloc; ii++) {
-                    dataloc[ii - 1] = dataloc[ii];
-                }
+                // reset the last point of each 1-D transform
+                dataloc[nloc - 1] = 0.0;
             }
-        } 
-
-        else if (corrtype_[lia] == CORRECTION_DST && sign_ == FLUPS_BACKWARD) {
-            // we need to enforce the the mode 0 + shift everything from i to i-1
+        }
+        //----------------------------------------------------------------------
+        //Do first and last point 
+        else if (reset_first_last) {
+            // we need to properly set the first and the last point of the transform to 0
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
             for (size_t io = 0; io < howmany; io++) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i -> i+1
-                for(int ii=1; ii < nloc; ii++){
-                    dataloc[ii-1] = dataloc[ii];
+                // reset the first point
+                dataloc[0] = 0.0;
+                // reset the last point
+                dataloc[nloc - 1] = 0.0;
+            }
+        }
+        //----------------------------------------------------------------------
+        // Enforce period
+        // For the moment, this correction is only applied in the case of a PER-PER pencil
+        // with node-centred data. Indeed, the data on both boundaries contains the same info
+        // The point on the last boundary is then discarded by fftw. We need to enforce the 
+        // periodicity on the boundary by hand. 
+        else if (enforce_period) {
+            // ......................
+            // When proceeding to a forward transform, the point on the boundary is the point 
+            // reserved for this in the output data layout (See FFTW_plan_dim_node.cpp). When going
+            // in the backward direction, the point on the boundary is the last point in the input 
+            // configuration, i.e. the index n_in_ 
+            const int  nfftw    = (FLUPS_FORWARD == sign_) ? n_out_ - 1 : n_in_[lia];
+
+            // ......................
+            // This correction is done in the complex domain in most of the case. 
+            // The only times the correction is done in the physical domain is 
+            // when the transform is a transform from real to complex in the backward 
+            // direction
+            const bool real_dmn = ((isr2c_) && (FLUPS_BACKWARD == sign_)) ? true : false;
+
+            // we need to properly copy the first point into the last point
+            if(real_dmn){
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
+                for (size_t io = 0; io < howmany; io++) {
+                    opt_double_ptr dataloc = mydata + io * fftw_stride;
+                    dataloc[nfftw] = dataloc[0];
+                }
+            } else {
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
+                for (size_t io = 0; io < howmany; io++) {
+                    // get the memory
+                    opt_double_ptr dataloc = mydata + io * fftw_stride;
+                    dataloc[2*nfftw] = dataloc[0];
+                    dataloc[2*nfftw + 1] = dataloc[1];
                 }
             }
         }
-        else if (corrtype_[lia] == CORRECTION_NDST && sign_ == FLUPS_BACKWARD) {
-            // we need to shift everything from i to i+1
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-            for (size_t io = 0; io < howmany; io++) {
-                // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
-                // shift everything i+1 -> i
-                for (int ii = nloc-2; ii >= 0; ii--) {
-                    dataloc[ii + 1] = dataloc[ii];
-                }
-                // enforce the first point in the physical domain to be 0
-                dataloc[0] = 0.0;
-            }
+        //----------------------------------------------------------------------
+        else if (do_nothing) {
+            // There is nothing to do, no correction is applied.
+        }
+        //----------------------------------------------------------------------
+        else {
+            FLUPS_CHECK(false,
+                        "The combination of correction is either illegual or not implemented: FIRST?%d LAST?%d",
+                        do_first, do_last);
         }
     }
     END_FUNC;
@@ -581,51 +685,51 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (type_ == SYMSYM || type_ == MIXUNB) {  // R2R
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
         for (size_t id = 0; id < onmax; id++) {
             size_t lia = id / howmany;
             size_t io  = id % howmany;
             // get the memory
             double* mydata = (double*)data + lia * memdim + io * fftw_stride;
             // execute the plan on it
-            fftw_execute_r2r(plan[lia], (double*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+            fftw_execute_r2r(plan[lia], (double*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
             if (sign_ == FLUPS_FORWARD) {  // DFT - R2C
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // get the memory
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
+                    fftw_execute_dft_r2c(plan[lia], (double*)mydata + fftwstart_in_[lia], (fftw_complex*)mydata  + fftwstart_out_[lia]);
                 }
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
                 for (size_t id = 0; id < onmax; id++) {
                     size_t lia = id / howmany;
                     size_t io  = id % howmany;
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (double*)mydata + fftwstart_[lia]);
+                    fftw_execute_dft_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
                 }
             }
 
         } else {  // DFT
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim)
+#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
             for (size_t id = 0; id < onmax; id++) {
                 size_t lia = id / howmany;
                 size_t io  = id % howmany;
                 // we access complex info with a fftw_stride real
                 double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
                 // execute the plan on it
-                fftw_execute_dft(plan[lia], (fftw_complex*)mydata + fftwstart_[lia], (fftw_complex*)mydata  + fftwstart_[lia]);
+                fftw_execute_dft(plan[lia], (fftw_complex*)mydata + fftwstart_in_[lia], (fftw_complex*) mydata + fftwstart_out_[lia]);
             }
         }
     }

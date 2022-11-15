@@ -82,7 +82,7 @@ run vector a2a 5:1:
     - compil vortex_rot
   script:
     - cd ./samples/solve_vtube
-    - python3.8 ./scripts/test_rot_a2a.py
+    - python3.8 ./scripts/test_rot.py a2a
 
 
 ###################################################
@@ -164,7 +164,7 @@ run vector nb 5:1:
     - compil vortex_rot
   script:
     - cd ./samples/solve_vtube
-    - python3.8 ./scripts/test_rot_nb.py
+    - python3.8 ./scripts/test_rot.py nb
 
 ###################################################
 #  NON BLOCKING - MPI_Datatype
@@ -233,4 +233,17 @@ run vector isr 4:1:
     - python3.8 -c "from scripts import check_res_3d; exit(check_res_3d.check_res_3d(1,'validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_331400_typeGreen=0.txt','validation_3d_CellCenter_330400_typeGreen=0.txt','validation_3d_CellCenter_331411_typeGreen=0.txt'))"
 
 
+run vector isr 5:1:
+  stage: vector
+  rules:
+    - if: ($VECTOR_MERGE_REQUEST == "yes") && ($CI_OPEN_MERGE_REQUESTS)
+    - if: ($VECTOR_PUSH_MAIN == "yes") && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: ($VECTOR_FAILEDJOB == "yes") && ($CI_COMMIT_BRANCH =~ /^[0-9]-job-failed.*$/i)
+    - if: ($VECTOR_BRANCH == "yes") && $CI_COMMIT_BRANCH
+  needs: [compil vortex_rot]
+  dependencies: 
+    - compil vortex_rot
+  script:
+    - cd ./samples/solve_vtube
+    - python3.8 ./scripts/test_rot.py isr
 

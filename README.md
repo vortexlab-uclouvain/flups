@@ -136,6 +136,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
+- `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones whan allocating data. 
 - `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
 - `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename
 
@@ -313,3 +314,9 @@ The continuous integration of FLUPS is based on the tools provided by Gitlab. Di
 
 - Any `merge request` triggers some _validation tests_. We test all the possible combination of boundary conditions (1000 possibilities), kernels (8 kernels) and data location (node-centred or cell-centred) using the [Google test library](https://github.com/google/googletest). Basically, we test the spatial convergence of all the kernels with all the combination of boundary conditions. The source code cand be found in the `test` directory while details and explantion of the test can be found [here](test/Readme.md). However, this extremly large amount of tests (16 000 in total)  require extensive computationnal resources. We hence rely on _daily_ testing routine, that uses the `sample/validation/` source code. <br/>
 The _daily test_ is a smaller, in-house, test suite, that can be executed on a desktop machine. Diverse boundary conditions, domain size, resolution, procs repartition and kernels are tested and the results are compared to a dataset that has been generated with a validated version of the code. 
+
+
+### Resources
+
+- [CI testing](doc/CI.md)
+- [real to real FFT](doc/Mode_Correction.md)

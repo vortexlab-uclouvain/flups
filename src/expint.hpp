@@ -15,11 +15,16 @@
 /**********************************************************************/
 
 #include <math.h>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
 
-static const double c_gamma = 0.5772156649015328606;
-
+/**********************************************************************/
+static double c_gamma = 0.5772156649015328606;
 static double expint1(double x);
 static double expint2(double x);
+static double expint(const int n, const double x);
+/**********************************************************************/
 
 static double expint_ei(double x) 
 {
@@ -163,5 +168,78 @@ static double expint2(double x)
     return (value);
 
 }
+
+/**********************************************************************/
+/*                                                                    */
+/*                      double expint()                              */
+/*                                                                    */
+/**********************************************************************/
+// Utility for calculating the exponential integral of order n  from -\infty to x. 
+// Evaluates the exponential integral E_n(x)
+// This snippets of code is taken from the book Numerical Recipies, third.
+//
+// Here MAXIT is the maximum allowed number of iterations; 
+// c_gamma is Euler’s constant \gamma; 
+// EPS is the desired relative error, not smaller than the machine precision; 
+// BIG is a number near the largest representable floating-point number.
+/**********************************************************************/
+static int    MAXIT = 1000;
+static double EPS   = std::numeric_limits<double>::epsilon();
+static double BIG   = std::numeric_limits<double>::max()* EPS;
+
+static double expint(const int n, const double x) {
+    // ------------------------------------------------------------------------
+    int    i, ii, nm1 = n - 1;
+    double a, b, c, d, del, fact, h, psi, ans;
+    if (n < 0 || x < 0.0 || (x == 0.0 && (n == 0 || n == 1))) {
+        throw std::runtime_error("bad arguments in expint");
+    }
+    if (n == 0) {
+        ans = exp(-x) / x;  // Special case
+    } else if (x == 0.0) {
+        ans = 1.0 / nm1;
+    } else if (x > 1.0) {  // Lentz's algorithm
+        b = x + n;
+        c = BIG;
+        d = 1.0 / b;
+        h = d;
+        for (i = 1; i <= MAXIT; i++) {
+            a   = -i * (nm1 + i);
+            b   += 2.0;
+            d   = 1.0 / (a * d + b);
+            c   = b + a / c;
+            del = c * d;
+            h   *= del;
+            if (abs(del - 1.0) <= EPS) {
+                ans = h * exp(-x);
+                return ans;
+            }
+        }
+        throw std::runtime_error("continued fraction failed in expint");
+    } else {                                              // Evaluate series.
+        ans  = (nm1 != 0) ? (1.0 / nm1) : (-log(x) - c_gamma);  // Set first term.
+        fact = 1.0;
+        for (i = 1; i <= MAXIT; i++) {
+            fact *= -x / i;
+            if (i != nm1) {
+                del = -fact / (i - nm1);
+            } else {
+                psi = -c_gamma;  // Compute \psi
+                for (ii = 1; ii <= nm1; ii++) {
+                    psi += 1.0 / ii;
+                }
+                del = fact * (-log(x) + psi);
+            }
+            ans += del;
+            if (abs(del) < abs(ans) * EPS) {
+                return ans;
+            }
+        }
+        throw std::runtime_error("series failed in expint");
+    }
+    // ------------------------------------------------------------------------
+    return ans;
+}
+
 
 #endif

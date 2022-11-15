@@ -3,7 +3,6 @@
 #include <limits>
 #include <mpi.h>
 
-#include "flups.h"
 #include "analytical_field.hpp"
 
 #define ZERO_TOL 1000.0 * std::numeric_limits<double>::epsilon() 

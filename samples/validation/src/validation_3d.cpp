@@ -23,26 +23,28 @@
  * 
  */
 
+#include <unistd.h>
+#include <limits.h>
+
 #include "validation_3d.hpp"
 
 #include "omp.h"
 
-
 using namespace std;
 
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda) {
-    validation_3d(myCase, typeGreen, 1);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const std::string output_dir) {
+    validation_3d(myCase, typeGreen, 1, output_dir);
 }
 
 /**
  * @brief computes the reference solution and the numerical one, outputs errors in a file
- * 
+ *
  * @param myCase description of the domain and initial condition
  * @param typeGreen type of Green function
  * @param lda leading dimension of array = number of vector components
  * @param nSolve number of times we call the same solver (for timing)
  */
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve) {
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve, const std::string output_dir) {
     int rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
@@ -368,6 +370,18 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_hdf5_dump(topo, msg, sol);
 #endif
 
+
+    //-------------------------------------------------------------------------
+    /** - Warm up */
+    //-------------------------------------------------------------------------
+    for (int is = 0; is < 5; is++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        m_profStart(prof, "Validation--Warm-up");
+        flups_solve(mysolver, field, rhs,STD);
+        m_profStop(prof, "Validation--Warm-up");
+        MPI_Barrier(MPI_COMM_WORLD);
+    }	
+
     //-------------------------------------------------------------------------
     /** - solve the equations */
     //-------------------------------------------------------------------------
@@ -435,20 +449,27 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         err2[i] = sqrt(err2[i]);
     }
 
-    char   filename[512];
-    string folder = "./data";
+    
+    
+    string folder = output_dir + "/data";
     string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
-
+    char   filename[PATH_MAX];
     sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
-        struct stat st = {0};
-        if (stat(folder.c_str(), &st) == -1) {
-            mkdir(folder.c_str(), 0770);
+        struct stat st_output = {0};
+        struct stat st_folder = {0};
+        if (stat(output_dir.c_str(), &st_output) == -1) {
+            mkdir(output_dir.c_str(), 0770);
+        }
+        
+        if (stat(folder.c_str(), &st_folder) == -1) {
+                mkdir(folder.c_str(), 0770);
         }
 
         FILE *myfile = fopen(filename, "a+");
         if (myfile != NULL) {
+            printf("Opening file %s !\n", filename);
             fprintf(myfile, "%d ", nglob[0]);
             for (int i = 0; i < lda; i++) {
                 fprintf(myfile, "%12.12e %12.12e ", err2[i], erri[i]);
