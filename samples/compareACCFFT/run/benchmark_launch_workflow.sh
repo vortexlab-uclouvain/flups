@@ -31,7 +31,8 @@ export COMPILE_TIME='05:00:00'
 export KERNEL_TIME='01:00:00'
 
 # ..................................................................
-export CLUSTER='meluxina'
+#export CLUSTER='meluxina'
+export CLUSTER='vega'
 # ..................................................................
 #---------------------------------------------------------------------------------------
 #               MELUXINA
@@ -93,21 +94,25 @@ fi
 if [[ ${CLUSTER} == "vega" ]]; then
     export BASE_SCRATCHDIR=/ceph/hpc/data/b2203-024-users/
     ## .................................
-    ## MPI information
-    export MPI_VERSION=4.1.3
-    export MPICC='mpicc'
-    export MPICXX='mpic++'
-    
-    ## .................................
     ## NEEDED dir
     export HOME_FLUPS=${HOME}/flups/
     export HOME_H3LPR=${HOME}/h3lpr/
 
-    export FFTW_DIR=${EBROOTFFTW}
-    export HDF5_DIR=${EBROOTHDF5}
+    #export FFTW_DIR=${EBROOTFFTW}
+    #export HDF5_DIR=${EBROOTHDF5}
+    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1
+    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1
 
-    export ACCFFT_DIR=${HOME}/lib-OpenMPI-${MPI_VERSION}
+    #export ACCFFT_DIR=${HOME}/lib-OpenMPI-${MPI_VERSION}
+    export ACCFFT_DIR=${HOME}/lib-MPI-4.1a1/
 
+    ## .................................
+    ## MPI information
+    #export MPI_VERSION=4.1.3
+    export MPI_VERSION=4.1a1
+    export MPICC='mpicc'
+    export MPICXX='mpic++'
+    
     ## .................................
     ## Cluster information
     export NPROC_NODES=128
@@ -117,17 +122,19 @@ if [[ ${CLUSTER} == "vega" ]]; then
     export ACCOUNT='b2203-024-users'
 
     ## BASH OPTIONS -- Compilation job 
-    export COMPILE_CLUSTER_SPEC='--mem=256000'
+    export COMPILE_CLUSTER_SPEC='--mem=256000 --reservation=Benchmark-2301733'
 
     ## .................................
     ## BASH OPTIONS -- kernel job 
-    export KERNEL_CLUSTER_SPEC=''
+    export KERNEL_CLUSTER_SPEC='--mem=256000 --reservation=Benchmark-2301733'
 
     ## .................................
     # export UCX_TLS=ud,sm
-    export UCX_TLS=self,shm,rc,dc
-    export OMPI_MCA_pml=ucx
-    export OMPI_MCA_osc=ucx
+    export UCX_TLS=self,shm,dc
+    #export OMPI_MCA_pml=ucx
+    #export OMPI_MCA_osc=ucx
+
+    export LAUNCH_COMMAND='mpiexec -bind-to core'
 fi
 
 
