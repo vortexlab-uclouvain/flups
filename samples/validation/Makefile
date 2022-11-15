@@ -99,13 +99,16 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 ################################################################################
 default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
+
 
 all2all: $(TARGET_EXE_A2A)
 
 nonblocking: $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 nonblockingisr: $(TARGET_EXE_ISR)
+
+deprec: $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
 
 nonblocking_deprec: $(TARGET_EXE_DPREC_NB)
 
