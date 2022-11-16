@@ -9,5 +9,5 @@
 ##module load OpenMPI/5.0.0-GCC-10.3.0
 #module load OpenMPI/${1}-GCC-10.3.0
 ##module load OpenMPI/4.1.1-GCC-10.3.0
-export PATH=${HOME}/lib-MPICH-4.1a1/bin/:${PATH}
-export LD_LIBRARY_PATH=${HOME}/lib-MPICH-4.1a1/lib:${LD_LIBRARY_PATH}
+export PATH=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1/bin/:${PATH}
+export LD_LIBRARY_PATH=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1/lib:${LD_LIBRARY_PATH}
