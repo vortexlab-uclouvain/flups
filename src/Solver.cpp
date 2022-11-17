@@ -1,6 +1,6 @@
 /**
  * @file Solver.cpp
- * @copyright Copyright © Université catholique de Louvain (UCLouvain), Belgique 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
  *      See LICENSE file in top-level directory
 */
 

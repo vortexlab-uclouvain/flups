@@ -1,6 +1,6 @@
 /**
  * @file SwitchTopoX_isr.hpp
- * @copyright Copyright © Université catholique de Louvain (UCLouvain), Belgique 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
  *      See LICENSE file in top-level directory
 */
 #ifndef SRC_SWITCHTOPOX_ISR_HPP_

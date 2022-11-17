@@ -1,3 +1,7 @@
+/** 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+ */
 #include <cmath>
 #include <iostream>
 

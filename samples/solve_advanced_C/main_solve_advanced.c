@@ -1,3 +1,8 @@
+/**
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+ */
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
