@@ -5,20 +5,10 @@
 */
 #include "SwitchTopoX_a2a.hpp"
 
-#if FLUPS_OLD_MPI
 void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send,
               MemChunk *recv_chunks, const int *count_recv, const int *disp_recv, 
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request* all2all_rqst, MPI_Comm subcomm,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
-#else 
-
-#include <mpi-ext.h>
-
-void All2Allv(MemChunk *send_chunks, const int *count_send, 
-             MemChunk *recv_chunks, const int *count_recv, 
-             MPI_Request * all2all_rqst, MPI_Comm subcomm,
-             const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
-#endif
 
 void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm);
 
@@ -86,17 +76,6 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
     o2i_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(1 * sizeof(MPI_Request)));
     o2i_rqst_[0] = MPI_REQUEST_NULL;
 
-#if FLUPS_OLD_MPI == 0     
-    MPI_Info i2o_info;
-    MPI_Info_create(&i2o_info);
-    MPIX_Alltoallv_init(send_buf_, i2o_count_, i2o_disp_, MPI_DOUBLE, recv_buf_, o2i_count_, o2i_disp_, MPI_DOUBLE, subcomm_, i2o_info, i2o_rqst_);
-    MPI_Info_free(&i2o_info);
-    MPI_Info o2i_info;
-    MPI_Info_create(&o2i_info);
-    MPIX_Alltoallv_init(recv_buf_, o2i_count_, o2i_disp_, MPI_DOUBLE, send_buf_, i2o_count_, i2o_disp_, MPI_DOUBLE, subcomm_, o2i_info, o2i_rqst_);
-    MPI_Info_free(&o2i_info);
-#endif 
-
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -141,7 +120,6 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
 
-#if FLUPS_OLD_MPI    
     if (sign == FLUPS_FORWARD) { 
         All2Allv(i2o_chunks_, i2o_count_, i2o_disp_,
                  o2i_chunks_, o2i_count_, o2i_disp_,
@@ -153,20 +131,6 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
                  recv_buf_, send_buf_, o2i_rqst_, subcomm_,
                  topo_out_, topo_in_, v, prof_);
     }
-#else
-
-    if (sign == FLUPS_FORWARD) { 
-        All2Allv(i2o_chunks_, i2o_count_, 
-                 o2i_chunks_, o2i_count_,
-                 i2o_rqst_, subcomm_,
-                 topo_in_, topo_out_, v, prof_);
-    } else {
-        All2Allv(o2i_chunks_, o2i_count_,
-                 i2o_chunks_, i2o_count_, 
-                 o2i_rqst_, subcomm_,
-                 topo_out_, topo_in_, v, prof_);
-    } 
-#endif
 
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
@@ -192,7 +156,6 @@ void SwitchTopoX_a2a::disp() const {
 }
 
 
-#if FLUPS_OLD_MPI
 /**
  * @brief process to the Send/Recv operation to go from topo_in to topo_out
  *
@@ -212,12 +175,6 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
               MemChunk *recv_chunks, const int *count_recv, const int *disp_recv, 
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request* all2all_rqst, MPI_Comm subcomm,
               const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof) {
-#else 
-void All2Allv(MemChunk *send_chunks, const int *count_send, 
-             MemChunk *recv_chunks, const int *count_recv, 
-             MPI_Request * all2all_rqst, MPI_Comm subcomm,
-             const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof) {
-#endif
 
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
@@ -258,13 +215,8 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
 
 
     m_profStarti(prof, "all2all - start");
-#if FLUPS_OLD_MPI
 
     MPI_Ialltoallv(send_buf, count_send, disp_send, MPI_DOUBLE, recv_buf, count_recv, disp_recv, MPI_DOUBLE, subcomm, all2all_rqst);
-
-#else 
-    MPI_Start(all2all_rqst);
-#endif
     m_profStopi(prof, "all2all - start");
 
     // reset the memory to 0.0 as we do inplace computations
