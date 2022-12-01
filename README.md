@@ -110,7 +110,7 @@ make install
 ARCH_FILE=make_arch/my_arch_dependent_file PREFIX=/my/lib/prefix make install
 ```
 
-:warning: you must **install** the library. Indeed, we copy some data required by the solver.
+/!\ you must **install** the library. Indeed, we copy some data required by the solver.
 If you wish to keep everything local, simply do not give a prefix and the current directory will be selected.
 
 **Performance notes**:  To increase the performance of the code, we highly recommend compiling it with _Link Time Optimisation_ (LTO). To do that, add the flag ` -flto` to your `CXXFLAGS` and `LDFLAGS` variables. In addition, you must ensure that your utility tool to create the library archive can build an archive file that libLTO can use at link time. Finally, if you have an architecture which supports LTO, overwrite the `AR` variable in your `make_arch`. 
@@ -118,12 +118,6 @@ If you wish to keep everything local, simply do not give a prefix and the curren
 AR := gcc-ar 
 ```
 By default, the Makefile use the open-source utility tool `ar`.
-
-
-### Documentation
-
-The documentation is built using Doxygen.
-To build the documentation, go to the `./doc` subfolder and type `doxygen`.
 
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
@@ -136,16 +130,20 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
 - `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
--`MPI_40` : Use this flag to apply some fancy parameters to allow faster MPI calls if you have a MPI-4.0 compliant version
+- `MPI_40` : Use this flag to apply some fancy parameters to allow faster MPI calls if you have a MPI-4.0 compliant version
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
-- `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones whan allocating data. 
-- `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
-- `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename
+- `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones when allocating data. 
+- `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once.
+- `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename.
 
-:warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
+/!\ You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
+
+### Documentation
+
+The documentation is built using Doxygen.
+To build the documentation, go to the `./doc` subfolder and type `doxygen`.
 ## How to use a solver?
-
 ### Detailed reference
 The scientific background of the library is explained in "Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019" and in "Balty et al., **FLUPS - a flexible and performant massively parallel Fourier transform library**, IEEE Transactions on Parallel and Distributed Systems, 2022 (under review)".
 
