@@ -13,7 +13,7 @@ For the list of all the contributors to the development of FLUPS, description an
 
 ### Citation information
 FLUPS is described in [this paper](https://arxiv.org/abs/2006.09300). If you use FLUPS, please cite it as follows in your publications:
-- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 (under review)
+- Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 
 
 
 ## Why should you use FLUPS?
@@ -246,7 +246,7 @@ This includes:
 
 ### Make the most of the parallel implementation
 
-FLUPS features hybrid distributed (maintained)/shared(deprecated version) memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. 
+FLUPS features hybrid distributed (maintained)/shared(deprecated version) memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. Among the two non-blocking implementations, the user can choose to use _persistent_ communication or communication based on _MPI\_Datatype_.
 
 The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per CPU, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
 - We highly recommend the use of distributed memory when possible, even if FLUPS can run in a pure OpenMP mode.
