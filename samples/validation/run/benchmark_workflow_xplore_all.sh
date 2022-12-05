@@ -19,14 +19,17 @@ export SCRIPT_MODULE=${HOME_FLUPS}/samples/validation/run/${CLUSTER}_modules.sh
 
 ##-------------------------------------------------------------------------------------------------------------
 ## Go to the scratch directory and copy what's needed
-export PRIORITY_OPTS=(" " "-DMPI_DEFAULT_ORDER")
-export ROLLING_OPTS=(" " "-DMPI_NO_ROLLING_RANK")
-export SENDBATCH_OPTS=(1 2 4 8 16 32 64 128)
-export MAXSEND_OPTS=(1 2 4 8 16 32 64 128)
+#export PRIORITY_OPTS=(" " "-DMPI_DEFAULT_ORDER")
+#export ROLLING_OPTS=(" " "-DMPI_NO_ROLLING_RANK")
+#export SENDBATCH_OPTS=(1 2 4 8 16 32 64 128)
+#export MAXSEND_OPTS=(1 2 4 8 16 32 64 128)
 
-export COMPILE_PREFIXES=("priority_order" "default_order")
-export SCRATCH_DIR_LIST='priority_order default_order'
+#export COMPILE_PREFIXES=("priority_order" "default_order")
+#export SCRATCH_DIR_LIST='priority_order default_order'
 
+export COMPILE_OPTIONS=(" " "-DMPI_NO_ROLLING_RANK")
+export COMPILE_PREFIXES=("rolling_rank" "default_rank")
+export SCRATCH_DIR_LIST='rolling_rank default_rank'
 
 for idx in "${!COMPILE_OPTIONS[@]}";
 do

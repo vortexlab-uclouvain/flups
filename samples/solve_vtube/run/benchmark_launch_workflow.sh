@@ -50,8 +50,8 @@ export COMPILE_TIME='00:10:00'
 export KERNEL_TIME='02:30:00'
 
 # ..................................................................
-export CLUSTER='vega'
-#export CLUSTER='meluxina'
+#export CLUSTER='vega'
+export CLUSTER='meluxina'
 # ..................................................................
 
 #---------------------------------------------------------------------------------------
@@ -64,12 +64,15 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     export HOME_FLUPS=${HOME}/flups/
     export HOME_H3LPR=${HOME}/h3lpr/
 
-    export FFTW_DIR=${EBROOTFFTW}
-    export HDF5_DIR=${EBROOTHDF5}
+    export FFTW_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1
+    export HDF5_DIR=${HOME}/lib-MPICH-4.1a1-UCX-1.13.1
+    #export FFTW_DIR=${EBROOTFFTW}
+    #export HDF5_DIR=${EBROOTHDF5}
 
     ## .................................
     ## MPI information
-    export MPI_VERSION=4.1.4
+    #export MPI_VERSION=4.1.4
+    export MPI_VERSION=4.1a1
     export MPICC='mpicc'
     export MPICXX='mpic++'
     export NPROC_NODES=128
@@ -85,12 +88,14 @@ if [[ ${CLUSTER} == "meluxina" ]]; then
     ## BASH OPTIONS -- kernel job 
     export KERNEL_CLUSTER_SPEC='--qos=default'
 
+    export UCX_TLS=self,shm,dc
+    export UCX_DC_MLX5_NUM_DCI=16
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_TLS=self,shm,rc,ud
     # export UCX_UD_TX_QUEUE_LEN=4096
 
     ## .................................
-    export LCOMMAND='srun'
+    export LAUNCH_COMMAND='mpiexec -bind-to core'
 fi
 
 
