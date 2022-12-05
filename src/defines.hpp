@@ -1,27 +1,8 @@
 /**
  * @file defines.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
- */
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+*/
 
 #ifndef DEFINES_HPP
 #define DEFINES_HPP
@@ -33,212 +14,239 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
-#include "flups.h"
+#include "flups_interface.h" // get the main defines
+#include "h3lpr/macros.hpp" // return the h3lpr macros
+#include "h3lpr/profiler.hpp" // profiler
+#include "h3lpr/ptr.hpp" // pointer allocation
+
+//==============================================================================
+//                      Compilation flags
+//==============================================================================
+/**
+ * @brief FFTW planner flag driven by the NDEBUG flag
+ *
+ */
+#ifndef FFTW_FLAG
+#ifdef NDEBUG
+#define FLUPS_FFTW_FLAG FFTW_PATIENT
+#else
+#define FLUPS_FFTW_FLAG FFTW_ESTIMATE
+#endif
+#else
+#define FLUPS_FFTW_FLAG FFTW_FLAG
+#endif
+
+#ifndef COMM_DPREC
+#define FLUPS_MPI_AGGRESSIVE 1
+#else
+#define FLUPS_MPI_AGGRESSIVE 0
+#endif
+
+/**
+ * @brief enables the more evenly distributed balancing between ranks
+ *
+ * given N unknowns and P process, we try to evenly distribute the data
+ * every rank has defacto B=N/P unknows as a baseline.
+ * Then we are left with R = N%P unkowns to distribute among the P processes.
+ * To do so instead of setting the R unknowns on the R first ranks we distribute them by groups.
+ * We gather S (=stride) ranks together in a group and per group we add 1 unknow on the last rank of the group
+ * The size of a group is given by S = P/R, which is also the stride between two groups
+ * Exemple:
+ *     - N = 32, P = 6: B = 5, R = 2 and therefore S = 3.
+ *         So the rank distribution will be in two groups of 3 ranks:
+ *              rank 0 -> 0 * 5 + 0 / 3 = 0
+ *              rank 1 -> 1 * 5 + 1 / 3 = 5     (+5)
+ *              rank 2 -> 2 * 5 + 2 / 3 = 10    (+5)
+ *              rank 3 -> 3 * 5 + 3 / 3 = 16    (+6)
+ *              rank 4 -> 4 * 5 + 4 / 3 = 21    (+5)
+ *              rank 5 -> 5 * 5 + 5 / 3 = 26    (+5)
+ *              rank 6 -> 6 * 5 + 6 / 3 = 32    (+6)
+ *
+ * To get the starting id from a rank we have:
+ *       id = r * B + r/S
+ *
+ * To recover the rank from a global id (I) it's a bit longer.
+ * We use S * B + 1 which is the number of unknowns inside one group
+ * (1) get the group id:
+ *      group_id = I /(S*B + 1)
+ * (2) get the id within the group:
+ *      local_group_id = I%(S*B + 1)
+ * (3) get the rank within the group:
+ *      local_group_id/B
+ *
+ * the rank is then:
+ *      group_id * S + local_group_id/B
+ */
+#ifndef BALANCE_DPREC
+#define FLUPS_NEW_BALANCE 1
+#else
+#define FLUPS_NEW_BALANCE 0
+#endif
+
+#ifdef HAVE_WISDOM
+#define FLUPS_WISDOM_PATH HAVE_WISDOM
+#endif
+
+#ifdef HAVE_HDF5
+#define FLUPS_HDF5 1
+#else
+#define FLUPS_HDF5 0
+#endif
+
+// register the current git commit for tracking purpose
+#ifdef GIT_COMMIT
+#define FLUPS_GIT_COMMIT GIT_COMMIT
+#else
+#define FLUPS_GIT_COMMIT "?"
+#endif
+
+#ifndef MPI_40
+#define FLUPS_OLD_MPI 1
+#else
+#define FLUPS_OLD_MPI 0
+#endif
+
+#ifndef MPI_BATCH_SEND
+#define FLUPS_MPI_BATCH_SEND 1
+#else
+#define FLUPS_MPI_BATCH_SEND MPI_BATCH_SEND
+#endif
+
+#ifndef MPI_MAX_NBSEND
+#define FLUPS_MPI_MAX_NBSEND INT_MAX
+#else
+#define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
+#endif
+
+#ifndef MPI_DEFAULT_ORDER
+#define FLUPS_PRIORITYLIST 1
+#else
+#define FLUPS_PRIORITYLIST 0
+#endif
+
+#ifndef MPI_NO_ROLLING_RANK
+#define FLUPS_ROLLING_RANK 1
+#else
+#define FLUPS_ROLLING_RANK 0
+#endif
+
+#ifndef MPI_NO_ALLOC
+#define FLUPS_MPI_ALLOC 1
+#else
+#define FLUPS_MPI_ALLOC 0
+#endif
+
+//==============================================================================
+
+
+#if (FLUPS_MPI_AGGRESSIVE)
+#if (FLUPS_MPI_ALLOC)
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
+#else
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
+#endif
+#endif
+
+/**
+ * @brief allocates size bytes using the flups allocation (alignement)
+ *
+ * this funaction relies on the POSIX allocation as defined by H3LPR because
+ * with a posix allocation the returned pointer is the one that needs to be freed
+ *
+ */
+#define m_calloc(size)                                                             \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
+
+/**
+ * @brief free the memory allocated using m_calloc
+ *
+ */
+#define m_free(data)     \
+    {                    \
+        std::free(data); \
+    }
+
+
 
 //=============================================================================
-// LOCATORS
+// Debug
 //=============================================================================
-#define LOCATION ("in " + std::string(__func__) + " from  " + std::string(__FILE__) + " at line " + std::to_string(__LINE__) )
-#define LOC      ("in " + std::string(__func__) )
-
+#define FLUPS_print_data(topo, data)                                                                                                                                            \
+    ({                                                                                                                                                                          \
+        const int    ax0     = topo->axis();                                                                                                                                    \
+        const int    ax1     = (ax0 + 1) % 3;                                                                                                                                   \
+        const int    ax2     = (ax0 + 2) % 3;                                                                                                                                   \
+        const int    lda     = topo->lda();                                                                                                                                     \
+        const int    nf      = topo->nf();                                                                                                                                      \
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                                                   \
+        const size_t memdim  = topo->memdim();                                                                                                                                  \
+        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                                               \
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                                               \
+        const size_t inmax   = topo->nloc(ax0);                                                                                                                                 \
+        printf("ax0 = %d -- lda = %d -- nf = %d - nmem = %d %d %d -- end = %d %d %d \n", ax0, lda, nf, nmem[0], nmem[1], nmem[2], topo->nloc(0), topo->nloc(1), topo->nloc(2)); \
+        for (int lia = 0; lia < lda; lia++) {                                                                                                                                   \
+            printf("lia == %d \n", lia);                                                                                                                                        \
+            if (nf == 1) {                                                                                                                                                      \
+                for (int id = 0; id < onmax; id++) {                                                                                                                            \
+                    const size_t   io     = id % ondim;                                                                                                                         \
+                    opt_double_ptr argloc = data + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);                                                                         \
+                    if (id % topo->nloc(ax1) == 0) printf("\n");                                                                                                                \
+                    for (size_t ii = 0; ii < inmax; ii++) {                                                                                                                     \
+                        printf("%e \t ", argloc[ii]);                                                                                                                           \
+                    }                                                                                                                                                           \
+                    printf("\n");                                                                                                                                               \
+                }                                                                                                                                                               \
+            } else {                                                                                                                                                            \
+                for (int id = 0; id < onmax; id++) {                                                                                                                            \
+                    const size_t   io     = id % ondim;                                                                                                                         \
+                    opt_double_ptr argloc = data + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);                                                                         \
+                    if (id % topo->nloc(ax1) == 0) printf("\n");                                                                                                                \
+                    for (size_t ii = 0; ii < inmax; ii++) {                                                                                                                     \
+                        printf("(%e, %e) \t", argloc[2 * ii], argloc[2 * ii + 1]);                                                                                              \
+                    }                                                                                                                                                           \
+                    printf("\n");                                                                                                                                               \
+                }                                                                                                                                                               \
+            }                                                                                                                                                                   \
+        }                                                                                                                                                                       \
+        fflush(stdout);                                                                                                                                                         \
+    })
 //=============================================================================
 // WARNINGS
 //=============================================================================
-static inline void FLUPS_WARNING(std::string a, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str());
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1>
-static inline void FLUPS_WARNING(std::string a, T1 b, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1,typename T2>
-static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1,typename T2,typename T3>
-static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_WARNING(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - WARNING] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fflush(stdout);
-};
+#define FLUPS_WARNING(format, ...)                   \
+    ({                                             \
+        m_log_def("FLUPS - Warning", format, ##__VA_ARGS__); \
+    })
+
 
 //=============================================================================
 // LOG / FLUPS_INFO
 //=============================================================================
-#ifdef VERBOSE
-static inline void FLUPS_INFO_DISP(std::string a) {
-    char msg[1024];
-    sprintf(msg, "[FLUPS] %s\n", a.c_str());
-    printf(msg);
-    fflush(stdout);
-}
-static inline void FLUPS_INFO(std::string a) {
-    char tmp[512];
-    sprintf(tmp, a.c_str());
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1>
-static inline void FLUPS_INFO(std::string a, T1 b) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1,typename T2>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1,typename T2,typename T3>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h, i);
-    FLUPS_INFO_DISP(tmp);
-};
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g, h, i, j);
-    FLUPS_INFO_DISP(tmp);
-};
-#else
-static inline void FLUPS_INFO_DISP(std::string a) {
-    (void(0));
-}
-static inline void FLUPS_INFO(std::string a) {
-    (void(0));
-};
-template <typename T1>
-static inline void FLUPS_INFO(std::string a, T1 b) {
-    ((void)0);
-};
-template <typename T1,typename T2>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7,typename T8>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i) {
-    ((void)0);
-};
-template <typename T1,typename T2,typename T3,typename T4,typename T5,typename T6,typename T7,typename T8, typename T9>
-static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j) {
-    ((void)0);
-};
-#endif
+#define FLUPS_INFO(format, ...)                   \
+    ({                                              \
+        m_verb_def("FLUPS ", format, ##__VA_ARGS__); \
+    })
 
 //=============================================================================
 // VERBOSITY LEVELS
 //=============================================================================
 #if VERBOSE>=2
-    #ifdef PROF
-        #define BEGIN_FUNC double T0 = MPI_Wtime();\
-                            FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);
-        #define END_FUNC double T1 = MPI_Wtime();\
-                            FLUPS_INFO(">>> leaving %s from %s at line %d after %lf [s]", __func__, __FILE__, __LINE__,(T1)-(T0));
-    #else
-        #define BEGIN_FUNC {FLUPS_INFO(">>> entering %s from %s at line %d", __func__, __FILE__, __LINE__);};
-        #define END_FUNC {FLUPS_INFO(">>> leaving %s from %s at line %d", __func__, __FILE__, __LINE__);};
-    #endif
+#define BEGIN_FUNC  m_begin_def("FLUPS")
+#define END_FUNC m_end_def("FLUPS")
 #else
-    #define BEGIN_FUNC { ((void)0);};
-    #define END_FUNC { ((void)0);};
+#define BEGIN_FUNC \
+    {              \
+        ((void)0); \
+    };
+#define END_FUNC   \
+    {              \
+        ((void)0); \
+    };
 #endif
-
 
 #if VERBOSE>=1
     #define FLUPS_INFO_1(...) FLUPS_INFO(__VA_ARGS__)
@@ -264,168 +272,15 @@ static inline void FLUPS_INFO(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g,
 //=============================================================================
 // ERRORS AND ASSERTS
 //=============================================================================
-//=============================================================================
-// WARNINGS
-//=============================================================================
-static inline void FLUPS_ERROR(std::string a, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str());
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1>
-static inline void FLUPS_ERROR(std::string a, T1 b, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1,typename T2>
-static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1,typename T2,typename T3>
-static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_ERROR(std::string a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, std::string loc) {
-    char tmp[512];
-    sprintf(tmp, a.c_str(), b, c, d, e, f, g);
-    char msg_error[1024];
-    sprintf(msg_error, "[FLUPS - ERROR] %s - %s\n", tmp, loc.c_str());
-    printf(msg_error);
-    fprintf(stderr,msg_error);
-    fflush(stderr);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD,1);
-};
+#define FLUPS_CHECK(format, ...)                   \
+    ({                                                \
+        m_assert_def("FLUPS", format, ##__VA_ARGS__); \
+    })
 
-#ifndef NDEBUG
-static inline void FLUPS_CHECK(bool a, std::string b, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,loc);
-    }
-};
-template<typename T1>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,loc);
-    }
-};
-template<typename T1,typename T2>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,d,loc);
-    }
-};
-template<typename T1,typename T2,typename T3>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,d,e,loc);
-    }
-};
-template<typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,d,e,f,loc);
-    }
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,d,e,f,g,loc);
-    }
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, T6 h, std::string loc) {
-    if (!(a)) {
-        FLUPS_ERROR(b,c,d,e,f,g,h,loc);
-    }
-};
-#else
-static inline void FLUPS_CHECK(bool a, std::string b, std::string loc) {
-    ((void)0);
-};
-template<typename T1>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, std::string loc) {
-    (void(0));
-};
-template<typename T1,typename T2>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, std::string loc) {
-    (void(0));
-};
-template<typename T1,typename T2,typename T3>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, std::string loc) {
-    (void(0));
-};
-template<typename T1,typename T2,typename T3,typename T4>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, std::string loc) {
-    (void(0));
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, std::string loc) {
-    (void(0));
-};
-template<typename T1,typename T2,typename T3,typename T4,typename T5,typename T6>
-static inline void FLUPS_CHECK(bool a, std::string b, T1 c, T2 d, T3 e, T4 f, T5 g, T6 h, std::string loc) {
-    (void(0));
-};
-#endif
 
-    //=============================================================================
-    // CONSTANTS AND OTHERS
-    //=============================================================================
+//=============================================================================
+// CONSTANTS AND OTHERS
+//=============================================================================
 
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
@@ -441,27 +296,25 @@ typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
+#define m_profStarti(prof, name, ...)                                    \
+    ({                                                                   \
+        H3LPR::Profiler *m_profStarti_prof_ = (H3LPR::Profiler *)(prof); \
+        char m_profStarti_name_[1024];                                   \
+        std::sprintf(m_profStarti_name_, name, ##__VA_ARGS__);           \
+        m_profStart(m_profStarti_prof_, m_profStarti_name_);             \
+    })
+
+#define m_profStopi(prof, name, ...)                                    \
+    ({                                                                  \
+        H3LPR::Profiler *m_profStopi_prof_ = (H3LPR::Profiler *)(prof); \
+        char m_profStopi_name_[1024];                                   \
+        sprintf(m_profStopi_name_, name, ##__VA_ARGS__);                \
+        m_profStop(m_profStopi_prof_, m_profStopi_name_);               \
+    })
 
 //=============================================================================
 // MEMORY ALLOCATION AND FREE
 //=============================================================================
-static inline void* flups_mem_malloc(size_t size) {
-#if defined(__INTEL_COMPILER)
-    return _mm_malloc(size, FLUPS_ALIGNMENT);
-#elif defined(__GNUC__)
-    void* data;
-    posix_memalign(&data, FLUPS_ALIGNMENT, size);
-    return data;
-#endif
-}
-
-static inline void flups_mem_free(void* data) {
-#if defined(__INTEL_COMPILER)
-    _mm_free(data);
-#elif defined(__GNUC__)
-    free(data);    
-#endif
-}
 
 #if defined(__INTEL_COMPILER)
     #define FLUPS_ASSUME_ALIGNED(a,b) __assume_aligned(a,b)
@@ -469,8 +322,8 @@ static inline void flups_mem_free(void* data) {
     #define FLUPS_ASSUME_ALIGNED(a,b) __builtin_assume_aligned(a,b)
 #endif
 
-typedef enum FLUPS_BoundaryType BoundaryType;
-typedef enum FLUPS_GreenType    GreenType;
+// typedef enum FLUPS_BoundaryType BoundaryType;
+// typedef enum FLUPS_GreenType    GreenType;
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
@@ -511,7 +364,11 @@ static const double c_73o768   = 73. / 768.;
 static const double c_11o768   = 11. / 768.;
 static const double c_23o768   = 23. / 768.;
 static const double c_1o768    = 1. / 768.;
-
+static const double c_4o3      = 4. / 3.;
+static const double c_1o6      = 1. / 6.;
+static const double c_3o2      = 3. / 2.;
+static const double c_3o10     = 3. / 10.;
+static const double c_1o30     = 1. / 30.;
 
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 

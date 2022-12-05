@@ -1,0 +1,40 @@
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+CXX = mpic++
+CC = mpicc
+
+# Set the options 
+#OPTS=  -DVERBOSE 
+#OPTS=  -DMPI_AGGRESSIVE -DPROF -DVERBOSE 
+OPTS = -DHAVE_HDF5
+
+# set the flag (optimisation or not)
+## For debugging:
+# CXXFLAGS := -g -Wall -O0 --debug -std=c++11 -DVERBOSE -DDUMP_DBG
+## For profiling:
+# CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -Wno-variadic-macros -DPROF
+## For production:
+CXXFLAGS := -g -O0 -std=c++17
+CCFLAGS := -O3 -std=c99
+LDFLAGS := -fopenmp
+
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+## FFTW3
+FFTW_DIR  :=  /usr/local/fftw
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+
+## HDF5
+HDF5_INC := /usr/include/hdf5/openmpi
+HDF5_LIB := /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+HDF5_LIBNAME := -lhdf5
+
+## H3LPR
+H3LPR_DIR := /soft/h3lpr/
+H3LPR_INC = ${H3LPR_DIR}/include/
+H3LPR_LIB = ${H3LPR_DIR}/lib/
+
+

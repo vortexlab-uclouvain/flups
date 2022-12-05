@@ -1,0 +1,25 @@
+CXX = mpic++ 
+CC = mpicc 
+
+## For production: 
+CXXFLAGS := -O3 -std=c++17 -DNDEBUG
+CCFLAGS := -O3 -std=c99 -DNDEBUG
+LDFLAGS = -fopenmp #-lstc++ 
+#---------------------------------------------------------   
+# DEPENDENCES DIRECTORIES  
+#---------------------------------------------------------  
+  
+## FFTW3  
+FFTW_DIR := ${EBROOTFFTW}
+FFTW_LIB := ${FFTW_DIR}/lib  
+FFTW_INC := ${FFTW_DIR}/include  
+  
+## HDF5  
+HDF5_DIR := ${EBROOTHDF5}
+HDF5_LIB := ${HDF5_DIR}/lib  
+HDF5_INC := ${HDF5_DIR}/include  
+  
+##H3LPR  
+H3LPR_DIR := ${HOME}/h3lpr
+H3LPR_INC := ${H3LPR_DIR}/include
+H3LPR_LIB := ${H3LPR_DIR}/lib

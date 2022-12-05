@@ -1,27 +1,8 @@
 /**
  * @file green_functions.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
- */
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+*/
 
 #include "defines.hpp"
 #include "Topology.hpp"
@@ -46,7 +27,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
  * @param [out] data the data where we store the 
  */
-static void _lgf_readfile(const int greendim, int* N, double** data) {
+static void lgf_readfile_(const int greendim, int* N, double** data) {
     BEGIN_FUNC;
 
     // some defined parameters:
@@ -59,7 +40,7 @@ static void _lgf_readfile(const int greendim, int* N, double** data) {
         (*N) = 32;
         sprintf(lgfname, "%s/LGF_2d_sym_acc12_%d.ker", path, (*N));
     } else {
-        FLUPS_ERROR("Greendim = %d is not available in this version", greendim, LOCATION);
+        FLUPS_CHECK(false, "Greendim = %d is not available in this version", greendim);
     }
 
     // open the file
@@ -72,12 +53,12 @@ static void _lgf_readfile(const int greendim, int* N, double** data) {
     if (lgf_file != NULL) {
         // allocate the data
         const int size = (*N) * (*N) * (*N);
-        (*data) = (double *)flups_malloc(sizeof(double) * size);
+        (*data) = (double *)m_calloc(sizeof(double) * size);
         fread((*data), sizeof(double), size, lgf_file);
         // close the file
         fclose(lgf_file);
     } else {
-        FLUPS_ERROR("unable to read file %s", lgfname, LOCATION);
+        FLUPS_CHECK(false, "unable to read file %s", lgfname);
     }
     END_FUNC;
 }

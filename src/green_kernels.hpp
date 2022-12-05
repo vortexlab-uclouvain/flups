@@ -1,30 +1,8 @@
 /**
  * @file green_kernels.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @brief defines the 3D Green functions kernels
- * @version
- * 
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
- */
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+*/
 
 #include "defines.hpp"
 #include "expint.hpp"
@@ -38,43 +16,43 @@
  */
 // ----------------------------------------------------------- 3D - KERNELS ----------------------------------------------------------
 //notice that these function will likely not be inlined as we have a pointer to them...
-static inline double _hej_2_3unb0spe(const void* params,const double* data) {
+static inline double hej_2_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     return -c_1o4pi / r * (erf(r / eps * c_1osqrt2));
 }
-static inline double _hej_4_3unb0spe(const void* params,const double* data) {
+static inline double hej_4_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (rho)*exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_6_3unb0spe(const void* params,const double* data) {
+static inline double hej_6_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_7o4 * rho - c_1o4 * pow(rho, 3)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_8_3unb0spe(const void* params,const double* data) {
+static inline double hej_8_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_19o8 * rho - c_2o3 * pow(rho, 3) + c_1o24 * pow(rho, 5)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_10_3unb0spe(const void* params,const double* data) {
+static inline double hej_10_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     double eps = ((double*)params) [1];
     double rho = r / eps;
     return -c_1o4pi / r * (c_1osqrt2 * c_1osqrtpi * (c_187o64 * rho - c_233o192 * pow(rho, 3) + c_29o192 * pow(rho, 5) - c_1o192 * pow(rho, 7)) * exp(-rho * rho * .5 ) + erf(rho * c_1osqrt2));
 }
-static inline double _hej_0_3unb0spe(const void* params,const double* data) {
+static inline double hej_0_3unb0spe_(const void* params,const double* data) {
     double r       = ((double*)params)[0];
     double sigma   = ((double*)params)[1];
     double c_1osig = 1.0 / sigma;
     double rho     = r * c_1osig;
     return -c_1o2pi2 * c_1osig * Si(rho)/rho;
 }
-static inline double _chat_2_3unb0spe(const void* params,const double* data) {
+static inline double chat_2_3unb0spe_(const void* params,const double* data) {
     double r   = ((double*)params) [0];
     return -c_1o4pi / r ;
 }
@@ -86,7 +64,7 @@ static inline double _chat_2_3unb0spe(const void* params,const double* data) {
  * @param data 
  * @return double 
  */
-static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
+static inline double lgf_2_3unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
     int    iy = (int)((double*)params)[5];
     int    iz = (int)((double*)params)[6];
@@ -140,7 +118,7 @@ static inline double _lgf_2_3unb0spe(const void* params,const double* data) {
  * @param data 
  * @return double 
  */
-static inline double _lgf_2_2unb0spe(const void* params,const double* data) {
+static inline double lgf_2_2unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
     int    iy = (int)((double*)params)[5];
     int    iz = (int)((double*)params)[6];
@@ -190,7 +168,7 @@ static inline double _lgf_2_2unb0spe(const void* params,const double* data) {
  * @{
  */
 // ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_2_2unb1spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params)[0];
     const double sig = ((double*)params)[2];
 
@@ -201,12 +179,12 @@ static inline double _hej_2_2unb1spe_k0(const void* params,const double* data) {
     return c_1o2pi * (log(r) + 0.5 * expint_ei(rho2 * 0.5));
     // return -c_1o2pi * (.5*log(rho*.5) + .5 * expint_ei(rho2 / 2));
 }
-static inline double _hej_2_2unb1spe_r0(const void* params,const double* data) {
+static inline double hej_2_2unb1spe_r0_(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig));
 }
 
-static inline double _hej_4_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_4_2unb1spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -217,13 +195,13 @@ static inline double _hej_4_2unb1spe_k0(const void* params,const double* data) {
     return c_1o2pi * (log(r) - 0.5 * exp(-rho2 * 0.5) + 0.5 * expint_ei(rho2 * 0.5));
     // return -c_1o2pi * (.5*log(rho2*.5) - exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
 }
-static inline double _hej_4_2unb1spe_r0(const void* params,const double* data) {
+static inline double hej_4_2unb1spe_r0_(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + .5);
 }
 
-static inline double _hej_6_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_6_2unb1spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -233,13 +211,13 @@ static inline double _hej_6_2unb1spe_k0(const void* params,const double* data) {
     return c_1o2pi * (log(r) - (0.75 - 0.125 * rho2) * exp(-rho2 * 0.5) + 0.5 * expint_ei(rho2 * 0.5));
     // return -c_1o2pi * (.5*log(rho2*.5) - (.75 - .125 * rho2) * exp(-rho2 / 2) + .5 * expint_ei(rho2 / 2));
 }
-static inline double _hej_6_2unb1spe_r0(const void* params,const double* data) {
+static inline double hej_6_2unb1spe_r0_(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + .75);
 }
 
-static inline double _hej_8_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_8_2unb1spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -247,13 +225,13 @@ static inline double _hej_8_2unb1spe_k0(const void* params,const double* data) {
     const double rho2 = rho*rho;
     return c_1o2pi * (log(r) - (c_11o12 - c_7o24 * rho2 + c_1o48 * rho2*rho2) * exp(-rho2 * 0.5) + 0.5 * expint_ei(rho2 * 0.5));
 }
-static inline double _hej_8_2unb1spe_r0(const void* params,const double* data) {
+static inline double hej_8_2unb1spe_r0_(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + c_11o12);
 }
 
-static inline double _hej_10_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_10_2unb1spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -261,12 +239,12 @@ static inline double _hej_10_2unb1spe_k0(const void* params,const double* data) 
     const double rho2 = rho*rho;
     return c_1o2pi * (log(r) - (c_25o24 - c_23o48 * rho2 + c_13o192 * rho2*rho2 - c_1o384 * rho2*rho2*rho2) * exp(-rho2 * 0.5) + 0.5 * expint_ei(rho2 * 0.5));
 }
-static inline double _hej_10_2unb1spe_r0(const void* params,const double* data) {
+static inline double hej_10_2unb1spe_r0_(const void* params,const double* data) {
     const double sig = ((double*)params)[2];
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + c_25o24);
 }
-static inline double _hej_0_2unb1spe_k0(const void* params,const double* data) {
+static inline double hej_0_2unb1spe_k0_(const void* params,const double* data) {
     //works as well for r0
     const double r       = ((double*)params)[0];
     const double sigma   = ((double*)params)[2]; // h/pi
@@ -280,23 +258,23 @@ static inline double _hej_0_2unb1spe_k0(const void* params,const double* data) {
     return (rho<30.0) ? tmp : c_1o2pi * log(r); 
 }
 
-static inline double _zero(const void* params,const double* data) {   
+static inline double zero_(const void* params,const double* data) {   
     return 0.0;
 }
 
-static inline double _chat_2_2unb1spe(const void* params,const double* data) {
+static inline double chat_2_2unb1spe_(const void* params,const double* data) {
     const double r      = ((double*)params) [0];
     const double k      = ((double*)params) [1];
 
     return -c_1o2pi * besselk0(fabs(k) * r);
 }
-static inline double _chat_2_2unb1spe_r0(const void* params,const double* data) {
+static inline double chat_2_2unb1spe_r0_(const void* params,const double* data) {
     const double k      = ((double*)params) [1];
     const double r_eq2D = ((double*)params) [3];
 
     return -(1.0 - k * r_eq2D * besselk1(k * r_eq2D)) * c_1opi / ((k * r_eq2D) * (k * r_eq2D));
 }
-static inline double _chat_2_2unb1spe_k0(const void* params,const double* data) {
+static inline double chat_2_2unb1spe_k0_(const void* params,const double* data) {
     const double r      = ((double*)params) [0];
     // const double sig = ((double*)params)[2];
     
@@ -311,7 +289,7 @@ static inline double _chat_2_2unb1spe_k0(const void* params,const double* data) 
  * @{
  */
 // ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_1unb2spe(const void* params,const double* data) {
+static inline double hej_2_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
     const double sig = ((double*)params) [2];
@@ -322,7 +300,7 @@ static inline double _hej_2_1unb2spe(const void* params,const double* data) {
     const double subfun = s * rho > 100. ? 0.0 : ((1.0 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1.0 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
     return - .25 * sig / s * subfun ;
 }
-static inline double _hej_2_1unb2spe_k0(const void* params,const double* data) {
+static inline double hej_2_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -332,7 +310,7 @@ static inline double _hej_2_1unb2spe_k0(const void* params,const double* data) {
     return 0.5 * r * erf(rosqrt2/sig) - (1.-exp(-rho*rho*.5)) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
-static inline double _hej_4_1unb2spe(const void* params,const double* data) {
+static inline double hej_4_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
     const double sig = ((double*)params) [2];
@@ -343,7 +321,7 @@ static inline double _hej_4_1unb2spe(const void* params,const double* data) {
     return - 0.25 * sig / s * subfun \
            - sig * M_SQRT2 * c_1osqrtpi * .25 * exp(-.5 * (s * s + rho * rho));
 }
-static inline double _hej_4_1unb2spe_k0(const void* params,const double* data) {
+static inline double hej_4_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -352,7 +330,7 @@ static inline double _hej_4_1unb2spe_k0(const void* params,const double* data) {
     return 0.5 * r * erf(rosqrt2/sig) - (1.-exp(-rho*rho*.5)) *.5*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
-static inline double _hej_6_1unb2spe(const void* params,const double* data) {
+static inline double hej_6_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
     const double sig = ((double*)params) [2];
@@ -363,7 +341,7 @@ static inline double _hej_6_1unb2spe(const void* params,const double* data) {
     return - 0.25 * sig / s * subfun \
            - sig * M_SQRT2 * c_1osqrtpi * (c_5o16 + c_1o16 * (s * s - rho * rho)) * exp(-.5 * (s * s + rho * rho));
 }
-static inline double _hej_6_1unb2spe_k0(const void* params,const double* data) {
+static inline double hej_6_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -372,7 +350,7 @@ static inline double _hej_6_1unb2spe_k0(const void* params,const double* data) {
     return 0.5 * r * erf(rosqrt2/sig) - (3.-exp(-rho*rho*.5) * (rho*rho+3.) ) *.125*sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
-static inline double _hej_8_1unb2spe(const void* params,const double* data) {
+static inline double hej_8_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
     const double sig = ((double*)params) [2];
@@ -385,7 +363,7 @@ static inline double _hej_8_1unb2spe(const void* params,const double* data) {
     return - 0.25 * sig / s * subfun \
            - sig * M_SQRT2 * c_1osqrtpi * (c_11o32 + c_1o12 * s2 - 0.125 * rho2 - c_1o48 * s2*rho2 + c_1o96 * (s2*s2+rho2*rho2) ) * exp(-.5 * (s * s + rho2));
 }
-static inline double _hej_8_1unb2spe_k0(const void* params,const double* data) {
+static inline double hej_8_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -395,7 +373,7 @@ static inline double _hej_8_1unb2spe_k0(const void* params,const double* data) {
     return 0.5 * r * erf(rosqrt2/sig) - (c_5o16 - exp(-rho*rho*.5) * (-c_1o48 * rho2*rho2 + .25 * rho2 + c_5o16) ) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
-static inline double _hej_10_1unb2spe(const void* params,const double* data) {
+static inline double hej_10_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
     const double sig = ((double*)params) [2];
@@ -408,7 +386,7 @@ static inline double _hej_10_1unb2spe(const void* params,const double* data) {
     return - 0.25 * sig / s * subfun \
            - sig * M_SQRT2 * c_1osqrtpi * (c_93o256 + c_73o768 * s2 - c_47o256 * rho2 - c_17o384 * s2*rho2 + c_11o768 * s2*s2 + c_23o768 * rho2*rho2 + c_1o256 * (s2*rho2*rho2 - s2*s2*rho2) + c_1o768 * (s2*s2*s2 - rho2*rho2*rho2) ) * exp(-.5 * (s * s + rho2));
 }
-static inline double _hej_10_1unb2spe_k0(const void* params,const double* data) {
+static inline double hej_10_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double sig = ((double*)params) [2];
 
@@ -418,13 +396,13 @@ static inline double _hej_10_1unb2spe_k0(const void* params,const double* data) 
     return 0.5 * r * erf(rosqrt2/sig) - (c_35o128 - exp(-rho*rho*.5) * (c_1o384 * rho2*rho2*rho2 - c_23o384 * rho2*rho2 + c_47o128 * rho2 + c_35o128) ) *sig*c_1osqrt2*c_1osqrtpi ; //mistakenly 0.0 in [Hejlesen:2013] and [Spietz:2018]
 }
 
-static inline double _chat_2_1unb2spe(const void* params,const double* data) {
+static inline double chat_2_1unb2spe_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
     const double k   = ((double*)params) [1];
 
     return -0.5 * exp(-k * r) / k;
 }
-static inline double _chat_2_1unb2spe_k0(const void* params,const double* data) {
+static inline double chat_2_1unb2spe_k0_(const void* params,const double* data) {
     const double r   = ((double*)params) [0];
 
     return 0.5 * fabs(r);
@@ -439,28 +417,28 @@ static inline double _chat_2_1unb2spe_k0(const void* params,const double* data) 
  * @{
  */
 // ----------------------------------------------------------- KERNELS ----------------------------------------------------------
-static inline double _hej_2_0unb3spe(const void* params,const double* data) {
+static inline double hej_2_0unb3spe_(const void* params,const double* data) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
 
     const double ssqr = ksqr * (sig * sig);
     return - exp(-ssqr * 0.5) / (ksqr); 
 }
-static inline double _hej_4_0unb3spe(const void* params,const double* data) {
+static inline double hej_4_0unb3spe_(const void* params,const double* data) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
 
     const double ssqr = ksqr * (sig * sig);
     return - (1.0 + ssqr * 0.5) * exp(-ssqr * 0.5) / (ksqr);
 }
-static inline double _hej_6_0unb3spe(const void* params,const double* data) {
+static inline double hej_6_0unb3spe_(const void* params,const double* data) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
 
     const double ssqr = ksqr * (sig * sig);
     return - (1.0 + ssqr * 0.5 + ssqr * ssqr * 0.125 ) * exp(-ssqr * 0.5) / (ksqr);
 }
-static inline double _hej_8_0unb3spe(const void* params,const double* data) {
+static inline double hej_8_0unb3spe_(const void* params,const double* data) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
 
@@ -468,7 +446,7 @@ static inline double _hej_8_0unb3spe(const void* params,const double* data) {
     const double ssqr2 = ssqr * ssqr;
     return - (1.0 + ssqr * 0.5 + ssqr2 * 0.125 + ssqr2 * ssqr * c_1o48) * exp(-ssqr * 0.5) / (ksqr);
 }
-static inline double _hej_10_0unb3spe(const void* params,const double* data) {
+static inline double hej_10_0unb3spe_(const void* params,const double* data) {
     const double ksqr = ((double*)params)[0];
     const double sig  = ((double*)params)[1];
 
@@ -477,12 +455,12 @@ static inline double _hej_10_0unb3spe(const void* params,const double* data) {
     return - (1.0 + ssqr * 0.5 + ssqr2 * 0.125 + ssqr2 * ssqr * c_1o48 + ssqr2 * ssqr2 * c_1o384) * exp(-ssqr * 0.5) / (ksqr);
 }
 
-static inline double _chat_2_0unb3spe(const void* params,const double* data) {
+static inline double chat_2_0unb3spe_(const void* params,const double* data) {
     const double ksqr   = ((double*)params) [0];
 
     return - 1.0 / ksqr;
 }
-static inline double _lgf_2_0unb3spe(const void* params, const double* data) {
+static inline double lgf_2_0unb3spe_(const void* params, const double* data) {
     const double kx = ((double*)params)[2];
     const double ky = ((double*)params)[3];
     const double kz = ((double*)params)[4];

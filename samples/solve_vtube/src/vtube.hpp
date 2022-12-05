@@ -1,26 +1,7 @@
 /**
  * @file vtube.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
  */
 
 #ifndef VTUBE_HPP
@@ -35,9 +16,12 @@
 #include <cstring>
 
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
 #include "flups.h"
 
-
+/**********************************************************************/
+/*                      Needed constant                               */
+/**********************************************************************/
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
 static const double c_1o4pi    = 1.0 / (4.0 * M_PI);
@@ -51,6 +35,26 @@ static const double c_1o24     = 1. / 24;
 static const double c_1osqrt2 = 1.0 / M_SQRT2;
 static const double c_2pi = 2.0 * M_PI;
 
+/**********************************************************************/
+/*                      double expint()                              */
+/**********************************************************************/
+template <int P>
+double gexpint(const double z) {
+    // DLMF 8.19.12 (https://dlmf.nist.gov/8.19#E12)
+    // or Abramowitz and stegun 5.1.14
+    return (std::exp(-z) - z * gexpint<P - 1>(z)) / (P - 1.0);
+}
+template <> 
+double gexpint<1>(const double z);
+//{
+//    // for real values E1(x) = -Ei(-x):
+//    // according to
+//    // https://en.cppreference.com/w/cpp/numeric/special_functions/expint and
+//    // https://en.wikipedia.org/wiki/Exponential_integral
+//    return (-std::expint(-z));
+//}
+
+/**********************************************************************/
 struct DomainDescr {
     double             xcntr          = 0.5;
     double             ycntr          = 0.5;
@@ -62,14 +66,20 @@ struct DomainDescr {
     int                nproc[3]       = {1, 2, 2};
     double             L[3]           = {1.0, 1.0, 1.0};
     FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
+    FLUPS_CenterType   center[3]      = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
+    double             rc             = 0.1;
+    double             sigma          = 0.05;
+    bool               compact        = false;
+    double             rad            = 0.25;
 };
 
+/**********************************************************************/
 /**
  * @name validation of the solver using a gaussian blob
- * 
+ *
  */
 /**@{ */
 void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, int type, FLUPS_DiffType order, int vdir);
 /**@} */
-
+/**********************************************************************/
 #endif

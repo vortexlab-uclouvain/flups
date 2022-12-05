@@ -1,3 +1,7 @@
+/** 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+ */
 #include <cmath>
 #include <iostream>
 
@@ -106,7 +110,7 @@ int main(int argc, char *argv[]) {
     int requested = MPI_THREAD_FUNNELED;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
-        FLUPS_ERROR("The MPI-provided thread behavior does not match", LOCATION);
+        FLUPS_ERROR("The MPI-provided thread behavior does not match");
     }
    
     MPI_Comm_rank(comm, &rank);
@@ -130,7 +134,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(comm_size!=nproc[0]*nproc[1]*nproc[2])
-        FLUPS_ERROR("Invalid number of procs",LOCATION);
+        FLUPS_ERROR("Invalid number of procs");
 
 
     //-------------------------------------------------------------------------
@@ -142,6 +146,7 @@ int main(int argc, char *argv[]) {
     Topology *topoIn      = new Topology(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
     const int  nprocOut[3] = {1, 2, 1};
     const int  nglobOut[3] = {17, 32, 64};
+    const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
     
     // prepare profiling
 #ifdef SKIP_P3D
@@ -152,9 +157,10 @@ int main(int argc, char *argv[]) {
     Profiler* FLUprof = new Profiler(FLUPSprof);
 
     // solver creation and init
-    Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, FLUprof);
+    Solver *mysolver = new Solver(topoIn, mybc, h, L, NOD, center_type, FLUprof);
     mysolver->set_GreenType(CHAT_2);
-    double *solFLU = mysolver->setup(true);
+    mysolver->setup(true);
+    double *solFLU = mysolver->get_innerBuffer();
     // update the comm and the rank
     comm = flups_topo_get_comm(topoIn);
     MPI_Comm_rank(comm, &rank);

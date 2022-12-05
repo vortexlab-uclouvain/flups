@@ -1,35 +1,16 @@
 /**
  * @file Topology.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
- */
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
+*/
 
 #ifndef TOPOLOGY_HPP
 #define TOPOLOGY_HPP
 
 #include "defines.hpp"
-#include "hdf5_io.hpp"
 #include "mpi.h"
 #include <cstring>
+#include <limits.h>
 
 /**
  * @brief Class Topology
@@ -37,29 +18,29 @@
  * A topology describes the layout of the data on the current processor.
  * 
  * The number of unkowns in each direction owned by a rank divides them in two groups.
- * First, we compute the integer division, nbyproc, between _nglob and _nproc.
+ * First, we compute the integer division, nbyproc, between nglob_ and nproc_.
  * 
- * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(_nglob,_nproc)-1, included.
- * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(_nglob,_nproc) to rank _nproc, included.
+ * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(nglob_,nproc_)-1, included.
+ * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(nglob_,nproc_) to rank nproc_, included.
  * 
  */
 class Topology {
    protected:
-    int       _nproc[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int       _axproc[3];  /**<@brief axis of the procs for ranksplit  */
-    int       _nf;         /**<@brief the number of doubles inside one unknows (if complex = 2, if real = 1) */
-    int       _nloc[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
-    int       _nmem[3];    /**<@brief real number of unknows per dim, for 1 component, local (012-indexing)  */
-    int       _axis;       /**<@brief fastest rotating index in the topology  */
-    int       _rankd[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int       _nglob[3];   /**<@brief number of unknows per dim, global (012-indexing)  */
-    int       _lda;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
-    // int       _nbyproc[3]; /**<@brief mean number of unkows per dim = nloc except for the last one (012-indexing)  */
-    const int _alignment;
-    MPI_Comm  _comm; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
+    int       nproc_[3];   /**<@brief number of procs per dim (012-indexing)  */
+    int       axproc_[3];  /**<@brief axis of the procs for ranksplit  */
+    int       nf_;         /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
+    int       nloc_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       nmem_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       axis_;       /**<@brief fastest rotating index in the topology  */
+    int       rankd_[3];   /**<@brief rank of the current process per dim (012-indexing)  */
+    int       nglob_[3];   /**<@brief number of unknowns per dim, global (012-indexing)  */
+    int       lda_;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
+    // int       nbyproc_[3]; /**<@brief mean number of unknowns per dim = nloc except for the last one (012-indexing)  */
+    const int alignment_;
+    MPI_Comm  comm_; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
 
-    // double _h[3]; //**< @brief grid spacing */
-    // double _L[3];//**< @brief length of the domain  */
+    // double h_[3]; //**< @brief grid spacing */
+    // double L_[3];//**< @brief length of the domain  */
     // -> We got rid of these, as L changes during a transform occuring in the associated topo, and the computation of h would also
     //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
@@ -80,57 +61,118 @@ class Topology {
      * 
      * @{
      */
-    inline int axis() const { return _axis; }
-    inline int lda() const { return _lda; }
-    inline int nf() const { return _nf; }
-    inline int isComplex() const { return _nf == 2; }
+    inline int axis() const { return axis_; }
+    inline int lda() const { return lda_; }
+    inline int nf() const { return nf_; }
+    inline int isComplex() const { return nf_ == 2; }
 
-    inline int nglob(const int dim) const { return _nglob[dim]; }
-    inline int nloc(const int dim) const { return _nloc[dim]; }
-    inline int nmem(const int dim) const { return _nmem[dim]; }
-    inline int nproc(const int dim) const { return _nproc[dim]; }
-    inline int rankd(const int dim) const { return _rankd[dim]; }
-    // inline int nbyproc(const int dim) const { return _nbyproc[dim]; }
-    inline int      axproc(const int dim) const { return _axproc[dim]; }
-    inline MPI_Comm get_comm() const { return _comm; }
+    inline int nglob(const int dim) const { return nglob_[dim]; }
+    inline int nloc(const int dim) const { return nloc_[dim]; }
+    inline int nmem(const int dim) const { return nmem_[dim]; }
+    inline int nproc(const int dim) const { return nproc_[dim]; }
+    inline int rankd(const int dim) const { return rankd_[dim]; }
+    // inline int nbyproc(const int dim) const { return nbyproc_[dim]; }
+    inline int      axproc(const int dim) const { return axproc_[dim]; }
+    inline MPI_Comm get_comm() const { return comm_; }
 
     /**
      * @brief compute the scalar number of unknowns on each proc, i.e. the number of unkowns for one component
-     * 
-     * @param id 
-     * @return int 
+     *
+     * @param id
+     * @return int
      */
     inline int cmpt_nbyproc(const int id) const {
-        return (_nglob[id] / _nproc[id]) + 1 * ((_nglob[id] % _nproc[id]) > _rankd[id]);
+#if (FLUPS_NEW_BALANCE)
+        const int start = cmpt_start_id_from_rank(rankd_[id], id);
+        const int end   = cmpt_start_id_from_rank(rankd_[id] + 1, id);
+        return (end - start);
+#else
+        return (nglob_[id] / nproc_[id]) + 1 * ((nglob_[id] % nproc_[id]) > rankd_[id]);
+#endif
     }
 
     /**
      * @name Functions to compute the starting index of each topology
-     * 
+     *
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
-        return (_rankd[id]) * (_nglob[id] / _nproc[id]) + std::min(_rankd[id], _nglob[id] % _nproc[id]);
+#if (FLUPS_NEW_BALANCE)
+        return cmpt_start_id_from_rank(rankd_[id], id);
+#else
+        return (rankd_[id]) * (nglob_[id] / nproc_[id]) + std::min(rankd_[id], nglob_[id] % nproc_[id]);
+#endif
+    }
+
+    /**
+     * @name Functions to compute the starting index of each rank of the topology
+     * more details can be found in the documentation of the FLUPS_NEW_BALANCE define
+     *
+     * @param id the id for one component
+     */
+    inline int cmpt_start_id_from_rank(const int rank_id, const int id) const {
+#if (FLUPS_NEW_BALANCE)
+        const int b   = nglob_[id] / nproc_[id];                     // baseline
+        const int res = nglob_[id] % nproc_[id];                     // residual
+        const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
+        // if res = 0, stride becomes then inactive
+        // it might happen when requesting out of bound ranks (typically comm_size)
+        // that rank_id/s is bigger than the residual, which is not allowed
+        return rank_id * b + m_min(rank_id / s, res);
+#else
+        return (rank_id) * (nglob_[id] / nproc_[id]) + std::min(rank_id, nglob_[id] % nproc_[id]);
+#endif
     }
 
     /**
      * @brief compute the rank associated to a scalar global id
-     * 
+     * more details can be found in the documentation of the FLUPS_NEW_BALANCE define
+     *
+     * if the global id requested is the last point in the domain, the rank returned is the last rank in the domain
+     *
      * @param global_id the scalar id of the point considered
      * @param id the direction of interest
-     * @return int 
+     * @return int the rank hosting the global_id, the rank is considered to be a valid rank in the topo!
      */
-    inline int cmpt_rank_fromid(const int global_id, const int id) const{
-        const int nproc_g0 = _nglob[id]%_nproc[id]; // number of procs that have a +1 in their unkowns
-        const int nbyproc = _nglob[id]/_nproc[id]; // the number of unknowns in the integer division
-        const int global_g0 = nproc_g0*(nbyproc+1); // the number of unknowns in the first group of procs
+    inline int cmpt_rank_fromid(const int global_id, const int id) const {
+#if (FLUPS_NEW_BALANCE)
+        const int b   = nglob_[id] / nproc_[id];                     // baseline
+        const int res = nglob_[id] % nproc_[id];                     // residual
+        const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
+        FLUPS_CHECK(b > 0, "The baseline = %d must be > 0 with nglob = %d and nproc = %d", b, nglob_[id], nproc_[id]);
 
-        return (global_id < global_g0)? global_id/(nbyproc+1) : (global_id-global_g0)/nbyproc + nproc_g0;
+        // if the res is 0, setting the stride to INT_MAX then the gsize is then INT_MAX
+        // get how many groups of rank with a "+1" are to be taken into account
+        const int gsize = (res > 0) ? (s * b + 1) : (INT_MAX);  // group size, = INT_MAX if the stride is null
+        const int gid   = m_min(res, global_id / gsize);        // group id = the nubmer of groups with a "+1", bounded by res
+        FLUPS_CHECK(gid <= res, "the group id computed based on gsize = %d must be <= res = %d", gid, res);
+        // the residual should be divided by the baseline only = all the points left to be taken into account
+        const int gres = global_id - gsize * gid;
+
+        // if the group id is smaller than the max number of group = res:
+        // you cannot return a number of rank that is higher than the stride (that would happen with the last point of the group)
+        // if the gid is after the last group then we don't care and let the rank be large enough
+        const int rrank = (gid < res)? m_min(gres / b, s - 1) : (gres/b);
+        const int grank = gid * s;
+        // const int rrank = (gid < res)? (rrank) ; m_min(gres / b, s - 1);  // the rrank is bound by s-1, always
+        const int rank  = m_min(nproc_[id] - 1, grank + rrank);
+        FLUPS_CHECK(cmpt_start_id_from_rank(rank, id) <= global_id, "The global id = %d must be bigger than the start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d) = min(%d, %d * %d + %d)", global_id, rank, cmpt_start_id_from_rank(rank, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize, nproc_[id] - 1, (global_id / gsize), s, (global_id % gsize) / b);
+        FLUPS_CHECK(global_id < cmpt_start_id_from_rank(rank + 1, id), "The global id = %d must be smaller than the next start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d)", global_id, rank, cmpt_start_id_from_rank(rank + 1, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize);
+        return rank;
+#else
+        const int nproc_g0  = nglob_[id] % nproc_[id];    // number of procs that have a +1 in their unkowns
+        const int nbyproc   = nglob_[id] / nproc_[id];    // the number of unknowns in the integer division
+        const int global_g0 = nproc_g0 * (nbyproc + 1);   // the number of unknowns in the first group of procs
+        const int rank_g0   = global_id / (nbyproc + 1);  // rank id if the global index is below global_g0
+        FLUPS_CHECK((nbyproc > 0), "the case were there is less points in 1 direction than procs in the same direction is not handled by flups");
+        const int rank_g1 = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
+        return (global_id < global_g0) ? rank_g0 : m_min(rank_g1, nproc_[id] - 1);
+#endif
     }
 
-     /**
+    /**
      * @name Functions to compute intersection data with other Topologies
-     * 
+     *
      * @{
      */
     void cmpt_intersect_id(const int shift[3], const Topology *other, int start[3], int end[3]) const;
@@ -149,20 +191,20 @@ class Topology {
      * 
      * @return size_t 
      */
-    inline size_t locsize() const { return (size_t)_nloc[0] * (size_t)_nloc[1] * (size_t)_nloc[2] * (size_t)_nf; }
+    inline size_t locsize() const { return (size_t)nloc_[0] * (size_t)nloc_[1] * (size_t)nloc_[2] * (size_t)nf_; }
 
     /**
      * @brief returns the memory size of on this proc for one component
      * 
      * @return size_t 
      */
-    inline size_t memdim() const { return (size_t)_nmem[0] * (size_t)_nmem[1] *(size_t) _nmem[2] * (size_t)_nf; }
+    inline size_t memdim() const { return (size_t)nmem_[0] * (size_t)nmem_[1] *(size_t) nmem_[2] * (size_t)nf_; }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      * 
      * @return size_t 
      */
-    inline size_t memsize() const { return (size_t)_nmem[0] * (size_t)_nmem[1] * (size_t)_nmem[2] * (size_t)_nf * (size_t)_lda; }
+    inline size_t memsize() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_ * (size_t)lda_; }
 
     /**
      * @brief returns the starting global index on the current proc
@@ -180,12 +222,12 @@ class Topology {
      * 
      */
     inline void switch2complex() {
-        if (_nf == 1) {
-            _nf = 2;
-            _nglob[_axis] /= 2;
-            _nloc[_axis] /= 2;
-            _nmem[_axis] /= 2;
-            // _nbyproc[_axis] /= 2;
+        if (nf_ == 1) {
+            nf_ = 2;
+            nglob_[axis_] /= 2;
+            nloc_[axis_] /= 2;
+            nmem_[axis_] /= 2;
+            // nbyproc_[axis_] /= 2;
         }
     }
     /**
@@ -193,12 +235,12 @@ class Topology {
      * 
      */
     inline void switch2real() {
-        if (_nf == 2) {
-            _nf = 1;
-            _nglob[_axis] *= 2;
-            _nloc[_axis] *= 2;
-            _nmem[_axis] *= 2;
-            // _nbyproc[_axis] *= 2;
+        if (nf_ == 2) {
+            nf_ = 1;
+            nglob_[axis_] *= 2;
+            nloc_[axis_] *= 2;
+            nmem_[axis_] *= 2;
+            // nbyproc_[axis_] *= 2;
         }
     }
 
@@ -207,14 +249,14 @@ class Topology {
      * 
      */
     inline void switch2Scalar(){
-        _lda=1;
+        lda_=1;
     }
     /**
      * @brief switch the current topo to the vector state
      * 
      */
     inline void switch2Vector(){
-        _lda=3;
+        lda_=3;
     }
 
     void disp() const;
@@ -252,7 +294,7 @@ inline static void ranksplit(const int rank, const int axproc[3], const int npro
  * 
  * @param rankd the rank in XYZ format
  * @param topo the topology
- * @return int 
+ * @return int the rank ID in the communicator of the Topology
  */
 inline static int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
@@ -276,7 +318,6 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param i0
  * @param i1 
  * @param i2 
- * @param lia leading index of array
  * @param axtrg the target FRI
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element

@@ -1,26 +1,7 @@
 /**
  * @file validation_3d.hpp
- * @author Thomas Gillis and Denis-Gabriel Caprace
- * @copyright Copyright © UCLouvain 2020
- * 
- * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
- * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
- * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *  http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+ *      See LICENSE file in top-level directory
  */
 
 #ifndef VALIDATION_3D_HPP
@@ -35,10 +16,15 @@
 #include <cstring>
 
 #include "mpi.h"
+#include "h3lpr/profiler.hpp"
+#include "h3lpr/macros.hpp"
 #include "flups.h"
+
 
 #define MANUFACTURED_SOLUTION
 
+#define m_assert(format, ...) m_assert_def("validation", format, ##__VA_ARGS__); 
+#define m_log(format, ...) m_log_def("validation", format, ##__VA_ARGS__)
 
 static const double c_1opi     = 1.0 / (1.0 * M_PI);
 static const double c_1o2pi    = 1.0 / (2.0 * M_PI);
@@ -60,6 +46,7 @@ struct DomainDescr {
     int                nglob[3]       = {64, 64, 64};
     int                nproc[3]       = {1, 2, 2};
     double             L[3]           = {1.0, 1.0, 1.0};
+    FLUPS_CenterType   center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
     FLUPS_BoundaryType mybc[3][2]     = {{UNB, UNB}, {UNB, UNB}, {UNB, UNB}};
     FLUPS_BoundaryType mybcv[3][2][3] = {{{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}, {{UNB, UNB, UNB}, {UNB, UNB, UNB}}};
 };
@@ -69,8 +56,8 @@ struct DomainDescr {
  * 
  */
 /**@{ */
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda);
-void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve);
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const std::string output_dir = ".");
+void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve, const std::string output_dir = ".");
 /**@} */
 
 
@@ -83,7 +70,6 @@ struct manuParams {
     double sign[2] = {0., 0.};
     double center  = 0.5;
     double sigma   = .5;  //sigma for the compact Gaussian
-    // double       sigma   = 0.15; //sigma for the classic Gaussian
 };
 
 typedef double (*manuF)(const double, const double, const manuParams);

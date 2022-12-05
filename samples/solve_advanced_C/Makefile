@@ -1,23 +1,6 @@
 ################################################################################
-# @copyright Copyright © UCLouvain 2020
-# 
-# FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
-# 
-# Copyright (C) <2020> <Universite catholique de Louvain (UCLouvain), Belgique>
-# 
-# List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
-# 
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# 
-#  http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
+#      See LICENSE file in top-level directory
 # 
 ################################################################################
 
@@ -62,6 +45,13 @@ HDF5_LIB ?= /usr/lib
 HDF5_LIBNAME ?= -lhdf5
 INC += -I$(HDF5_INC)
 LIB += -L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB)
+
+#---- H3LPR
+H3LPR_INC ?= /usr/include
+H3LPR_LIB ?= /usr/lib
+H3LPR_LIBNAME ?= -lh3lpr
+INC += -I$(H3LPR_INC)
+LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
 #-----------------------------------------------------------------------------
 ## add the wanted folders - common folders

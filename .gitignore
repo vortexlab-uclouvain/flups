@@ -13,3 +13,10 @@ doc/latex
 *.log
 *.txt
 *.code-workspace
+samples/validation/flups_validation_*
+samples/solve_advanced_C/solve_advanced_*
+samples/solve_vtube/flups_tube_*
+samples/compareACCFFT/flups_vs_accfft_*
+samples/compareP3DFFT++/flups_vs_p3dfft++_*
+samples/compareP3DFFT/flups_vs_p3dfft_*
+samples/simpleTest/simple_test_*

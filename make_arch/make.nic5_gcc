@@ -1,0 +1,25 @@
+#---------------------------------------------------------
+# COMPILERS
+#---------------------------------------------------------
+#OPTS+= -DVERBOSE=4
+# specify the compiler
+CXX = mpicxx
+CC = mpicc
+
+# set the flag (optimisation or not)
+#CXXFLAGS := -fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
+CXXFLAGS := -fopenmp -O0 -g -std=c++11 -DPROF
+#CCFLAGS := -fopenmp -O3 -g -DNDEBUG -stdc99
+CCFLAGS := -fopenmp -O0 -g -stdc99
+
+LDFLAGS := -fopenmp -lstdc++
+
+#---------------------------------------------------------
+# DEPENDENCES DIRECTORIES
+#---------------------------------------------------------
+FFTW_DIR  := ${EBROOTFFTW}
+FFTW_LIB := ${FFTW_DIR}/lib
+FFTW_INC := ${FFTW_DIR}/include
+#_avx512
+HDF5_LIB := ${HDF5_DIR}/lib
+HDF5_INC := ${HDF5_DIR}/include
