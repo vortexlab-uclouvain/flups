@@ -32,6 +32,12 @@ static double KernelOrder(FLUPS_GreenType kernel){
         case LGF_2:
             return 2.0;
             break;
+        case LGF_4:
+            return 4.0;
+            break;
+        case LGF_6:
+            return 6.0;
+            break;
         case HEJ_2:
             return 2.0;
             break;

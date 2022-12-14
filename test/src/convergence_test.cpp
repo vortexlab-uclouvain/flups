@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <mpi.h>
+#include <map>
 
 #include "analytical_field.hpp"
 
@@ -34,7 +35,13 @@ static const std::array<FLUPS_BoundaryType,2> OD_UN = {ODD, UNB};
 static const std::array<FLUPS_BoundaryType,2> UN_OD = {UNB, ODD};
 
 // Output for log
-static const std::string  kname[8]   = {"CHAT_2", "LGF_2", "HEJ_2", "HEJ_4", "HEJ_6", "HEJ_8", "HEJ_10", "HEJ_0"};
+// static const std::map<FLUPS_CenterType, std::string> cname = {{NODE_CENTER, "NODE_CENTER"}, {CELL_CENTER, "CELL_CENTER"}};
+// static const std::map<FLUPS_GreenType, std::string> kname = {{CHAT_2, "CHAT_2"}, {LGF_2, "LGF_2"}, {HEJ_2, "HEJ_2"}, {HEJ_4, "HEJ_4"}, {HEJ_6, "HEJ_6"}, {HEJ_8, "HEJ_8"}, {HEJ_10, "HEJ_10"}, {HEJ_0, "HEJ_0"}};
+// static const std::map<FLUPS_BoundaryType, std::string> bname = {{PER, "PER"}, {UNB, "UNB"}, {ODD, "ODD"}, {EVEN, "EVEN"}}; 
+static const std::map<FLUPS_CenterType, std::string> cname = {{NODE_CENTER, "node"}, {CELL_CENTER, "cell"}};
+static const std::map<FLUPS_GreenType, std::string> kname = {{CHAT_2, "chat2"}, {LGF_2, "lgf2"}, {LGF_4, "lgf4"}, {LGF_6, "lgf6"}, {HEJ_2, "hej2"}, {HEJ_4, "hej4"}, {HEJ_6, "hej6"}, {HEJ_8, "hej8"}, {HEJ_10, "hej10"}, {HEJ_0, "hej0"}};
+static const std::map<FLUPS_BoundaryType, std::string> bname = {{EVEN, "0"}, {ODD, "1"}, {PER, "3"}, {UNB, "4"}}; 
+
 
 /**
  * @brief The base class for a convergence test. 
@@ -42,13 +49,30 @@ static const std::string  kname[8]   = {"CHAT_2", "LGF_2", "HEJ_2", "HEJ_4", "HE
  * However, the function to compute the number of points must be overwritten
  * 
  */
-class ConvergenceTest : public testing::TestWithParam<std::tuple<FLUPS_CenterType, FLUPS_GreenType,
-                                                                std::array<FLUPS_BoundaryType,2>, 
-                                                                std::array<FLUPS_BoundaryType,2>, 
-                                                                std::array<FLUPS_BoundaryType,2> > >{
+
+using ParamType = std::tuple<FLUPS_CenterType, FLUPS_GreenType,
+                                std::array<FLUPS_BoundaryType, 2>, 
+                                std::array<FLUPS_BoundaryType, 2>, 
+                                std::array<FLUPS_BoundaryType ,2> >;
+
+std::string TestNameGenerator(const ::testing::TestParamInfo<ParamType>& info) {
+    const ParamType param = info.param;
+    FLUPS_CenterType center = std::get<0>(param);
+    FLUPS_GreenType green = std::get<1>(param);
+    FLUPS_BoundaryType bdy[6] = {std::get<2>(param)[0], std::get<2>(param)[1], std::get<3>(param)[0], std::get<3>(param)[1], std::get<4>(param)[0], std::get<4>(param)[1]};
+
+    std::string test_name = "";
+    test_name += cname.at(center);
+    test_name += "_" + kname.at(green);
+    test_name += "_" + bname.at(bdy[0]) + bname.at(bdy[1]) + "_" + bname.at(bdy[2]) + bname.at(bdy[3]) + "_" + bname.at(bdy[4]) + bname.at(bdy[5]);
+    return test_name;
+}
+
+class ConvergenceTest : public testing::TestWithParam<ParamType>{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {4, 4, 4};
+    // const int    nproc_[3]  = {4, 4, 4};
+    const int    nproc_[3]  = {1, 1, 1};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
@@ -91,7 +115,7 @@ protected:
         //..........................................
         test_log("===========================================================");
         test_log("TESTING: data type = %s; kernel = %s and bc = %d %d - %d %d - %d %d", 
-        (center_type_[0] == NODE_CENTER)? "node-centred" : "cell-centred", kname[(int)green_].c_str(),
+        (center_type_[0] == NODE_CENTER)? "node-centered" : "cell-centered", kname.at(green_).c_str(),
         *mybc_[0][0], *mybc_[0][1], *mybc_[1][0], *mybc_[1][1], *mybc_[2][0], *mybc_[2][1]);
         test_log("===========================================================");
         //--------------------------------------------------------------------
@@ -108,35 +132,36 @@ protected:
     };
 };
 
-
-
-
 TEST_P(ConvergenceTest, AllBoundaryConditions){
     //--------------------------------------------------------------------
     // Check if we deal with a spectral case or an mix cases
     bool isXSpectral = (*(mybc_[0][0]) != UNB) && (*(mybc_[0][1]) != UNB); 
     bool isYSpectral = (*(mybc_[1][0]) != UNB) && (*(mybc_[1][1]) != UNB);
     bool isZSpectral = (*(mybc_[2][0]) != UNB) && (*(mybc_[2][1]) != UNB);
-    bool is_spectral = (isXSpectral && isYSpectral && isZSpectral);
-    bool is_green_spectral = (is_spectral && (CHAT_2 == green_ || HEJ_0 == green_)); // Chat2 and Hej0 have a spectral accuracy with spectral bc
-    bool is_green_rdy = (!is_spectral && (HEJ_0 == green_ || LGF_2 == green_));      // Hej0 and LGF2 can not handle unbounded bcs.
+    int  n_spectral = isXSpectral + isYSpectral + isZSpectral;
+    bool is_green_spectral = (n_spectral == 3) && (CHAT_2 == green_ || HEJ_0 == green_); // Chat2 and Hej0 have a spectral accuracy with spectral bc
+    bool is_green_invalid = (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
+    is_green_invalid |= (LGF_2 == green_) && (n_spectral == 1); // LGF_2 cannot handle one spectral direction
+    is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1 || n_spectral == 2); // LGF_4 cannot handle one or two spectral directions
+    is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1 || n_spectral == 2); // LGF_6 cannot handle one or two spectral directions
     
     //  -------------------------------------------------------------------------
     // Perform the test
     double erri[2]; 
-    int    ntest  = (is_green_rdy) ? 0 : (is_green_spectral ? 1 : 2) ;
+    int    ntest  = (is_green_invalid) ? 0 : (is_green_spectral ? 1 : 2) ;
     
     for(int i = 0; i < ntest; ++i){
         //  -------------------------------------------------------------------------
         //  Definition of the problem
         int nglob[3]; double h[3];
         for (int dir = 0; dir < 3; dir++) {
-            nglob[dir] = (i+1) * N_TEST + (NODE_CENTER == center_type_[0]);                  // Need to have an additional data if we have node-centred data
+            nglob[dir] = (i+1) * N_TEST + (NODE_CENTER == center_type_[0]);  // Need to have an additional data if we have node-centered data
             h[dir] = L_[dir] / (nglob[dir] - (NODE_CENTER == center_type_[0])); 
          }
         
         //-------------------------------------------------------------------------
         // Initialize FLUPS
+        test_log("Setting up solver");
         FLUPS_Topology* mytopo = flups_topo_new(0, 1, nglob, nproc_, false, NULL, FLUPS_ALIGNMENT, MPI_COMM_WORLD);
         FLUPS_Solver* mysolver = flups_init(mytopo, mybc_, h, L_, NOD, center_type_);
         flups_set_greenType(mysolver, green_);
@@ -176,7 +201,6 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
             }
         }
 
-
         for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
             for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
                 for (int i0 = 0; i0 < flups_topo_get_nloc(mytopo, ax0); i0++){
@@ -214,6 +238,7 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
 
         MPI_Allreduce(&local_err, &global_err, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         erri[i] = global_err;
+        test_log("Test %d: err = %1.3e", i, erri[i]);
         
         flups_free(rhs);
         flups_free(sol);
@@ -224,14 +249,14 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     }
 
     if(ntest == 0){
-        test_log("Unbounded boundary conditions are not implemented yet for this kernel:  %s", kname[(int)green_].c_str());
+        test_log("These boundary conditions are not yet implementedfor this kernel: %s", kname.at(green_).c_str());
     }else if(ntest == 1){
-        test_log(" The convergence of %s is spectral. You obtained a error of %e ", kname[(int)green_].c_str(), erri[0]);
+        test_log(" The convergence of %s is spectral. You obtained a error of %e ", kname.at(green_).c_str(), erri[0]);
         ASSERT_NEAR(erri[0], 0.0, ZERO_TOL);
     }else{
         double expected_order = KernelOrder(green_);
         double computed_order = -log(erri[1] / erri[0]) / log(2.0);
-        test_log(" The choosen kernel is %s has an order of %2.0f. You obtained a convergence of %2.3f", kname[(int)green_].c_str(), expected_order, computed_order);
+        test_log(" The choosen kernel is %s has an order of %2.0f. You obtained a convergence of %2.3f", kname.at(green_).c_str(), expected_order, computed_order);
         ASSERT_GE(computed_order, 0.9*expected_order);
     }
     //--------------------------------------------------------------------
@@ -240,10 +265,11 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
 INSTANTIATE_TEST_SUITE_P(AllTest,
                          ConvergenceTest,
                          testing::Combine(testing::Values(NODE_CENTER, CELL_CENTER), 
-                                          testing::Values(CHAT_2, LGF_2, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
+                                          testing::Values(CHAT_2, LGF_2, LGF_4, LGF_6, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
-                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD)),  // z boundary conditions
+                         TestNameGenerator);
 
 // INSTANTIATE_TEST_SUITE_P(Cell,
 //                          ConvergenceTest,
@@ -254,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(AllTest,
 //                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
 
 //...........................................................................................................................................................
-// Instantiate the test for cell-centred data
+// Instantiate the test for cell-centered data
 // INSTANTIATE_TEST_SUITE_P(CellCHAT2,
 //                          ConvergenceTest,
 //                          testing::Combine(testing::Values(CELL_CENTER), 
@@ -319,7 +345,7 @@ INSTANTIATE_TEST_SUITE_P(AllTest,
 //                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
 //                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD))); // z boundary conditions
 //...........................................................................................................................................................
-// Instantiate the test for node-centred data
+// Instantiate the test for node-centered data
 // INSTANTIATE_TEST_SUITE_P(NodeCHAT2,
 //                          ConvergenceTest,
 //                          testing::Combine(testing::Values(NODE_CENTER), 

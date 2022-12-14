@@ -59,6 +59,8 @@ enum GreenType {
     HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
     HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
     HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
+    LGF_4  = 8, /**< @brief Lattice Green's function, order 4 */
+    LGF_6  = 9, /**< @brief Lattice Green's function, order 6*/
 };
 
 /**
