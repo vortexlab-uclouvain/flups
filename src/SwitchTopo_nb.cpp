@@ -29,6 +29,8 @@
 
 #include "SwitchTopo_nb.hpp"
 
+#if (FLUPS_MPI_AGGRESSIVE == 0)
+
 /**
  * @brief Construct a Switch Topo object
  * 
@@ -1119,3 +1121,5 @@ void SwitchTopo_nb_test() {
     delete (topobig);
     END_FUNC;
 }
+
+#endif
