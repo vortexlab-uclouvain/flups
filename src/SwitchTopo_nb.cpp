@@ -668,7 +668,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
 //possible need to add ```shared(ompi_request_null)``` depending on the compiler version
 #pragma omp parallel proc_bind(close) default(none) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag, iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
 #elif defined(__GNUC__)
-#pragma omp parallel proc_bind(close) default(none) shared(ompi_request_null) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag,iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
+#pragma omp parallel proc_bind(close) default(none) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag,iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
 #endif
     for (int bid = 0; bid < send_nBlock; bid++) {
         for (int lia = 0; lia < lda ; lia++){
