@@ -7,7 +7,7 @@
 #include "analytical_field.hpp"
 
 #define ZERO_TOL 1000.0 * std::numeric_limits<double>::epsilon() 
-#define N_TEST 48
+#define N_TEST 128
 
 // Specific log function for the test library 
 #define test_log(format, ...)                              \
@@ -72,8 +72,7 @@ std::string TestNameGenerator(const ::testing::TestParamInfo<ParamType>& info) {
 class ConvergenceTest : public testing::TestWithParam<ParamType>{
 protected:
     // Default variable for all the tests
-    // const int    nproc_[3]  = {4, 4, 4};
-    const int    nproc_[3]  = {1, 1, 1};
+    const int    nproc_[3]  = {4, 4, 4};
     const double L_[3]      = {1., 1., 1.};
 
     // Variable specific to a test_case
