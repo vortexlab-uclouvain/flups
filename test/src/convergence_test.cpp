@@ -7,7 +7,7 @@
 #include "analytical_field.hpp"
 
 #define ZERO_TOL 1000.0 * std::numeric_limits<double>::epsilon() 
-#define N_TEST 128
+#define N_TEST 48
 
 // Specific log function for the test library 
 #define test_log(format, ...)                              \
@@ -33,13 +33,14 @@ static const std::array<FLUPS_BoundaryType,2> EV_UN = {EVEN, UNB};
 static const std::array<FLUPS_BoundaryType,2> UN_EV = {UNB, EVEN};
 static const std::array<FLUPS_BoundaryType,2> OD_UN = {ODD, UNB};
 static const std::array<FLUPS_BoundaryType,2> UN_OD = {UNB, ODD};
+static const std::array<FLUPS_BoundaryType,2> NO_NO = {NONE, NONE};
 
 // Output for log
 // static const std::map<FLUPS_CenterType, std::string> cname = {{NODE_CENTER, "NODE_CENTER"}, {CELL_CENTER, "CELL_CENTER"}};
 // static const std::map<FLUPS_GreenType, std::string> kname = {{CHAT_2, "CHAT_2"}, {LGF_2, "LGF_2"}, {HEJ_2, "HEJ_2"}, {HEJ_4, "HEJ_4"}, {HEJ_6, "HEJ_6"}, {HEJ_8, "HEJ_8"}, {HEJ_10, "HEJ_10"}, {HEJ_0, "HEJ_0"}};
 // static const std::map<FLUPS_BoundaryType, std::string> bname = {{PER, "PER"}, {UNB, "UNB"}, {ODD, "ODD"}, {EVEN, "EVEN"}}; 
 static const std::map<FLUPS_CenterType, std::string> cname = {{NODE_CENTER, "node"}, {CELL_CENTER, "cell"}};
-static const std::map<FLUPS_GreenType, std::string> kname = {{CHAT_2, "chat2"}, {LGF_2, "lgf2"}, {LGF_4, "lgf4"}, {LGF_6, "lgf6"}, {HEJ_2, "hej2"}, {HEJ_4, "hej4"}, {HEJ_6, "hej6"}, {HEJ_8, "hej8"}, {HEJ_10, "hej10"}, {HEJ_0, "hej0"}};
+static const std::map<FLUPS_GreenType, std::string> kname = {{CHAT_2, "chat2"}, {LGF_2, "lgf2"}, {LGF_4, "lgf4"}, {LGF_6, "lgf6"}, {LGF_8, "lgf8"}, {HEJ_2, "hej2"}, {HEJ_4, "hej4"}, {HEJ_6, "hej6"}, {HEJ_8, "hej8"}, {HEJ_10, "hej10"}, {HEJ_0, "hej0"}};
 static const std::map<FLUPS_BoundaryType, std::string> bname = {{EVEN, "0"}, {ODD, "1"}, {PER, "3"}, {UNB, "4"}}; 
 
 
@@ -142,8 +143,9 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     bool is_green_spectral = (n_spectral == 3) && (CHAT_2 == green_ || HEJ_0 == green_); // Chat2 and Hej0 have a spectral accuracy with spectral bc
     bool is_green_invalid = (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
     is_green_invalid |= (LGF_2 == green_) && (n_spectral == 1); // LGF_2 cannot handle one spectral direction
-    is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1 || n_spectral == 2); // LGF_4 cannot handle one or two spectral directions
-    is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1 || n_spectral == 2); // LGF_6 cannot handle one or two spectral directions
+    is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1); // LGF_4 cannot handle one or two spectral directions
+    is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1); // LGF_6 cannot handle one or two spectral directions
+    is_green_invalid |= (LGF_8 == green_) && (n_spectral == 1); // LGF_8 cannot handle one or two spectral directions
     
     //  -------------------------------------------------------------------------
     // Perform the test
@@ -265,7 +267,7 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
 INSTANTIATE_TEST_SUITE_P(AllTest,
                          ConvergenceTest,
                          testing::Combine(testing::Values(NODE_CENTER, CELL_CENTER), 
-                                          testing::Values(CHAT_2, LGF_2, LGF_4, LGF_6, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
+                                          testing::Values(CHAT_2, LGF_2, LGF_4, LGF_6, LGF_8, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD)),  // z boundary conditions

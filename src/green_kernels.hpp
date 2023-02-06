@@ -31,6 +31,12 @@
 #include "si.hpp"
 #include "ji0.hpp"
 #include "lgf_generated.hpp"
+#include "lgf_1unb2spe.hpp"
+
+using ExpandLGF::lgf2_symbol;
+using ExpandLGF::lgf4_symbol;
+using ExpandLGF::lgf6_symbol;
+using ExpandLGF::lgf8_symbol;
 
 /**
  * @name 3 directions unbounded - 0 direction spectral
@@ -89,12 +95,12 @@ static inline double lgf_2_3unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N + iz * N * N];
+        green = data[ix + iy * N + iz * N * N];
     } else {  // if not, we use the extrapolation
         const double rho  = sqrt(ix * ix + iy * iy + iz * iz);
         lgf_2_3unb0spe_expansion(&green, ix, iy, iz, rho);
     }
-    return green/(h);
+    return -green/(h);
 }
 static inline double lgf_4_3unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
@@ -106,12 +112,12 @@ static inline double lgf_4_3unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N + iz * N * N];
+        green = data[ix + iy * N + iz * N * N];
     } else {  // if not, we use the extrapolation
         const double rho  = sqrt(ix * ix + iy * iy + iz * iz);
         lgf_4_3unb0spe_expansion(&green, ix, iy, iz, rho);
     }
-    return green/(h);
+    return -green/(h);
 }
 static inline double lgf_6_3unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
@@ -123,12 +129,29 @@ static inline double lgf_6_3unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N + iz * N * N];
+        green = data[ix + iy * N + iz * N * N];
     } else {  // if not, we use the extrapolation
         const double rho  = sqrt(ix * ix + iy * iy + iz * iz);
         lgf_6_3unb0spe_expansion(&green, ix, iy, iz, rho);
     }
-    return green/(h);
+    return -green/(h);
+}
+static inline double lgf_8_3unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+    double h  = ((double*)params)[8];
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (ix < N && iy < N && iz < N) {
+        green = data[ix + iy * N + iz * N * N];
+    } else {  // if not, we use the extrapolation
+        const double rho  = sqrt(ix * ix + iy * iy + iz * iz);
+        lgf_8_3unb0spe_expansion(&green, ix, iy, iz, rho);
+    }
+    return -green/(h);
 }
 static inline double lgf_2_2unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
@@ -139,13 +162,13 @@ static inline double lgf_2_2unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N];
+        green = data[ix + iy * N];
 
     } else {  // if not, we use the extrapolation
         const double rho     = sqrt(ix * ix + iy * iy);
         lgf_2_2unb0spe_expansion(&green, ix, iy, rho);
     }
-    return green;
+    return -green;
 }
 static inline double lgf_4_2unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
@@ -156,12 +179,12 @@ static inline double lgf_4_2unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N];
+        green = data[ix + iy * N];
     } else {  // if not, we use the extrapolation
         const double rho     = sqrt(ix * ix + iy * iy);
         lgf_4_2unb0spe_expansion(&green, ix, iy, rho);
     }
-    return green;
+    return -green;
 }
 static inline double lgf_6_2unb0spe_(const void* params,const double* data) {
     int    ix = (int)((double*)params)[4];
@@ -172,12 +195,28 @@ static inline double lgf_6_2unb0spe_(const void* params,const double* data) {
     // if the point is close enough, it will be already precomputed
     double green;
     if (ix < N && iy < N && iz < N) {
-        green = - data[ix + iy * N];
+        green = data[ix + iy * N];
     } else {  // if not, we use the extrapolation
         const double rho     = sqrt(ix * ix + iy * iy);
         lgf_6_2unb0spe_expansion(&green, ix, iy, rho);
     }
-    return green;
+    return -green;
+}
+static inline double lgf_8_2unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (ix < N && iy < N && iz < N) {
+        green = data[ix + iy * N];
+    } else {  // if not, we use the extrapolation
+        const double rho     = sqrt(ix * ix + iy * iy);
+        lgf_8_2unb0spe_expansion(&green, ix, iy, rho);
+    }
+    return -green;
 }
 /**@} */
 
@@ -435,17 +474,52 @@ static inline double lgf_2_1unb2spe_(const void* params,const double* data) {
     const double h  = ((double*)params) [6];
 
     // one of (kx, ky, kz) is zero, so one of the sigmas will be as well
-    const double sigmax = 4.0 * pow(sin(kx * h / 2.0), 2.0);
-    const double sigmay = 4.0 * pow(sin(ky * h / 2.0), 2.0);
-    const double sigmaz = 4.0 * pow(sin(kz * h / 2.0), 2.0);
+    double out;
+    if (kx*kx + ky*ky + kz*kz == 0) {
+        out = 0.5 * h * fabs(r);
+    } else {
+        const double sum_sigma = lgf2_symbol(kx * h) + lgf2_symbol(ky * h) + lgf2_symbol(kz * h);
+        const double c = acosh(1.0 + sum_sigma / 2.0);
+        out = -h * exp(-c * r / h) / (2.0 * sinh(c));
+    }
+    return out;
 
-    const double c = acosh(1.0 + (sigmax + sigmay + sigmaz) / 2.0);
-    return -h * exp(-c * r / h) / (2.0 * sinh(c));
+    // const double c = lgf2_symbol(kx * h) + lgf2_symbol(ky * h) + lgf2_symbol(kz * h);
+    // const int n = (int)round(abs(r) / h);
+    // return -h * ExpandLGF::lgf2(n, c);
 }
-static inline double lgf_2_1unb2spe_k0_(const void* params,const double* data) {
-    const double r = ((double*)params) [0];
+static inline double lgf_4_1unb2spe_(const void* params,const double* data) {
+    const double r  = ((double*)params) [0];
+    const double kx = ((double*)params) [3];
+    const double ky = ((double*)params) [4];
+    const double kz = ((double*)params) [5];
     const double h  = ((double*)params) [6];
-    return 0.5 * h * fabs(r);
+
+    const double c = lgf4_symbol(kx * h) + lgf4_symbol(ky * h) + lgf4_symbol(kz * h);
+    const int n = (int)round(abs(r) / h);
+    return -h * ExpandLGF::lgf4(n, c);
+}
+static inline double lgf_6_1unb2spe_(const void* params,const double* data) {
+    const double r  = ((double*)params) [0];
+    const double kx = ((double*)params) [3];
+    const double ky = ((double*)params) [4];
+    const double kz = ((double*)params) [5];
+    const double h  = ((double*)params) [6];
+
+    const double c = lgf6_symbol(kx * h) + lgf6_symbol(ky * h) + lgf6_symbol(kz * h);
+    const int n = (int)round(abs(r) / h);
+    return -h * ExpandLGF::lgf6(n, c);
+}
+static inline double lgf_8_1unb2spe_(const void* params,const double* data) {
+    const double r  = ((double*)params) [0];
+    const double kx = ((double*)params) [3];
+    const double ky = ((double*)params) [4];
+    const double kz = ((double*)params) [5];
+    const double h  = ((double*)params) [6];
+
+    const double c = lgf8_symbol(kx * h) + lgf8_symbol(ky * h) + lgf8_symbol(kz * h);
+    const int n = (int)round(abs(r) / h);
+    return -h * ExpandLGF::lgf8(n, c);
 }
 /**@} */
 
@@ -500,41 +574,23 @@ static inline double chat_2_0unb3spe_(const void* params,const double* data) {
     return - 1.0 / ksqr;
 }
 static inline double lgf_2_0unb3spe_(const void* params, const double* data) {
-    const double kx = ((double*)params)[2];
-    const double ky = ((double*)params)[3];
-    const double kz = ((double*)params)[4];
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];
-
-    const double sigmax = 4.0 * pow(sin(kx * h / 2.0), 2.0);
-    const double sigmay = 4.0 * pow(sin(ky * h / 2.0), 2.0);
-    const double sigmaz = 4.0 * pow(sin(kz * h / 2.0), 2.0);
-
-    return - h * h / (sigmax + sigmay + sigmaz);
-
-    // return - h * h / (4.0 * pow(sin(kx * h / 2.0), 2.0) + 4.0 * pow(sin(ky * h / 2.0), 2.0) + 4.0 * pow(sin(kz * h / 2.0), 2.0));
+    return - h * h / (lgf2_symbol(k[0] * h) + lgf2_symbol(k[1] * h) + lgf2_symbol(k[2] * h));
 }
 static inline double lgf_4_0unb3spe_(const void* params, const double* data) {
-    const double kx = ((double*)params)[2];
-    const double ky = ((double*)params)[3];
-    const double kz = ((double*)params)[4];
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];
-
-    const double sigmax = 4.0 * (4.0 / 3.0 * pow(sin(kx * h / 2.0), 2.0) - 1.0 / 12.0 * pow(sin(kx * h), 2.0));
-    const double sigmay = 4.0 * (4.0 / 3.0 * pow(sin(ky * h / 2.0), 2.0) - 1.0 / 12.0 * pow(sin(ky * h), 2.0));
-    const double sigmaz = 4.0 * (4.0 / 3.0 * pow(sin(kz * h / 2.0), 2.0) - 1.0 / 12.0 * pow(sin(kz * h), 2.0));
-
-    return - h * h / (sigmax + sigmay + sigmaz);
+    return - h * h / (lgf4_symbol(k[0] * h) + lgf4_symbol(k[1] * h) + lgf4_symbol(k[2] * h));
 }
 static inline double lgf_6_0unb3spe_(const void* params, const double* data) {
-    const double kx = ((double*)params)[2];
-    const double ky = ((double*)params)[3];
-    const double kz = ((double*)params)[4];
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];
-    
-    const double sigmax = 4.0 * (3.0 / 2.0 * pow(sin(0.5 * kx * h), 2.0) - 3.0 / 20.0 * pow(sin(1.0 * kx * h), 2.0) + 1.0 / 90.0 * pow(sin(1.5 * kx * h), 2.0));
-    const double sigmay = 4.0 * (3.0 / 2.0 * pow(sin(0.5 * ky * h), 2.0) - 3.0 / 20.0 * pow(sin(1.0 * ky * h), 2.0) + 1.0 / 90.0 * pow(sin(1.5 * ky * h), 2.0));
-    const double sigmaz = 4.0 * (3.0 / 2.0 * pow(sin(0.5 * kz * h), 2.0) - 3.0 / 20.0 * pow(sin(1.0 * kz * h), 2.0) + 1.0 / 90.0 * pow(sin(1.5 * kz * h), 2.0));
-
-    return - h * h / (sigmax + sigmay + sigmaz);
+    return - h * h / (lgf6_symbol(k[0] * h) + lgf6_symbol(k[1] * h) + lgf6_symbol(k[2] * h));
+}
+static inline double lgf_8_0unb3spe_(const void* params, const double* data) {
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
+    const double h  = ((double*)params)[5];
+    return - h * h / (lgf8_symbol(k[0] * h) + lgf8_symbol(k[1] * h) + lgf8_symbol(k[2] * h));
 }
 /**@} */
