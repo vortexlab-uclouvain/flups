@@ -57,8 +57,6 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
         order = 4;
     } else if (LGF_6 == typeGreen) {
         order = 6;
-    } else if (LGF_8 == typeGreen) {
-        order = 8;
     } else {
         FLUPS_CHECK(false, "LGF Kernel type not recognized");
     }
