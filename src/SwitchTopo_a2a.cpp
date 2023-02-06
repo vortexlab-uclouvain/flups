@@ -29,6 +29,7 @@
 #include "SwitchTopo.hpp"
 #include "SwitchTopo_a2a.hpp"
 
+#if (FLUPS_MPI_AGGRESSIVE == 0)
 /**
  * @brief Construct a Switch Topo object
  * 
@@ -1231,3 +1232,4 @@ void SwitchTopo_a2a_test2() {
     }
     END_FUNC;
 }
+#endif
