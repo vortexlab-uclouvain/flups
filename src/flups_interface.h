@@ -51,16 +51,18 @@ enum BoundaryType {
  *
  */
 enum GreenType {
-    CHAT_2 = 0, /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
-    LGF_2  = 1, /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
-    HEJ_2  = 2, /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
-    HEJ_4  = 3, /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
-    HEJ_6  = 4, /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
-    HEJ_8  = 5, /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
-    HEJ_10 = 6, /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
-    HEJ_0  = 7, /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
-    LGF_4  = 8, /**< @brief Lattice Green's function, order 4 */
-    LGF_6  = 9, /**< @brief Lattice Green's function, order 6 */
+    CHAT_2 = 0,     /**< @brief quadrature in zero, order 2, Chatelain et al. (2010) */
+    LGF_2  = 1,     /**< @brief Lattice Green's function, order 2, Gillis et al. (2018)*/
+    HEJ_2  = 2,     /**< @brief regularized, order 2, Hejlesen et al. (2015)*/
+    HEJ_4  = 3,     /**< @brief regularized, order 4, Hejlesen et al. (2015)*/
+    HEJ_6  = 4,     /**< @brief regularized, order 6, Hejlesen et al. (2015)*/
+    HEJ_8  = 5,     /**< @brief regularized, order 8, Hejlesen et al. (2015)*/
+    HEJ_10 = 6,     /**< @brief regularized, order 10, Hejlesen et al. (2015)*/
+    HEJ_0  = 7,     /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
+    LGF_4  = 8,     /**< @brief Lattice Green's function, order 4 */
+    LGF_6  = 9,     /**< @brief Lattice Green's function, order 6 */
+    MEHR_4 = 10,    /**< @brief Spectral equivalent of the Mehrstellen HOC stencil, order 4 */
+    MEHR_6 = 11,    /**< @brief Spectral equivalent of the Mehrstellen HOC stencil, order 6 */
 };
 
 /**

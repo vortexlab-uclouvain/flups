@@ -107,6 +107,12 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             lgf_readfile_(LGF_6, 3, &GN, &Gdata);
             G = &lgf_6_3unb0spe_;
             break;
+        case MEHR_4:
+            FLUPS_CHECK(false, "MEHR4 kernel not available for unbounded problems.");
+            break;
+        case MEHR_6:
+            FLUPS_CHECK(false, "MEHR6 kernel not available for unbounded problems.");
+            break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
     }
@@ -273,6 +279,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gk0 = &lgf_6_2unb0spe_;
             Gr0 = &lgf_6_2unb0spe_;
             break;
+        case MEHR_4:
+            FLUPS_CHECK(false, "MEHR4 kernel not available for unbounded problems.");
+            break;
+        case MEHR_6:
+            FLUPS_CHECK(false, "MEHR6 kernel not available for unbounded problems.");
+            break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
     }
@@ -406,6 +418,12 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
         case LGF_6:
             G  = &lgf_6_1unb2spe_;
             G0 = &lgf_6_1unb2spe_;
+            break;
+        case MEHR_4:
+            FLUPS_CHECK(false, "MEHR4 kernel not available for unbounded problems.");
+            break;
+        case MEHR_6:
+            FLUPS_CHECK(false, "MEHR6 kernel not available for unbounded problems.");
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -546,6 +564,12 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
             break;
         case LGF_6:
             G = &lgf_6_0unb3spe_;
+            break;
+        case MEHR_4:
+            G = &mehr_4_0unb3spe_;
+            break;
+        case MEHR_6:
+            G = &mehr_6_0unb3spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknow.");

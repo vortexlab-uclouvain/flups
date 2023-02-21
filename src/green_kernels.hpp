@@ -533,4 +533,24 @@ static inline double lgf_6_0unb3spe_(const void* params, const double* data) {
     const double h  = ((double*)params)[5];
     return - h * h / (lgf6_symbol(k[0] * h) + lgf6_symbol(k[1] * h) + lgf6_symbol(k[2] * h));
 }
+static inline double mehr_4_0unb3spe_(const void* params, const double* data) {
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
+    const double h  = ((double*)params)[5];
+
+    const double x = k[0]*h;
+    const double y = k[1]*h;
+    const double z = k[2]*h;
+
+    return 1.5 * h * h / (cos(x)*cos(y) + cos(x)*cos(z) + cos(y)*cos(z) + cos(x) + cos(y) + cos(z) - 6.0);
+}
+static inline double mehr_6_0unb3spe_(const void* params, const double* data) {
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
+    const double h  = ((double*)params)[5];
+
+    const double x = k[0]*h;
+    const double y = k[1]*h;
+    const double z = k[2]*h;
+
+    return 15.0 * h * h / (4.0*cos(x)*cos(y)*cos(z) + 6.0 * (cos(x)*cos(y) + cos(x)*cos(z) + cos(y)*cos(z)) + 14.0 * (cos(x) + cos(y) + cos(z)) - 64.0);
+}
 /**@} */
