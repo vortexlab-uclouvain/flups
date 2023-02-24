@@ -30,7 +30,6 @@
 #include "SwitchTopo.hpp"
 #include "Topology.hpp"
 #include "h3lpr/macros.hpp"
-#include <bits/stdc++.h>
 
 using namespace std;
 
