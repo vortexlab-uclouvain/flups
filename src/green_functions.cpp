@@ -306,7 +306,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
+        green[0] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
     END_FUNC;
 }
