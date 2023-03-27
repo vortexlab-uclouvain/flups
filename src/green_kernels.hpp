@@ -184,6 +184,24 @@ static inline double lgf_6_2unb0spe_(const void* params,const double* data) {
     }
     return -green;
 }
+
+static inline double mehr_4_3unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+    double h  = ((double*)params)[8];
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (ix < N && iy < N && iz < N) {
+        green = data[ix + iy * N + iz * N * N];
+    } else {  // if not, we use the extrapolation
+        const double rho  = sqrt(ix * ix + iy * iy + iz * iz);
+        mehr_4_3unb0spe_expansion(&green, ix, iy, iz, rho);
+    }
+    return -green/(h);
+}
 /**@} */
 
 
