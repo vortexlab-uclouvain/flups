@@ -113,7 +113,9 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             G = &mehr_4_3unb0spe_;
             break;
         case MEHR_6:
-            FLUPS_CHECK(false, "MEHR6 kernel not available for unbounded problems.");
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(MEHR_6, 3, &GN, &Gdata);
+            G = &mehr_6_3unb0spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -154,7 +156,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         }
     }
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
-    if (typeGreen != LGF_2 && typeGreen != LGF_4 && typeGreen != LGF_6 && typeGreen != MEHR_4 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+    if (typeGreen != LGF_2 && typeGreen != LGF_4 && typeGreen != LGF_6 && typeGreen != MEHR_4 && typeGreen != MEHR_6 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         green[0] = G0;
     }
     // free Gdata if needed
