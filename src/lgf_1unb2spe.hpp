@@ -88,15 +88,20 @@ namespace LGFOneUnbounded {
     // ----------------------------------------------------------------------------------------
     // Reusable constants
     // ----------------------------------------------------------------------------------------
+    // large lambda expansion of r(lambda)
+    constexpr int large_lambda_terms_ = 10;
+    static const real_t large_lambda_expansion_[] = {0, 1./2., 0, 1./8., 0, 1./16., 0, 5./128., 0, 7./256.};
 
     // root of q(lambda) nearest 1
     constexpr int lgf_small_c_terms_ = 8;
     static const real_t lgf4_small_c_expansion_[8] = {0, 0.5, 1./24., 1./144., 5./3456., 7./20736., 7./82944., 11./497664.};
     static const real_t lgf6_small_c_expansion_[8] = {0, 0.5, 1./24., 1./720., -1./1152., -149./518400., -259./6220800., 163./62208000.};
+    static const real_t lgf8_small_c_expansion_[8] = {0, 0.5, 1./24., 1./720., 1./40320., 577./3628800., 389./6220800., 34987./3048192000.};
 
     // p'(z, c), template to allow real_t or complex
     template <typename T> inline T lgf4_ppzc_(T z, real_t c) { return 4./3. + z*((-5. - 2.*c) + z*(4. - z/3.)); }
     template <typename T> inline T lgf6_ppzc_(T z, real_t c) { return -3./20. + z*(3. + z*((-49./6. - 3.*c) + z*(6. + z*(-3./4. + z/15.)))); }
+    template <typename T> inline T lgf8_ppzc_(T z, real_t c) { return 8./315. + z*(-2./5. + z*(24./5. + z*(-205./18. - 4.*c + z*(8. + z*(-6./5. + z*(8./45. - z/70.)))))); } 
 
     // LGF4 repeated root residues
     static const real_t lgf4_c_star_ = 3.0;
@@ -107,12 +112,34 @@ namespace LGFOneUnbounded {
     const real_t lgf4_repeat_g3_[8]  = {37313./(2812500.*sq15), 11267./1640625., 3167./(140625.*sq15), 1./375., 31./(11250.*sq15), 31./281250., 1./(28125.*sq15), 1./3150000.};
     const real_t lgf4_repeat_g4_[10] = {-3885631./(1012500000.*sq15), -1194829./590625000., -1118351./(157500000.*sq15), -12571./13125000., -13751./(11250000.*sq15), -127./1875000., -247./(6750000.*sq15), -13./15750000., -1./(6300000.*sq15), -1./1134000000.};
     
+    // LGF8 repeated root residues
+    static const real_t lgf8_c_star_ = 3.204471924659902;
+
+    const real_t lgf8_a_0_[2]  = {-0.1932304295173025, -9.940958723693284e-2};
+    const real_t lgf8_a_1_[4]  = {5.528645180523051e-2, 6.381749748906844e-2, 1.920895723993029e-2, 1.647044339102893e-3};
+    const real_t lgf8_a_2_[6]  = {-1.246195963786745e-2, -2.200316066032414e-2, -1.156690496243602e-2, -2.513956535483380e-3, -2.386943138091703e-4, -8.186599895557273e-6};
+    const real_t lgf8_a_3_[8]  = {2.586595339831205e-3, 5.946351585490818e-3, 4.392324394119772e-3, 1.460419122054276e-3, 2.498408821419240e-4, 2.281049273902400e-5, 1.054600142736557e-6, 1.937682182122062e-8};
+    const real_t lgf8_a_4_[10] = {-6.143387386724980e-4, -1.461770070530813e-3, -1.338631620906462e-3, -5.893614275050890e-4, -1.419718637870522e-4, -2.006233681173800e-5, -1.705558618042543e-6, -8.568226736629197e-8, -2.340119751996688e-9, -2.675335915571021e-11};
+
+    const real_t lgf8_u_0_[1] = {0.0015031218476240784};
+    const real_t lgf8_u_1_[2] = {-0.013198947960911374, -0.00309497626043345};
+    const real_t lgf8_u_2_[3] = {0.002223792419320104, 0.0003211726758356002, -3.489943855291188e-6};
+    const real_t lgf8_u_3_[4] = {8.218756082933073e-5, 0.00012939734109457704, 2.076196709989474e-5, 7.970739601754506e-7};
+    const real_t lgf8_u_4_[5] = {-0.00011284539233578474, -4.455888056601662e-5, -4.596415525190604e-6, -1.2515613302441402e-7, 7.499072573978986e-10};
+
+    const real_t lgf8_v_0_[1] = {-0.07869060869097218};
+    const real_t lgf8_v_1_[2] = {0.005694070346472886, -0.00011828157312623746};
+    const real_t lgf8_v_2_[3] = {0.001748394270280815, 0.0007853940979982054, 6.08419435502199e-5};
+    const real_t lgf8_v_3_[4] = {-0.000574565978306078, -0.000152486888729598, -8.030910109571855e-6, 6.101311014540467e-8};
+    const real_t lgf8_v_4_[5] = {4.706634682161246e-5, -8.921284296708267e-6, -4.142946014756904e-6, -3.42884013573887e-7, -7.828815619884859e-9};
+    
     // ----------------------------------------------------------------------------------------
     // Symbols
     // ----------------------------------------------------------------------------------------
     inline real_t lgf2_symbol(real_t k) { return 4.0 * pow(sin(k/2.), 2); }
     inline real_t lgf4_symbol(real_t k) { return 4.0 * (4./3.*pow(sin(k/2.), 2) - 1./12.*pow(sin(k), 2)); }
     inline real_t lgf6_symbol(real_t k) { return 4.0 * (3./2.*pow(sin(k/2.), 2) - 3./20.*pow(sin(k), 2) + 1./90.*pow(sin(1.5*k), 2)); }
+    inline real_t lgf8_symbol(real_t k) { return 0.25 * (8./5.*pow(sin(k/2.), 2) - 1./5. *pow(sin(k), 2) + 8./315.*pow(sin(1.5*k), 2) - 1./560.*pow(sin(2.*k), 2)); }
 
     // ----------------------------------------------------------------------------------------
     // LGF2
@@ -303,6 +330,241 @@ namespace LGFOneUnbounded {
             return lgf6_c_generic_(n, c);
         };
     }
+
+
+    // ----------------------------------------------------------------------------------------
+    // LGF8
+    // ----------------------------------------------------------------------------------------
+
+    /**
+     * @brief return the roots of p(z, c) for LGF8. 
+     * 
+     * Because r3 and r4 are always a conjugate pair, r4 is omitted
+     */
+    std::array<complex_t, 3> lgf8_roots_(real_t c) {
+        const real_t tmp1 = 1968941520. + c*(-879221700. + c*(223915104. - c*44089920));
+        const complex_t xi = pow(1520225. - 273420.*c + 35.*complex_sqrt(tmp1), 1./3.);
+        const real_t del = real(xi + (-4655. + 3780.*c)/xi);
+        const complex_t eta = complex_sqrt(del/9. - 434./81.);
+        const complex_t lambda1 = 0.5 * (32./9. + eta - complex_sqrt(-868./81. + 81088./(729.*eta) - del/9.));
+        const complex_t lambda2 = 0.5 * (32./9. + eta + complex_sqrt(-868./81. + 81088./(729.*eta) - del/9.));
+        const complex_t lambda3 = 0.5 * (32./9. - eta - complex_sqrt(-868./81. - 81088./(729.*eta) - del/9.));
+        return {
+            lambda1 - sqrt(lambda1 + 1.0)*sqrt(lambda1 - 1.0),
+            lambda2 - sqrt(lambda2 + 1.0)*sqrt(lambda2 - 1.0),
+            lambda3 - sqrt(lambda3 + 1.0)*sqrt(lambda3 - 1.0)
+        };
+    }
+
+    /**
+     * @brief evaluate lgf8(n, c) for c = 0
+     */
+    inline real_t lgf8_c_zero_(int n) {
+        const real_t rho1 = +1.2185576475724652e-01;
+        const real_t th1  = +1.4667413886166037e+00;
+        const real_t a1   = +8.2123351081853858e-02;
+        const real_t phi1 = -6.5666289805823130e-01;
+        const real_t r2   = +9.6191214171019512e-02;
+        const real_t a2   = +4.0692417408429382e-02;
+        return -0.5*abs(n) + a1*pow(rho1, abs(n))*sin(abs(n)*th1 + phi1) - a1*sin(phi1) + a2*(1.0 - pow(r2, abs(n)));
+    }
+
+    /**
+     * @brief evaluate lgf8(n, c) for 0 < c < lgf8_small_cutoff_
+     */
+    inline real_t lgf8_c_small_(int n, real_t c) {
+        // larger real root
+        const real_t lambdam1 = horner(lgf8_small_c_expansion_, lgf_small_c_terms_, c);
+        const real_t rm1 = lambdam1 - sqrt(lambdam1*lambdam1 + 2*lambdam1);
+        const real_t r1 = rm1 + 1.0;
+        // second real root and comlex pair
+        const auto roots = lgf8_roots_(c);
+        const real_t r2 = real(roots[1]);
+        const real_t pp2 = lgf8_ppzc_(r2, c);
+        const complex_t r3 = roots[2];
+        const complex_t pp3 = lgf8_ppzc_(r3, c);
+        // assemble LGF value
+        const real_t r1_minus_r1_inv = value_minus_inverse_series(rm1);
+        const real_t logr1 = log_series(rm1);
+        const real_t pp1 = -1./560. * r1_minus_r1_inv * (r1 - r2)*(r1 - 1/r2)*norm((r1 - r3)*(r1 - 1.0/r3));
+        return -exp((abs(n) + 3)*logr1)/pp1 - pow(r2, abs(n) + 3)/pp2 + oscillatory_form(r3, pp3, 4, n);
+    }
+
+    /**
+     * @brief evaluate lgf8(n, c) for lgf8_small_cutoff_ < c < (lgf8_c_star_ - lgf8_repeat_cutoff_) 
+     */
+    inline real_t lgf8_c_real_(int n, real_t c) {
+        const auto roots = lgf8_roots_(c);
+        const real_t r1 = real(roots[0]);
+        const real_t r2 = real(roots[1]);
+        const complex_t r3 = roots[2];
+        const complex_t pp3 = lgf8_ppzc_(r3, c);
+        const real_t f1 = 560. * pow(r1, abs(n) + 3) / ((r1 - 1./r1)*(r1 - 1./r2)*norm((r1 - r3)*(r1 - 1./r3)));
+        const real_t f2 = 560. * pow(r2, abs(n) + 3) / ((r2 - 1./r1)*(r2 - 1./r2)*norm((r2 - r3)*(r2 - 1./r3)));
+        return (f2 - f1) / (r2 - r1) + oscillatory_form(r3, pp3, 4, n);
+    }
+
+    /**
+     * @brief evaluate lgf8(n, c) for abs(c - lgf8_c_star_) < lgf8_repeat_cutoff_
+     */
+    inline real_t lgf8_c_repeat_(int n, real_t c) {
+        const real_t r0 = 1.4016094393066413e-01;
+        const real_t rho1 = 1.2718191072648583e-01;
+        const real_t theta1 = 1.5912866598657263e+00;
+        const real_t r0n = pow(r0, abs(n));
+        const real_t p1n = pow(rho1, abs(n));
+        const real_t cnt1 = cos(abs(n)*theta1);
+        const real_t snt1 = sin(abs(n)*theta1);
+        const real_t nr = abs(n);
+        const real_t lgf8_g[5] = {
+            r0n * horner(lgf8_a_0_, 2,  nr) + p1n*(cnt1*horner(lgf8_u_0_, 1, nr) + snt1*horner(lgf8_v_0_, 1, nr)),
+            r0n * horner(lgf8_a_1_, 4,  nr) + p1n*(cnt1*horner(lgf8_u_1_, 2, nr) + snt1*horner(lgf8_v_1_, 2, nr)),
+            r0n * horner(lgf8_a_2_, 6,  nr) + p1n*(cnt1*horner(lgf8_u_2_, 3, nr) + snt1*horner(lgf8_v_2_, 3, nr)),
+            r0n * horner(lgf8_a_3_, 8,  nr) + p1n*(cnt1*horner(lgf8_u_3_, 4, nr) + snt1*horner(lgf8_v_3_, 4, nr)),
+            r0n * horner(lgf8_a_4_, 10, nr) + p1n*(cnt1*horner(lgf8_u_4_, 5, nr) + snt1*horner(lgf8_v_4_, 5, nr))
+        };
+        const real_t dc = c - lgf8_c_star_;
+        return -horner(lgf8_g, 5, dc);
+    }
+
+    /**
+     * @brief evaluate lgf8(n, c) for (lgf8_c_star_ + lgf8_repeat_cutoff_) < c 
+     */
+    inline real_t lgf8_c_imag_(int n, real_t c) {
+        const auto roots = lgf8_roots_(c);
+        const complex_t r1 = roots[1];
+        const complex_t r3 = roots[2];
+        const complex_t cr1 = conj(r1);
+        const complex_t cr3 = conj(r3);
+        const complex_t pp1 = -im/280.*imag(r1)*(r1 - 1./r1)*(r1 - 1./cr1)*(r1 - r3)*(r1 - 1./r3)*(r1 - cr3)*(r1 - 1./cr3); // lgf8_ppzc_(r1, c);
+        const complex_t pp3 = lgf8_ppzc_(r3, c);
+        return oscillatory_form(r1, pp1, 4, n) + oscillatory_form(r3, pp3, 4, n); 
+    }
+
+    constexpr real_t lgf8_small_cutoff_ = 1e-3;
+    constexpr real_t lgf8_repeat_cutoff_ = 1e-5;
+
+    real_t lgf8(int n, real_t c) {
+        if (c < 0) {
+            printf("[ExpandLGF] Argument error: c must be nonnegative");
+            abort();
+        } else if (c == 0.0) {
+            return lgf8_c_zero_(n);
+        } else if (c < lgf4_small_cutoff_) {
+            return lgf8_c_small_(n, c);
+        } else if (c < lgf8_c_star_ - lgf8_repeat_cutoff_) {
+            return lgf8_c_real_(n, c);
+        } else if (c < lgf8_c_star_ + lgf8_repeat_cutoff_) {
+            return lgf8_c_repeat_(n, c);
+        } else {
+            return lgf8_c_imag_(n, c);
+        };
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // Mehrstellen Stencils 4 and 6
+    // ----------------------------------------------------------------------------------------
+    static const real_t meh_large_lambda_tol_ = 1.0e2;
+    real_t mehrstellen_r(real_t lambda) {
+        real_t r = 0.0;
+        if (std::isinf(lambda)) { // infinite lambda
+            r = 0.0;
+        } else if (fabs(lambda) > meh_large_lambda_tol_) { // large lambda
+            r = horner(large_lambda_expansion_, large_lambda_terms_, 1.0 / lambda);
+        } else { // moderate lambda
+            r = real(lambda - complex_sqrt(lambda - 1)*complex_sqrt(lambda + 1));
+        }
+        return r;
+    }
+
+    real_t meh4_left(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n);
+        }
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        const real_t q0 = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
+        const real_t q1 = -4./3.*(y[0] + y[1]) + 2.0;
+        const real_t lambda = -q0 / q1;
+        const real_t r = mehrstellen_r(lambda);
+        return 2. * pow(r, abs(n) + 1) / (q1 * (1.0 - r*r));
+    };
+
+    real_t meh6_left(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n);
+        }; 
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        const real_t q0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
+        const real_t q1 = 16./15.*y[0]*y[1] - 4./3.*(y[0] + y[1]) + 2.0;
+        const real_t lambda = -q0 / q1;
+        const real_t r = mehrstellen_r(lambda);
+        return 2. * pow(r, abs(n) + 1) / (q1 * (1.0 - r*r));
+    };
+    
+    real_t meh4_full(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n) - (n == 0) * 1./12.;
+        }; 
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        const real_t pl1 = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
+        const real_t pl0 = -2./3.*(y[0] + y[1]) + 1.0;
+        const real_t lambda = -pl1 / (2*pl0);
+        const real_t pr1 = -1./3.*(y[0] + y[1]) + 5./6.;
+        const real_t pr0 = 1./12.;
+        const real_t r = mehrstellen_r(lambda);
+        const real_t base = pow(r, (abs(n) - 1)) * (pr0 + pr1*r + pr0*r*r) / (pl1 + 2.*pl0*r);
+        // corrections near the origin
+        return (n == 0) ? -(r/pl0)*(pr1 + 2.*pr0*r)/(r*r - 1.) : -base;
+    }
+
+    real_t meh6_full(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n) - (abs(n) == 1) * (-1./240.) - (n == 0) * (11./120.);
+        }; 
+        // deal with the base portion
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        const real_t ql0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
+        const real_t ql1 = 16./15.*y[0]*y[1] - 4./3.*(y[0] + y[1]) + 2.0;
+        const real_t lambda = -ql0 / ql1;
+        const real_t qr0 = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 49./60.;
+        const real_t qr1 = -4./45.*(y[0] + y[1]) + 1./5.;
+        const real_t qr2 = -1./60.;
+        const real_t qr = std::isinf(lambda) ? 0.0 : qr0 + lambda*(qr1 + lambda*qr2);
+        const real_t r = mehrstellen_r(lambda);
+        const real_t base = 2. * qr * pow(r, abs(n) + 1) / (ql1 * (1.0 - r*r));
+        // corrections near the origin
+        const real_t pl0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
+        const real_t pl1 = 8./15.*y[0]*y[1] - 2./3.*(y[0] + y[1]) + 1.0;
+        const real_t pr1 = -2./45.*(y[0] + y[1]) + 1./10.;
+        const real_t pr2 = -1./240.;
+        return base - (abs(n) == 1) * (pr2 / pl1) - (n == 0) * (pr1*pl1 - pr2*pl0) / (pl1*pl1);
+    }
+
+    void meh4_left_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        coeffs[0] = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
+        coeffs[1] = -2./3.*(y[0] + y[1]) + 1.0;
+    }
+
+    void meh4_right_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        coeffs[0] = -1./3.*(y[0] + y[1]) + 5./6.;
+        coeffs[1] = 1./12.;
+    }
+
+    void meh6_left_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        coeffs[0] = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
+        coeffs[1] = 8./15.*y[0]*y[1] - 2./3.*(y[0] + y[1]) + 1.0;
+    }
+
+    void meh6_right_coeffs(real_t coeffs[3], const real_t k1, const real_t k2) {
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        coeffs[0] = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 97./120.;
+        coeffs[1] = -2./45.*(y[0] + y[1]) + 1./10.;
+        coeffs[2] = -1./240.;
+    }
+
 }; // namespace LGFOneUnbounded
 
 #endif

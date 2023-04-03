@@ -61,8 +61,11 @@ enum GreenType {
     HEJ_0  = 7,     /**< @brief Fourier cutoff, spectral-like, Hejlesen et al. (2019)*/
     LGF_4  = 8,     /**< @brief Lattice Green's function, order 4 */
     LGF_6  = 9,     /**< @brief Lattice Green's function, order 6 */
-    MEHR_4 = 10,    /**< @brief Spectral equivalent of the Mehrstellen HOC stencil, order 4 */
-    MEHR_6 = 11,    /**< @brief Spectral equivalent of the Mehrstellen HOC stencil, order 6 */
+    LGF_8  = 10,    /**< @brief Lattice Green's function, order 8 */
+    MEHR_4L = 11,   /**< @brief Spectral equivalent of the left-hand side of the Mehrstellen HOC stencil, order 4 */
+    MEHR_6L = 12,   /**< @brief Spectral equivalent of the left-hand side of the Mehrstellen HOC stencil, order 6 */
+    MEHR_4F = 13,   /**< @brief Spectral equivalent of the full Mehrstellen HOC stencil, order 4 */
+    MEHR_6F = 14,   /**< @brief Spectral equivalent of the full Mehrstellen HOC stencil, order 6 */
 };
 
 /**

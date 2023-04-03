@@ -53,10 +53,12 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
     int order = 0;
     if (LGF_2 == typeGreen) {
         order = 2;
-    } else if (LGF_4 == typeGreen || MEHR_4 == typeGreen) {
+    } else if (LGF_4 == typeGreen || MEHR_4L == typeGreen || MEHR_4F == typeGreen) {
         order = 4;
-    } else if (LGF_6 == typeGreen || MEHR_6 == typeGreen) {
+    } else if (LGF_6 == typeGreen || MEHR_6L == typeGreen || MEHR_6F == typeGreen) {
         order = 6;
+    } else if (LGF_8 == typeGreen) {
+        order = 8;
     } else {
         FLUPS_CHECK(false, "LGF Kernel type not recognized");
     }
@@ -68,15 +70,17 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
     if (greendim == 3) {
         (*N) = 64;
         datasize = (*N) * (*N) * (*N);
-        if (MEHR_4 == typeGreen || MEHR_6 == typeGreen) {
-            sprintf(lgfname, "%s/MEHR_%d_3d_%d.ker", path, order, (*N));
+        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_%dL_3d_%d.ker", path, order, (*N));
+        } else if (MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_%dF_3d_%d.ker", path, order, (*N));
         } else {
             sprintf(lgfname, "%s/LGF_%d_3d_%d.ker", path, order, (*N));
         }
     } else if (greendim == 2) {
         (*N) = 32;
         datasize = (*N) * (*N);
-        if (MEHR_4 == typeGreen || MEHR_6 == typeGreen) {
+        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen || MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
             FLUPS_CHECK(false, "MEHR kernels not implemented in 2D");
         } else {
             sprintf(lgfname, "%s/LGF_%d_2d_%d.ker", path, order, (*N));
