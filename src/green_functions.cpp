@@ -456,8 +456,8 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             G0 = &lgf_6_1unb2spe_;
             break;
         case LGF_8:
-            G  = &lgf_6_1unb2spe_;
-            G0 = &lgf_6_1unb2spe_;
+            G  = &lgf_8_1unb2spe_;
+            G0 = &lgf_8_1unb2spe_;
             break;
         case MEHR_4L:
             G  = &mehr_4l_1unb2spe_;
@@ -469,14 +469,12 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             break;
             break;
         case MEHR_4F:
-            FLUPS_CHECK(false, "MEHR_4F kernel not available for 1 dir unbounded problems.");
-            // G  = &mehr_4f_1unb2spe_;
-            // G0 = &mehr_4f_1unb2spe_;
+            G  = &mehr_4f_1unb2spe_;
+            G0 = &mehr_4f_1unb2spe_;
             break;
         case MEHR_6F:
-            FLUPS_CHECK(false, "MEHR_6F kernel not available for 1 dir unbounded problems.");
-            // G  = &mehr_6f_1unb2spe_;
-            // G0 = &mehr_6f_1unb2spe_;
+            G  = &mehr_6f_1unb2spe_;
+            G0 = &mehr_6f_1unb2spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -618,6 +616,9 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
         case LGF_6:
             G = &lgf_6_0unb3spe_;
             break;
+        case LGF_8:
+            G = &lgf_8_0unb3spe_;
+            break;
         case MEHR_4L:
             G = &mehr_4l_0unb3spe_;
             break;
@@ -625,12 +626,10 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
             G = &mehr_6l_0unb3spe_;
             break;
         case MEHR_4F:
-            FLUPS_CHECK(false, "MEHR_4F not implemented in spectral form.");
-            // G = &mehr_4f_0unb3spe_;
+            G = &mehr_4f_0unb3spe_;
             break;
         case MEHR_6F:
-            FLUPS_CHECK(false, "MEHR_6F not implemented in spectral form.");
-            // G = &mehr_6f_0unb3spe_;
+            G = &mehr_6f_0unb3spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");

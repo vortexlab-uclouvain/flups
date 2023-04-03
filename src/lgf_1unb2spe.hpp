@@ -6,6 +6,8 @@
 #include <array>
 #include <tuple>
 
+#include "defines.hpp"
+
 namespace LGFOneUnbounded {
 
     // ----------------------------------------------------------------------------------------
@@ -139,7 +141,7 @@ namespace LGFOneUnbounded {
     inline real_t lgf2_symbol(real_t k) { return 4.0 * pow(sin(k/2.), 2); }
     inline real_t lgf4_symbol(real_t k) { return 4.0 * (4./3.*pow(sin(k/2.), 2) - 1./12.*pow(sin(k), 2)); }
     inline real_t lgf6_symbol(real_t k) { return 4.0 * (3./2.*pow(sin(k/2.), 2) - 3./20.*pow(sin(k), 2) + 1./90.*pow(sin(1.5*k), 2)); }
-    inline real_t lgf8_symbol(real_t k) { return 0.25 * (8./5.*pow(sin(k/2.), 2) - 1./5. *pow(sin(k), 2) + 8./315.*pow(sin(1.5*k), 2) - 1./560.*pow(sin(2.*k), 2)); }
+    inline real_t lgf8_symbol(real_t k) { return 4.0 * (8./5.*pow(sin(k/2.), 2) - 1./5. *pow(sin(k), 2) + 8./315.*pow(sin(1.5*k), 2) - 1./560.*pow(sin(2.*k), 2)); }
 
     // ----------------------------------------------------------------------------------------
     // LGF2
@@ -472,7 +474,7 @@ namespace LGFOneUnbounded {
         } else if (fabs(lambda) > meh_large_lambda_tol_) { // large lambda
             r = horner(large_lambda_expansion_, large_lambda_terms_, 1.0 / lambda);
         } else { // moderate lambda
-            r = real(lambda - complex_sqrt(lambda - 1)*complex_sqrt(lambda + 1));
+            r = real(lambda - complex_sqrt(lambda - 1.)*complex_sqrt(lambda + 1.));
         }
         return r;
     }
@@ -486,7 +488,8 @@ namespace LGFOneUnbounded {
         const real_t q1 = -4./3.*(y[0] + y[1]) + 2.0;
         const real_t lambda = -q0 / q1;
         const real_t r = mehrstellen_r(lambda);
-        return 2. * pow(r, abs(n) + 1) / (q1 * (1.0 - r*r));
+        const real_t base = 2. * (r / q1) * pow(r, abs(n)) / (1.0 - r*r);
+        return std::isfinite(lambda) ? base : -(n == 0) / q0; 
     };
 
     real_t meh6_left(const int n, const real_t k1, const real_t k2) {
@@ -498,7 +501,8 @@ namespace LGFOneUnbounded {
         const real_t q1 = 16./15.*y[0]*y[1] - 4./3.*(y[0] + y[1]) + 2.0;
         const real_t lambda = -q0 / q1;
         const real_t r = mehrstellen_r(lambda);
-        return 2. * pow(r, abs(n) + 1) / (q1 * (1.0 - r*r));
+        const real_t base = 2. * (r / q1) * pow(r, abs(n)) / (1.0 - r*r);
+        return std::isfinite(lambda) ? base : -(n == 0) / q0; 
     };
     
     real_t meh4_full(const int n, const real_t k1, const real_t k2) {
@@ -508,13 +512,16 @@ namespace LGFOneUnbounded {
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
         const real_t pl1 = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
         const real_t pl0 = -2./3.*(y[0] + y[1]) + 1.0;
-        const real_t lambda = -pl1 / (2*pl0);
         const real_t pr1 = -1./3.*(y[0] + y[1]) + 5./6.;
         const real_t pr0 = 1./12.;
+        const real_t lambda = -pl1 / (2*pl0);
         const real_t r = mehrstellen_r(lambda);
-        const real_t base = pow(r, (abs(n) - 1)) * (pr0 + pr1*r + pr0*r*r) / (pl1 + 2.*pl0*r);
-        // corrections near the origin
-        return (n == 0) ? -(r/pl0)*(pr1 + 2.*pr0*r)/(r*r - 1.) : -base;
+        if (std::isfinite(lambda)) {
+            const real_t base = pow(r, abs(n)) * (pr1*r + pr0*(1 + r*r)) / (pl0*(r*r - 1));
+            return (n == 0) ? -(r/pl0)*(pr1 + 2.*pr0*r)/(r*r - 1.) : -base;
+        } else {
+            return (n == 0) * (-pr1 / pl1) + (n == 1) * (-pr0 / pl1); 
+        }
     }
 
     real_t meh6_full(const int n, const real_t k1, const real_t k2) {

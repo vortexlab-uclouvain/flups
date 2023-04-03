@@ -606,6 +606,30 @@ static inline double mehr_6l_1unb2spe_(const void* params,const double* data) {
     const int n = (int)round(abs(r) / h);
     return -h * LGFOneUnbounded::meh4_left(n, k1*h, k2*h);
 }
+static inline double mehr_4f_1unb2spe_(const void* params,const double* data) {
+    const double r  = ((double*)params) [0];
+    const double kx = ((double*)params) [3];
+    const double ky = ((double*)params) [4];
+    const double kz = ((double*)params) [5];
+    const double h  = ((double*)params) [6];
+    // one of k's is zero, so we set |k1| >= |k2| >= 0
+    const double k1 = std::max(fabs(kx), std::max(fabs(ky), fabs(kz)));
+    const double k2 = fabs(kx) + fabs(ky) + fabs(kz) - k1;
+    const int n = (int)round(abs(r) / h);
+    return -h * LGFOneUnbounded::meh4_full(n, k1*h, k2*h);
+}
+static inline double mehr_6f_1unb2spe_(const void* params,const double* data) {
+    const double r  = ((double*)params) [0];
+    const double kx = ((double*)params) [3];
+    const double ky = ((double*)params) [4];
+    const double kz = ((double*)params) [5];
+    const double h  = ((double*)params) [6];
+    // one of k's is zero, so we set |k1| >= |k2| >= 0
+    const double k1 = std::max(fabs(kx), std::max(fabs(ky), fabs(kz)));
+    const double k2 = fabs(kx) + fabs(ky) + fabs(kz) - k1;
+    const int n = (int)round(abs(r) / h);
+    return -h * LGFOneUnbounded::meh6_full(n, k1*h, k2*h);
+}
 /**@} */
 
 
@@ -681,21 +705,31 @@ static inline double lgf_8_0unb3spe_(const void* params, const double* data) {
 static inline double mehr_4l_0unb3spe_(const void* params, const double* data) {
     const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];
-
-    const double x = k[0]*h;
-    const double y = k[1]*h;
-    const double z = k[2]*h;
-
-    return 1.5 * h * h / (cos(x)*cos(y) + cos(x)*cos(z) + cos(y)*cos(z) + cos(x) + cos(y) + cos(z) - 6.0);
+    const double y[3] = {pow(sin(k[0]*h/2.), 2), pow(sin(k[1]*h/2.), 2), pow(sin(k[2]*h/2.), 2)};
+    const double left = -4. * (y[0] + y[1] + y[2]) + 8./3. * (y[0]*y[1] + y[1]*y[2] + y[0]*y[2]);
+    return h * h / left;
 }
 static inline double mehr_6l_0unb3spe_(const void* params, const double* data) {
     const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];
-
-    const double x = k[0]*h;
-    const double y = k[1]*h;
-    const double z = k[2]*h;
-
-    return 15.0 * h * h / (4.0*cos(x)*cos(y)*cos(z) + 6.0 * (cos(x)*cos(y) + cos(x)*cos(z) + cos(y)*cos(z)) + 14.0 * (cos(x) + cos(y) + cos(z)) - 64.0);
+    const double y[3] = {pow(sin(k[0]*h/2.), 2), pow(sin(k[1]*h/2.), 2), pow(sin(k[2]*h/2.), 2)};
+    const double left = -4. * (y[0] + y[1] + y[2]) + 8./3. * (y[0]*y[1] + y[1]*y[2] + y[0]*y[2]) - 32./15. * y[0]*y[1]*y[2];
+    return h * h / left;
+}
+static inline double mehr_4f_0unb3spe_(const void* params, const double* data) {
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
+    const double h  = ((double*)params)[5];
+    const double y[3] = {pow(sin(k[0]*h/2.), 2), pow(sin(k[1]*h/2.), 2), pow(sin(k[2]*h/2.), 2)};
+    const double left = -4. * (y[0] + y[1] + y[2]) + 8./3. * (y[0]*y[1] + y[1]*y[2] + y[0]*y[2]);
+    const double right = 1. - 1./3. * (y[0] + y[1] + y[2]);
+    return h * h * right / left;
+}
+static inline double mehr_6f_0unb3spe_(const void* params, const double* data) {
+    const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
+    const double h  = ((double*)params)[5];
+    const double y[3] = {pow(sin(k[0]*h/2.), 2), pow(sin(k[1]*h/2.), 2), pow(sin(k[2]*h/2.), 2)};
+    const double left = -4. * (y[0] + y[1] + y[2]) + 8./3. * (y[0]*y[1] + y[1]*y[2] + y[0]*y[2]) - 32./15. * y[0]*y[1]*y[2];
+    const double right = 1. - 1./3. * (y[0] + y[1] + y[2]) + 8./45. * (y[0]*y[1] + y[1]*y[2] + y[0]*y[2]) - 1./15. * (y[0]*y[0] + y[1]*y[1] + y[2]*y[2]);
+    return h * h * right / left;
 }
 /**@} */
