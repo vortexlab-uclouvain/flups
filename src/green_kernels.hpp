@@ -604,7 +604,7 @@ static inline double mehr_6l_1unb2spe_(const void* params,const double* data) {
     const double k1 = std::max(fabs(kx), std::max(fabs(ky), fabs(kz)));
     const double k2 = fabs(kx) + fabs(ky) + fabs(kz) - k1;
     const int n = (int)round(abs(r) / h);
-    return -h * LGFOneUnbounded::meh4_left(n, k1*h, k2*h);
+    return -h * LGFOneUnbounded::meh6_left(n, k1*h, k2*h);
 }
 static inline double mehr_4f_1unb2spe_(const void* params,const double* data) {
     const double r  = ((double*)params) [0];
