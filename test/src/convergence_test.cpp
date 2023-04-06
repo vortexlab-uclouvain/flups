@@ -73,7 +73,6 @@ static const std::map<FLUPS_BoundaryType, std::string> bname = {
  * However, the function to compute the number of points must be overwritten
  * 
  */
-
 using ParamType = std::tuple<FLUPS_CenterType, FLUPS_GreenType,
                                 std::array<FLUPS_BoundaryType, 2>, 
                                 std::array<FLUPS_BoundaryType, 2>, 

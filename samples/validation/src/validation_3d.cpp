@@ -393,7 +393,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
-    flups_profiler_disp(prof);
+    // flups_profiler_disp(prof);
 
 
 #ifdef DUMP_DBG

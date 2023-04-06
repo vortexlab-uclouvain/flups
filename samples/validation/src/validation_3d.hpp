@@ -94,32 +94,64 @@ struct manuParams {
 typedef double (*manuF)(const double, const double, const manuParams);
 
 
+// static inline double fOddOdd(const double x, const double L, const manuParams params) {
+//     return sin((c_2pi / L * params.freq) * x);
+// }
+// static inline double d2dx2_fOddOdd(const double x, const double L, const manuParams params) {
+//     return -(c_2pi / L * params.freq) * (c_2pi / L * params.freq) * sin((c_2pi / L * params.freq) * x);
+// }
+
+// static inline double fEvenEven(const double x, const double L, const manuParams params) {
+//     return cos((M_PI / L * params.freq) * x);
+// }
+// static inline double d2dx2_fEvenEven(const double x, const double L, const manuParams params) {
+//     return -(M_PI / L * params.freq) * (M_PI / L * params.freq) * cos((M_PI / L * params.freq) * x);
+// }
+
+// static inline double fOddEven(const double x, const double L, const manuParams params) {
+//     return sin((M_PI / L * (params.freq+.5)) * x);
+// }
+// static inline double d2dx2_fOddEven(const double x, const double L, const manuParams params) {
+//     return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * sin((M_PI / L * (params.freq+.5)) * x);
+// }
+
+// static inline double fEvenOdd(const double x, const double L, const manuParams params) {
+//     return cos((M_PI / L * (params.freq+.5)) * x);
+// }
+// static inline double d2dx2_fEvenOdd(const double x, const double L, const manuParams params) {
+//     return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * cos((M_PI / L * (params.freq+.5)) * x);
+// }
+
 static inline double fOddOdd(const double x, const double L, const manuParams params) {
-    return sin((c_2pi / L * params.freq) * x);
+    return exp(sin((c_2pi / L * params.freq) * x)) - 1.0;
 }
 static inline double d2dx2_fOddOdd(const double x, const double L, const manuParams params) {
-    return -(c_2pi / L * params.freq) * (c_2pi / L * params.freq) * sin((c_2pi / L * params.freq) * x);
+    return pow(c_2pi / L * params.freq, 2) *  exp(sin((c_2pi / L * params.freq) * x)) * 
+        (pow(cos((c_2pi / L * params.freq) * x), 2) - sin((c_2pi / L * params.freq) * x));
 }
 
 static inline double fEvenEven(const double x, const double L, const manuParams params) {
-    return cos((M_PI / L * params.freq) * x);
+    return exp(cos((M_PI / L * params.freq) * x)) - 1.0;
 }
 static inline double d2dx2_fEvenEven(const double x, const double L, const manuParams params) {
-    return -(M_PI / L * params.freq) * (M_PI / L * params.freq) * cos((M_PI / L * params.freq) * x);
+    return pow(c_2pi / L * params.freq, 2) *  exp(cos((c_2pi / L * params.freq) * x)) * 
+        (pow(sin((c_2pi / L * params.freq) * x), 2) - cos((c_2pi / L * params.freq) * x));
 }
 
 static inline double fOddEven(const double x, const double L, const manuParams params) {
-    return sin((M_PI / L * (params.freq+.5)) * x);
+    return exp(sin((M_PI / L * (params.freq+.5)) * x)) - 1.0;
 }
 static inline double d2dx2_fOddEven(const double x, const double L, const manuParams params) {
-    return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * sin((M_PI / L * (params.freq+.5)) * x);
+    return pow(c_2pi / L * params.freq+.5, 2) *  exp(sin((c_2pi / L * params.freq+.5) * x)) * 
+        (pow(cos((c_2pi / L * params.freq+.5) * x), 2) - sin((c_2pi / L * params.freq+.5) * x));
 }
 
 static inline double fEvenOdd(const double x, const double L, const manuParams params) {
-    return cos((M_PI / L * (params.freq+.5)) * x);
+    return exp(cos((M_PI / L * (params.freq+.5)) * x)) - 1.0;
 }
 static inline double d2dx2_fEvenOdd(const double x, const double L, const manuParams params) {
-    return -(M_PI / L * (params.freq+.5)) * (M_PI / L * (params.freq+.5)) * cos((M_PI / L * (params.freq+.5)) * x);
+    return pow(c_2pi / L * params.freq+.5, 2) *  exp(cos((c_2pi / L * params.freq+.5) * x)) * 
+        (pow(sin((c_2pi / L * params.freq+.5) * x), 2) - cos((c_2pi / L * params.freq+.5) * x));
 }
 
 static inline double fUnb(const double x, const double L, const manuParams params) {
