@@ -463,7 +463,7 @@ namespace LGFOneUnbounded {
         };
     }
 
-    // ----------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------
     // Mehrstellen Stencils 4 and 6
     // ----------------------------------------------------------------------------------------
     static const real_t meh_large_lambda_tol_ = 1.0e2;
@@ -474,9 +474,19 @@ namespace LGFOneUnbounded {
         } else if (fabs(lambda) > meh_large_lambda_tol_) { // large lambda
             r = horner(large_lambda_expansion_, large_lambda_terms_, 1.0 / lambda);
         } else { // moderate lambda
-            r = real(lambda - complex_sqrt(lambda - 1.)*complex_sqrt(lambda + 1.));
+            r = real(lambda - complex_sqrt(lambda - 1)*complex_sqrt(lambda + 1));
         }
         return r;
+    }
+
+    void meh4_left_coeffs(real_t coeffs[2], const real_t y[2]) {
+        coeffs[0] = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
+        coeffs[1] = -2./3.*(y[0] + y[1]) + 1.0;
+    }
+
+    void meh4_right_coeffs(real_t coeffs[2], const real_t y[2]) {
+        coeffs[0] = -1./3.*(y[0] + y[1]) + 5./6.;
+        coeffs[1] = 1./12.;
     }
 
     real_t meh4_left(const int n, const real_t k1, const real_t k2) {
@@ -484,25 +494,12 @@ namespace LGFOneUnbounded {
             return -0.5 * abs(n);
         }
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        const real_t q0 = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
-        const real_t q1 = -4./3.*(y[0] + y[1]) + 2.0;
-        const real_t lambda = -q0 / q1;
+        real_t p[2];
+        meh4_left_coeffs(p, y);
+        const real_t lambda = -p[0] / (2. * p[1]);
         const real_t r = mehrstellen_r(lambda);
-        const real_t base = 2. * (r / q1) * pow(r, abs(n)) / (1.0 - r*r);
-        return std::isfinite(lambda) ? base : -(n == 0) / q0; 
-    };
-
-    real_t meh6_left(const int n, const real_t k1, const real_t k2) {
-        if (k1 == 0 && k2 == 0) {
-            return -0.5 * abs(n);
-        }; 
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        const real_t q0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
-        const real_t q1 = 16./15.*y[0]*y[1] - 4./3.*(y[0] + y[1]) + 2.0;
-        const real_t lambda = -q0 / q1;
-        const real_t r = mehrstellen_r(lambda);
-        const real_t base = 2. * (r / q1) * pow(r, abs(n)) / (1.0 - r*r);
-        return std::isfinite(lambda) ? base : -(n == 0) / q0; 
+        const real_t base = (r / p[1]) * pow(r, abs(n)) / (1.0 - r*r);
+        return std::isfinite(lambda) ? base : -(n == 0) / p[0]; 
     };
     
     real_t meh4_full(const int n, const real_t k1, const real_t k2) {
@@ -510,68 +507,58 @@ namespace LGFOneUnbounded {
             return -0.5 * abs(n) - (n == 0) * 1./12.;
         }; 
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        const real_t pl1 = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
-        const real_t pl0 = -2./3.*(y[0] + y[1]) + 1.0;
-        const real_t pr1 = -1./3.*(y[0] + y[1]) + 5./6.;
-        const real_t pr0 = 1./12.;
-        const real_t lambda = -pl1 / (2*pl0);
+        real_t pl[2], pr[2];
+        meh4_left_coeffs(pl, y);
+        meh4_right_coeffs(pr, y);
+        const real_t lambda = -pl[0] / (2*pl[1]);
         const real_t r = mehrstellen_r(lambda);
         if (std::isfinite(lambda)) {
-            const real_t base = pow(r, abs(n)) * (pr1*r + pr0*(1 + r*r)) / (pl0*(r*r - 1));
-            return (n == 0) ? -(r/pl0)*(pr1 + 2.*pr0*r)/(r*r - 1.) : -base;
+            const real_t base = pow(r, abs(n)) * (pr[0]*r + pr[1]*(1 + r*r)) / (pl[1]*(r*r - 1));
+            return (n == 0) ? -(r/pl[1])*(pr[0] + 2.*pr[1]*r)/(r*r - 1.) : -base;
         } else {
-            return (n == 0) * (-pr1 / pl1) + (n == 1) * (-pr0 / pl1); 
+            return (n == 0) * (-pr[0] / pl[0]) + (n == 1) * (-pr[1] / pl[0]); 
         }
     }
 
-    real_t meh6_full(const int n, const real_t k1, const real_t k2) {
-        if (k1 == 0 && k2 == 0) {
-            return -0.5 * abs(n) - (abs(n) == 1) * (-1./240.) - (n == 0) * (11./120.);
-        }; 
-        // deal with the base portion
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        const real_t ql0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
-        const real_t ql1 = 16./15.*y[0]*y[1] - 4./3.*(y[0] + y[1]) + 2.0;
-        const real_t lambda = -ql0 / ql1;
-        const real_t qr0 = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 49./60.;
-        const real_t qr1 = -4./45.*(y[0] + y[1]) + 1./5.;
-        const real_t qr2 = -1./60.;
-        const real_t qr = std::isinf(lambda) ? 0.0 : qr0 + lambda*(qr1 + lambda*qr2);
-        const real_t r = mehrstellen_r(lambda);
-        const real_t base = 2. * qr * pow(r, abs(n) + 1) / (ql1 * (1.0 - r*r));
-        // corrections near the origin
-        const real_t pl0 = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
-        const real_t pl1 = 8./15.*y[0]*y[1] - 2./3.*(y[0] + y[1]) + 1.0;
-        const real_t pr1 = -2./45.*(y[0] + y[1]) + 1./10.;
-        const real_t pr2 = -1./240.;
-        return base - (abs(n) == 1) * (pr2 / pl1) - (n == 0) * (pr1*pl1 - pr2*pl0) / (pl1*pl1);
-    }
-
-    void meh4_left_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        coeffs[0] = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
-        coeffs[1] = -2./3.*(y[0] + y[1]) + 1.0;
-    }
-
-    void meh4_right_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        coeffs[0] = -1./3.*(y[0] + y[1]) + 5./6.;
-        coeffs[1] = 1./12.;
-    }
-
-    void meh6_left_coeffs(real_t coeffs[2], const real_t k1, const real_t k2) {
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+    void meh6_left_coeffs(real_t coeffs[2], const real_t y[2]) {
         coeffs[0] = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
         coeffs[1] = 8./15.*y[0]*y[1] - 2./3.*(y[0] + y[1]) + 1.0;
     }
 
-    void meh6_right_coeffs(real_t coeffs[3], const real_t k1, const real_t k2) {
-        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+    void meh6_right_coeffs(real_t coeffs[3], const real_t y[2]) {
         coeffs[0] = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 97./120.;
         coeffs[1] = -2./45.*(y[0] + y[1]) + 1./10.;
         coeffs[2] = -1./240.;
     }
 
+    real_t meh6_left(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n);
+        }; 
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        real_t p[2];
+        meh6_left_coeffs(p, y);
+        const real_t lambda = -p[0] / (2. * p[1]);
+        const real_t r = mehrstellen_r(lambda);
+        const real_t base = (r / p[1]) * pow(r, abs(n)) / (1.0 - r*r);
+        return std::isfinite(lambda) ? base : -(n == 0) / p[0]; 
+    };
+
+    real_t meh6_full(const int n, const real_t k1, const real_t k2) {
+        if (k1 == 0 && k2 == 0) {
+            return -0.5 * abs(n) - (abs(n) == 1) * (-1./240.) - (n == 0) * (11./120.);
+        }; 
+        const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
+        real_t pl[2], pr[3];
+        meh6_left_coeffs(pl, y);
+        meh6_right_coeffs(pr, y);
+        const real_t lambda = -pl[0] /(2*pl[1]);
+        const real_t qr = std::isinf(lambda) ? 0.0 : (1./120. + pr[0] + 2.*lambda*(pr[1] + 2.*lambda*pr[2]));
+        const real_t r = mehrstellen_r(lambda);
+        const real_t base = qr * pow(r, abs(n) + 1) / (pl[1] * (1.0 - r*r));
+        // corrections near the origin
+        return base - (abs(n) == 1) * (pr[2] / pl[1]) - (n == 0) * (pr[1]*pl[1] - pr[2]*pl[0]) / (pl[1]*pl[1]);
+    }
 }; // namespace LGFOneUnbounded
 
 #endif
