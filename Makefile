@@ -29,6 +29,8 @@ include $(ARCH_FILE)
 
 ################################################################################
 # FROM HERE, DO NOT TOUCH
+UNAME := $(shell uname)
+
 #-----------------------------------------------------------------------------
 CXX ?= mpic++
 AR ?= ar
@@ -91,12 +93,15 @@ INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
 #---- ACCFFT
-ACCFFT_DIR ?= /usr/
-ACCFFT_INC ?= ${ACCFFT_DIR}/include
-ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
-ACCFFT_LIBNAME ?= -laccfft
-INC += -I$(ACCFFT_INC)
-LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
+#check if HAVE_ACCFFT
+ifneq (,$(findstring -DHAVE_ACCFFT,$(CXXFLAGS)))
+ ACCFFT_DIR ?= /usr/
+ ACCFFT_INC ?= ${ACCFFT_DIR}/include
+ ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
+ ACCFFT_LIBNAME ?= -laccfft
+ INC += -I$(ACCFFT_INC)
+ LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
+endif
 
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
@@ -155,7 +160,7 @@ validation: install_static
 test : install_static
 
 # compile static and dynamic lib
-all: lib_static lib_dynamic
+all: lib_static lib_dynamic lib_darwin
 
 all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
@@ -169,9 +174,21 @@ lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_ISR).a
 
 lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so
 
+ifeq ($(UNAME), Darwin)
+lib_darwin: $(TARGET_LIB_A2A).dylib $(TARGET_LIB_NB).dylib $(TARGET_LIB_ISR).dylib
+else
+lib_darwin: 
+endif
+
 lib_static_deprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
 
 lib_dynamic_deprec: $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
+
+ifeq ($(UNAME), Darwin)
+lib_darwin_deprec: $(TARGET_LIB_DEPREC_A2A).dylib $(TARGET_LIB_DEPREC_NB).dylib
+else
+lib_darwin_deprec: 
+endif
 
 lib: lib_static
 
@@ -205,16 +222,37 @@ $(TARGET_LIB_DPREC_A2A).a: $(OBJ_DPREC_A2A)
 $(TARGET_LIB_DPREC_NB).a: $(OBJ_DPREC_NB)
 	$(AR) rvs $(M_LFLAGS) $@  $^
 
+# darwin specific target
+darwin_dir := $(realpath $(PREFIX)/lib)
+$(TARGET_LIB_ISR).dylib: $(OBJ_ISR)
+	$(CXX) -dynamiclib -install_name $(darwin_dir)/$(notdir $@) $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_A2A).dylib: $(OBJ_A2A)
+	$(CXX) -dynamiclib -install_name $(darwin_dir)/$(notdir $@)  $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_NB).dylib: $(OBJ_NB)
+	$(CXX) -dynamiclib -install_name $(darwin_dir)/$(notdir $@) $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_DPREC_A2A).dylib: $(OBJ_DPREC_A2A)
+	$(CXX) -dynamiclib -install_name $(darwin_dir)/$(notdir $@) $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
+
+$(TARGET_LIB_DPREC_NB).dylib: $(OBJ_DPREC_NB)
+	$(CXX) -dynamiclib -install_name $(darwin_dir)/$(notdir $@) $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
+# end of darwin targets
+
 preproc: $(IN)
 
-install_dynamic: lib_dynamic
+install_dynamic: lib_dynamic lib_darwin
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_ISR).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
+ifeq ($(UNAME), Darwin)
+	@cp $(TARGET_LIB_ISR).dylib $(PREFIX)/lib
+	@cp $(TARGET_LIB_A2A).dylib $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).dylib $(PREFIX)/lib
+endif
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
@@ -236,7 +274,7 @@ install_dprec_static: lib_static_deprec
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
-install_dprec_dynamic: lib_dynamic_deprec
+install_dprec_dynamic: lib_dynamic_deprec lib_darwin_deprec
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
@@ -247,6 +285,7 @@ install_dprec_dynamic: lib_dynamic_deprec
 install: 
 	@$(MAKE) info
 	@$(MAKE) install_static
+	@$(MAKE) install_dynamic
 
 test:
 	@echo $(SRC)
