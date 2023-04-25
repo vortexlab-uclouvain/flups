@@ -30,8 +30,8 @@ INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
 #---- FLUPS
-FLUPS_INC ?= ../../include
-FLUPS_LIB ?= ../../lib
+FLUPS_INC ?= $(realpath ../../include)
+FLUPS_LIB ?= $(realpath ../../lib)
 INC += -I$(FLUPS_INC)
 
 #---- FFTW
