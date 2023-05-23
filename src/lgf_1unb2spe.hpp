@@ -1,5 +1,5 @@
-#ifndef LGF_1UNB2SPE_HPP
-#define LGF_1UNB2SPE_HPP
+#ifndef LGF_ONE_UNBOUNDED_HPP_
+#define LGF_ONE_UNBOUNDED_HPP_
 
 #include <cmath>
 #include <complex>
@@ -75,6 +75,26 @@ namespace LGFOneUnbounded {
     }
 
     /**
+     * @brief evaluate r = lambda - sqrt(lambda^2 - 1)
+     * 
+     * The result is guaranteed to have |r| <= 1, and the evaluation handles large or infinite lambda.
+     */
+    static const real_t lgf_large_lambda_tol_ = 1.0e2;
+    constexpr int large_lambda_terms_ = 10;
+    static const real_t large_lambda_expansion_[] = {0, 1./2., 0, 1./8., 0, 1./16., 0, 5./128., 0, 7./256.};
+    real_t r_from_lambda(real_t lambda) {
+        real_t r = 0.0;
+        if (std::isinf(lambda)) { // infinite lambda
+            r = 0.0;
+        } else if (fabs(lambda) > lgf_large_lambda_tol_) { // large lambda
+            r = horner(large_lambda_expansion_, large_lambda_terms_, 1.0 / lambda);
+        } else { // moderate lambda
+            r = real(lambda - complex_sqrt(lambda - 1)*complex_sqrt(lambda + 1));
+        }
+        return r;
+    }
+
+    /**
      * @brief return the oscillatory contribution to the LGF from a conjugate root pair
      * 
      * @param r one of the complex roots
@@ -83,7 +103,7 @@ namespace LGFOneUnbounded {
      * @param n the evaluation index
      */
     const real_t oscillatory_form(complex_t r, complex_t pp, int w, int n) {
-        const complex_t K = complex_t(0.0, -2.0)*pow(r, w - 1)/pp;
+        const complex_t K = complex_t(0.0, 2.0)*pow(r, w - 1)/pp;
         return abs(K) * pow(abs(r), abs(n)) * sin(arg(r)*abs(n) + arg(K));
     }
 
@@ -91,8 +111,6 @@ namespace LGFOneUnbounded {
     // Reusable constants
     // ----------------------------------------------------------------------------------------
     // large lambda expansion of r(lambda)
-    constexpr int large_lambda_terms_ = 10;
-    static const real_t large_lambda_expansion_[] = {0, 1./2., 0, 1./8., 0, 1./16., 0, 5./128., 0, 7./256.};
 
     // root of q(lambda) nearest 1
     constexpr int lgf_small_c_terms_ = 8;
@@ -101,22 +119,24 @@ namespace LGFOneUnbounded {
     static const real_t lgf8_small_c_expansion_[8] = {0, 0.5, 1./24., 1./720., 1./40320., 577./3628800., 389./6220800., 34987./3048192000.};
 
     // p'(z, c), template to allow real_t or complex
-    template <typename T> inline T lgf4_ppzc_(T z, real_t c) { return 4./3. + z*((-5. - 2.*c) + z*(4. - z/3.)); }
-    template <typename T> inline T lgf6_ppzc_(T z, real_t c) { return -3./20. + z*(3. + z*((-49./6. - 3.*c) + z*(6. + z*(-3./4. + z/15.)))); }
-    template <typename T> inline T lgf8_ppzc_(T z, real_t c) { return 8./315. + z*(-2./5. + z*(24./5. + z*(-205./18. - 4.*c + z*(8. + z*(-6./5. + z*(8./45. - z/70.)))))); } 
+    template <typename T> inline T lgf4_ppzc_(T z, real_t c) { return -4./3. + z*((5. + 2.*c) + z*(-4. + z/3.)); }
+    template <typename T> inline T lgf6_ppzc_(T z, real_t c) { return 3./20. + z*(-3. + z*((49./6. + 3.*c) + z*(-6. + z*(3./4. - z/15.)))); }
+    template <typename T> inline T lgf8_ppzc_(T z, real_t c) { return -8./315. + z*(2./5. + z*(-24./5. + z*(205./18. + 4.*c + z*(-8. + z*(6./5. + z*(-8./45. + z/70.)))))); } 
 
     // LGF4 repeated root residues
     static const real_t lgf4_c_star_ = 3.0;
     const real_t sq15 = sqrt(15.);
-    const real_t lgf4_repeat_g0_[2]  = {-4./(5.*sq15), -1./5.};
-    const real_t lgf4_repeat_g1_[4]  = {14./(75.*sq15), 2./25., 4./(25.*sq15), 1./150.};
-    const real_t lgf4_repeat_g2_[6]  = {-901./(18750.*sq15), -74./3125., -253./(3750.*sq15), -23./3750., -1./(250.*sq15), -1./15000.};
-    const real_t lgf4_repeat_g3_[8]  = {37313./(2812500.*sq15), 11267./1640625., 3167./(140625.*sq15), 1./375., 31./(11250.*sq15), 31./281250., 1./(28125.*sq15), 1./3150000.};
-    const real_t lgf4_repeat_g4_[10] = {-3885631./(1012500000.*sq15), -1194829./590625000., -1118351./(157500000.*sq15), -12571./13125000., -13751./(11250000.*sq15), -127./1875000., -247./(6750000.*sq15), -13./15750000., -1./(6300000.*sq15), -1./1134000000.};
+    const real_t lgf4_repeat_g0_[2]  = {4./(5.*sq15), 1./5.};
+    const real_t lgf4_repeat_g1_[4]  = {-14./(75.*sq15), -2./25., -4./(25.*sq15), -1./150.};
+    const real_t lgf4_repeat_g2_[6]  = {901./(18750.*sq15), 74./3125., 253./(3750.*sq15), 23./3750., 1./(250.*sq15), 1./15000.};
+    const real_t lgf4_repeat_g3_[8]  = {-37313./(2812500.*sq15), -11267./1640625., -3167./(140625.*sq15), -1./375., -31./(11250.*sq15), -31./281250., -1./(28125.*sq15), -1./3150000.};
+    const real_t lgf4_repeat_g4_[10] = {3885631./(1012500000.*sq15), 1194829./590625000., 1118351./(157500000.*sq15), 12571./13125000., 13751./(11250000.*sq15), 127./1875000., 247./(6750000.*sq15), 13./15750000., 1./(6300000.*sq15), 1./1134000000.};
     
     // LGF8 repeated root residues
     static const real_t lgf8_c_star_ = 3.204471924659902;
 
+    // The constants a_jk, u_jk, and vj_k appearing in the repeated root expansion of the order eight stencil. 
+    // The naming convention allows access to constants via lgf8_a_j_[k], lgf8_u_j_[k], and lgf8_v_j_[k]
     const real_t lgf8_a_0_[2]  = {-0.1932304295173025, -9.940958723693284e-2};
     const real_t lgf8_a_1_[4]  = {5.528645180523051e-2, 6.381749748906844e-2, 1.920895723993029e-2, 1.647044339102893e-3};
     const real_t lgf8_a_2_[6]  = {-1.246195963786745e-2, -2.200316066032414e-2, -1.156690496243602e-2, -2.513956535483380e-3, -2.386943138091703e-4, -8.186599895557273e-6};
@@ -134,7 +154,7 @@ namespace LGFOneUnbounded {
     const real_t lgf8_v_2_[3] = {0.001748394270280815, 0.0007853940979982054, 6.08419435502199e-5};
     const real_t lgf8_v_3_[4] = {-0.000574565978306078, -0.000152486888729598, -8.030910109571855e-6, 6.101311014540467e-8};
     const real_t lgf8_v_4_[5] = {4.706634682161246e-5, -8.921284296708267e-6, -4.142946014756904e-6, -3.42884013573887e-7, -7.828815619884859e-9};
-    
+
     // ----------------------------------------------------------------------------------------
     // Symbols
     // ----------------------------------------------------------------------------------------
@@ -149,7 +169,7 @@ namespace LGFOneUnbounded {
     const real_t lgf2_small_cutoff_ = 1.0e-3;
     real_t lgf2(int n, real_t c) {
         if (c < 0) {
-            printf("[ExpandLGF] Argument error: c must be nonnegative");
+            printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
             abort();
         } else if (c == 0.0) {
             return -0.5 * abs(n);
@@ -162,6 +182,10 @@ namespace LGFOneUnbounded {
         };
     }
 
+    real_t lgf2(int n, real_t k1, real_t k2) {
+        return lgf2(n, lgf2_symbol(k1) + lgf2_symbol(k2));
+    }
+
     // ----------------------------------------------------------------------------------------
     // LGF4
     // ----------------------------------------------------------------------------------------
@@ -171,8 +195,8 @@ namespace LGFOneUnbounded {
      */
     inline real_t lgf4_c_zero_(int n) {
         const real_t r = 7.179676972449123e-2;
-        const real_t K = 7.216878364870408e-2;
-        return -0.5*abs(n) + K*(1.0 - pow(r, abs(n)));
+        const real_t K = -7.216878364870408e-2;
+        return -0.5*abs(n) + K*(pow(r, abs(n)) - 1.0);
     }    
 
     /** 
@@ -189,9 +213,9 @@ namespace LGFOneUnbounded {
         // assemble LGF value
         const real_t r1_minus_r1_inv = value_minus_inverse_series(rm1);
         const real_t logr1 = log_series(rm1);
-        const real_t pp1 = -1./12. * r1_minus_r1_inv * (r1 - r2) * (r1 - 1.0/r2);
+        const real_t pp1 = 1./12. * r1_minus_r1_inv * (r1 - r2) * (r1 - 1.0/r2);
         const real_t pp2 = lgf4_ppzc_(r2, c);
-        return -exp((abs(n) + 1)*logr1) / pp1 - pow(r2, abs(n) + 1) / pp2;
+        return exp((abs(n) + 1)*logr1) / pp1 + pow(r2, abs(n) + 1) / pp2;
     }
 
     /**
@@ -221,7 +245,7 @@ namespace LGFOneUnbounded {
             horner(lgf4_repeat_g4_, 10, nr)
         };
         const real_t dc = c - lgf4_c_star_;
-        return -pow(r, abs(n)) * horner(lgf4_g, 5, dc);
+        return pow(r, abs(n)) * horner(lgf4_g, 5, dc);
     }
 
     /**
@@ -230,7 +254,7 @@ namespace LGFOneUnbounded {
     inline real_t lgf4_c_imag_(int n, real_t c) {
         const complex_t lambda = 4.0 - complex_sqrt(9.0 - 3.0*c);
         const complex_t r = lambda - sqrt(lambda*lambda - 1.0);
-        const complex_t pp = -im/6.*imag(r)*(r - 1./r)*(r - 1./conj(r)); // lgf4_ppzc_(r, c);
+        const complex_t pp = im/6.*imag(r)*(r - 1./r)*(r - 1./conj(r)); // lgf4_ppzc_(r, c);
         return oscillatory_form(r, pp, 2, n);
     }
 
@@ -239,7 +263,7 @@ namespace LGFOneUnbounded {
 
     real_t lgf4(int n, real_t c) {
         if (c < 0) {
-            printf("[ExpandLGF] Argument error: c must be nonnegative");
+            printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
             abort();
         } else if (c == 0.0) {
             return lgf4_c_zero_(n);
@@ -252,6 +276,10 @@ namespace LGFOneUnbounded {
         } else {
             return lgf4_c_imag_(n, c);
         };
+    }
+
+    real_t lgf4(int n, real_t k1, real_t k2) {
+        return lgf4(n, lgf4_symbol(k1) + lgf4_symbol(k2));
     }
 
     // ----------------------------------------------------------------------------------------
@@ -281,7 +309,7 @@ namespace LGFOneUnbounded {
      */
     inline real_t lgf6_c_zero_(int n) {
         const real_t a = +1.035017642406219e-1;
-        const real_t p = +9.54295097909627e-2; // TODO
+        const real_t p = +9.54295097909627e-2;
         const real_t t = -9.958762687216868e-1;
         const real_t f = -2.168575565241744e+0;
         return -0.5*abs(n) + a*pow(p, abs(n))*sin(abs(n)*t + f) - a*sin(f);
@@ -302,8 +330,8 @@ namespace LGFOneUnbounded {
         // assemble LGF value
         const real_t r1_minus_r1_inv = value_minus_inverse_series(rm1);
         const real_t logr1 = log_series(rm1);
-        const real_t pp1 = 1./90. * r1_minus_r1_inv * norm((r1 - r2) * (r1 - 1.0/r2));
-        return -exp((abs(n) + 2)*logr1) / pp1 + oscillatory_form(r2, pp2, 3, n);
+        const real_t pp1 = -1./90. * r1_minus_r1_inv * norm((r1 - r2) * (r1 - 1.0/r2));
+        return exp((abs(n) + 2)*logr1) / pp1 + oscillatory_form(r2, pp2, 3, n);
     }
 
     /**
@@ -315,14 +343,14 @@ namespace LGFOneUnbounded {
         const real_t pp1 = lgf6_ppzc_(r1, c);
         const complex_t r2 = std::get<1>(roots);
         const complex_t pp2 = lgf6_ppzc_(r2, c);
-        return -pow(r1, abs(n) + 2)/pp1 + oscillatory_form(r2, pp2, 3, n);
+        return pow(r1, abs(n) + 2)/pp1 + oscillatory_form(r2, pp2, 3, n);
     }
 
     constexpr real_t lgf6_small_cutoff_ = 1e-3;
 
     real_t lgf6(int n, real_t c) {
         if (c < 0) {
-            printf("[ExpandLGF] Argument error: c must be nonnegative");
+            printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
             abort();
         } else if (c == 0.0) {
             return lgf6_c_zero_(n);
@@ -333,7 +361,10 @@ namespace LGFOneUnbounded {
         };
     }
 
-
+    real_t lgf6(int n, real_t k1, real_t k2) {
+        return lgf6(n, lgf6_symbol(k1) + lgf6_symbol(k2));
+    }
+    
     // ----------------------------------------------------------------------------------------
     // LGF8
     // ----------------------------------------------------------------------------------------
@@ -388,8 +419,8 @@ namespace LGFOneUnbounded {
         // assemble LGF value
         const real_t r1_minus_r1_inv = value_minus_inverse_series(rm1);
         const real_t logr1 = log_series(rm1);
-        const real_t pp1 = -1./560. * r1_minus_r1_inv * (r1 - r2)*(r1 - 1/r2)*norm((r1 - r3)*(r1 - 1.0/r3));
-        return -exp((abs(n) + 3)*logr1)/pp1 - pow(r2, abs(n) + 3)/pp2 + oscillatory_form(r3, pp3, 4, n);
+        const real_t pp1 = 1./560. * r1_minus_r1_inv * (r1 - r2)*(r1 - 1/r2)*norm((r1 - r3)*(r1 - 1.0/r3));
+        return exp((abs(n) + 3)*logr1)/pp1 + pow(r2, abs(n) + 3)/pp2 + oscillatory_form(r3, pp3, 4, n);
     }
 
     /**
@@ -438,7 +469,7 @@ namespace LGFOneUnbounded {
         const complex_t r3 = roots[2];
         const complex_t cr1 = conj(r1);
         const complex_t cr3 = conj(r3);
-        const complex_t pp1 = -im/280.*imag(r1)*(r1 - 1./r1)*(r1 - 1./cr1)*(r1 - r3)*(r1 - 1./r3)*(r1 - cr3)*(r1 - 1./cr3); // lgf8_ppzc_(r1, c);
+        const complex_t pp1 = im/280.*imag(r1)*(r1 - 1./r1)*(r1 - 1./cr1)*(r1 - r3)*(r1 - 1./r3)*(r1 - cr3)*(r1 - 1./cr3); // lgf8_ppzc_(r1, c);
         const complex_t pp3 = lgf8_ppzc_(r3, c);
         return oscillatory_form(r1, pp1, 4, n) + oscillatory_form(r3, pp3, 4, n); 
     }
@@ -448,7 +479,7 @@ namespace LGFOneUnbounded {
 
     real_t lgf8(int n, real_t c) {
         if (c < 0) {
-            printf("[ExpandLGF] Argument error: c must be nonnegative");
+            printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
             abort();
         } else if (c == 0.0) {
             return lgf8_c_zero_(n);
@@ -463,102 +494,120 @@ namespace LGFOneUnbounded {
         };
     }
 
-        // ----------------------------------------------------------------------------------------
-    // Mehrstellen Stencils 4 and 6
+    real_t lgf8(int n, real_t k1, real_t k2) {
+        return lgf8(n, lgf8_symbol(k1) + lgf8_symbol(k2));
+    }
+
     // ----------------------------------------------------------------------------------------
-    static const real_t meh_large_lambda_tol_ = 1.0e2;
-    real_t mehrstellen_r(real_t lambda) {
-        real_t r = 0.0;
-        if (std::isinf(lambda)) { // infinite lambda
-            r = 0.0;
-        } else if (fabs(lambda) > meh_large_lambda_tol_) { // large lambda
-            r = horner(large_lambda_expansion_, large_lambda_terms_, 1.0 / lambda);
-        } else { // moderate lambda
-            r = real(lambda - complex_sqrt(lambda - 1)*complex_sqrt(lambda + 1));
-        }
-        return r;
+    // Mehrstellen 4
+    // ----------------------------------------------------------------------------------------
+    /**
+     * @brief evaluate the coefficients a_j(y) for the meh4 stencil
+     */
+    void meh4_left_coeffs(real_t a[2], const real_t y[2]) {
+        a[0] = -8./3.*(y[0]*y[1] - y[0] - y[1]) + 2.0;
+        a[1] = 2./3.*(y[0] + y[1]) - 1.0;
     }
 
-    void meh4_left_coeffs(real_t coeffs[2], const real_t y[2]) {
-        coeffs[0] = +8./3.*(y[0]*y[1] - y[0] - y[1]) - 2.0;
-        coeffs[1] = -2./3.*(y[0] + y[1]) + 1.0;
+    /**
+     * @brief evaluate the coefficients b_j(y) for the meh4 stencil
+     */
+    void meh4_right_coeffs(real_t b[2], const real_t y[2]) {
+        b[0] = 5./6. - 1./3.*(y[0] + y[1]);
+        b[1] = +1./12.;
     }
 
-    void meh4_right_coeffs(real_t coeffs[2], const real_t y[2]) {
-        coeffs[0] = -1./3.*(y[0] + y[1]) + 5./6.;
-        coeffs[1] = 1./12.;
-    }
-
+    /**
+     * @brief evaluate the LGF G(n, k1, k2) for the left hand side of the meh4 stencil
+     */
     real_t meh4_left(const int n, const real_t k1, const real_t k2) {
         if (k1 == 0 && k2 == 0) {
             return -0.5 * abs(n);
         }
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        real_t p[2];
-        meh4_left_coeffs(p, y);
-        const real_t lambda = -p[0] / (2. * p[1]);
-        const real_t r = mehrstellen_r(lambda);
-        const real_t base = (r / p[1]) * pow(r, abs(n)) / (1.0 - r*r);
-        return std::isfinite(lambda) ? base : -(n == 0) / p[0]; 
+        real_t a[2];
+        meh4_left_coeffs(a, y);
+        const real_t lambda = -a[0] / (2. * a[1]);
+        const real_t r = r_from_lambda(lambda);
+        const real_t base = (r / a[1]) * pow(r, abs(n)) / (r*r - 1.0);
+        return std::isfinite(lambda) ? base : (n == 0) / a[0]; 
     };
     
+    /**
+     * @brief evaluate the LGF G(n, k1, k2) for the full meh4 stencil
+     */
     real_t meh4_full(const int n, const real_t k1, const real_t k2) {
         if (k1 == 0 && k2 == 0) {
             return -0.5 * abs(n) - (n == 0) * 1./12.;
         }; 
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        real_t pl[2], pr[2];
-        meh4_left_coeffs(pl, y);
-        meh4_right_coeffs(pr, y);
-        const real_t lambda = -pl[0] / (2*pl[1]);
-        const real_t r = mehrstellen_r(lambda);
+        real_t a[2], b[2];
+        meh4_left_coeffs(a, y);
+        meh4_right_coeffs(b, y);
+        const real_t lambda = -a[0] / (2*a[1]);
+        const real_t r = r_from_lambda(lambda);
+        const real_t pr = b[1] + b[0]*r + b[1]*r*r;
         if (std::isfinite(lambda)) {
-            const real_t base = pow(r, abs(n)) * (pr[0]*r + pr[1]*(1 + r*r)) / (pl[1]*(r*r - 1));
-            return (n == 0) ? -(r/pl[1])*(pr[0] + 2.*pr[1]*r)/(r*r - 1.) : -base;
+            const real_t base = pr * pow(r, abs(n)) / (a[1]*(r*r - 1));
+            return (n == 0) ? (r/a[1])*(b[0] + 2.*b[1]*r)/(r*r - 1.) : base;
         } else {
-            return (n == 0) * (-pr[0] / pl[0]) + (n == 1) * (-pr[1] / pl[0]); 
+            return (n == 0) * (b[0] / a[0]) + (n == 1) * (b[1] / a[0]); 
         }
     }
 
-    void meh6_left_coeffs(real_t coeffs[2], const real_t y[2]) {
-        coeffs[0] = 8./5.*y[0]*y[1] - 8./3.*(y[0] + y[1]) - 2.0;
-        coeffs[1] = 8./15.*y[0]*y[1] - 2./3.*(y[0] + y[1]) + 1.0;
+    // ----------------------------------------------------------------------------------------
+    // Mehrstellen 4
+    // ----------------------------------------------------------------------------------------
+    /**
+     * @brief evaluate the coefficients a_j(y) for the meh6 stencil
+     */
+    void meh6_left_coeffs(real_t a[2], const real_t y[2]) {
+        a[0] = -8./5.*y[0]*y[1] + 8./3.*(y[0] + y[1]) + 2.0;
+        a[1] = -8./15.*y[0]*y[1] + 2./3.*(y[0] + y[1]) - 1.0;
     }
 
-    void meh6_right_coeffs(real_t coeffs[3], const real_t y[2]) {
-        coeffs[0] = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 97./120.;
-        coeffs[1] = -2./45.*(y[0] + y[1]) + 1./10.;
-        coeffs[2] = -1./240.;
+    /**
+     * @brief evaluate the coefficients b_j(y) for the meh6 stencil
+     */
+    void meh6_right_coeffs(real_t b[3], const real_t y[2]) {
+        b[0] = -1./15.*(pow(y[0], 2) + pow(y[1], 2)) + 8./45.*y[0]*y[1] - 11./45.*(y[0] + y[1]) + 97./120.;
+        b[1] = -2./45.*(y[0] + y[1]) + 1./10.;
+        b[2] = -1./240.;
     }
 
+    /**
+     * @brief evaluate the LGF G(n, k1, k2) for the left hand side of the meh6 stencil
+     */
     real_t meh6_left(const int n, const real_t k1, const real_t k2) {
         if (k1 == 0 && k2 == 0) {
             return -0.5 * abs(n);
         }; 
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        real_t p[2];
-        meh6_left_coeffs(p, y);
-        const real_t lambda = -p[0] / (2. * p[1]);
-        const real_t r = mehrstellen_r(lambda);
-        const real_t base = (r / p[1]) * pow(r, abs(n)) / (1.0 - r*r);
-        return std::isfinite(lambda) ? base : -(n == 0) / p[0]; 
+        real_t a[2];
+        meh6_left_coeffs(a, y);
+        const real_t lambda = -a[0] / (2. * a[1]);
+        const real_t r = r_from_lambda(lambda);
+        const real_t base = (r / a[1]) * pow(r, abs(n)) / (r*r - 1.0);
+        return std::isfinite(lambda) ? base : -(n == 0) / a[0]; 
     };
 
+    /**
+     * @brief evaluate the LGF G(n, k1, k2) for the full meh6 stencil
+     */
     real_t meh6_full(const int n, const real_t k1, const real_t k2) {
         if (k1 == 0 && k2 == 0) {
             return -0.5 * abs(n) - (abs(n) == 1) * (-1./240.) - (n == 0) * (11./120.);
         }; 
         const real_t y[2] = {pow(sin(k1/2), 2), pow(sin(k2/2), 2)};
-        real_t pl[2], pr[3];
-        meh6_left_coeffs(pl, y);
-        meh6_right_coeffs(pr, y);
-        const real_t lambda = -pl[0] /(2*pl[1]);
-        const real_t qr = std::isinf(lambda) ? 0.0 : (1./120. + pr[0] + 2.*lambda*(pr[1] + 2.*lambda*pr[2]));
-        const real_t r = mehrstellen_r(lambda);
-        const real_t base = qr * pow(r, abs(n) + 1) / (pl[1] * (1.0 - r*r));
-        // corrections near the origin
-        return base - (abs(n) == 1) * (pr[2] / pl[1]) - (n == 0) * (pr[1]*pl[1] - pr[2]*pl[0]) / (pl[1]*pl[1]);
+        real_t a[2], b[3];
+        meh6_left_coeffs(a, y);
+        meh6_right_coeffs(b, y);
+        const real_t lambda = -a[0] /(2*a[1]);
+        const real_t r = r_from_lambda(lambda);
+        const real_t pr = b[0]*pow(r, 2) + b[1]*(r + pow(r, 3)) + b[2]*(1.0 + pow(r, 4));
+        const real_t base = pr * pow(r, abs(n) - 1) / (a[1] * (r*r - 1.0));
+        return base + (abs(n) == 1) * (b[2] / a[1]) + (n == 0) * (b[1]*a[1] - b[2]*a[0]) / (a[1]*a[1]);
     }
-}; // namespace LGFOneUnbounded
+};
 
 #endif
