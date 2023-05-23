@@ -483,7 +483,7 @@ namespace LGFOneUnbounded {
             abort();
         } else if (c == 0.0) {
             return lgf8_c_zero_(n);
-        } else if (c < lgf4_small_cutoff_) {
+        } else if (c < lgf8_small_cutoff_) {
             return lgf8_c_small_(n, c);
         } else if (c < lgf8_c_star_ - lgf8_repeat_cutoff_) {
             return lgf8_c_real_(n, c);
