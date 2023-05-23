@@ -68,7 +68,7 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
     char path[] = STR(KERNEL_PATH);
     int datasize = 0;
     if (greendim == 3) {
-        (*N) = 64;
+        (*N) = 32;
         datasize = (*N) * (*N) * (*N);
         if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
             sprintf(lgfname, "%s/MEHR_%dL_3d_%d.ker", path, order, (*N));
