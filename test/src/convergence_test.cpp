@@ -64,7 +64,8 @@ static const std::map<FLUPS_BoundaryType, std::string> bname = {
     {EVEN, "0"},
     {ODD, "1"}, 
     {PER, "3"},
-    {UNB, "4"}
+    {UNB, "4"},
+    {NONE, "9"}
 }; 
 
 /**
@@ -94,8 +95,9 @@ std::string TestNameGenerator(const ::testing::TestParamInfo<ParamType>& info) {
 class ConvergenceTest : public testing::TestWithParam<ParamType>{
 protected:
     // Default variable for all the tests
-    const int    nproc_[3]  = {4, 4, 4};
-    const double L_[3]      = {1., 1., 1.};
+    const int    nproc_3d_[3] = {4, 4, 4};
+    const int    nproc_2d_[3] = {8, 8, 1};
+    const double L_[3]        = {1., 1., 1.};
 
     // Variable specific to a test_case
     FLUPS_BoundaryType *mybc_[3][2];
@@ -157,21 +159,27 @@ protected:
 TEST_P(ConvergenceTest, AllBoundaryConditions){
     //--------------------------------------------------------------------
     // Check if we deal with a spectral case or an mix cases
+    bool is2D = (*(mybc_[2][0]) == NONE) && (*(mybc_[2][1]) == NONE);
     bool isXSpectral = (*(mybc_[0][0]) != UNB) && (*(mybc_[0][1]) != UNB); 
     bool isYSpectral = (*(mybc_[1][0]) != UNB) && (*(mybc_[1][1]) != UNB);
     bool isZSpectral = (*(mybc_[2][0]) != UNB) && (*(mybc_[2][1]) != UNB);
-    int  n_spectral = isXSpectral + isYSpectral + isZSpectral;
+    int  n_spectral  = isXSpectral + isYSpectral + isZSpectral;
     bool is_green_spectral = (n_spectral == 3) && (CHAT_2 == green_ || HEJ_0 == green_); // Chat2 and Hej0 have a spectral accuracy with spectral bc
     bool is_green_invalid = (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
-    is_green_invalid |= (LGF_2 == green_) && (n_spectral == 1); // LGF_2 cannot handle one spectral direction
-    is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1); // LGF_4 cannot handle one spectral direction
-    is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1); // LGF_6 cannot handle one spectral direction
-    is_green_invalid |= (LGF_8 == green_) && (n_spectral == 1); // LGF_8 cannot handle one spectral direction
-    is_green_invalid |= (MEHR_4L == green_) && (n_spectral == 1); // MEHR_4L cannot handle one spectral direction
-    is_green_invalid |= (MEHR_6L == green_) && (n_spectral == 1); // MEHR_6L cannot handle one spectral direction
-    is_green_invalid |= (MEHR_4F == green_) && (n_spectral == 1); // MEHR_4F cannot handle one spectral direction
-    is_green_invalid |= (MEHR_6F == green_) && (n_spectral == 1); // MEHR_6F cannot handle one spectral direction
-    
+    if (is2D) {
+        is_green_invalid |= (MEHR_4L == green_) || (MEHR_4F == green_); // MEHR_4 stencils are for 3D domains
+        is_green_invalid |= (MEHR_6L == green_) || (MEHR_6F == green_); // MEHR_6 stencils are for 3D domains
+    } else {
+        is_green_invalid |= (LGF_2 == green_) && (n_spectral == 1); // LGF_2 cannot handle one spectral direction
+        is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1); // LGF_4 cannot handle one spectral direction
+        is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1); // LGF_6 cannot handle one spectral direction
+        is_green_invalid |= (LGF_8 == green_) && (n_spectral == 1); // LGF_8 cannot handle one spectral direction
+        is_green_invalid |= (MEHR_4L == green_) && (n_spectral == 1); // MEHR_4L cannot handle one spectral direction
+        is_green_invalid |= (MEHR_6L == green_) && (n_spectral == 1); // MEHR_6L cannot handle one spectral direction
+        is_green_invalid |= (MEHR_4F == green_) && (n_spectral == 1); // MEHR_4F cannot handle one spectral direction
+        is_green_invalid |= (MEHR_6F == green_) && (n_spectral == 1); // MEHR_6F cannot handle one spectral direction
+    }
+
     //  -------------------------------------------------------------------------
     // Perform the test
     double erri[2]; 
@@ -184,12 +192,17 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         for (int dir = 0; dir < 3; dir++) {
             nglob[dir] = (i+1) * N_TEST + (NODE_CENTER == center_type_[0]);  // Need to have an additional data if we have node-centered data
             h[dir] = L_[dir] / (nglob[dir] - (NODE_CENTER == center_type_[0])); 
-         }
-        
+        }
+        if (is2D) {
+            nglob[2] = 1;
+            h[2] = 1.0;
+        }
+
         //-------------------------------------------------------------------------
         // Initialize FLUPS
         test_log("Setting up solver");
-        FLUPS_Topology* mytopo = flups_topo_new(0, 1, nglob, nproc_, false, NULL, FLUPS_ALIGNMENT, MPI_COMM_WORLD);
+        const int* nproc       = is2D ? nproc_2d_ : nproc_3d_;
+        FLUPS_Topology* mytopo = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, MPI_COMM_WORLD);
         FLUPS_Solver* mysolver = flups_init(mytopo, mybc_, h, L_, NOD, center_type_);
         flups_set_greenType(mysolver, green_);
         flups_setup(mysolver, true);
@@ -215,9 +228,20 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         for (int dir = 0; dir < 3; ++dir){
             analytics[dir].SetParam(*mybc_[dir][0], *mybc_[dir][1]);
         }
-        analytics[0].SetFreq(1.);
-        analytics[1].SetFreq(2.);
-        analytics[2].SetFreq(4.);
+
+        // solution frequency: higher for high-order kernels, to keep truncation error above machine precision
+        double expected_order = KernelOrder(green_);
+        if (expected_order <= 6) {
+            analytics[0].SetFreq(4.);
+            analytics[1].SetFreq(2.);
+            analytics[2].SetFreq(1.); // not used for 2D tests
+        } else {
+            analytics[0].SetFreq(7.);
+            analytics[1].SetFreq(8.);
+            analytics[2].SetFreq(3.); // not used for 2D tests
+
+        }
+
 
         for (int i2 = 0; i2 < flups_topo_get_nloc(mytopo, ax2); i2++){
             for (int i1 = 0; i1 < flups_topo_get_nloc(mytopo, ax1); i1++){
@@ -295,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(AllTest,
                                           testing::Values(CHAT_2, LGF_2, LGF_4, LGF_6, LGF_8, HEJ_2, HEJ_4, HEJ_6, HEJ_8, HEJ_10, HEJ_0, MEHR_4L, MEHR_6L, MEHR_4F, MEHR_6F),
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // x boundary conditions
                                           testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD),   // y boundary conditions
-                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD)),  // z boundary conditions
+                                          testing::Values(PE_PE, EV_EV, OD_OD, UN_UN, EV_UN, UN_EV, EV_OD, OD_EV, OD_UN, UN_OD, NO_NO)),  // z boundary conditions
                          TestNameGenerator);
 
 // INSTANTIATE_TEST_SUITE_P(Cell,
