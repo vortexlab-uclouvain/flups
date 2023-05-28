@@ -35,6 +35,7 @@ Those tests depends on the Google test library. You should install it using :
 ```shell
  git clone https://github.com/google/googletest.git
  cd /googletest
+ git checkout v1.12.x # C++-11 is not supported in v1.13.x or later
  cmake . -DCMAKE_INSTALL_PREFIX=/soft/googletest
  make install -j
  rm -rf /googletest
