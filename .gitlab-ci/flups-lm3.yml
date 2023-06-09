@@ -111,14 +111,20 @@ check result lm3:
      start_in: 1200 minutes 
   artifacts: 
     paths: 
-      - report_test_a2a.xml
-      - report_test_nb.xml
-      - report_test_isr.xml
+      - report_test_a2a_cell.xml
+      - report_test_nb_cell.xml
+      - report_test_isr_cell.xml
+      - report_test_a2a_node.xml
+      - report_test_nb_node.xml
+      - report_test_isr_node.xml
     reports:
         junit: 
-          - report_test_a2a.xml
-          - report_test_nb.xml
-          - report_test_isr.xml
+          - report_test_a2a_cell.xml
+          - report_test_nb_cell.xml
+          - report_test_isr_cell.xml
+          - report_test_a2a_node.xml
+          - report_test_nb_node.xml
+          - report_test_isr_node.xml
     when: always
   needs: [run lm3]
   dependencies:
@@ -128,12 +134,15 @@ check result lm3:
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_a2a_*") ]]; then echo "At least one of the a2a test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the  nb test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the  isr test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the nb test did not execute till the end."; exit 1; fi
+    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the isr test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f report_test_a2a.xml && if [[ $(grep "<failure" report_test_a2a.xml) ]]; then echo "At least one of the a2a tests has failed "; exit 1; fi 
-    - test -f report_test_nb.xml && if [[ $(grep "<failure" report_test_nb.xml) ]]; then echo "At least one of the nb tests has failed "; exit 1; fi
-    - test -f report_test_isr.xml && if [[ $(grep "<failure" report_test_isr.xml) ]]; then echo "At least one of the isr tests has failed "; exit 1; fi 
+    - test -f report_test_a2a_cell.xml && if [[ $(grep "<failure" report_test_a2a_cell.xml) ]]; then echo "At least one of the a2a cell centred tests has failed "; exit 1; fi 
+    - test -f report_test_a2a_node.xml && if [[ $(grep "<failure" report_test_a2a_node.xml) ]]; then echo "At least one of the a2a node centred tests has failed "; exit 1; fi 
+    - test -f report_test_nb_cell.xml && if [[ $(grep "<failure" report_test_nb_cell.xml) ]]; then echo "At least one of the nb cell centred tests has failed "; exit 1; fi
+    - test -f report_test_nb_node.xml && if [[ $(grep "<failure" report_test_nb_node.xml) ]]; then echo "At least one of the nb node centred tests has failed "; exit 1; fi
+    - test -f report_test_isr_cell.xml && if [[ $(grep "<failure" report_test_isr_cell.xml) ]]; then echo "At least one of the cell centred isr tests has failed "; exit 1; fi 
+    - test -f report_test_isr_node.xml && if [[ $(grep "<failure" report_test_isr_node.xml) ]]; then echo "At least one of the node centred isr tests has failed "; exit 1; fi 
     # - if [[ $(grep "<failure" Node_*.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
     # - if [[ $(grep "<failure" Cell_*.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
     # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   

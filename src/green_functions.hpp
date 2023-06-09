@@ -46,18 +46,45 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
  * @param [out] data the data where we store the 
  */
-static void lgf_readfile_(const int greendim, int* N, double** data) {
+static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, double** data) {
     BEGIN_FUNC;
+
+    // get LGF order
+    int order = 0;
+    if (LGF_2 == typeGreen) {
+        order = 2;
+    } else if (LGF_4 == typeGreen || MEHR_4L == typeGreen || MEHR_4F == typeGreen) {
+        order = 4;
+    } else if (LGF_6 == typeGreen || MEHR_6L == typeGreen || MEHR_6F == typeGreen) {
+        order = 6;
+    } else if (LGF_8 == typeGreen) {
+        order = 8;
+    } else {
+        FLUPS_CHECK(false, "LGF Kernel type not recognized");
+    }
 
     // some defined parameters:
     char lgfname[512];
     char path[] = STR(KERNEL_PATH);
+    int datasize = 0;
     if (greendim == 3) {
-        (*N) = 64;
-        sprintf(lgfname, "%s/LGF_3d_sym_acc12_%d.ker", path, (*N));
+        (*N) = 32;
+        datasize = (*N) * (*N) * (*N);
+        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_%dL_3d_%d.ker", path, order, (*N));
+        } else if (MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_%dF_3d_%d.ker", path, order, (*N));
+        } else {
+            sprintf(lgfname, "%s/LGF_%d_3d_%d.ker", path, order, (*N));
+        }
     } else if (greendim == 2) {
         (*N) = 32;
-        sprintf(lgfname, "%s/LGF_2d_sym_acc12_%d.ker", path, (*N));
+        datasize = (*N) * (*N);
+        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen || MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
+            FLUPS_CHECK(false, "MEHR kernels not implemented in 2D");
+        } else {
+            sprintf(lgfname, "%s/LGF_%d_2d_%d.ker", path, order, (*N));
+        }
     } else {
         FLUPS_CHECK(false, "Greendim = %d is not available in this version", greendim);
     }
@@ -71,9 +98,8 @@ static void lgf_readfile_(const int greendim, int* N, double** data) {
     // start to read the file
     if (lgf_file != NULL) {
         // allocate the data
-        const int size = (*N) * (*N) * (*N);
-        (*data) = (double *)m_calloc(sizeof(double) * size);
-        fread((*data), sizeof(double), size, lgf_file);
+        (*data) = (double *)m_calloc(sizeof(double) * datasize);
+        fread((*data), sizeof(double), datasize, lgf_file);
         // close the file
         fclose(lgf_file);
     } else {

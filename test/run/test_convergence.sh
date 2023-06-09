@@ -30,4 +30,4 @@ echo "--------------------------------------------------------------------"
 
 #------------------------------------------------------------------------------
 # run the simulation
-mpirun -n ${SLURM_NTASKS} ${EXEC} --gtest_output="${REPORT}" --gtest_filter=${TESTS}/* > ${FILE_OUT}_$SLURM_JOB_ID
+mpirun -n ${SLURM_NTASKS} ${EXEC} --gtest_output="${REPORT}" --gtest_filter=${TESTS}* > ${FILE_OUT}_$SLURM_JOB_ID
