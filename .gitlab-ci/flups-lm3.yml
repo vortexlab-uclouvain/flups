@@ -137,12 +137,12 @@ check result lm3:
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the nb test did not execute till the end."; exit 1; fi
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the isr test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f report_test_a2a.xml && if [[ $(grep "<failure" report_test_a2a_cell.xml) ]]; then echo "At least one of the a2a cell centred tests has failed "; exit 1; fi 
-    - test -f report_test_a2a.xml && if [[ $(grep "<failure" report_test_a2a_node.xml) ]]; then echo "At least one of the a2a node centred tests has failed "; exit 1; fi 
-    - test -f report_test_nb.xml && if [[ $(grep "<failure" report_test_nb_cell.xml) ]]; then echo "At least one of the nb cell centred tests has failed "; exit 1; fi
-    - test -f report_test_nb.xml && if [[ $(grep "<failure" report_test_nb_node.xml) ]]; then echo "At least one of the nb node centred tests has failed "; exit 1; fi
-    - test -f report_test_isr.xml && if [[ $(grep "<failure" report_test_isr_cell.xml) ]]; then echo "At least one of the cell centred isr tests has failed "; exit 1; fi 
-    - test -f report_test_isr.xml && if [[ $(grep "<failure" report_test_isr_node.xml) ]]; then echo "At least one of the node centred isr tests has failed "; exit 1; fi 
+    - test -f report_test_a2a_cell.xml && if [[ $(grep "<failure" report_test_a2a_cell.xml) ]]; then echo "At least one of the a2a cell centred tests has failed "; exit 1; fi 
+    - test -f report_test_a2a_node.xml && if [[ $(grep "<failure" report_test_a2a_node.xml) ]]; then echo "At least one of the a2a node centred tests has failed "; exit 1; fi 
+    - test -f report_test_nb_cell.xml && if [[ $(grep "<failure" report_test_nb_cell.xml) ]]; then echo "At least one of the nb cell centred tests has failed "; exit 1; fi
+    - test -f report_test_nb_node.xml && if [[ $(grep "<failure" report_test_nb_node.xml) ]]; then echo "At least one of the nb node centred tests has failed "; exit 1; fi
+    - test -f report_test_isr_cell.xml && if [[ $(grep "<failure" report_test_isr_cell.xml) ]]; then echo "At least one of the cell centred isr tests has failed "; exit 1; fi 
+    - test -f report_test_isr_node.xml && if [[ $(grep "<failure" report_test_isr_node.xml) ]]; then echo "At least one of the node centred isr tests has failed "; exit 1; fi 
     # - if [[ $(grep "<failure" Node_*.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
     # - if [[ $(grep "<failure" Cell_*.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
     # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
