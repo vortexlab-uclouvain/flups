@@ -370,14 +370,16 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     //-------------------------------------------------------------------------
     /** - get the memory details (#n_in_[lia], #n_out_, #fieldstart_, #shiftgreen_ and #_isr2c_)  */
     //-------------------------------------------------------------------------
+    for (int lia = 0; lia < lda_; lia++) {
+        n_in_[lia] = size[dimID_] - 1;  // takes n-1 real or complex number depending on the type of transform
+    }
+
     if (isComplex) {
-        n_in_[0] = size[dimID_] - 1;  // takes n complex, return n complex
-        n_out_   = size[dimID_];
+        n_out_   = size[dimID_]; // returns n-1 complex, and keep the last point 
         isr2c_   = false;
 
     } else {
-        n_in_[0] = size[dimID_] - 1;  // takes n-1 real
-        n_out_   = n_in_[0] / 2 + 1 + 1;  // return n_in/2 + 1 complex
+        n_out_   = n_in_[0] / 2 + 1 + 1;  // return n_in/2 + 1 complex and keep the last point
         isr2c_   = true;
     }
 

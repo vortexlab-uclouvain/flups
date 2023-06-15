@@ -25,10 +25,11 @@ do
         for bcs in ${CODE_BCS}
         do
             echo "----------------- launching job -----------------"
-            echo "Launching jobs with: "
-            echo "OMP_NUM_THREADS=1 srun ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}"
-            #OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
-            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} ${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
+            echo "Launching jobs from "
+	    pwd
+	    echo "Launching jobs with: " 
+            echo "OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} -np ${SLURM_NTASKS} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}"
+            OMP_NUM_THREADS=1 ${LAUNCH_COMMAND} -np ${SLURM_NTASKS} ./${EXEC_FLUPS} --np=${NPROC_X},${NPROC_Y},${NPROC_Z} --res=${NGLOB_X},${NGLOB_Y},${NGLOB_Z} --dom=${L_X},${L_Y},${L_Z} --bc=${bcs} --nres=${NRES} --nsolve=20 --kernel=${kernel} --center=${CODE_CENTER}
             echo "----------------- done           -----------------"  
         done
     done

@@ -13,6 +13,8 @@
 
 void print_res(double *A, const FLUPS_Topology* topo);
 
+#define PRINT_RES
+
 int main(int argc, char *argv[]) {    
     printf("Starting...\n");
     //-------------------------------------------------------------------------
@@ -63,11 +65,8 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
 
     // create a real topology
+    FLUPS_Topology *topoIn      = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
 
-    FLUPS_Topology *topoIn      = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT,comm);
-    const int             nprocOut[3] = {1, 2, 1};
-
-    
     // solver creation and init
     FLUPS_Solver *mysolver = flups_init(topoIn, mybc, h, L, NOD, center_type);
     flups_set_greenType(mysolver,CHAT_2);
@@ -96,16 +95,16 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - allocate rhs and solution */
     // //-------------------------------------------------------------------------
-    
-    printf("[FLUPS] topo IN glob : %d %d %d \n",flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
-    printf("[FLUPS] topo IN loc : %d*%d*%d = %ld (check: %d %d %d)\n",flups_topo_get_nmem(topoIn,0),flups_topo_get_nmem(topoIn,1),flups_topo_get_nmem(topoIn,2),flups_topo_get_memsize(topoIn),flups_topo_get_nglob(topoIn,0),flups_topo_get_nglob(topoIn,1),flups_topo_get_nglob(topoIn,2));
-    printf("[FLUPS] topo OUT glob : %d %d %d \n",flups_topo_get_nglob(topoSpec,0),flups_topo_get_nglob(topoSpec,1),flups_topo_get_nglob(topoSpec,2));
-    printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d complex?:%d (nloc: %d %d %d)  \n",flups_topo_get_nmem(topoSpec,0),flups_topo_get_nmem(topoSpec,1),flups_topo_get_nmem(topoSpec,2),flups_topo_get_isComplex(topoSpec),flups_topo_get_nloc(topoSpec,0),flups_topo_get_nloc(topoSpec,1),flups_topo_get_nloc(topoSpec,2));
+    if (rank == 0) {
+        printf("[FLUPS] topo IN glob : %d %d %d \n", flups_topo_get_nglob(topoIn, 0), flups_topo_get_nglob(topoIn, 1), flups_topo_get_nglob(topoIn, 2));
+        printf("[FLUPS] topo IN loc : %d*%d*%d = %ld (check: %d %d %d)\n", flups_topo_get_nmem(topoIn, 0), flups_topo_get_nmem(topoIn, 1), flups_topo_get_nmem(topoIn, 2), flups_topo_get_memsize(topoIn), flups_topo_get_nglob(topoIn, 0), flups_topo_get_nglob(topoIn, 1), flups_topo_get_nglob(topoIn, 2));
+        printf("[FLUPS] topo OUT glob : %d %d %d \n", flups_topo_get_nglob(topoSpec, 0), flups_topo_get_nglob(topoSpec, 1), flups_topo_get_nglob(topoSpec, 2));
+        printf("[FLUPS] topo OUT loc  : nmem: %d*%d*%d complex?:%d (nloc: %d %d %d)  \n", flups_topo_get_nmem(topoSpec, 0), flups_topo_get_nmem(topoSpec, 1), flups_topo_get_nmem(topoSpec, 2), flups_topo_get_isComplex(topoSpec), flups_topo_get_nloc(topoSpec, 0), flups_topo_get_nloc(topoSpec, 1), flups_topo_get_nloc(topoSpec, 2));
 
-    printf("I am going to allocate rhs: %d \n",memsizeIN);
-    fflush(stdout);
-    
- 
+        printf("I am going to allocate rhs: %d \n", memsizeIN);
+        fflush(stdout);
+    }
+
     double *rhsFLU   = (double *)flups_malloc(sizeof(double) * memsizeIN);
     memset(rhsFLU, 0, sizeof(double ) * memsizeIN);
     // memset(solFLU, 0, sizeof(double ) * FLUmemsizeOUT); 
@@ -142,13 +141,12 @@ int main(int argc, char *argv[]) {
     // //-------------------------------------------------------------------------
     // /** - Proceed to the FWD 3D FFT */
     // //-------------------------------------------------------------------------
-    
-    flups_do_FFT(mysolver,solFLU,FLUPS_FORWARD);
+    flups_do_FFT(mysolver, solFLU, FLUPS_FORWARD);
 
     // //-------------------------------------------------------------------------
     // /** - Multiplication in spectral space */
     // //-------------------------------------------------------------------------
-    flups_do_mult(mysolver,solFLU,STD);
+    flups_do_mult(mysolver, solFLU, STD);
 
     // //-------------------------------------------------------------------------
     // /** - Gaussian filtering of the solution */
@@ -156,8 +154,9 @@ int main(int argc, char *argv[]) {
 
     double kfact[3], koffset[3], symstart[3];
     flups_get_spectralInfo(mysolver,kfact,koffset,symstart);
-
-    printf("%lf %lf %lf  %lf %lf %lf  %lf %lf %lf  \n",kfact[0],kfact[1],kfact[2],koffset[0],koffset[1],koffset[2],symstart[0],symstart[1],symstart[2]);
+    if (rank == 0) {
+        printf("%lf %lf %lf  %lf %lf %lf  %lf %lf %lf  \n",kfact[0],kfact[1],kfact[2],koffset[0],koffset[1],koffset[2],symstart[0],symstart[1],symstart[2]);
+    }
 
     const int ax0     = flups_topo_get_axis(topoSpec);
     const int ax1     = (ax0 + 1) % 3;
@@ -190,11 +189,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    flups_hdf5_dump(topoSpec,"spectrum",solFLU);
+    flups_hdf5_dump(topoSpec, "spectrum", solFLU);
+
     // //-------------------------------------------------------------------------
     // /** - Proceed to the BACKWARD 3D FFT */
     // //-------------------------------------------------------------------------
-    flups_do_FFT(mysolver,solFLU,FLUPS_BACKWARD);
+    flups_do_FFT(mysolver, solFLU, FLUPS_BACKWARD);
 
     // //-------------------------------------------------------------------------
     // /** - Skip the copy back of data
@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
     print_res(solFLU,topoIn);
 #endif
 
-    flups_hdf5_dump(topoIn,"result",solFLU);
+    flups_hdf5_dump(topoIn, "result", solFLU);
 
     // //-------------------------------------------------------------------------
     // /** - CLEAN */
@@ -225,12 +225,10 @@ int main(int argc, char *argv[]) {
     flups_free(rhsFLU);
 
     flups_topo_free(topoIn);
-    flups_topo_free(topoSpec);
     flups_cleanup(mysolver);
 
     for(int id=0; id<3; id++){
         for(int is=0; is<2; is++){
-            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*1);
             flups_free(mybc[id][is]);
         }
     }
@@ -253,23 +251,29 @@ void print_res(double *A, const FLUPS_Topology* topo) {
 
     if (flups_topo_get_isComplex(topo)){
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+            printf("(z = %d) \n", i2 + gstart[ax2]);
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 //local indexes start
                 const size_t id = flups_locID(ax0, 0, i1, i2, 0, ax0, nmem,2);
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    printf("(%d %d %d) %lg +i1* %lg\n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0 * 2], A[id + i0 * 2 + 1]);
+                    printf("(%1.3lg + i1* %1.3lg) \t", A[id + i0 * 2], A[id + i0 * 2 + 1]);
                 }
+                printf("\n");   
             }
+            printf("\n");
         }
     } else {
         for (int i2 = 0; i2 < flups_topo_get_nloc(topo,ax2); i2++) {
+            printf("(z = %d) \n", i2 + gstart[ax2]);
             for (int i1 = 0; i1 < flups_topo_get_nloc(topo,ax1); i1++) {
                 //local indexes start
                 const size_t id = flups_locID(ax0, 0, i1, i2, 0, ax0, nmem,1);
                 for (int i0 = 0; i0 < flups_topo_get_nloc(topo,ax0); i0++) {
-                    printf("(%d %d %d) %lg \n", i0 + gstart[ax0], i1 + gstart[ax1], i2 + gstart[ax2], A[id + i0]);
+                    printf(" %lg \t", A[id + i0]);
                 }
+                printf("\n");
             }
+            printf("\n");
         }
     }
 }
