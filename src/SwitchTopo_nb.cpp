@@ -665,7 +665,6 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     // use the null_rqst as a local var to be compatible with both ompi and mpich
     MPI_Request null_rqst = MPI_REQUEST_NULL;
 
-
 #pragma omp parallel proc_bind(close) default(none) shared(null_rqst) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag, iBlockSize, iBlockiStart, nf, inmem, iax0, iax1, iax2, sendRequest, lda)
     for (int bid = 0; bid < send_nBlock; bid++) {
         for (int lia = 0; lia < lda ; lia++){
