@@ -88,7 +88,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case CHAT_2:
             G  = &chat_2_3unb0spe_;
-            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
+            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.)/(hfact[0] * hfact[1] * hfact[2]);
             break;
         case LGF_2:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
