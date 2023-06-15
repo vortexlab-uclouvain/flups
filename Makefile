@@ -90,14 +90,6 @@ H3LPR_LIBNAME ?= -lh3lpr
 INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
-#---- ACCFFT
-ACCFFT_DIR ?= /usr/
-ACCFFT_INC ?= ${ACCFFT_DIR}/include
-ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
-ACCFFT_LIBNAME ?= -laccfft
-INC += -I$(ACCFFT_INC)
-LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
-
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory
@@ -213,8 +205,6 @@ install_dynamic: lib_dynamic
 	@cp $(TARGET_LIB_ISR).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).so $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
