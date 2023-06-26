@@ -7,6 +7,8 @@
 #ifndef SWITCHTOPO_NB_HPP
 #define SWITCHTOPO_NB_HPP
 
+#if (FLUPS_MPI_AGGRESSIVE == 0)
+
 #include <cstring>
 #include "defines.hpp"
 #include "hdf5_io.hpp"
@@ -60,3 +62,5 @@ protected:
 void SwitchTopo_test();
 
 #endif
+
+#endif 

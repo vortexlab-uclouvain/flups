@@ -7,6 +7,8 @@
 #ifndef SWITCHTOPO_A2A_HPP
 #define SWITCHTOPO_A2A_HPP
 
+#if (FLUPS_MPI_AGGRESSIVE == 0)
+
 #include <cstring>
 #include "mpi.h"
 
@@ -59,4 +61,5 @@ class SwitchTopo_a2a : public SwitchTopo {
 void SwitchTopo_a2a_test();
 void SwitchTopo_a2a_test2();
 
+#endif
 #endif
