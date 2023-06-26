@@ -40,7 +40,7 @@ First, you need to install the dependencies, typically using the following confi
 
 - H3LPR in the `h3lpr_prefix` dir:
 ```shell
-git clone git@github.com:van-Rees-Lab/h3lpr.git
+git clone git@github.com:vanreeslab/h3lpr.git
 cd h3lpr 
 ARCH_FILE=... make install -j 
 ```

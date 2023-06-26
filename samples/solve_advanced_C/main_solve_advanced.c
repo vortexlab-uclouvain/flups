@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     //Definition of the problem
     //-------------------------------------------------------------------------
     const int     nglob[3] = {64, 64, 64};
-    const int     nproc[3] = {1, 1, 2};
+    const int     nproc[3] = {1, 1, comm_size};
     const double  L[3]     = {1., 1., 1.};;
 
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
