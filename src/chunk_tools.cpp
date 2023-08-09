@@ -287,7 +287,9 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // enable the multithreading for this plan
+#if FLUPS_OPENMP
     fftw_plan_with_nthreads(omp_get_max_threads());
+#endif
 
     fftw_iodim dims[2];
     // dim[0] = dimension of the targeted FRI (FFTW-convention)
