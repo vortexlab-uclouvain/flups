@@ -311,7 +311,9 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     /** - Create the plan  */
     //-------------------------------------------------------------------------
     // we make sure to use only 1 thread, the multi-threading is used in the solver, not inside a plan
+#if FLUPS_OPENMP    
     fftw_plan_with_nthreads(1);
+#endif 
 
     // allocate the plan
     plan_ =(fftw_plan*) m_calloc(sizeof(fftw_plan) * lda_);
