@@ -40,7 +40,7 @@ First, you need to install the dependencies, typically using the following confi
 
 - H3LPR in the `h3lpr_prefix` dir:
 ```shell
-git clone git@github.com:van-Rees-Lab/h3lpr.git
+git clone git@github.com:vanreeslab/h3lpr.git
 cd h3lpr 
 ARCH_FILE=... make install -j 
 ```
@@ -127,6 +127,7 @@ By default, the Makefile use the open-source utility tool `ar`.
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
 - `HAVE_HDF5` : Enable the use of function to dump flups fields. When using this flag, you should detail your `HDF5` lib and include in your `make_arch`
+- `WITHOUT_OPENMP` allows you to compile flups without OpenMP
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to bypass various checks inside the library
