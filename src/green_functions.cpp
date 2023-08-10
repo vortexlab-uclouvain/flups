@@ -69,18 +69,52 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case CHAT_2:
             G  = &chat_2_3unb0spe_;
-            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.);
+            G0 = - 0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.)/(hfact[0] * hfact[1] * hfact[2]);
             break;
         case LGF_2:
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
-            FLUPS_CHECK(hfact[1] == hfact[2], "the grid has to be isotropic to use the LGFs");
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(3,&GN, &Gdata);
+            lgf_readfile_(LGF_2, 3, &GN, &Gdata);
             // associate the Green's function
             G = &lgf_2_3unb0spe_;
             break;
+        case LGF_4:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_4, 3, &GN, &Gdata);
+            G = &lgf_4_3unb0spe_;
+            break;
+        case LGF_6:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_6, 3, &GN, &Gdata);
+            G = &lgf_6_3unb0spe_;
+            break;
+        case LGF_8:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_8, 3, &GN, &Gdata);
+            G = &lgf_8_3unb0spe_;
+            break;
+        case MEHR_4L:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(MEHR_4L, 3, &GN, &Gdata);
+            G = &mehr_4l_3unb0spe_;
+            break;
+        case MEHR_6L:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(MEHR_6L, 3, &GN, &Gdata);
+            G = &mehr_6l_3unb0spe_;
+            break;
+        case MEHR_4F:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(MEHR_4F, 3, &GN, &Gdata);
+            G = &mehr_4f_3unb0spe_;
+            break;
+        case MEHR_6F:
+            FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(MEHR_6F, 3, &GN, &Gdata);
+            G = &mehr_6f_3unb0spe_;
+            break;
         default:
-            FLUPS_CHECK(false, "Green Function type unknow.");
+            FLUPS_CHECK(false, "Green Function type unknown.");
     }
 
     int istart[3];
@@ -118,7 +152,10 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         }
     }
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
-    if (typeGreen != LGF_2 && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
+    const bool is_lgf = (typeGreen == LGF_2 || typeGreen == LGF_4 || typeGreen == LGF_6 || typeGreen == LGF_8);
+    const bool is_mehr = (typeGreen == MEHR_4F || typeGreen == MEHR_6F || typeGreen == MEHR_4L || typeGreen == MEHR_6L);
+    const bool correct_istart = (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0);
+    if (!is_lgf && !is_mehr && correct_istart) {
         green[0] = G0;
     }
     // free Gdata if needed
@@ -142,7 +179,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @param koffset the k additive factor
  * @param symstart index of the symmetry in each direction
  * @param green the Green function array
- * @param typeGreen the type of Green function 
+ * @param typeGreen  the type of Green function 
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
  * 
  * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel 
@@ -220,17 +257,53 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_CHECK(hfact[3] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(2,&GN, &Gdata);
+            lgf_readfile_(LGF_2, 2, &GN, &Gdata);
             // associate the Green's function
             G   = &zero_;
             Gk0 = &lgf_2_2unb0spe_;
             Gr0 = &lgf_2_2unb0spe_;
             break;
+        case LGF_4:
+            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_4, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &lgf_4_2unb0spe_;
+            Gr0 = &lgf_4_2unb0spe_;
+            break;
+        case LGF_6:
+            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_6, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &lgf_6_2unb0spe_;
+            Gr0 = &lgf_6_2unb0spe_;
+            break;
+        case LGF_8:
+            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            lgf_readfile_(LGF_8, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &lgf_8_2unb0spe_;
+            Gr0 = &lgf_8_2unb0spe_;
+            break;
+        case MEHR_4L:
+            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            break;
+        case MEHR_6L:
+            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            break;
+        case MEHR_4F:
+            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            break;
+        case MEHR_6F:
+            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            break;
         default:
-            FLUPS_CHECK(false, "Green Function type unknow.");
+            FLUPS_CHECK(false, "Green Function type unknown.");
     }
 
     int istart[3];
@@ -287,12 +360,10 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
         // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        green[0] = - 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D));  //caution: mistake in [Chatelain2010]
+        green[0] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));  //caution: mistake in [Chatelain2010]
     }
     END_FUNC;
 }
-
-
 
 /**
  * @brief Compute the Green function for 1dirunbounded and 2dirspectral
@@ -353,10 +424,41 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             G0 = &chat_2_1unb2spe_k0_;
             break;
         case LGF_2:
-            FLUPS_CHECK(false, "Lattice Green Function not implemented yet.");
+            // FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
+            G  = &lgf_2_1unb2spe_;
+            G0 = &lgf_2_1unb2spe_;
+            break;
+        case LGF_4:
+            G  = &lgf_4_1unb2spe_;
+            G0 = &lgf_4_1unb2spe_;
+            break;
+        case LGF_6:
+            G  = &lgf_6_1unb2spe_;
+            G0 = &lgf_6_1unb2spe_;
+            break;
+        case LGF_8:
+            G  = &lgf_8_1unb2spe_;
+            G0 = &lgf_8_1unb2spe_;
+            break;
+        case MEHR_4L:
+            G  = &mehr_4l_1unb2spe_;
+            G0 = &mehr_4l_1unb2spe_;
+            break;
+        case MEHR_6L:
+            G  = &mehr_6l_1unb2spe_;
+            G0 = &mehr_6l_1unb2spe_;
+            break;
+            break;
+        case MEHR_4F:
+            G  = &mehr_4f_1unb2spe_;
+            G0 = &mehr_4f_1unb2spe_;
+            break;
+        case MEHR_6F:
+            G  = &mehr_6f_1unb2spe_;
+            G0 = &mehr_6f_1unb2spe_;
             break;
         default:
-            FLUPS_CHECK(false, "Green Function type unknow.");
+            FLUPS_CHECK(false, "Green Function type unknown.");
     }
 
     int istart[3];
@@ -390,8 +492,10 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
                 const double x1 = (is[ax1]) * hfact[ax1];
                 const double x2 = (is[ax2]) * hfact[ax2];
                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+                const double h = hfact[ax0] + hfact[ax1] + hfact[ax2];
 
-                const double tmp[3] = {r, k, length};
+                // GF parameters: k0, k1, k2, and h are for LGFs only
+                const double tmp[7] = {r, k, length, k0, k1, k2, h};
 
                 // green function value
                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
@@ -487,8 +591,29 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
         case LGF_2:
             G = &lgf_2_0unb3spe_;
             break;
+        case LGF_4:
+            G = &lgf_4_0unb3spe_;
+            break;
+        case LGF_6:
+            G = &lgf_6_0unb3spe_;
+            break;
+        case LGF_8:
+            G = &lgf_8_0unb3spe_;
+            break;
+        case MEHR_4L:
+            G = &mehr_4l_0unb3spe_;
+            break;
+        case MEHR_6L:
+            G = &mehr_6l_0unb3spe_;
+            break;
+        case MEHR_4F:
+            G = &mehr_4f_0unb3spe_;
+            break;
+        case MEHR_6F:
+            G = &mehr_6f_0unb3spe_;
+            break;
         default:
-            FLUPS_CHECK(false, "Green Function type unknow.");
+            FLUPS_CHECK(false, "Green Function type unknown.");
     }
 
     int istart[3];

@@ -28,17 +28,17 @@ else:
     centername = 'CellCenter'
 
 #List of combinations of some boundary conditions in 3 direction:
-BCs = [ ["4","4","4","4","4","4"],
-        ["4","4","0","4","4","4"],
+BCs = [ ["4","4","4","4","4","4"], # 3D Unbounded
+        ["4","4","0","4","4","4"], # Semiunbounded
         ["4","1","1","4","4","4"],
         ["4","1","4","4","4","4"],
         ["4","0","1","4","4","4"],
         ["4","0","1","4","4","1"],
-        ["3","3","3","3","3","3"],
-        ["4","0","1","4","9","9"],
-        ["3","3","3","3","9","9"]]
+        ["3","3","3","3","3","3"], # Fully periodic
+        ["4","0","1","4","9","9"], # 2D Semiunbounded
+        ["3","3","3","3","9","9"]] # 2D Periodic
 
-Kernels = ['0','1','2','3','4','5','6','7']
+Kernels = ['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14']
 
 #Running all combinations of bcs and all kernels
 n_success = 0
@@ -59,10 +59,10 @@ for bcs in BCs :
             print("skip kernel 7 and 2dirunbounded... unsupported error due to inherent approximation.")
             continue
 
-        # if kernel = LGF, we only do the unbounded, if not, we do everything
-        # if ((kern=='1' and (bcs==["4","4","4","4","4","4"] or bcs==["3","3","3","3","9","9"])) or (kern != '1') ):
-            # Launching test
-            #+ ["-oversubscribe"]
+        if (kern in ['11','12','13','14'] and bcs[4:6] == ["9","9"]) :
+            print("Mehrstellen stencils not implemented for 2D problems")
+            continue
+
         if(bcs[4:6] == ["9","9"]):
             str_bcs = str(bcs[0]) + "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,1"] + ["--nres=1"] + ["--bc="+str_bcs], capture_output=True)
@@ -71,7 +71,7 @@ for bcs in BCs :
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,16"] + ["--nres=1"] + ["--bc="+ str_bcs], capture_output=True)
         
         if r.returncode != 0 :
-            print("test %i ( "%i + centername + " - BCs : " + code + "with kernel "+kern+") failed with error code ",r.returncode)
+            print("test %i ( "%i + centername + " - BCs : " + code + " with kernel "+kern+") failed with error code ",r.returncode)
             print("=================================== STDOUT =============================================" )
             print(r.stdout.decode())
             print("=================================== STDERR =============================================" )

@@ -36,11 +36,17 @@
 #define FLUPS_FFTW_FLAG FFTW_FLAG
 #endif
 
+
+/**
+ * @brief MPI flag to use deprecated version of the communications 
+*/
 #ifndef COMM_DPREC
 #define FLUPS_MPI_AGGRESSIVE 1
 #else
 #define FLUPS_MPI_AGGRESSIVE 0
 #endif
+
+
 
 /**
  * @brief enables the more evenly distributed balancing between ranks
@@ -83,23 +89,43 @@
 #define FLUPS_NEW_BALANCE 0
 #endif
 
+/**
+ * @brief Warn the compiler where to find the fftw wisdom
+*/
 #ifdef HAVE_WISDOM
 #define FLUPS_WISDOM_PATH HAVE_WISDOM
 #endif
 
+/**
+ * @brief Enable the use of hdf5 for the IO operations (mainly for debugging)
+*/
 #ifdef HAVE_HDF5
 #define FLUPS_HDF5 1
 #else
 #define FLUPS_HDF5 0
 #endif
 
-// register the current git commit for tracking purpose
+/**
+ * @brief Enable the use of OpenMP
+*/
+#ifdef WITHOUT_OPENMP
+#define FLUPS_OPENMP 0
+#else
+#define FLUPS_OPENMP 1
+#endif
+
+/**
+ * @brief register the current git commit for tracking purpose
+*/ 
 #ifdef GIT_COMMIT
 #define FLUPS_GIT_COMMIT GIT_COMMIT
 #else
 #define FLUPS_GIT_COMMIT "?"
 #endif
 
+/**
+ * @brief Use MPI40 standard for the communications
+*/
 #ifndef MPI_40
 #define FLUPS_OLD_MPI 1
 #else
