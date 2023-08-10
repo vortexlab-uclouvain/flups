@@ -30,7 +30,7 @@
 #define FLUPS_H
 
 #include "flups_interface.h"
-#include "mpi.h"
+#include <mpi.h>
 
 #ifdef __cplusplus
 #include <cmath>
@@ -39,7 +39,7 @@ extern "C" {
 #define MAX(a, b) std::max(a, b)
 #else
 
-#include "stdlib.h"
+#include <stdlib.h>
 #define MAX(a, b) a > b ? a : b
 #endif
 
