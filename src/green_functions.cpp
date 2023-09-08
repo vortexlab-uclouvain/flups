@@ -276,7 +276,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata);
@@ -286,7 +286,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &lgf_2_2unb0spe_;
             break;
         case LGF_4:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_4, 2, &GN, &Gdata);
             G   = &zero_;
@@ -294,7 +294,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &lgf_4_2unb0spe_;
             break;
         case LGF_6:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_6, 2, &GN, &Gdata);
             G   = &zero_;
@@ -302,7 +302,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &lgf_6_2unb0spe_;
             break;
         case LGF_8:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_8, 2, &GN, &Gdata);
             G   = &zero_;

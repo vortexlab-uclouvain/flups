@@ -1056,7 +1056,6 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", typeGreen_);
         cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength);
     } else if ((n_unbounded) == 2) {
-        FLUPS_CHECK(!(typeGreen_ == LGF_2 && nbr_spectral == 1), "You cannot use LGF with one spectral direction!!");
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", typeGreen_);
         cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
     } else if ((n_unbounded) == 1) {
@@ -1109,7 +1108,9 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
      *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
     // No need to scale this as that part of the Green function has a volfact = 1
-    if (ndim_ == 3 && nbr_spectral == 1 && (typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10)) {
+    const bool is_hej = (typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10);
+    const bool is_lgf = (typeGreen_ == LGF_2 || typeGreen_ == LGF_4 || typeGreen_ == LGF_6 || typeGreen_ == LGF_8);
+    if (ndim_ == 3 && nbr_spectral == 1 && (is_hej || is_lgf)) {
         int istart_cstm[3] = {0, 0, 0};  // global
 
         for (int ip = 0; ip < 3; ip++) {

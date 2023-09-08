@@ -165,20 +165,12 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     bool isZSpectral = (*(mybc_[2][0]) != UNB) && (*(mybc_[2][1]) != UNB);
     int  n_spectral  = isXSpectral + isYSpectral + isZSpectral;
     bool is_green_spectral = (n_spectral == 3) && (CHAT_2 == green_ || HEJ_0 == green_); // Chat2 and Hej0 have a spectral accuracy with spectral bc
-    bool is_green_invalid = (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
-    if (is2D) {
-        is_green_invalid |= (MEHR_4L == green_) || (MEHR_4F == green_); // MEHR_4 stencils are for 3D domains
-        is_green_invalid |= (MEHR_6L == green_) || (MEHR_6F == green_); // MEHR_6 stencils are for 3D domains
-    } else {
-        is_green_invalid |= (LGF_2 == green_) && (n_spectral == 1); // LGF_2 cannot handle one spectral direction
-        is_green_invalid |= (LGF_4 == green_) && (n_spectral == 1); // LGF_4 cannot handle one spectral direction
-        is_green_invalid |= (LGF_6 == green_) && (n_spectral == 1); // LGF_6 cannot handle one spectral direction
-        is_green_invalid |= (LGF_8 == green_) && (n_spectral == 1); // LGF_8 cannot handle one spectral direction
-        is_green_invalid |= (MEHR_4L == green_) && (n_spectral == 1); // MEHR_4L cannot handle one spectral direction
-        is_green_invalid |= (MEHR_6L == green_) && (n_spectral == 1); // MEHR_6L cannot handle one spectral direction
-        is_green_invalid |= (MEHR_4F == green_) && (n_spectral == 1); // MEHR_4F cannot handle one spectral direction
-        is_green_invalid |= (MEHR_6F == green_) && (n_spectral == 1); // MEHR_6F cannot handle one spectral direction
-    }
+    bool is_mehrstellen = (MEHR_4L == green_ || MEHR_4F == green_ || MEHR_6L == green_ || MEHR_6F == green_);
+    
+    bool is_green_invalid = false;
+    is_green_invalid |= (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
+    is_green_invalid |= ((!is2D) && is_mehrstellen && (n_spectral == 1)); // MEHR stencils cannot handle 3D with one spectral direction
+    is_green_invalid |= (is2D && is_mehrstellen); // MEHR stencils cannot handle 2D domains
 
     //  -------------------------------------------------------------------------
     // Perform the test
