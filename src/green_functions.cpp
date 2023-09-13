@@ -223,6 +223,11 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
 
+    // check for isotropy
+    const bool unb_dirs_are_isotropic = ((hfact[0] == 0.0) && (hfact[1] == hfact[2])) ||
+                                        ((hfact[1] == 0.0) && (hfact[0] == hfact[2])) ||
+                                        ((hfact[2] == 0.0) && (hfact[0] == hfact[1]));
+
     GreenKernel G;    // the Green kernel (general expression in the whole domain)
     GreenKernel Gk0;  // the Green kernel (particular expression in k=0)
     GreenKernel Gr0;  // the Green kernel (particular expression in r=0)
@@ -277,7 +282,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case LGF_2:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata);
             // associate the Green's function
@@ -287,7 +292,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case LGF_4:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_4, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_4_2unb0spe_;
@@ -295,7 +300,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case LGF_6:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_6, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_6_2unb0spe_;
@@ -303,7 +308,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case LGF_8:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_8, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_8_2unb0spe_;
