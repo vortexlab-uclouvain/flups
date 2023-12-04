@@ -315,16 +315,36 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &lgf_8_2unb0spe_;
             break;
         case MEHR_4L:
-            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_4L, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4l6l_2unb0spe_;
+            Gr0 = &mehr_4l6l_2unb0spe_;
             break;
         case MEHR_6L:
-            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_6L, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4l6l_2unb0spe_;
+            Gr0 = &mehr_4l6l_2unb0spe_;
             break;
         case MEHR_4F:
-            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_4F, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4f_2unb0spe_;
+            Gr0 = &mehr_4f_2unb0spe_;
             break;
         case MEHR_6F:
-            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_6F, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_6f_2unb0spe_;
+            Gr0 = &mehr_6f_2unb0spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");

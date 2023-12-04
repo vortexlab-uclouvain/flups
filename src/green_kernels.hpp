@@ -296,6 +296,60 @@ static inline double mehr_6f_3unb0spe_(const void* params,const double* data) {
     }
     return -green/(h);
 }
+static inline double mehr_4l6l_2unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+    int    i1 = (ix == 0) ? iy : ix; // first nonzero index
+    int    i2 = (ix == 0) ? iz : (iy == 0) ? iz : iy; // second nonzero index
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (i1 < N && i2 < N) {
+        green = data[i1 + i2 * N];
+    } else {  // if not, we use the extrapolation
+        const double rho = sqrt(i1 * i1 + i2 * i2);
+        mehr_4l6l_2unb0spe_expansion(&green, i1, i2, rho);
+    }
+    return -green;
+}
+static inline double mehr_4f_2unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+    int    i1 = (ix == 0) ? iy : ix; // first nonzero index
+    int    i2 = (ix == 0) ? iz : (iy == 0) ? iz : iy; // second nonzero index
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (i1 < N && i2 < N) {
+        green = data[i1 + i2 * N];
+    } else {  // if not, we use the extrapolation
+        const double rho = sqrt(i1 * i1 + i2 * i2);
+        mehr_4f_2unb0spe_expansion(&green, i1, i2, rho);
+    }
+    return -green;
+}
+static inline double mehr_6f_2unb0spe_(const void* params,const double* data) {
+    int    ix = (int)((double*)params)[4];
+    int    iy = (int)((double*)params)[5];
+    int    iz = (int)((double*)params)[6];
+    int    N  = (int)((double*)params)[7];
+    int    i1 = (ix == 0) ? iy : ix; // first nonzero index
+    int    i2 = (ix == 0) ? iz : (iy == 0) ? iz : iy; // second nonzero index
+
+    // if the point is close enough, it will be already precomputed
+    double green;
+    if (i1 < N && i2 < N) {
+        green = data[i1 + i2 * N];
+    } else {  // if not, we use the extrapolation
+        const double rho = sqrt(i1 * i1 + i2 * i2);
+        mehr_6f_2unb0spe_expansion(&green, i1, i2, rho);
+    }
+    return -green;
+}
 /**@} */
 
 
