@@ -95,10 +95,8 @@ std::string TestNameGenerator(const ::testing::TestParamInfo<ParamType>& info) {
 class ConvergenceTest : public testing::TestWithParam<ParamType>{
 protected:
     // Default variable for all the tests
-    // const int    nproc_3d_[3] = {4, 4, 4};
-    // const int    nproc_2d_[3] = {8, 8, 1};
-    const int    nproc_3d_[3] = {1, 1, 1};
-    const int    nproc_2d_[3] = {1, 1, 1};
+    const int    nproc_3d_[3] = {4, 4, 4};
+    const int    nproc_2d_[3] = {8, 8, 1};
     const double L_[3]        = {1., 1., 1.};
 
     // Variable specific to a test_case
