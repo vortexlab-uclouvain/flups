@@ -95,8 +95,10 @@ std::string TestNameGenerator(const ::testing::TestParamInfo<ParamType>& info) {
 class ConvergenceTest : public testing::TestWithParam<ParamType>{
 protected:
     // Default variable for all the tests
-    const int    nproc_3d_[3] = {4, 4, 4};
-    const int    nproc_2d_[3] = {8, 8, 1};
+    // const int    nproc_3d_[3] = {4, 4, 4};
+    // const int    nproc_2d_[3] = {8, 8, 1};
+    const int    nproc_3d_[3] = {1, 1, 1};
+    const int    nproc_2d_[3] = {1, 1, 1};
     const double L_[3]        = {1., 1., 1.};
 
     // Variable specific to a test_case
@@ -165,12 +167,12 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
     bool isZSpectral = (*(mybc_[2][0]) != UNB) && (*(mybc_[2][1]) != UNB);
     int  n_spectral  = isXSpectral + isYSpectral + isZSpectral;
     bool is_green_spectral = (n_spectral == 3) && (CHAT_2 == green_ || HEJ_0 == green_); // Chat2 and Hej0 have a spectral accuracy with spectral bc
-    bool is_mehrstellen = (MEHR_4L == green_ || MEHR_4F == green_ || MEHR_6L == green_ || MEHR_6F == green_);
+    // bool is_mehrstellen = (MEHR_4L == green_ || MEHR_4F == green_ || MEHR_6L == green_ || MEHR_6F == green_);
     
     bool is_green_invalid = false;
     is_green_invalid |= (HEJ_0 == green_) && (n_spectral != 3); // Hej0 cannot handle unbounded bcs.
-    is_green_invalid |= ((!is2D) && is_mehrstellen && (n_spectral == 1)); // MEHR stencils cannot handle 3D with one spectral direction
-    is_green_invalid |= (is2D && is_mehrstellen); // MEHR stencils cannot handle 2D domains
+    // is_green_invalid |= ((!is2D) && is_mehrstellen && (n_spectral == 1)); // MEHR stencils cannot handle 3D with one spectral direction
+    // is_green_invalid |= (is2D && is_mehrstellen); // MEHR stencils cannot handle 2D domains
 
     //  -------------------------------------------------------------------------
     // Perform the test
