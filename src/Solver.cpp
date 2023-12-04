@@ -1110,7 +1110,8 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     // No need to scale this as that part of the Green function has a volfact = 1
     const bool is_hej = (typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10);
     const bool is_lgf = (typeGreen_ == LGF_2 || typeGreen_ == LGF_4 || typeGreen_ == LGF_6 || typeGreen_ == LGF_8);
-    if (ndim_ == 3 && nbr_spectral == 1 && (is_hej || is_lgf)) {
+    const bool is_meh = (typeGreen_ == MEHR_4L || typeGreen_ == MEHR_4F || typeGreen_ == MEHR_6L || typeGreen_ == MEHR_6F);
+    if (ndim_ == 3 && nbr_spectral == 1 && (is_hej || is_lgf || is_meh)) {
         int istart_cstm[3] = {0, 0, 0};  // global
 
         for (int ip = 0; ip < 3; ip++) {
