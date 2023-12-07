@@ -133,22 +133,42 @@ check result lm3:
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_a2a_*") ]]; then echo "At least one of the a2a test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the nb test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the isr test did not execute till the end."; exit 1; fi
+    - |
+      unfinished_tests=()
+
+      for comm_type in a2a nb isr; do
+        for center_type in cell node; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l; do
+            if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_${comm_type}_${center_type}_${kernel_type}") ]]; then
+              echo "Test ${comm_type}_${center_type}_${kernel_type} did not execute till the end"
+              unfinished_tests+=("${comm_type}_${center_type}_${kernel_type}")
+            fi
+          done
+        done
+      done
+
+      if [[ ${#unfinished_tests[@]} -gt 0 ]]; then
+        exit 1
+      fi
     - scp lm3:${PATH2RUN}/*.xml .
     - |
+      failed_tests=()
+
       for comm_type in a2a nb isr; do
         for center_type in cell node; do
           for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l; do
             test -f report_test_${comm_type}_${center_type}_${kernel_type}.xml
             if [[ $(grep "<failure" report_test_${comm_type}_${center_type}_${kernel_type}.xml) ]]; then
               echo "Test ${comm_type}_${center_type}_${kernel_type} has failed"
-              exit 1
+              failed_tests+=("${comm_type}_${center_type}_${kernel_type}")
             fi
           done
         done
       done
+
+      if [[ ${#failed_tests[@]} -gt 0 ]]; then
+        exit 1
+      fi
   retry:                              # Retry -- Relaunch the Job
     max: 2                            # Limited to 2 (because of gitlab)
     when:                             # If the failure is not known or if it's a timeout failure
