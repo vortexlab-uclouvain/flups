@@ -137,13 +137,18 @@ check result lm3:
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the nb test did not execute till the end."; exit 1; fi
     - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the isr test did not execute till the end."; exit 1; fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - if [[ $(ls -dq report_test_* | wc -l) -ne 90 ]]; then echo "At least one of the test did not execute till the end."; exit 1; fi
-    - if [[ $(grep "<failure" report_test_a2a_cell_*.xml) ]]; then echo "At least one of the a2a cell centred tests has failed "; exit 1; fi
-    - if [[ $(grep "<failure" report_test_a2a_node_*.xml) ]]; then echo "At least one of the a2a node centred tests has failed "; exit 1; fi
-    - if [[ $(grep "<failure" report_test_nb_cell_*.xml) ]]; then echo "At least one of the nb cell centred tests has failed "; exit 1; fi
-    - if [[ $(grep "<failure" report_test_nb_node_*.xml) ]]; then echo "At least one of the nb node centred tests has failed "; exit 1; fi
-    - if [[ $(grep "<failure" report_test_isr_cell_*.xml) ]]; then echo "At least one of the cell centred isr tests has failed "; exit 1; fi
-    - if [[ $(grep "<failure" report_test_isr_node_*.xml) ]]; then echo "At least one of the node centred isr tests has failed "; exit 1; fi
+    - |
+      for comm_type in a2a nb isr; do
+        for center_type in cell node; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l; do
+            test -f report_test_${comm_type}_${center_type}_${kernel_type}.xml
+            if [[ $(grep "<failure" report_test_${comm_type}_${center_type}_${kernel_type}.xml) ]]; then
+              echo "Test ${comm_type}_${center_type}_${kernel_type} has failed"
+              exit 1
+            fi
+          done
+        done
+      done
   retry:                              # Retry -- Relaunch the Job
     max: 2                            # Limited to 2 (because of gitlab)
     when:                             # If the failure is not known or if it's a timeout failure
