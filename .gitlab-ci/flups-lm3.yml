@@ -111,20 +111,10 @@ check result lm3:
      start_in: 1200 minutes 
   artifacts: 
     paths: 
-      - report_test_a2a_cell_*.xml
-      - report_test_nb_cell_*.xml
-      - report_test_isr_cell_*.xml
-      - report_test_a2a_node_*.xml
-      - report_test_nb_node_*.xml
-      - report_test_isr_node_*.xml
+      - ./*.xml
     reports:
         junit: 
-          - report_test_a2a_cell_*.xml
-          - report_test_nb_cell_*.xml
-          - report_test_isr_cell_*.xml
-          - report_test_a2a_node_*.xml
-          - report_test_nb_node_*.xml
-          - report_test_isr_node_*.xml
+          - ./*.xml
     when: always
   needs: [run lm3]
   dependencies:
