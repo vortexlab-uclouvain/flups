@@ -1,7 +1,7 @@
 #!/bin/sh
 CENTERS='node cell'
 VERSIONS='nb a2a isr'
-KERNELS='chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l'
+KERNELS='chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr6f'
 
 export LIBDIR=$1
 
@@ -13,7 +13,7 @@ for version in ${VERSIONS}; do
             export FILE_OUT=std_out_${version}_${center}_${kernel}
             export TESTS=AllTest/ConvergenceTest.AllBoundaryConditions/${center}_${kernel}
             export LIBPATH=${LIBDIR}
-            echo "Submitting job with command: sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC_FLUPS} test_convergence.sh"
+            echo "Submitting job with command: sbatch --export=LIBPATH=${LIBDIR},REPORT=${REPORT},FILE_OUT=${FILE_OUT},TESTS=${TESTS},EXEC=${EXEC} test_convergence.sh"
             sbatch test_convergence.sh
             echo "   "
         done

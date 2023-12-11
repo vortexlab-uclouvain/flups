@@ -128,7 +128,7 @@ check result lm3:
 
       for comm_type in a2a nb isr; do
         for center_type in cell node; do
-          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr6f; do
             if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_${comm_type}_${center_type}_${kernel_type}_*") ]]; then
               echo "Test ${comm_type}_${center_type}_${kernel_type} did not execute till the end"
               unfinished_tests+=("${comm_type}_${center_type}_${kernel_type}")
@@ -146,7 +146,7 @@ check result lm3:
 
       for comm_type in a2a nb isr; do
         for center_type in cell node; do
-          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr4l; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr6f; do
             test -f report_test_${comm_type}_${center_type}_${kernel_type}.xml
             if [[ $(grep "<failure" report_test_${comm_type}_${center_type}_${kernel_type}.xml) ]]; then
               echo "Test ${comm_type}_${center_type}_${kernel_type} has failed"
