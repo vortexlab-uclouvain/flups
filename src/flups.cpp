@@ -133,8 +133,23 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
 
 // destroy the solver
 void flups_cleanup(Solver* s) {
-    delete s;
+    flups_cleanup_ext(s, false);
 }
+
+void flups_cleanup_ext(Solver* s, const bool cleanup_fftw) {
+    delete s;
+    if (cleanup_fftw){
+        flups_cleanup_fftw();
+    }
+}
+
+void flups_cleanup_fftw(){
+#if FLUPS_OPENMP    
+    fftw_cleanup_threads();
+#endif
+
+    fftw_cleanup();
+};
 
 // setup the solver
 void flups_set_greenType(Solver* s, const GreenType type) {

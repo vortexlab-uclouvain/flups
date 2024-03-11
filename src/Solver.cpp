@@ -523,11 +523,7 @@ Solver::~Solver() {
     //    fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
     //#endif
 
-#if FLUPS_OPENMP    
-    fftw_cleanup_threads();
-#endif
 
-    fftw_cleanup();
     // m_profStopi(prof_, "Clean up");
     //-------------------------------------------------------------------------
     END_FUNC;

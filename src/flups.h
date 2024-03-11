@@ -402,6 +402,15 @@ FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], 
 void flups_cleanup(FLUPS_Solver* s);
 
 /**
+ * @brief must be called before execution terminates as it frees the memory used by the solver
+ *
+ * @param s
+ */
+void flups_cleanup_ext(FLUPS_Solver* s, const bool cleanup_fftw);
+
+void flups_cleanup_fftw(); 
+
+/**
  * @brief sets the type of the Green's function used by the solver
  *
  * @warning must be done before @ref flups_setup
