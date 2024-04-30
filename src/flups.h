@@ -410,6 +410,8 @@ void flups_cleanup_ext(FLUPS_Solver* s, const bool cleanup_fftw);
 
 void flups_cleanup_fftw(); 
 
+void flups_fftw_init();
+
 /**
  * @brief sets the type of the Green's function used by the solver
  *

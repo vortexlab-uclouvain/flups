@@ -136,6 +136,7 @@ void flups_cleanup(Solver* s) {
     flups_cleanup_ext(s, false);
 }
 
+// Destroy the solver and cleanup fftw
 void flups_cleanup_ext(Solver* s, const bool cleanup_fftw) {
     delete s;
     if (cleanup_fftw){
@@ -143,6 +144,7 @@ void flups_cleanup_ext(Solver* s, const bool cleanup_fftw) {
     }
 }
 
+// cleanup all the structures related to fftw
 void flups_cleanup_fftw(){
 #if FLUPS_OPENMP    
     fftw_cleanup_threads();
