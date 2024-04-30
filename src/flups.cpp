@@ -30,16 +30,16 @@
 
 #include <algorithm>  // std::remove
 
+#include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
 #include "Topology.hpp"
-#include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
 
 extern "C" {
 
 void* flups_malloc(size_t size) {
-    return m_calloc(size); 
+    return m_calloc(size);
 }
 
 void flups_free(void* data) {
@@ -133,20 +133,18 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
 
 // destroy the solver
 void flups_cleanup(Solver* s) {
-    flups_cleanup_ext(s, false);
+    flups_cleanup_all(s);
 }
 
 // Destroy the solver and cleanup fftw
-void flups_cleanup_ext(Solver* s, const bool cleanup_fftw) {
+void flups_cleanup_all(Solver* s) {
     delete s;
-    if (cleanup_fftw){
-        flups_cleanup_fftw();
-    }
+    flups_cleanup_fftw();
 }
 
 // cleanup all the structures related to fftw
-void flups_cleanup_fftw(){
-#if FLUPS_OPENMP    
+void flups_cleanup_fftw() {
+#if FLUPS_OPENMP
     fftw_cleanup_threads();
 #endif
 
@@ -181,7 +179,7 @@ void flups_set_alpha(Solver* s, const double alpha) {
     s->set_alpha(alpha);
 }
 
-double* flups_get_innerBuffer(FLUPS_Solver* s){
+double* flups_get_innerBuffer(FLUPS_Solver* s) {
     return s->get_innerBuffer();
 }
 
@@ -193,7 +191,7 @@ Topology* flups_get_innerTopo_spectral(Solver* s) {
     return s->get_innerTopo_spectral();
 }
 
-void flups_skip_firstSwitchtopo(Solver* s){
+void flups_skip_firstSwitchtopo(Solver* s) {
     s->skip_firstSwitchtopo();
 }
 
