@@ -402,6 +402,26 @@ FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], 
 void flups_cleanup(FLUPS_Solver* s);
 
 /**
+ * @brief Free the memomry of the solver and the data employed by fftw
+ *
+ * @warning this function free all the data of fftw. If you use multiple solver
+ *        you should not call this function
+ *
+ * @param s
+ */
+void flups_cleanup_all(FLUPS_Solver* s);
+
+/**
+ * @brief Free data employed by fftw
+ *
+ * @warning this function free all the data of fftw. If you use multiple solver, this function
+ * should be called after all the solver have freed
+ *
+ */
+void flups_cleanup_fftw(); 
+
+
+/**
  * @brief sets the type of the Green's function used by the solver
  *
  * @warning must be done before @ref flups_setup
