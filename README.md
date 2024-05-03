@@ -16,9 +16,12 @@ For the list of all the contributors to the development of FLUPS, description an
 FLUPS' design, implementation, and performances are described in two papers.
 
 If you use FLUPS, please cite them in your publications:
-- [Balty et al.](https://arxiv.org/abs/2211.07777), **FLUPS - a flexible and performant massively parallel Fourier transform library**, submitted, 2022
+- [Balty et al.](https://arxiv.org/abs/2211.07777), **FLUPS - a flexible and performant massively parallel Fourier transform library**, IEEE Transactions on Parallel and Distributed Systems, 2023
 - [Caprace et al.](https://arxiv.org/abs/2006.09300), **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2021
 
+
+The high-order Lattice Green's functions (LGF and MEHR) available in FLUPS are described in a third paper. If you use those kernels, please cite the related paper in your publications:
+- [Gabbard et al.](https://arxiv.org/abs/2309.13503), **Lattice Green’s Functions for High-Order Finite Difference Stencils**, SIAM Journal on Numerical Analysis, 2024
 
 ## Why should you use FLUPS?
 - You can solve the Poisson on rectangular and uniform distributed grids;
@@ -231,7 +234,8 @@ flups_solve(mysolver,rhs, rhs);
 
 Then, destroy the solver and the created topology
 ```
-flups_cleanup(mysolver);
+flups_cleanup(mysolver); // destroy the solver
+flups_cleanup_fftw();    // cleanup the fftw stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {

@@ -204,6 +204,11 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     //Implementation note: if you want to do Helmolz, you need Hankel functions (3rd order Bessel) which are not implemented in stdC. Consider the use of boost lib.
     //notice that bessel_k has been introduced in c++17
 
+    // check for isotropy
+    const bool unb_dirs_are_isotropic = ((hfact[0] == 0.0) && (hfact[1] == hfact[2])) ||
+                                        ((hfact[1] == 0.0) && (hfact[0] == hfact[2])) ||
+                                        ((hfact[2] == 0.0) && (hfact[0] == hfact[1]));
+
     GreenKernel G;    // the Green kernel (general expression in the whole domain)
     GreenKernel Gk0;  // the Green kernel (particular expression in k=0)
     GreenKernel Gr0;  // the Green kernel (particular expression in r=0)
@@ -257,8 +262,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata);
             // associate the Green's function
@@ -267,40 +272,60 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             Gr0 = &lgf_2_2unb0spe_;
             break;
         case LGF_4:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_4, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_4_2unb0spe_;
             Gr0 = &lgf_4_2unb0spe_;
             break;
         case LGF_6:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_6, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_6_2unb0spe_;
             Gr0 = &lgf_6_2unb0spe_;
             break;
         case LGF_8:
-            FLUPS_CHECK(hfact[2] < 1.0e-14, "This LGF cannot be called in a 3D problem -> h[3] = %e",hfact[3]);
-            FLUPS_CHECK(hfact[0] == hfact[1], "the grid has to be isotropic to use the LGFs");
+            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_8, 2, &GN, &Gdata);
             G   = &zero_;
             Gk0 = &lgf_8_2unb0spe_;
             Gr0 = &lgf_8_2unb0spe_;
             break;
         case MEHR_4L:
-            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_4L, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4l6l_2unb0spe_;
+            Gr0 = &mehr_4l6l_2unb0spe_;
             break;
         case MEHR_6L:
-            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_6L, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4l6l_2unb0spe_;
+            Gr0 = &mehr_4l6l_2unb0spe_;
             break;
         case MEHR_4F:
-            FLUPS_CHECK(false, "MEHR4 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_4F, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_4f_2unb0spe_;
+            Gr0 = &mehr_4f_2unb0spe_;
             break;
         case MEHR_6F:
-            FLUPS_CHECK(false, "MEHR6 kernel not available for 2D unbounded problems.");
+            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
+            FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
+            lgf_readfile_(MEHR_6F, 2, &GN, &Gdata);
+            G   = &zero_;
+            Gk0 = &mehr_6f_2unb0spe_;
+            Gr0 = &mehr_6f_2unb0spe_;
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
