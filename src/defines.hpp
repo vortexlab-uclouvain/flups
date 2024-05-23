@@ -141,9 +141,15 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
     return ((uintptr_t)(const void*)a) % M_ALIGNMENT;
 }
 
+#if defined(FLUPS_CUDA_BACKEND)
+typedef int* __restrict opt_int_ptr;
+typedef double* __restrict opt_double_ptr;
+typedef fftw_complex* __restrict opt_complex_ptr;
+#else
 typedef int* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_complex_ptr;
+#endif
 
 #define m_profStarti(prof, name, ...)                                    \
     ({                                                                   \
