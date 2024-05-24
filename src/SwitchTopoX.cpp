@@ -1,7 +1,5 @@
 #include "SwitchTopoX.hpp"
 
-#include "h3lpr/macros.hpp"
-
 using namespace std;
 
 SwitchTopoX::SwitchTopoX(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof)

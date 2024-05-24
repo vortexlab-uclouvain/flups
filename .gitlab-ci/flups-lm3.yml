@@ -41,7 +41,7 @@ compil lm3 :
     - ssh-add <(echo "$H3LPR_SSHKEY")
     - echo $H3LPRKH >> ~/.ssh/known_hosts
     - git clone git@github.com:van-Rees-Lab/h3lpr.git
-    - cd h3lpr && git checkout origin/dev-make-static && cd - 
+    # - cd h3lpr && git checkout origin/dev-make-static && cd - 
     - tar -czf h3lpr_src.tar.gz h3lpr && du -sh h3lpr_src.tar.gz
     # Change the key before sending the data to lm3 
     - eval $(ssh-agent -s)
@@ -91,9 +91,9 @@ run lm3:
     - ssh lm3 mkdir -p ${PATH2RUN}/
     - scp flups_test_nb lm3:${PATH2RUN}/  
     - scp flups_test_a2a lm3:${PATH2RUN}/         
-    - scp flups_test_isr lm3:${PATH2RUN}/                                            #sending the previously compiled exe back to lm3
-    - scp -r test/run/test_run.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
-    - scp -r test/run/test_workflow.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - scp flups_test_isr lm3:${PATH2RUN}/                                           #sending the previously compiled exe back to lm3
+    - scp -r test/run/test_convergence.sh lm3:${PATH2RUN}/                                  #copy the slurm script from the runner
+    - scp -r test/run/test_workflow.sh lm3:${PATH2RUN}/                             #copy the slurm script from the runner
     - ssh lm3 "cd ${PATH2RUN}/ && ./test_workflow.sh ${LIBDIR}"
 
 
@@ -111,14 +111,10 @@ check result lm3:
      start_in: 1200 minutes 
   artifacts: 
     paths: 
-      - report_test_a2a.xml
-      - report_test_nb.xml
-      - report_test_isr.xml
+      - ./*.xml
     reports:
         junit: 
-          - report_test_a2a.xml
-          - report_test_nb.xml
-          - report_test_isr.xml
+          - ./*.xml
     when: always
   needs: [run lm3]
   dependencies:
@@ -127,16 +123,42 @@ check result lm3:
     - echo -e "\e[0Ksection_start:`date +%s`:my_first_section[collapsed=true]\r\e[0KWaiting for job completion"
     - while [[ $(ssh lm3 "squeue -u vortexbot | grep vortex") ]]; do echo "Waiting for job completion:"; echo "$(ssh lm3 squeue -u vortexbot )"; sleep 2m; done
     - echo -e "\e[0Ksection_end:`date +%s`:my_first_section\r\e[0K"
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_a2a_*") ]]; then echo "At least one of the a2a test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_nb_*") ]]; then echo "At least one of the  nb test did not execute till the end."; exit 1; fi
-    - if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_isr_*") ]]; then echo "At least one of the  isr test did not execute till the end."; exit 1; fi
+    - |
+      unfinished_tests=()
+
+      for comm_type in a2a nb isr; do
+        for center_type in cell node; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr6f; do
+            if [[ ! $(ssh lm3 "grep 'Tests are over ' ${PATH2RUN}/std_out_${comm_type}_${center_type}_${kernel_type}_*") ]]; then
+              echo "Test ${comm_type}_${center_type}_${kernel_type} did not execute till the end"
+              unfinished_tests+=("${comm_type}_${center_type}_${kernel_type}")
+            fi
+          done
+        done
+      done
+
+      if [[ ${#unfinished_tests[@]} -gt 0 ]]; then
+        exit 1
+      fi
     - scp lm3:${PATH2RUN}/*.xml .
-    - test -f report_test_a2a.xml && if [[ $(grep "<failure" report_test_a2a.xml) ]]; then echo "At least one of the a2a tests has failed "; exit 1; fi 
-    - test -f report_test_nb.xml && if [[ $(grep "<failure" report_test_nb.xml) ]]; then echo "At least one of the nb tests has failed "; exit 1; fi
-    - test -f report_test_isr.xml && if [[ $(grep "<failure" report_test_isr.xml) ]]; then echo "At least one of the isr tests has failed "; exit 1; fi 
-    # - if [[ $(grep "<failure" Node_*.xml) ]]; then echo "At least one of the node tests has failed "; exit 1; fi 
-    # - if [[ $(grep "<failure" Cell_*.xml) ]]; then echo "At least one of the cell tests has failed "; exit 1; fi
-    # - test -f cell_report.xml && grep -L "<failure" cell_report.xml   
+    - |
+      failed_tests=()
+
+      for comm_type in a2a nb isr; do
+        for center_type in cell node; do
+          for kernel_type in chat2 lgf2 lgf4 lgf6 lgf8 hej2 hej4 hej6 hej8 hej10 hej0 mehr4l mehr6l mehr4f mehr6f; do
+            test -f report_test_${comm_type}_${center_type}_${kernel_type}.xml
+            if [[ $(grep "<failure" report_test_${comm_type}_${center_type}_${kernel_type}.xml) ]]; then
+              echo "Test ${comm_type}_${center_type}_${kernel_type} has failed"
+              failed_tests+=("${comm_type}_${center_type}_${kernel_type}")
+            fi
+          done
+        done
+      done
+
+      if [[ ${#failed_tests[@]} -gt 0 ]]; then
+        exit 1
+      fi
   retry:                              # Retry -- Relaunch the Job
     max: 2                            # Limited to 2 (because of gitlab)
     when:                             # If the failure is not known or if it's a timeout failure

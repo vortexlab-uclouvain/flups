@@ -48,17 +48,26 @@ echo " ------ ... done ! "
 ## LAUNCH THE JOBS
 
 ## 1 Node == 128 CPUS
-export NPROC_X_ARR=(8 16 16 16 32 32 32)
-export NPROC_Y_ARR=(8 12 24 24 24 24 48)
-export NPROC_Z_ARR=(12 12 12 24 24 48 48)
+# export NPROC_X_ARR=(8 16 16 16 32 32 32)
+# export NPROC_Y_ARR=(8 12 24 24 24 24 48)
+# export NPROC_Z_ARR=(12 12 12 24 24 48 48)
 
-export NGLOB_X=1536
-export NGLOB_Y=1536
-export NGLOB_Z=1536
+export NPROC_X_ARR=(4 4 4 8 8  8  16 16 16 32 32 32)
+export NPROC_Y_ARR=(4 4 8 8 8  16 16 16 32 32 32 40)
+export NPROC_Z_ARR=(8 8 8 8 16 16 16 32 32 32 48 40) 
+
+export NGLOB_X=1280
+export NGLOB_Y=1280
+export NGLOB_Z=1280
 
 export L_X=1
 export L_Y=1
 export L_Z=1
+
+export NRES=1
+
+export CODE_BCS='4,4,4,4,4,4 
+                 3,3,3,3,3,3'
 
 echo " ------ Submitting Job scripts"
 # Loop on the number of node needed for the test
@@ -86,7 +95,7 @@ do
            --nodes=${NNODE} \
            --ntasks-per-node=${NPROC_NODES} \
            --time=${KERNEL_TIME} \
-           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_valid.sh
+           ${FLUPS_DIR}/samples/validation/run/benchmark_kernel_scaling.sh
     #---------------------------------------------------------------------------
 done 
 

@@ -32,6 +32,7 @@
 #include "mpi.h"
 #include "omp.h"
 // #include "h3lpr/profiler.hpp"
+#include "h3lpr/ptr.hpp"
 
 /**
  * @brief Defines the basic interface for the SwitchTopo objects.

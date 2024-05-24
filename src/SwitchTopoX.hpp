@@ -2,8 +2,8 @@
 #define SWITCHTOPOX_HPP_
 
 #include "Topology.hpp"
-#include "chunk_tools.hpp"
 #include "defines.hpp"
+#include "chunk_tools.hpp"
 
 /**
  * @brief More efficient implementation of the SwitchTopo

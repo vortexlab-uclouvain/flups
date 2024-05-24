@@ -17,7 +17,7 @@ void AnalyticalField::SetAnalFn_(){
     } else if (bc_[0] == UNB && bc_[1] == UNB) {
         sol_fn_ = &fUnbSpietz;
         rhs_fn_ = &d2dx2_fUnbSpietz;
-    } else if (bc_[0] == UNB && bc_[1] != UNB){
+    } else if (bc_[0] == UNB && bc_[1] != UNB) {
         if(bc_[1] == ODD){
             center_  = 0.7;
             sign_[1] = -1;
@@ -27,7 +27,7 @@ void AnalyticalField::SetAnalFn_(){
         }
         sol_fn_ = &fUnbSpietz;
         rhs_fn_ = &d2dx2_fUnbSpietz;
-    } else if (bc_[1] == UNB && bc_[0] != UNB){
+    } else if (bc_[1] == UNB && bc_[0] != UNB) {
         if(bc_[0] == ODD){
             center_  = 0.3;
             sign_[0] = -1;
@@ -37,6 +37,9 @@ void AnalyticalField::SetAnalFn_(){
         }
         sol_fn_ = &fUnbSpietz;
         rhs_fn_ = &d2dx2_fUnbSpietz;
+    } else if (bc_[0] == NONE && bc_[1] == NONE) {
+        sol_fn_ = &fCst;
+        rhs_fn_ = &fZero;
     }
     
     if (sol_fn_ == nullptr || rhs_fn_ == nullptr) {

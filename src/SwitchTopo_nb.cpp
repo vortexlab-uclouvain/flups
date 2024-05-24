@@ -29,6 +29,8 @@
 
 #include "SwitchTopo_nb.hpp"
 
+#if (FLUPS_MPI_AGGRESSIVE == 0)
+
 /**
  * @brief Construct a Switch Topo object
  * 
@@ -336,7 +338,6 @@ void SwitchTopo_nb::setup_buffers(opt_double_ptr sendData,opt_double_ptr recvDat
 
     // determine the nf: since topo_in may have change, we take the max to have the correct one
     const int nf = std::max(topo_in_->nf(),topo_out_->nf());
-    const int lda = std::max(topo_in_->lda(),topo_out_->lda());
 
     int newrank;
     MPI_Comm_rank(subcomm_, &newrank);
@@ -526,8 +527,8 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     MPI_Request* recvRequest;
 
     int lda = topo_in_->lda();
-    int send_nBlock;
-    int recv_nBlock;
+    int send_nBlock = 0;
+    int recv_nBlock = 0;
 
     int inmem[3];
     int onmem[3];
@@ -661,14 +662,10 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
     //-------------------------------------------------------------------------
     /** - fill the buffers */
     //-------------------------------------------------------------------------
-    // const int nblocks_send = send_nBlock[0] * send_nBlock[1] * send_nBlock[2];
+    // use the null_rqst as a local var to be compatible with both ompi and mpich
+    MPI_Request null_rqst = MPI_REQUEST_NULL;
 
-#if defined(__INTEL_COMPILER)
-//possible need to add ```shared(ompi_request_null)``` depending on the compiler version
-#pragma omp parallel proc_bind(close) default(none) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag, iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
-#elif defined(__GNUC__)
-#pragma omp parallel proc_bind(close) default(none) shared(ompi_request_null) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag,iBlockSize,iBlockiStart, nf, inmem, iax0, iax1,iax2,sendRequest, lda)
-#endif
+#pragma omp parallel proc_bind(close) default(none) shared(null_rqst) firstprivate(send_nBlock, v, sendBuf, recvBuf, destTag, iBlockSize, iBlockiStart, nf, inmem, iax0, iax1, iax2, sendRequest, lda)
     for (int bid = 0; bid < send_nBlock; bid++) {
         for (int lia = 0; lia < lda ; lia++){
             // total size of a block, 1 component
@@ -775,7 +772,7 @@ void SwitchTopo_nb::execute(double* v, const int sign) const {
         // start the send the block and continue
 #pragma omp master
         {
-            if (sendRequest[bid] != MPI_REQUEST_NULL) {
+            if (sendRequest[bid] != null_rqst) {
                 MPI_Start(&(sendRequest[bid]));
             }
         }
@@ -1120,3 +1117,5 @@ void SwitchTopo_nb_test() {
     delete (topobig);
     END_FUNC;
 }
+
+#endif

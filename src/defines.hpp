@@ -33,36 +33,232 @@
 #include <execinfo.h>
 #include "fftw3.h"
 #include "mpi.h"
-#include "flups_interface.h"
-#include "h3lpr/macros.hpp"
-#include "h3lpr/profiler.hpp"
+#include "flups_interface.h" // get the main defines
+#include "h3lpr/macros.hpp" // return the h3lpr macros
+#include "h3lpr/profiler.hpp" // profiler
+#include "h3lpr/ptr.hpp" // pointer allocation
+
+//==============================================================================
+//                      Compilation flags
+//==============================================================================
+/**
+ * @brief FFTW planner flag driven by the NDEBUG flag
+ *
+ */
+#ifndef FFTW_FLAG
+#ifdef NDEBUG
+#define FLUPS_FFTW_FLAG FFTW_PATIENT
+#else
+#define FLUPS_FFTW_FLAG FFTW_ESTIMATE
+#endif
+#else
+#define FLUPS_FFTW_FLAG FFTW_FLAG
+#endif
+
+
+/**
+ * @brief MPI flag to use deprecated version of the communications 
+*/
+#ifndef COMM_DPREC
+#define FLUPS_MPI_AGGRESSIVE 1
+#else
+#define FLUPS_MPI_AGGRESSIVE 0
+#endif
+
+
+
+/**
+ * @brief enables the more evenly distributed balancing between ranks
+ *
+ * given N unknowns and P process, we try to evenly distribute the data
+ * every rank has defacto B=N/P unknows as a baseline.
+ * Then we are left with R = N%P unkowns to distribute among the P processes.
+ * To do so instead of setting the R unknowns on the R first ranks we distribute them by groups.
+ * We gather S (=stride) ranks together in a group and per group we add 1 unknow on the last rank of the group
+ * The size of a group is given by S = P/R, which is also the stride between two groups
+ * Exemple:
+ *     - N = 32, P = 6: B = 5, R = 2 and therefore S = 3.
+ *         So the rank distribution will be in two groups of 3 ranks:
+ *              rank 0 -> 0 * 5 + 0 / 3 = 0
+ *              rank 1 -> 1 * 5 + 1 / 3 = 5     (+5)
+ *              rank 2 -> 2 * 5 + 2 / 3 = 10    (+5)
+ *              rank 3 -> 3 * 5 + 3 / 3 = 16    (+6)
+ *              rank 4 -> 4 * 5 + 4 / 3 = 21    (+5)
+ *              rank 5 -> 5 * 5 + 5 / 3 = 26    (+5)
+ *              rank 6 -> 6 * 5 + 6 / 3 = 32    (+6)
+ *
+ * To get the starting id from a rank we have:
+ *       id = r * B + r/S
+ *
+ * To recover the rank from a global id (I) it's a bit longer.
+ * We use S * B + 1 which is the number of unknowns inside one group
+ * (1) get the group id:
+ *      group_id = I /(S*B + 1)
+ * (2) get the id within the group:
+ *      local_group_id = I%(S*B + 1)
+ * (3) get the rank within the group:
+ *      local_group_id/B
+ *
+ * the rank is then:
+ *      group_id * S + local_group_id/B
+ */
+#ifndef BALANCE_DPREC
+#define FLUPS_NEW_BALANCE 1
+#else
+#define FLUPS_NEW_BALANCE 0
+#endif
+
+/**
+ * @brief Warn the compiler where to find the fftw wisdom
+*/
+#ifdef HAVE_WISDOM
+#define FLUPS_WISDOM_PATH HAVE_WISDOM
+#endif
+
+/**
+ * @brief Enable the use of hdf5 for the IO operations (mainly for debugging)
+*/
+#ifdef HAVE_HDF5
+#define FLUPS_HDF5 1
+#else
+#define FLUPS_HDF5 0
+#endif
+
+/**
+ * @brief Enable the use of OpenMP
+*/
+#ifdef WITHOUT_OPENMP
+#define FLUPS_OPENMP 0
+#else
+#define FLUPS_OPENMP 1
+#endif
+
+/**
+ * @brief register the current git commit for tracking purpose
+*/ 
+#ifdef GIT_COMMIT
+#define FLUPS_GIT_COMMIT GIT_COMMIT
+#else
+#define FLUPS_GIT_COMMIT "?"
+#endif
+
+/**
+ * @brief Use MPI40 standard for the communications
+*/
+#ifndef MPI_40
+#define FLUPS_OLD_MPI 1
+#else
+#define FLUPS_OLD_MPI 0
+#endif
+
+#ifndef MPI_BATCH_SEND
+#define FLUPS_MPI_BATCH_SEND 1
+#else
+#define FLUPS_MPI_BATCH_SEND MPI_BATCH_SEND
+#endif
+
+#ifndef MPI_MAX_NBSEND
+#define FLUPS_MPI_MAX_NBSEND INT_MAX
+#else
+#define FLUPS_MPI_MAX_NBSEND MPI_MAX_NBSEND
+#endif
+
+#ifndef MPI_DEFAULT_ORDER
+#define FLUPS_PRIORITYLIST 1
+#else
+#define FLUPS_PRIORITYLIST 0
+#endif
+
+#ifndef MPI_NO_ROLLING_RANK
+#define FLUPS_ROLLING_RANK 1
+#else
+#define FLUPS_ROLLING_RANK 0
+#endif
+
+#ifndef MPI_NO_ALLOC
+#define FLUPS_MPI_ALLOC 1
+#else
+#define FLUPS_MPI_ALLOC 0
+#endif
+
+//==============================================================================
+
+
+#if (FLUPS_MPI_AGGRESSIVE)
+#if (FLUPS_MPI_ALLOC)
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
+#else
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
+#endif
+#endif
+
+/**
+ * @brief allocates size bytes using the flups allocation (alignement)
+ *
+ * this funaction relies on the POSIX allocation as defined by H3LPR because
+ * with a posix allocation the returned pointer is the one that needs to be freed
+ *
+ */
+#define m_calloc(size)                                                             \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
+
+/**
+ * @brief free the memory allocated using m_calloc
+ *
+ */
+#define m_free(data)     \
+    {                    \
+        std::free(data); \
+    }
+
 
 
 //=============================================================================
 // Debug
 //=============================================================================
-#define FLUPS_print_data(topo, data)                                                                                                               \
-    ({                                                                                                                                             \
-        const int    ax0     = topo->axis();                                                                                                       \
-        const int    ax1     = (ax0 + 1) % 3;                                                                                                      \
-        const int    ax2     = (ax0 + 2) % 3;                                                                                                      \
-        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                      \
-        const size_t memdim  = topo->memdim();                                                                                                     \
-        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
-        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                  \
-        const size_t inmax   = topo->nloc(ax0) * topo->nf();                                                                                       \
-        printf("ax0 = %d nmem = %d %d %d-- end = %d %d %d \n", ax0, nmem[0], nmem[1], nmem[2], topo->nloc(0), topo->nloc(1), topo->nloc(2)); \
-        for (int id = 0; id < onmax; id++) {                                                                                                       \
-            const size_t   lia    = id / ondim;                                                                                                    \
-            const size_t   io     = id % ondim;                                                                                                    \
-            opt_double_ptr argloc = data + collapsedIndex(ax0, 0, io, nmem, topo->nf());                                                           \
-            for (size_t ii = 0; ii < inmax; ii++) {                                                                                                \
-                printf("%f \t ", argloc[ii]);                                                                                                   \
-            }                                                                                                                                      \
-            printf("\n");                                                                                                                          \
-        }                                                                                                                                          \
+#define FLUPS_print_data(topo, data)                                                                                                                                            \
+    ({                                                                                                                                                                          \
+        const int    ax0     = topo->axis();                                                                                                                                    \
+        const int    ax1     = (ax0 + 1) % 3;                                                                                                                                   \
+        const int    ax2     = (ax0 + 2) % 3;                                                                                                                                   \
+        const int    lda     = topo->lda();                                                                                                                                     \
+        const int    nf      = topo->nf();                                                                                                                                      \
+        const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};                                                                                                   \
+        const size_t memdim  = topo->memdim();                                                                                                                                  \
+        const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                                               \
+        const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2);                                                                                                               \
+        const size_t inmax   = topo->nloc(ax0);                                                                                                                                 \
+        printf("ax0 = %d -- lda = %d -- nf = %d - nmem = %d %d %d -- end = %d %d %d \n", ax0, lda, nf, nmem[0], nmem[1], nmem[2], topo->nloc(0), topo->nloc(1), topo->nloc(2)); \
+        for (int lia = 0; lia < lda; lia++) {                                                                                                                                   \
+            printf("lia == %d \n", lia);                                                                                                                                        \
+            if (nf == 1) {                                                                                                                                                      \
+                for (int id = 0; id < onmax; id++) {                                                                                                                            \
+                    const size_t   io     = id % ondim;                                                                                                                         \
+                    opt_double_ptr argloc = data + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);                                                                         \
+                    if (id % topo->nloc(ax1) == 0) printf("\n");                                                                                                                \
+                    for (size_t ii = 0; ii < inmax; ii++) {                                                                                                                     \
+                        printf("%e \t ", argloc[ii]);                                                                                                                           \
+                    }                                                                                                                                                           \
+                    printf("\n");                                                                                                                                               \
+                }                                                                                                                                                               \
+            } else {                                                                                                                                                            \
+                for (int id = 0; id < onmax; id++) {                                                                                                                            \
+                    const size_t   io     = id % ondim;                                                                                                                         \
+                    opt_double_ptr argloc = data + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);                                                                         \
+                    if (id % topo->nloc(ax1) == 0) printf("\n");                                                                                                                \
+                    for (size_t ii = 0; ii < inmax; ii++) {                                                                                                                     \
+                        printf("(%e, %e) \t", argloc[2 * ii], argloc[2 * ii + 1]);                                                                                              \
+                    }                                                                                                                                                           \
+                    printf("\n");                                                                                                                                               \
+                }                                                                                                                                                               \
+            }                                                                                                                                                                   \
+        }                                                                                                                                                                       \
+        fflush(stdout);                                                                                                                                                         \
     })
-
 //=============================================================================
 // WARNINGS
 //=============================================================================
@@ -133,12 +329,12 @@
 
 template <typename T>
 static inline bool FLUPS_ISALIGNED(T a) {
-    return ((uintptr_t)(const void*)a) % M_ALIGNMENT == 0;
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT == 0;
 }
 
 template <typename T>
 static inline int FLUPS_CMPT_ALIGNMENT(T a) {
-    return ((uintptr_t)(const void*)a) % M_ALIGNMENT;
+    return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
 
 #if defined(FLUPS_CUDA_BACKEND)
@@ -180,49 +376,51 @@ typedef fftw_complex* __restrict __attribute__((aligned(M_ALIGNMENT))) opt_compl
 // typedef enum FLUPS_BoundaryType BoundaryType;
 // typedef enum FLUPS_GreenType    GreenType;
 
-#define c_1opi     (1.0 / (1.0 * M_PI))
-#define c_1o2pi    (1.0 / (2.0 * M_PI))
-#define c_1o2pi2   (1.0 / (2.0 * M_PI*M_PI))
-#define c_1o4pi    (1.0 / (4.0 * M_PI))
-#define c_1osqrtpi (1.0 / sqrt(M_PI))
-#define c_sqrtpi   (sqrt(M_PI))
-#define c_1o2      (1.0 / 2.0)
-#define c_1o4      (1.0 / 4.0)
-#define c_7o4      (7. / 4.)
-#define c_19o8     (19. / 8)
-#define c_2o3      (2. / 3)
-#define c_1o12     (1. / 12.)
-#define c_1o24     (1. / 24)
-#define c_5o16     (5. / 16.)
-#define c_1o16     (1. / 16.)
-#define c_187o64   (187. / 64.)
-#define c_233o192  (233. / 192.)
-#define c_29o192   (29. / 192.)
-#define c_13o192   (13. / 192.)
-#define c_1o192    (1. / 192.)
-#define c_11o12    (11. / 12.)
-#define c_7o24     (7. / 24.)
-#define c_25o24    (25. / 24.)
-#define c_1o48     (1. / 48.)
-#define c_23o48    (23. / 48.)
-#define c_1o384    (1. / 384.)
-#define c_17o384   (17. / 384.)
-#define c_23o384   (23. / 384.)
-#define c_11o32    (11. / 32.)
-#define c_1o96     (1. / 96.)
-#define c_35o128   (35. / 128.)
-#define c_47o128   (47. / 128.)
-#define c_93o256   (93. / 256.)
-#define c_47o256   (47. / 256.)
-#define c_1o256    (1. / 256.)
-#define c_73o768   (73. / 768.)
-#define c_11o768   (11. / 768.)
-#define c_23o768   (23. / 768.)
-#define c_1o768    (1. / 768.)
-
-
-#define c_1osqrt2  (1.0 / M_SQRT2)
-
-#define c_2pi      (2.0 * M_PI)
+static const double c_1opi     = 1.0 / (1.0 * M_PI);
+#define c_1o2pi   (1.0 / (2.0 * M_PI))
+#define c_1o2pi2  (1.0 / (2.0 * M_PI*M_PI))
+#define c_1o4pi   (1.0 / (4.0 * M_PI))
+#define c_1osqrt  (1.0 / sqrt(M_PI))
+#define c_sqrtpi  (sqrt(M_PI))
+#define c_1o2     (1.0 / 2.0)
+#define c_1o4     (1.0 / 4.0)
+#define c_7o4     (7. / 4.)
+#define c_19o8    (19. / 8)
+#define c_2o3     (2. / 3)
+#define c_1o12    (1. / 12.)
+#define c_1o24    (1. / 24)
+#define c_5o16    (5. / 16.)
+#define c_1o16    (1. / 16.)
+#define c_187o64  (187. / 64.)
+#define c_233o19  (233. / 192.)
+#define c_29o192  (29. / 192.)
+#define c_13o192  (13. / 192.)
+#define c_1o192   (1. / 192.)
+#define c_11o12   (11. / 12.)
+#define c_7o24    (7. / 24.)
+#define c_25o24   (25. / 24.)
+#define c_1o48    (1. / 48.)
+#define c_23o48   (23. / 48.)
+#define c_1o384   (1. / 384.)
+#define c_17o384  (17. / 384.)
+#define c_23o384  (23. / 384.)
+#define c_11o32   (11. / 32.)
+#define c_1o96    (1. / 96.)
+#define c_35o128  (35. / 128.)
+#define c_47o128  (47. / 128.)
+#define c_93o256  (93. / 256.)
+#define c_47o256  (47. / 256.)
+#define c_1o256   (1. / 256.)
+#define c_73o768  (73. / 768.)
+#define c_11o768  (11. / 768.)
+#define c_23o768  (23. / 768.)
+#define c_1o768   (1. / 768.)
+#define c_4o3     (4. / 3.)
+#define c_1o6     (1. / 6.)
+#define c_3o2     (3. / 2.)
+#define c_3o10    (3. / 10.)
+#define c_1o30    (1. / 30.)
+#define c_1osqrt2 (1.0 / M_SQRT2)
+#define c_2pi     (2.0 * M_PI)
 
 #endif

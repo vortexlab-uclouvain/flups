@@ -32,6 +32,15 @@ static double KernelOrder(FLUPS_GreenType kernel){
         case LGF_2:
             return 2.0;
             break;
+        case LGF_4:
+            return 4.0;
+            break;
+        case LGF_6:
+            return 6.0;
+            break;
+        case LGF_8:
+            return 8.0;
+            break;
         case HEJ_2:
             return 2.0;
             break;
@@ -46,6 +55,18 @@ static double KernelOrder(FLUPS_GreenType kernel){
             break;
         case HEJ_10:
             return 10.0;
+            break;
+        case MEHR_4L:
+            return 2.0;
+            break;        
+        case MEHR_6L:
+            return 2.0;
+            break;        
+        case MEHR_4F:
+            return 4.0;
+            break;        
+        case MEHR_6F:
+            return 6.0;
             break;
         case HEJ_0:
             printf("Warning, you shouldn't ask for the convergence order of a spectral kernel\n");

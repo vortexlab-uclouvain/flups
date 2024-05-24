@@ -28,7 +28,9 @@
 
 #include "mpi.h"
 #include "h3lpr/profiler.hpp"
+#include "h3lpr/macros.hpp"
 #include "h3lpr/parser.hpp"
+#include "h3lpr/ptr.hpp"
 #include "flups.h"
 #include <iostream>
 #include <cstring>
@@ -36,16 +38,12 @@
 
 using namespace std;
 
-// //default values
-// const static int                 d_nsolve    = 1;
-// const static int                 d_nsample   = 1;
-// const static int                 d_startSize = 16;
-// const static int                 d_nprocs[3] = {1, 1, 1};
-// const static double              d_L[3]      = {1., 1., 1.};
-// const static FLUPS_GreenType     d_kernel    = CHAT_2;
-// const static FLUPS_CenterType    d_center    = CELL_CENTER;
-// const static FLUPS_BoundaryType  d_bcdef     = UNB;
-// const static int                 d_lda       = 1;
+#define validation_calloc(size)                                                    \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
 
 int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
@@ -53,7 +51,8 @@ int main(int argc, char *argv[]) {
     int rank;
     int provided;
     // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
-    int requested = MPI_THREAD_FUNNELED;
+    // int requested = MPI_THREAD_FUNNELED;
+    int requested = MPI_THREAD_SINGLE;
     MPI_Init_thread(&argc, &argv, requested, &provided);
     if(provided < requested){
         printf("The MPI-provided thread behavior does not match\n");
@@ -72,6 +71,7 @@ int main(int argc, char *argv[]) {
     auto arg_kernel  = parser.GetValue<int>("--kernel", "the Green kernel 0=CHAT2, 1=LGF2, 2=HEJ2, 3=HEJ4, 4=HEJ6, 5=HEJ8, 6=HEJ10, 7=HEJ0", 0);
     auto arg_lda     = parser.GetValue<int>("--lda", "the leading dimension fo array, number of component  (1=scalar, 3=vector)", 1);
     auto arg_nsample = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
+    auto arg_outputdir = parser.GetValue<std::string>("--outdir", "the output directory for the error","./");
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});
@@ -84,12 +84,12 @@ int main(int argc, char *argv[]) {
     
     
     parser.Finalize();
-    
-    int *size = (int*) malloc((arg_nsample) * 3 * sizeof(int));
-    if (size==NULL){
-        exit(0); //we just printed help
+
+    int *size = (int *)validation_calloc((arg_nsample)*3 * sizeof(int));
+    if (size == NULL) {
+        MPI_Abort(MPI_COMM_WORLD, MPI_ERR_ASSERT);
     }
-    
+
     for (int i = 0; i < arg_nsample * 3; i += 3){
         size[i]   = arg_nres[0] * pow(2,i/3);
         size[i+1] = arg_nres[1] * pow(2,i/3);
@@ -123,6 +123,7 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < arg_nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
+        printf(" --outdir:%s\n",arg_outputdir.c_str());
     }
 
     //..........................................................................
@@ -146,7 +147,7 @@ int main(int argc, char *argv[]) {
         }
 
         // let's gooo
-        validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve);
+        validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve, arg_outputdir);
     }
 
     
