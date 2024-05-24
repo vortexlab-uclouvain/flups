@@ -2,6 +2,8 @@
 #define LGF_3UNB0SPE_HPP_
 
 #include <math.h>
+
+#pragma omp declare target
 void lgf_2_3unb0spe_expansion(double* G, const double n1, const double n2, const double n3, const double n) {
   const double n1_4 = pow(n1, 4);
   const double n1_6 = pow(n1, 6);
@@ -371,5 +373,6 @@ void mehr_6f_2unb0spe_expansion(double* G, const double n1, const double n2, con
   const double n2_16 = pow(n2, 16);
   G[0] = (0.02976190476190476 * n1_12 + -0.7738095238095238 * n1_10 * (n2 * n2) + 0.44642857142857145 * n1_8 * n2_4 + 2.5 * n1_6 * n2_6 + 0.44642857142857145 * n1_4 * n2_8 + -0.7738095238095238 * (n1 * n1) * n2_10 + 0.02976190476190476 * n2_12) / (M_PI * pow(n, 18)) + (-0.175 * n1_16 + 4.2 * n1_14 * (n2 * n2) + 6.3 * n1_12 * n2_4 + -15.4 * n1_10 * n2_6 + -34.65 * n1_8 * n2_8 + -15.4 * n1_6 * n2_10 + 6.3 * n1_4 * n2_12 + 4.2 * (n1 * n1) * n2_14 + -0.175 * n2_16) / (M_PI * pow(n, 24)) + -0.15915494309189535 * (1.6169364357414509 + log(n));
 }
+#pragma omp end declare target
 
 #endif

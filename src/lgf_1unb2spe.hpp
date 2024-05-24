@@ -8,6 +8,7 @@
 
 #include "defines.hpp"
 
+#pragma omp declare target
 namespace LGFOneUnbounded {
 
     // ----------------------------------------------------------------------------------------
@@ -170,7 +171,7 @@ namespace LGFOneUnbounded {
     real_t lgf2(int n, real_t c) {
         if (c < 0) {
             printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
-            abort();
+            // abort();
         } else if (c == 0.0) {
             return -0.5 * abs(n);
         } else if (c < lgf2_small_cutoff_) {
@@ -264,7 +265,7 @@ namespace LGFOneUnbounded {
     real_t lgf4(int n, real_t c) {
         if (c < 0) {
             printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
-            abort();
+            // abort();
         } else if (c == 0.0) {
             return lgf4_c_zero_(n);
         } else if (c < lgf4_small_cutoff_) {
@@ -351,7 +352,7 @@ namespace LGFOneUnbounded {
     real_t lgf6(int n, real_t c) {
         if (c < 0) {
             printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
-            abort();
+            // abort();
         } else if (c == 0.0) {
             return lgf6_c_zero_(n);
         } else if (c < lgf6_small_cutoff_) {
@@ -480,7 +481,7 @@ namespace LGFOneUnbounded {
     real_t lgf8(int n, real_t c) {
         if (c < 0) {
             printf("[LGFOneUnbounded] Argument error: c must be nonnegative");
-            abort();
+            // abort();
         } else if (c == 0.0) {
             return lgf8_c_zero_(n);
         } else if (c < lgf8_small_cutoff_) {
@@ -609,5 +610,6 @@ namespace LGFOneUnbounded {
         return base + (abs(n) == 1) * (b[2] / a[1]) + (n == 0) * (b[1]*a[1] - b[2]*a[0]) / (a[1]*a[1]);
     }
 };
+#pragma omp end declare target
 
 #endif

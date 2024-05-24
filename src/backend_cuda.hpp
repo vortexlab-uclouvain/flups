@@ -78,8 +78,8 @@ inline void flups_memset(void *ptr, int val, size_t size) {
 }
 
 inline void* flups_balloc(size_t size) {
-    size_t m_calloc_size_        = size + M_ALIGNMENT - 1;
-    size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % M_ALIGNMENT;
+    size_t m_calloc_size_        = size + FLUPS_ALIGNMENT - 1;
+    size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % FLUPS_ALIGNMENT;
     void*  ptr                   = omp_target_alloc(m_calloc_padded_size_, omp_get_default_device());
 
     flups_memset(ptr, 0, m_calloc_padded_size_);

@@ -891,8 +891,10 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
 #if (FLUPS_MPI_AGGRESSIVE)
-            switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
-                                          need_recv ? (*recv_buff)() : nullptr);
+            switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
+            // TODO(gilles): fix this
+            // switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
+            //                               need_recv ? (*recv_buff)() : nullptr);
 #else
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
 #endif
@@ -908,8 +910,17 @@ void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, m_ptr_t *send_buff
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #endif
 #if (FLUPS_MPI_AGGRESSIVE)
-    send_buff->free();
-    recv_buff->free();
+    if (*send_buff != NULL) {
+        flups_bfree(*send_buff);
+        (*send_buff) = NULL;
+    }
+    if (*recv_buff != NULL) {
+        flups_bfree(*recv_buff);
+        (*recv_buff) = NULL;
+    }
+    // TODO(gilles): fix this
+    // send_buff->free();
+    // recv_buff->free();
 #else
     if (*send_buff != NULL) {
         flups_bfree(*send_buff);

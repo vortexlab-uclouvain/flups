@@ -561,7 +561,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         //----------------------------------------------------------------------
         if (reset_first) {
             // we need to reset the first point of the memory space to 0
-if defined(FLUPS_CUDA_BACKEND)
+#if defined(FLUPS_CUDA_BACKEND)
 #pragma omp target teams distribute parallel for is_device_ptr(mydata)
 #else
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
@@ -577,7 +577,7 @@ if defined(FLUPS_CUDA_BACKEND)
         // Do last point 
         else if (reset_last) {
             // we need to reset the last point of the memory space to 0
-if defined(FLUPS_CUDA_BACKEND)
+#if defined(FLUPS_CUDA_BACKEND)
 #pragma omp target teams distribute parallel for is_device_ptr(mydata)
 #else
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
@@ -593,7 +593,7 @@ if defined(FLUPS_CUDA_BACKEND)
         //Do first and last point 
         else if (reset_first_last) {
             // we need to properly set the first and the last point of the transform to 0
-if defined(FLUPS_CUDA_BACKEND)
+#if defined(FLUPS_CUDA_BACKEND)
 #pragma omp target teams distribute parallel for is_device_ptr(mydata)
 #else
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
@@ -630,7 +630,7 @@ if defined(FLUPS_CUDA_BACKEND)
 
             // we need to properly copy the first point into the last point
             if(real_dmn){
-if defined(FLUPS_CUDA_BACKEND)
+#if defined(FLUPS_CUDA_BACKEND)
 #pragma omp target teams distribute parallel for is_device_ptr(mydata)
 #else
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
@@ -640,7 +640,7 @@ if defined(FLUPS_CUDA_BACKEND)
                     dataloc[nfftw] = dataloc[0];
                 }
             } else {
-if defined(FLUPS_CUDA_BACKEND)
+#if defined(FLUPS_CUDA_BACKEND)
 #pragma omp target teams distribute parallel for is_device_ptr(mydata)
 #else
 #pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
@@ -740,7 +740,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // get the memory
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    flups_execute_r2c(plan[lia], (double*)mydata + fftwstart_in_[lia], (fftw_complex*)mydata  + fftwstart_out_[lia]);
+                    flups_execute_r2c(plan[lia], (double*)mydata + fftwstart_in_[lia], (flups_complex*)mydata  + fftwstart_out_[lia]);
                 }
 
             } else {  // DFT - C2R
@@ -754,7 +754,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
                     double* mydata = (double*)data + lia * memdim + io * fftw_stride;
                     // execute the plan on it
-                    flups_execute_c2r(plan[lia], (fftw_complex*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
+                    flups_execute_c2r(plan[lia], (flups_complex*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
                 }
             }
 
@@ -769,7 +769,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 // we access complex info with a fftw_stride real
                 double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
                 // execute the plan on it
-                flups_execute_c2c(plan[lia], (fftw_complex*)mydata + fftwstart_in_[lia], (fftw_complex*) mydata + fftwstart_out_[lia]);
+                flups_execute_c2c(plan[lia], (flups_complex*)mydata + fftwstart_in_[lia], (flups_complex*) mydata + fftwstart_out_[lia], sign);
             }
         }
     }

@@ -463,19 +463,6 @@ GreenKernel hej_10_2unb1spe_r0_ = [](const void* params,const double* data) {
 
     return -c_1o2pi * (c_gamma * .5 - log(M_SQRT2 * sig) + c_25o24);
 };
-GreenKernel hej_0_2unb1spe_k0_ = [](const void* params,const double* data) {
-    //works as well for r0
-    const double r       = ((double*)params)[0];
-    const double sigma   = ((double*)params)[2]; // h/pi
-    const double rho     = r / sigma;
-
-    //Switching between the approximate G with sharp cutoff and the
-    // analytical singular solution. 
-    // CAUTION: the switch is done arbitrarily and abruplty, with no
-    //          mathematical reason. Hence, the result is likely inaccurate.
-    const double tmp = c_1o2pi * (Ji0c(rho) + log(2 * sigma) - c_gamma);
-    return (rho<30.0) ? tmp : c_1o2pi * log(r); 
-};
 GreenKernel zero_ = [](const void* params,const double* data) {   
     return 0.0;
 };
@@ -498,6 +485,21 @@ GreenKernel chat_2_2unb1spe_k0_ = [](const void* params,const double* data) {
     return  c_1o2pi * log(r) ; //caution: mistake on the sign in [Chatelain2010]
 };
 #pragma omp end declare target
+
+// This kernel does not work on the GPU
+GreenKernel hej_0_2unb1spe_k0_ = [](const void* params,const double* data) {
+    //works as well for r0
+    const double r       = ((double*)params)[0];
+    const double sigma   = ((double*)params)[2]; // h/pi
+    const double rho     = r / sigma;
+
+    //Switching between the approximate G with sharp cutoff and the
+    // analytical singular solution.
+    // CAUTION: the switch is done arbitrarily and abruplty, with no
+    //          mathematical reason. Hence, the result is likely inaccurate.
+    const double tmp = c_1o2pi * (Ji0c(rho) + log(2 * sigma) - c_gamma);
+    return (rho<30.0) ? tmp : c_1o2pi * log(r);
+};
 /**@} */
 
 /**

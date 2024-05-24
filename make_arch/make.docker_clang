@@ -29,7 +29,7 @@ HDF5_INC := /usr/include
 HDF5_LIBNAME := -lhdf5_openmpi
 
 ## Specify the location of H3LPR
-H3LPR_DIR := ${HOME}/h3lpr
+H3LPR_DIR := /soft/h3lpr
 H3LPR_LIB := ${H3LPR_DIR}/lib
 H3LPR_INC := ${H3LPR_DIR}/include
 

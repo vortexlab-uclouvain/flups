@@ -118,7 +118,7 @@ void Solver::dothemagic_rot_complex_o6(double *data,const double koffset[3],cons
 #if (KIND == 01 || KIND == 11)
 #pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart)
 #elif (KIND == 02 || KIND == 12 || KIND == 04 || KIND == 14 || KIND == 06 || KIND == 16)
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart,hgrid) firstprivate(c_4o3,c_1o6,c_3o2,c_3o10,c_1o30)
+#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf, nloc_ax1,kfact,koffset,symstart,istart,hgrid)
 #endif
     for (size_t io = 0; io < ondim; io++) {
         // get the starting pointer
