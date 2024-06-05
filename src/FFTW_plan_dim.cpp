@@ -716,60 +716,40 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     //-------------------------------------------------------------------------
     // incomming arrays depends if we are a complex switcher or not
     if (type_ == SYMSYM || type_ == MIXUNB) {  // R2R
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
-#endif
-        for (size_t id = 0; id < onmax; id++) {
-            size_t lia = id / howmany;
-            size_t io  = id % howmany;
-            // get the memory
-            double* mydata = (double*)data + lia * memdim + io * fftw_stride;
-            // execute the plan on it
-            flups_execute_r2r(plan[lia], (double*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
+        for (int lia = 0; lia < lda_; lia++) {
+            // get the memory offset
+            int offset = lia*memdim + fftwstart_in_[lia];
+            // execute the plan
+            flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset));
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
             if (sign_ == FLUPS_FORWARD) {  // DFT - R2C
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage");
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
-#endif
-                for (size_t id = 0; id < onmax; id++) {
-                    size_t lia = id / howmany;
-                    size_t io  = id % howmany;
-                    // get the memory
-                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
-                    // execute the plan on it
-                    flups_execute_r2c(plan[lia], (double*)mydata + fftwstart_in_[lia], (flups_complex*)mydata  + fftwstart_out_[lia]);
+                for (int lia = 0; lia < lda_; lia++) {
+                    // get the memory offset
+                    int offset = lia*memdim + fftwstart_in_[lia];
+                    // execute the plan
+                    flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data + offset));
                 }
 
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
-#endif
-                for (size_t id = 0; id < onmax; id++) {
-                    size_t lia = id / howmany;
-                    size_t io  = id % howmany;
-                    // WARNING the stride is given in the input size =  REAL => id * fftw_stride_/2 * nf = id * fftw_stride_
-                    double* mydata = (double*)data + lia * memdim + io * fftw_stride;
-                    // execute the plan on it
-                    flups_execute_c2r(plan[lia], (flups_complex*)mydata + fftwstart_in_[lia], (double*)mydata + fftwstart_out_[lia]);
+                for (int lia = 0; lia < lda_; lia++) {
+                    // get the memory offset
+                    int offset = lia*memdim + fftwstart_in_[lia];
+                    // execute the plan
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
                 }
             }
 
         } else {  // DFT
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(plan, data, fftw_stride, onmax, howmany, memdim, fftwstart_in_, fftwstart_out_)
-#endif
-            for (size_t id = 0; id < onmax; id++) {
-                size_t lia = id / howmany;
-                size_t io  = id % howmany;
-                // we access complex info with a fftw_stride real
-                double* mydata = (double*)data + lia * memdim + io * fftw_stride * 2;
-                // execute the plan on it
-                flups_execute_c2c(plan[lia], (flups_complex*)mydata + fftwstart_in_[lia], (flups_complex*) mydata + fftwstart_out_[lia], sign);
+            for (int lia = 0; lia < lda_; lia++) {
+                // get the memory offset
+                int offset = lia*memdim + fftwstart_in_[lia];
+                // execute the plan
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
             }
         }
     }
