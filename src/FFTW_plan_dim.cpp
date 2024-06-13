@@ -718,9 +718,9 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     if (type_ == SYMSYM || type_ == MIXUNB) {  // R2R
         for (int lia = 0; lia < lda_; lia++) {
             // get the memory offset
-            int offset = lia*memdim + fftwstart_in_[lia];
+            int offset = lia*memdim;
             // execute the plan
-            flups_execute_r2r(plan[lia], (double*)(data + offset), (double*)(data + offset));
+            flups_execute_r2r(plan[lia], (double*)(data + offset + fftwstart_in_[lia]), (double*)(data + offset + fftwstart_out_[lia]));
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
@@ -728,18 +728,18 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 FLUPS_CHECK(topo->nf() == 1, "nf should be 1 at this stage");
                 for (int lia = 0; lia < lda_; lia++) {
                     // get the memory offset
-                    int offset = lia*memdim + fftwstart_in_[lia];
+                    int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_r2c(plan[lia], (double*)(data + offset), (flups_complex*)(data + offset));
+                    flups_execute_r2c(plan[lia], (double*)(data + offset + fftwstart_in_[lia]), (flups_complex*)(data + offset + fftwstart_out_[lia]));
                 }
 
             } else {  // DFT - C2R
                 FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
                 for (int lia = 0; lia < lda_; lia++) {
                     // get the memory offset
-                    int offset = lia*memdim + fftwstart_in_[lia];
+                    int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset), (double*)(data + offset));
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset + fftwstart_in_[lia]), (double*)(data + offset + fftwstart_out_[lia]));
                 }
             }
 
@@ -747,9 +747,9 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             FLUPS_CHECK(topo->nf() == 2, "nf should be 2 at this stage");
             for (int lia = 0; lia < lda_; lia++) {
                 // get the memory offset
-                int offset = lia*memdim + fftwstart_in_[lia];
+                int offset = lia*memdim;
                 // execute the plan
-                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset), (flups_complex*)(data + offset), sign);
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset + fftwstart_in_[lia]), (flups_complex*)(data + offset + fftwstart_out_[lia]), sign);
             }
         }
     }
