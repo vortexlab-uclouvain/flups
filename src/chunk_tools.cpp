@@ -385,9 +385,9 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
 
     FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel proc_bind(close)
-#endif
+    // local definition of nmem for the capture by value
+    const int nmem_[3] = {nmem[0], nmem[1], nmem[2]};
+
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr src_data;
@@ -398,24 +398,19 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         // the chunk must be aligned all the time
         FLUPS_CHECK(m_isaligned(src_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp for schedule(static)
-#else
-#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(src_data, trg_data) \
-        firstprivate(src_data, trg_data, n_loop, ax0, nf, nmax) map(to: nmem[:3], isize[:3], ax[:3])
-#endif
-        for (int il = 0; il < n_loop; ++il) {
-            // get the local indexes (we cannot used the collaspedIndex one!!!)
-            const int i2 = il / (isize[ax[1]]);
-            const int i1 = il % (isize[ax[1]]);
-            // get the starting adddress for the memcpy
-            const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
-            double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-
-            for (int in = 0; in < nmax; ++in) {
-                vtrg[in] = vsrc[in];
-            }
-        }
+        // define the operator
+        auto op = m_kernel(const int idx) {
+            // get the local indexes
+            const int i0 = idx % nmax;
+            const int i1 = (idx / nmax) % isize[ax[1]];
+            const int i2 = idx / (nmax * isize[ax[1]]);
+            // get the starting address
+            const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
+            double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
+            // copy the data
+            vtrg[i0] = vsrc[i0];
+        };
+        for_loop(op, n_loop * nmax, "CopyChunk2Data");
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -439,9 +434,9 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[1], chunk->isize[1], nmem[1]);
     FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[2], chunk->isize[2], nmem[2]);
 
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel proc_bind(close)
-#endif
+    // local definition of nmem for the capture by value
+    const int nmem_[3] = {nmem[0], nmem[1], nmem[2]};
+
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr trg_data = chunk->data + chunk->size_padded * lia;
@@ -454,24 +449,19 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_INFO("copy %zu bytes in %zu loops", nmax*sizeof(double), n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp for schedule(static)
-#else
-#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(src_data, trg_data) \
-        firstprivate(src_data, trg_data, n_loop, ax0, nf, nmax) map(to: nmem[:3], isize[:3], ax[:3])
-#endif
-        for (int il = 0; il < n_loop; ++il) {
-            // get the local indexes (we cannot used the collaspedIndex one!!!)
-            const int i2                  = il / (isize[ax[1]]);
-            const int i1                  = il % (isize[ax[1]]);
+        // define the operator
+        auto op = m_kernel(const int idx) {
+            // get the local indexes
+            const int i0 = idx % nmax;
+            const int i1 = (idx / nmax) % isize[ax[1]];
+            const int i2 = idx / (nmax * isize[ax[1]]);
             // get the starting adddress for the memcpy
-            const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
-
-            for (int in = 0; in < nmax; ++in) {
-                vtrg[in] = vsrc[in];
-            }
-        }
+            const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
+            double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
+            // copy the data
+            vtrg[i0] = vsrc[i0];
+        };
+        for_loop(op, n_loop * nmax, "CopyData2chunk");
     }
     //--------------------------------------------------------------------------
     END_FUNC;

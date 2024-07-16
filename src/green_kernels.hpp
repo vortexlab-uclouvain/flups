@@ -768,6 +768,13 @@ GreenKernel chat_2_0unb3spe_ = [](const void* params,const double* data) {
 
     return - 1.0 / ksqr;
 };
+
+__device__ double chat_2_0unb3spe_device_(const void* params,const double* data) {
+    const double ksqr   = ((double*)params) [0];
+
+    return - 1.0 / ksqr;
+}
+
 GreenKernel lgf_2_0unb3spe_ = [](const void* params, const double* data) {
     const double k[3] = {((double*)params)[2], ((double*)params)[3], ((double*)params)[4]};
     const double h  = ((double*)params)[5];

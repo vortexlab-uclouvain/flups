@@ -343,7 +343,7 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
  * @param lda leading dimension of array, number of vector components
  * @return size_t 
  */
-static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+static inline size_t __host__ __device__ localIndex(const int axsrc, const int i0, const int i1, const int i2,
                                 const int axtrg, const int size[3], const int nf, const int lda) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
@@ -371,7 +371,7 @@ static inline size_t localIndex(const int axsrc, const int i0, const int i1, con
  * @param nf the number of unknows in one element
  * @return size_t 
  */
-static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
+static inline __host__ __device__ size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
     const int ax0  = axsrc;
     return i0 * nf + size[ax0] * nf * id;
 }
@@ -431,7 +431,7 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
  * The final formula is then ( in the X direction):
  *      `max( abs(2.0 symstart[0] - ix) , 1)`
  */
-inline static void cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+inline static void __host__ __device__ cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration
     const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
     // cmpt the shift in axis and the axis for the symstart

@@ -2,16 +2,18 @@ CXX = mpic++
 CC  = mpicc
 
 ## Compile & linker flags
-CXXFLAGS := -fPIC -g -O3 -fopenmp -std=c++17 -Wno-format-security -DPROF
-LDFLAGS  := -fPIC -g -O3 -fopenmp -lstdc++   -lm
-
-## Debug flags
-#CXXFLAGS += -DVERBOSE
+CXXFLAGS := -fPIC -g -O3 -std=c++17 -Wno-format-security -DPROF
+LDFLAGS  := -fPIC -g -O3 -lstdc++   -lm
 
 ## GPU-related stuff
-OPTS     += -DFLUPS_CUDA_BACKEND
-CXXFLAGS += -fopenmp-targets=nvptx64-nvidia-cuda
-LDFLAGS  += -fopenmp-targets=nvptx64-nvidia-cuda
+OPTS     += -DFLUPS_CUDA_BACKEND -DWITHOUT_OPENMP
+CXXFLAGS += -x cuda --cuda-gpu-arch=sm_86
+LDFLAGS  +=
+
+## Asan flags
+## Note: export ASAN_OPTIONS=protect_shadow_gap=0:use_sigaltstack=0 before running
+#CXXFLAGS += -fsanitize=address -fsanitize=undefined
+#LDFLAGS  += -fsanitize=address -fsanitize=undefined
 
 ## CUDA
 CUDA_DIR := /usr/local/cuda

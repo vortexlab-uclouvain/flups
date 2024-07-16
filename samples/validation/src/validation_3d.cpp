@@ -28,8 +28,6 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "omp.h"
-
 using namespace std;
 
 void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const std::string output_dir) {
@@ -98,7 +96,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string     name = "validation_nx" + std::to_string((int)(nglob[0])) + "_ny" + std::to_string((int)(nglob[1])) + "_nz" + std::to_string((int)(nglob[2])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string     name = "validation_nx" + std::to_string((int)(nglob[0])) + "_ny" + std::to_string((int)(nglob[1])) + "_nz" + std::to_string((int)(nglob[2])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
 
     m_profStart(prof, "Validation--Init-Flups");

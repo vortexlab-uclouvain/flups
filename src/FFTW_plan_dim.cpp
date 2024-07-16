@@ -561,51 +561,39 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         //----------------------------------------------------------------------
         if (reset_first) {
             // we need to reset the first point of the memory space to 0
-#if defined(FLUPS_CUDA_BACKEND)
-#pragma omp target teams distribute parallel for is_device_ptr(mydata)
-#else
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-#endif
-            for (size_t io = 0; io < howmany; io++) {
+            auto op = m_kernel(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the first point of each 1-D transform
                 dataloc[0] = 0.0;
-            }
+            };
+            for_loop(op, howmany, "reset first correction");
         }
         //----------------------------------------------------------------------
         // Do last point 
         else if (reset_last) {
             // we need to reset the last point of the memory space to 0
-#if defined(FLUPS_CUDA_BACKEND)
-#pragma omp target teams distribute parallel for is_device_ptr(mydata)
-#else
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-#endif
-            for (size_t io = 0; io < howmany; io++) {
+            auto op = m_kernel(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the last point of each 1-D transform
                 dataloc[nloc - 1] = 0.0;
-            }
+            };
+            for_loop(op, howmany, "reset last correction");
         }
         //----------------------------------------------------------------------
         //Do first and last point 
         else if (reset_first_last) {
             // we need to properly set the first and the last point of the transform to 0
-#if defined(FLUPS_CUDA_BACKEND)
-#pragma omp target teams distribute parallel for is_device_ptr(mydata)
-#else
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nloc)
-#endif
-            for (size_t io = 0; io < howmany; io++) {
+            auto op = m_kernel(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + io * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the first point
                 dataloc[0] = 0.0;
                 // reset the last point
                 dataloc[nloc - 1] = 0.0;
-            }
+            };
+            for_loop(op, howmany, "reset first and last correction");
         }
         //----------------------------------------------------------------------
         // Enforce period
@@ -629,28 +617,23 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             const bool real_dmn = ((isr2c_) && (FLUPS_BACKWARD == sign_)) ? true : false;
 
             // we need to properly copy the first point into the last point
-            if(real_dmn){
-#if defined(FLUPS_CUDA_BACKEND)
-#pragma omp target teams distribute parallel for is_device_ptr(mydata)
-#else
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
-#endif
-                for (size_t io = 0; io < howmany; io++) {
-                    opt_double_ptr dataloc = mydata + io * fftw_stride;
-                    dataloc[nfftw] = dataloc[0];
-                }
-            } else {
-#if defined(FLUPS_CUDA_BACKEND)
-#pragma omp target teams distribute parallel for is_device_ptr(mydata)
-#else
-#pragma omp parallel for proc_bind(close) schedule(static) default(none) firstprivate(mydata, fftw_stride, howmany, nfftw)
-#endif
-                for (size_t io = 0; io < howmany; io++) {
+            if (real_dmn) {
+                auto op = m_kernel(const int idx) {
                     // get the memory
-                    opt_double_ptr dataloc = mydata + io * fftw_stride;
-                    dataloc[2*nfftw] = dataloc[0];
+                    opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                    // copy the first point into the last point
+                    dataloc[nfftw] = dataloc[0];
+                };
+                for_loop(op, howmany, "enforce period correction (real)");
+
+            } else {
+                auto op = m_kernel(const int idx) {
+                    opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                    // copy the first point into the last point
+                    dataloc[2*nfftw]     = dataloc[0];
                     dataloc[2*nfftw + 1] = dataloc[1];
-                }
+                };
+                for_loop(op, howmany, "enforce period correction (complex)");
             }
         }
         //----------------------------------------------------------------------

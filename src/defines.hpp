@@ -182,18 +182,6 @@
 #endif
 
 //==============================================================================
-
-
-// #if (FLUPS_MPI_AGGRESSIVE)
-// #if (FLUPS_MPI_ALLOC)
-// using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
-// #else
-// using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
-// #endif
-// #endif
-
-using m_ptr_t = double*;
-
 /**
  * @brief allocates size bytes using the flups allocation (alignement)
  *
@@ -340,14 +328,19 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
 }
 
 #if defined(FLUPS_CUDA_BACKEND)
-typedef int* __restrict opt_int_ptr;
-typedef double* __restrict opt_double_ptr;
-typedef fftw_complex* __restrict opt_complex_ptr;
+typedef int* opt_int_ptr;
+typedef double* opt_double_ptr;
+typedef fftw_complex* opt_complex_ptr;
 #else
 typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 #endif
+
+// Alias for the pointer type
+// Should be handled by H3LPR, but for now define it internally as
+// H3LPR doesn't support device memory allocation yet
+using m_ptr_t = opt_double_ptr;
 
 #define m_profStarti(prof, name, ...)                                    \
     ({                                                                   \

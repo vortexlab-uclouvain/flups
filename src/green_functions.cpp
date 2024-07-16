@@ -175,8 +175,10 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const bool is_mehr = (typeGreen == MEHR_4F || typeGreen == MEHR_6F || typeGreen == MEHR_4L || typeGreen == MEHR_6L);
     const bool correct_istart = (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0);
     if (!is_lgf && !is_mehr && correct_istart) {
-        #pragma omp target is_device_ptr(green)
-        green[0] = G0;
+        auto op = m_kernel(const int idx) {
+            green[idx] = G0;
+        };
+        for_loop(op, 1, "3unb green reset");
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -412,9 +414,11 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        // green[0] = -2.0 * log(1 + sqrt(2)) * c_1opiE3o2 / r_eq2D;
-        #pragma omp target is_device_ptr(green)
-        green[0] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));  //caution: mistake in [Chatelain2010]
+        auto op = m_kernel(const int idx) {
+            //caution: mistake in [Chatelain2010]
+            green[idx] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));
+        };
+        for_loop(op, 1, "2unb green reset");
     }
     END_FUNC;
 }
@@ -524,9 +528,6 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     const int ax2     = (ax0 + 2) % 3;
     const int nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    // FLUPS_INFO("KFAC= %lf %lf %lf", kfact[0],kfact[1],kfact[2]);
-    // FLUPS_INFO("Koff= %lf %lf %lf", koffset[0],koffset[1],koffset[2]);
-    // FLUPS_INFO("HFAC= %lf %lf %lf", hfact[0],hfact[1],hfact[2]);
 
 #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
         firstprivate(ax0, ax1, ax2, length, nf) \
@@ -695,6 +696,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     }
     const int is[3] = {is_[0], is_[1], is_[2]};
     const int ie[3] = {ie_[0], ie_[1], ie_[2]};
+    const int ni[3] = {ie[0] - is[0], ie[1] - is[1], ie[2] - is[2]};
 
     const int nf      = topo->nf();
     const int ax0     = topo->axis();
@@ -702,38 +704,43 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     const int ax2     = (ax0 + 2) % 3;
     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
-#pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-        firstprivate(ie, is, istart, nmem) \
-        map(to: kfact[:3], koffset[:3], symstart[:3])
-    for (int i2 = is[ax2]; i2 < ie[ax2]; i2++) {
-        for (int i1 = is[ax1]; i1 < ie[ax1]; i1++) {
-            //local indexes start
-            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            for (int i0 = is[ax0]; i0 < ie[ax0]; i0++) {
-                int il[3];
-                cmpt_symID(ax0, i0, i1, i2, istart, symstart, 0, il);
-                //the previous call works with koffset below because there is never a shiftgreen AND a symstart together
+    // redefine kfact, koffset & symstart for the capture by value
+    const double kfact_[3]    = {kfact[0], kfact[1], kfact[2]};
+    const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
+    const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-                // (symmetrized) wave number
-                const double k0 = (il[ax0] + koffset[ax0]) * kfact[ax0];
-                const double k1 = (il[ax1] + koffset[ax1]) * kfact[ax1];
-                const double k2 = (il[ax2] + koffset[ax2]) * kfact[ax2];
+    auto op = m_kernel(const int idx) {
+        // unroll the index
+        const int i0 = idx % ni[0] + is[ax0];
+        const int i1 = (idx / ni[0]) % ni[1] + is[ax1];
+        const int i2 = idx / (ni[0] * ni[1]) + is[ax2];
 
-                // green function value
-                const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
+        // local index start
+        const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-                // const double tmp[2] = {ksqr, eps};
-                const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
+        int il[3];
+        cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, il);
+    
+        // (symmetrized) wave number
+        const double k0 = (il[ax0] + koffset_[ax0]) * kfact_[ax0];
+        const double k1 = (il[ax1] + koffset_[ax1]) * kfact_[ax1];
+        const double k2 = (il[ax2] + koffset_[ax2]) * kfact_[ax2];
 
-                green[id + i0 * nf] = (*G)(tmp, NULL);
-            }
-        }
-    }
+        // green function value
+        const double ksqr = k0 * k0 + k1 * k1 + k2 * k2;
+        const double tmp[6] = {ksqr, length, k0, k1, k2, hgrid};
+
+        green[id + i0 * nf] = chat_2_0unb3spe_device_(tmp, NULL);
+    };
+    for_loop(op, ni[0] * ni[1] * ni[2], "0unb green");
+
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        #pragma omp target is_device_ptr(green)
-        green[0] = 0.0;
+        auto op = m_kernel(const int idx) {
+            green[idx] = 0.0;
+        };
+        for_loop(op, 1, "0unb green reset");
     }
     END_FUNC;
 }

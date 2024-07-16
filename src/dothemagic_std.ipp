@@ -74,39 +74,32 @@ void Solver::dothemagic_std_complex(double *data) {
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, ondim, inmax, memdim, nmem, mydata, mygreen, normfact, ax0, nf)
-#else
-#pragma omp target teams distribute parallel for is_device_ptr(mydata, mygreen) collapse(2) \
-        schedule(static) firstprivate(onmax, ondim, inmax, memdim, nmem, normfact, ax0, nf)
-#endif
-    for (size_t id = 0; id < onmax; id++) {
-        // get the lia and the io index
-        const size_t lia = id / ondim;
-        const size_t io  = id % ondim;
+    auto op = m_kernel(const int idx) {
+        // unroll the index
+        const int ii = idx % inmax;
+        const int io = (idx / inmax) % ondim;
+        const int lia = idx / (inmax * ondim);
 
         // get the starting pointer
         opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);  //lda of Green is only 1
         opt_double_ptr dataloc  = mydata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
-
-        FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
+        FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
 
         // do the actual convolution
-        for (size_t ii = 0; ii < inmax; ii++) {
 #if (KIND == 0)
-            dataloc[ii] *= normfact * greenloc[ii];
+        dataloc[ii] *= normfact * greenloc[ii];
 #elif (KIND == 1)
-            const double a = dataloc[ii * 2 + 0];
-            const double b = dataloc[ii * 2 + 1];
-            const double c = greenloc[ii * 2 + 0];
-            const double d = greenloc[ii * 2 + 1];
-            // update the values
-            dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
-            dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
+        const double a = dataloc[ii * 2 + 0];
+        const double b = dataloc[ii * 2 + 1];
+        const double c = greenloc[ii * 2 + 0];
+        const double d = greenloc[ii * 2 + 1];
+        // update the values
+        dataloc[ii * 2 + 0] = normfact * (a * c - b * d);
+        dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
 #endif
-        }
-    }
+    };
+    for_loop(op, onmax * inmax, "convolution");
 
     END_FUNC;
 }

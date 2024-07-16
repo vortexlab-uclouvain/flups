@@ -1185,20 +1185,15 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
 
     // do the loop
-#if defined(FLUPS_FFTW_BACKEND)
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact, ax0)
-#else
-#pragma omp target teams distribute parallel for is_device_ptr(data) collapse(2) \
-        schedule(static) firstprivate(nmem)
-#endif
-    for (int io = 0; io < onmax; io++) {
+    auto op = m_kernel(const int idx) {
+        const int io = idx / inmax;
+        const int ii = idx % inmax;
+
         opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
-        // set the alignment
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-        for (size_t ii = 0; ii < inmax; ii++) {
-            dataloc[ii] = dataloc[ii] * volfact;
-        }
-    }
+        dataloc[ii] *= volfact;
+    };
+    for_loop(op, onmax * inmax, "scale green");
 
     if (killModeZero) {
         int istart[3];
@@ -1357,9 +1352,11 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
     }
 #else
     if (sign == FLUPS_FORWARD) {
-        omp_target_memcpy(owndata, argdata, memdim*sizeof(double), 0, 0, omp_get_default_device(), omp_get_initial_device());
+        m_cudart_check_errors(
+            cudaMemcpy(owndata, argdata, memdim*sizeof(double), cudaMemcpyHostToDevice));
     } else {
-        omp_target_memcpy(argdata, owndata, memdim*sizeof(double), 0, 0, omp_get_initial_device(), omp_get_default_device());
+        m_cudart_check_errors(
+            cudaMemcpy(argdata, owndata, memdim*sizeof(double), cudaMemcpyDeviceToHost));
     }
 #endif
     
