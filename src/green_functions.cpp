@@ -440,135 +440,137 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
     BEGIN_FUNC;
 
-//     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
-//     FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]");
-//     FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]");
-//     // check that if hfact or kfact != 0, they are not the same
-//     FLUPS_CHECK(!(kfact[2] == hfact[2] && (kfact[2]!= 0.0 || hfact[2] != 0.0)), "grid spacing[2] cannot be = to dk[2]");
+    // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
+    FLUPS_CHECK(kfact[0] != hfact[0], "grid spacing[0] cannot be = to dk[0]");
+    FLUPS_CHECK(kfact[1] != hfact[1], "grid spacing[1] cannot be = to dk[1]");
+    // check that if hfact or kfact != 0, they are not the same
+    FLUPS_CHECK(!(kfact[2] == hfact[2] && (kfact[2]!= 0.0 || hfact[2] != 0.0)), "grid spacing[2] cannot be = to dk[2]");
 
-//     // @Todo For Helmolz, we need Green to be complex 
-//     // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
-//     // double* mygreen = green; //casting of the Green function to be able to access real and complex part
+    // @Todo For Helmolz, we need Green to be complex 
+    // FLUPS_CHECK(topo->isComplex(), "I can't fill a non complex topo with a complex green function.");
+    // double* mygreen = green; //casting of the Green function to be able to access real and complex part
 
-//     GreenKernel *G;   // the Green kernel (general expression in the whole domain)
-//     GreenKernel *G0;  // the Green kernel (particular expression in k=0)
+    GreenKernel G;   // the Green kernel (general expression in the whole domain)
+    GreenKernel G0;  // the Green kernel (particular expression in k=0)
 
-//     switch (typeGreen) {
-//         case HEJ_2:
-//             G  = &hej_2_1unb2spe_;
-//             G0 = &hej_2_1unb2spe_k0_;
-//             break;
-//         case HEJ_4:
-//             G  = &hej_4_1unb2spe_;
-//             G0 = &hej_4_1unb2spe_k0_;
-//             break;
-//         case HEJ_6:
-//             G  = &hej_6_1unb2spe_;
-//             G0 = &hej_6_1unb2spe_k0_;
-//             break;
-//         case HEJ_8:
-//             G  = &hej_8_1unb2spe_;
-//             G0 = &hej_8_1unb2spe_k0_;
-//             break;
-//         case HEJ_10:
-//             G  = &hej_10_1unb2spe_;
-//             G0 = &hej_10_1unb2spe_k0_;
-//             break;        
-//         case HEJ_0:
-//             FLUPS_CHECK(false, "HEJ0 kernel not available for 1D unbounded problems.");
-//             break;        
-//         case CHAT_2:
-//             G  = &chat_2_1unb2spe_;
-//             G0 = &chat_2_1unb2spe_k0_;
-//             break;
-//         case LGF_2:
-//             // FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-//             G  = &lgf_2_1unb2spe_;
-//             G0 = &lgf_2_1unb2spe_;
-//             break;
-//         case LGF_4:
-//             G  = &lgf_4_1unb2spe_;
-//             G0 = &lgf_4_1unb2spe_;
-//             break;
-//         case LGF_6:
-//             G  = &lgf_6_1unb2spe_;
-//             G0 = &lgf_6_1unb2spe_;
-//             break;
-//         case LGF_8:
-//             G  = &lgf_8_1unb2spe_;
-//             G0 = &lgf_8_1unb2spe_;
-//             break;
-//         case MEHR_4L:
-//             G  = &mehr_4l_1unb2spe_;
-//             G0 = &mehr_4l_1unb2spe_;
-//             break;
-//         case MEHR_6L:
-//             G  = &mehr_6l_1unb2spe_;
-//             G0 = &mehr_6l_1unb2spe_;
-//             break;
-//             break;
-//         case MEHR_4F:
-//             G  = &mehr_4f_1unb2spe_;
-//             G0 = &mehr_4f_1unb2spe_;
-//             break;
-//         case MEHR_6F:
-//             G  = &mehr_6f_1unb2spe_;
-//             G0 = &mehr_6f_1unb2spe_;
-//             break;
-//         default:
-//             FLUPS_CHECK(false, "Green Function type unknown.");
-//     }
+    switch (typeGreen) {
+        case HEJ_2:
+            cudaMemcpyFromSymbol(&G, hej_2_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, hej_2_1unb2spe_k0, sizeof(GreenKernel));
+            break;
+        case HEJ_4:
+            cudaMemcpyFromSymbol(&G, hej_4_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, hej_4_1unb2spe_k0, sizeof(GreenKernel));
+            break;
+        case HEJ_6:
+            cudaMemcpyFromSymbol(&G, hej_6_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, hej_6_1unb2spe_k0, sizeof(GreenKernel));
+            break;
+        case HEJ_8:
+            cudaMemcpyFromSymbol(&G, hej_8_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, hej_8_1unb2spe_k0, sizeof(GreenKernel));
+            break;
+        case HEJ_10:
+            cudaMemcpyFromSymbol(&G, hej_10_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, hej_10_1unb2spe_k0, sizeof(GreenKernel));
+            break;        
+        case HEJ_0:
+            FLUPS_CHECK(false, "HEJ0 kernel not available for 1D unbounded problems.");
+            break;        
+        case CHAT_2:
+            cudaMemcpyFromSymbol(&G, chat_2_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, chat_2_1unb2spe_k0, sizeof(GreenKernel));
+            break;
+        case LGF_2:
+            cudaMemcpyFromSymbol(&G, lgf_2_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, lgf_2_1unb2spe, sizeof(GreenKernel));
+            break;
+        case LGF_4:
+            cudaMemcpyFromSymbol(&G, lgf_4_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, lgf_4_1unb2spe, sizeof(GreenKernel));
+            break;
+        case LGF_6:
+            cudaMemcpyFromSymbol(&G, lgf_6_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, lgf_6_1unb2spe, sizeof(GreenKernel));
+            break;
+        case LGF_8:
+            cudaMemcpyFromSymbol(&G, lgf_8_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, lgf_8_1unb2spe, sizeof(GreenKernel));
+            break;
+        case MEHR_4L:
+            cudaMemcpyFromSymbol(&G, mehr_4l_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, mehr_4l_1unb2spe, sizeof(GreenKernel));
+            break;
+        case MEHR_6L:
+            cudaMemcpyFromSymbol(&G, mehr_6l_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, mehr_6l_1unb2spe, sizeof(GreenKernel));
+            break;
+        case MEHR_4F:
+            cudaMemcpyFromSymbol(&G, mehr_4f_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, mehr_4f_1unb2spe, sizeof(GreenKernel));
+            break;
+        case MEHR_6F:
+            cudaMemcpyFromSymbol(&G, mehr_6f_1unb2spe, sizeof(GreenKernel));
+            cudaMemcpyFromSymbol(&G0, mehr_6f_1unb2spe, sizeof(GreenKernel));
+            break;
+        default:
+            FLUPS_CHECK(false, "Green Function type unknown.");
+    }
 
-//     int istart[3];
-//     topo->get_istart_glob(istart);
+    int istart[3];
+    topo->get_istart_glob(istart);
 
-//     const int nf      = topo->nf();
-//     const int ax0     = topo->axis();
-//     const int ax1     = (ax0 + 1) % 3;
-//     const int ax2     = (ax0 + 2) % 3;
-//     const int nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
-//     const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
+    const int nf      = topo->nf();
+    const int ax0     = topo->axis();
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nloc[3] = {topo->nloc(0), topo->nloc(1), topo->nloc(2)};
+    const int nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
 
-// #pragma omp target teams distribute parallel for collapse(2) is_device_ptr(green) \
-//         firstprivate(ax0, ax1, ax2, length, nf) \
-//         map(to: kfact[:3], nloc[:3], koffset[:3], hfact[:3], istart[:3], symstart[:3])
-//     for (int i2 = 0; i2 < nloc[ax2]; i2++) {
-//         for (int i1 = 0; i1 < nloc[ax1]; i1++) {
-//             //local indexes start
-//             const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+    // redefine kfact, koffset & symstart for the capture by value
+    const double hfact_[3]    = {hfact[0], hfact[1], hfact[2]};
+    const double kfact_[3]    = {kfact[0], kfact[1], kfact[2]};
+    const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
+    const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-//             for (int i0 = 0; i0 < nloc[ax0]; i0++) {
-//                 int is[3];
-//                 cmpt_symID(ax0,i0,i1,i2,istart,symstart,0,is);
+    auto op = m_kernel(const int idx) {
+        // unroll the index
+        const int i0 = idx % nloc[ax0];
+        const int i1 = (idx / nloc[ax0]) % nloc[ax1];
+        const int i2 = idx / (nloc[ax0] * nloc[ax1]);
 
-//                 // (symmetrized) wave number : only 1 kfact is zero
-//                 const double k0 = (is[ax0] + koffset[ax0]) * kfact[ax0];
-//                 const double k1 = (is[ax1] + koffset[ax1]) * kfact[ax1];
-//                 const double k2 = (is[ax2] + koffset[ax2]) * kfact[ax2];
-//                 const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
+        // local index start
+        const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
 
-//                 //(symmetrized) position : only 1 hfact is non-zero
-//                 const double x0 = (is[ax0]) * hfact[ax0];
-//                 const double x1 = (is[ax1]) * hfact[ax1];
-//                 const double x2 = (is[ax2]) * hfact[ax2];
-//                 const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
-//                 const double h = hfact[ax0] + hfact[ax1] + hfact[ax2];
+        int is[3];
+        cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
+    
+        // (symmetrized) wave number : only 1 kfact is zero
+        const double k0 = (is[ax0] + koffset_[ax0]) * kfact_[ax0];
+        const double k1 = (is[ax1] + koffset_[ax1]) * kfact_[ax1];
+        const double k2 = (is[ax2] + koffset_[ax2]) * kfact_[ax2];
+        const double k  = sqrt(k0 * k0 + k1 * k1 + k2 * k2);
 
-//                 // GF parameters: k0, k1, k2, and h are for LGFs only
-//                 const double tmp[7] = {r, k, length, k0, k1, k2, h};
+        //(symmetrized) position : only 1 hfact is non-zero
+        const double x0 = (is[ax0]) * hfact_[ax0];
+        const double x1 = (is[ax1]) * hfact_[ax1];
+        const double x2 = (is[ax2]) * hfact_[ax2];
+        const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+        const double h = hfact_[ax0] + hfact_[ax1] + hfact_[ax2];
 
-//                 // green function value
-//                 // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
-//                 // this routine with a high readability and lower efficency than the opposite.
-//                 if (k <= (kfact[ax0] + kfact[ax1] + kfact[ax2]) * 0.2) {
-//                     green[id + i0 * nf] = (*G0)(tmp,NULL);
-//                 }
-//                 else{
-//                     green[id + i0 * nf] = (*G)(tmp,NULL);
-//                 }
-//             }
-//         }
-//     }
+        // GF parameters: k0, k1, k2, and h are for LGFs only
+        const double tmp[7] = {r, k, length, k0, k1, k2, h};
+
+        // green function value
+        // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
+        // this routine with a high readability and lower efficency than the opposite.
+        if (k <= (kfact_[ax0] + kfact_[ax1] + kfact_[ax2]) * 0.2) {
+            green[id + i0 * nf] = G0(tmp,NULL);
+        } else{
+            green[id + i0 * nf] = G(tmp,NULL);
+        }
+    };
+    for_loop(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "1unb green");
     END_FUNC;
 }
 

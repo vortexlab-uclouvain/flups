@@ -90,6 +90,7 @@ struct flups_plan {
 // TODO: set default block size via compile param ?
 #define BLOCK_SIZE      256
 #define m_device        __device__
+#define m_constant      __constant__
 #define m_host_device   __host__ __device__
 #define m_kernel        [=]__device__
 
