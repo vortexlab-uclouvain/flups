@@ -265,7 +265,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
 
     // reset the memory to 0.0 as we do inplace computations
     const size_t reset_size = topo_out->memsize();
-    flups_memset(mem, 0, reset_size * sizeof(double));
+    backend_memset(mem, 0, reset_size * sizeof(double));
 
     m_profStarti(prof, "all2all - wait");
     MPI_Wait(all2all_rqst, MPI_STATUS_IGNORE);    

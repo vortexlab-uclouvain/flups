@@ -74,7 +74,7 @@ void Solver::dothemagic_std_complex(double *data) {
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         // unroll the index
         const int ii = idx % inmax;
         const int io = (idx / inmax) % ondim;

@@ -44,7 +44,7 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - Initialize backend */
     //-------------------------------------------------------------------------
-    init_backend();
+    backend_init();
 
 #ifdef FLUPS_WISDOM_PATH
     FLUPS_WARNING("Importing wisdom from %s", FLUPS_WISDOM_PATH);
@@ -493,7 +493,7 @@ Solver::~Solver() {
     //-------------------------------------------------------------------------
     // m_profStarti(prof_, "Clean up");
     // for Green
-    if (green_ != NULL) flups_bfree(green_);
+    if (green_ != NULL) backend_free(green_);
     // delete the plans
     delete_plans_(plan_forward_);
     delete_plans_(plan_backward_);
@@ -513,10 +513,10 @@ Solver::~Solver() {
 #endif
     delete_topologies_(topo_hat_);
     
-    if (data_ != NULL) flups_bfree(data_);
+    if (data_ != NULL) backend_free(data_);
 
     // cleanup backend
-    finalize_backend();
+    backend_finalize();
     //-------------------------------------------------------------------------
     END_FUNC;
 }
@@ -544,7 +544,7 @@ Topology *Solver::get_innerTopo_spectral() {
  */
 void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
-#if !defined(FLUPS_FFTW_BACKEND)
+#if M_HAVE_GPU
     // deallocate working mem buffer
     for (int ip = 0; ip < ndim_; ip++) {
         int lda = planmap[ip]->lda();
@@ -552,7 +552,7 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
             flups_plan *plan = planmap[ip]->get_plan();
             // if we have a r2r plan, take the memsize
             if (plan != NULL && plan[ida].mem != NULL) {
-                flups_bfree(plan[ida].mem);
+                backend_free(plan[ida].mem);
                 goto end_loop;
             }
         }
@@ -884,8 +884,8 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = need_send ? ((opt_double_ptr)flups_balloc(max_mem*sizeof(double))) : nullptr;
-    *recv_buff = need_recv ? ((opt_double_ptr)flups_balloc(max_mem*sizeof(double))) : nullptr;
+    *send_buff = need_send ? ((opt_double_ptr)backend_malloc(max_mem*sizeof(double))) : nullptr;
+    *recv_buff = need_recv ? ((opt_double_ptr)backend_malloc(max_mem*sizeof(double))) : nullptr;
 
     // ociate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
@@ -911,11 +911,11 @@ void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *sen
 #endif
 #if (FLUPS_MPI_AGGRESSIVE)
     if (*send_buff != NULL) {
-        flups_bfree(*send_buff);
+        backend_free(*send_buff);
         (*send_buff) = NULL;
     }
     if (*recv_buff != NULL) {
-        flups_bfree(*recv_buff);
+        backend_free(*recv_buff);
         (*recv_buff) = NULL;
     }
     // TODO(gilles): fix this
@@ -923,11 +923,11 @@ void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *sen
     // recv_buff->free();
 #else
     if (*send_buff != NULL) {
-        flups_bfree(*send_buff);
+        backend_free(*send_buff);
         (*send_buff) = NULL;
     }
     if (*recv_buff != NULL) {
-        flups_bfree(*recv_buff);
+        backend_free(*recv_buff);
         (*recv_buff) = NULL;
     }
 #endif
@@ -947,7 +947,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
         planmap[ip]->allocate_plan(topo[ip], data);
     }
 
-#if !defined(FLUPS_FFTW_BACKEND)
+#if M_HAVE_GPU
     // get the biggest mem size
     int size_tot = -1;
     for (int ip = 0; ip < ndim_; ip++) {
@@ -964,7 +964,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
 
     if (size_tot > 0) {
         // allocate memory
-        double *mem = (double*)flups_balloc(size_tot*sizeof(double));
+        double *mem = (double*)backend_malloc(size_tot*sizeof(double));
         // every plan get the same memory location
         for (int ip = 0; ip < ndim_; ip++) {
             int lda = planmap[ip]->lda();
@@ -1009,7 +1009,7 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     }
 
     FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
-    (*data) = (double *)flups_balloc(size_tot * sizeof(double));
+    (*data) = (double *)backend_malloc(size_tot * sizeof(double));
 
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
@@ -1185,7 +1185,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
 
     // do the loop
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         const int io = idx / inmax;
         const int ii = idx % inmax;
 
@@ -1200,7 +1200,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
         topo->get_istart_glob(istart);
         if (istart[0] == 0 && istart[1] == 0 && istart[2] == 0) {
-            flups_memset(data, 0, topo->nf()*sizeof(double));
+            backend_memset(data, 0, topo->nf()*sizeof(double));
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
@@ -1274,7 +1274,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    flups_memset(mydata, 0, sizeof(double) * get_allocSize());
+    backend_memset(mydata, 0, sizeof(double) * get_allocSize());
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
@@ -1344,19 +1344,19 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
 
     const size_t memdim  = topo->memsize();
 
-#if defined(FLUPS_FFTW_BACKEND)
-    if (sign == FLUPS_FORWARD) {
-        memcpy(owndata, argdata, memdim*sizeof(double));
-    } else {
-        memcpy(argdata, owndata, memdim*sizeof(double));
-    }
-#else
+#if M_HAVE_GPU
     if (sign == FLUPS_FORWARD) {
         m_cudart_check_errors(
             cudaMemcpy(owndata, argdata, memdim*sizeof(double), cudaMemcpyHostToDevice));
     } else {
         m_cudart_check_errors(
             cudaMemcpy(argdata, owndata, memdim*sizeof(double), cudaMemcpyDeviceToHost));
+    }
+#else
+    if (sign == FLUPS_FORWARD) {
+        memcpy(owndata, argdata, memdim*sizeof(double));
+    } else {
+        memcpy(argdata, owndata, memdim*sizeof(double));
     }
 #endif
     

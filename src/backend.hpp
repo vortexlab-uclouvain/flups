@@ -1,12 +1,12 @@
-#ifndef BACKEND_BACKEND_HPP
-#define BACKEND_BACKEND_HPP
+#ifndef BACKEND_HPP
+#define BACKEND_HPP
 
-#if defined(FLUPS_FFTW_BACKEND)
-#include "backend_fftw.hpp"
-#elif defined(FLUPS_CUDA_BACKEND)
+#if defined (HAVE_CUDA)
+#define M_HAVE_GPU 1
 #include "backend_cuda.hpp"
 #else
-#error "Unknown/no backend defined. Please specify a correct backend !"
+#define M_HAVE_GPU 0
+#include "backend_fftw.hpp"
 #endif
 
-#endif
+#endif  // BACKEND_HPP

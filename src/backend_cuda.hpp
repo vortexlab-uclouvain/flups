@@ -1,5 +1,5 @@
-#ifndef BACKEND_BACKEND_CUDA_HPP_
-#define BACKEND_BACKEND_CUDA_HPP_
+#ifndef BACKEND_CUDA_HPP
+#define BACKEND_CUDA_HPP
 
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -88,11 +88,11 @@ struct flups_plan {
 
 // Kernel execution
 // TODO: set default block size via compile param ?
-#define BLOCK_SIZE      256
-#define m_device        __device__
-#define m_constant      __constant__
-#define m_host_device   __host__ __device__
-#define m_kernel        [=]__device__
+#define BLOCK_SIZE 256
+#define m_device __device__
+#define m_constant __constant__
+#define m_host_device __host__ __device__
+#define m_backend_lambda [=] __device__
 
 template <typename O>
 __global__ void for_loop_kernel(const O op, const int n) {
@@ -113,7 +113,7 @@ void for_loop(const O &op, const int n, string name) {
 }
 
 // Init & cleanup backend
-inline void init_backend() {
+inline void backend_init() {
     m_cublas_check_errors(cublasCreate(&cuHandle));
 
     // Set default GPU device
@@ -124,32 +124,32 @@ inline void init_backend() {
     m_cudart_check_errors(cudaSetDevice(rank % num_devices));
 }
 
-inline void finalize_backend() {
+inline void backend_finalize() {
     m_cublas_check_errors(cublasDestroy(cuHandle));
 }
 
-inline void flups_device_sync() {
+inline void backend_sync() {
     m_cudart_check_errors(cudaDeviceSynchronize());
 }
 
 // Allocation functions
-inline void flups_memset(void *ptr, int val, size_t size) {
+inline void backend_memset(void *ptr, int val, size_t size) {
     m_cudart_check_errors(cudaMemset(ptr, val, size));
-    flups_device_sync();
+    backend_sync();
 }
 
-inline void *flups_balloc(size_t size) {
+inline void *backend_malloc(size_t size) {
     void  *ptr;
     size_t m_calloc_size_        = size + FLUPS_ALIGNMENT - 1;
     size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % FLUPS_ALIGNMENT;
     m_cudart_check_errors(cudaMalloc(&ptr, m_calloc_padded_size_));
 
     // Set the memory to zero
-    flups_memset(ptr, 0, m_calloc_padded_size_);
+    backend_memset(ptr, 0, m_calloc_padded_size_);
     return ptr;
 }
 
-inline void flups_bfree(void *ptr) {
+inline void backend_free(void *ptr) {
     m_cudart_check_errors(cudaFree(ptr));
 }
 
@@ -259,17 +259,17 @@ inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, dou
 // Execute functions
 inline void flups_execute_c2c(flups_plan plan, flups_complex *in, flups_complex *out, int sign) {
     m_cufft_check_errors(cufftExecZ2Z(plan.cufft, in, out, sign));
-    flups_device_sync();
+    backend_sync();
 }
 
 inline void flups_execute_r2c(flups_plan plan, double *in, flups_complex *out) {
     m_cufft_check_errors(cufftExecD2Z(plan.cufft, in, out));
-    flups_device_sync();
+    backend_sync();
 }
 
 inline void flups_execute_c2r(flups_plan plan, flups_complex *in, double *out) {
     m_cufft_check_errors(cufftExecZ2D(plan.cufft, in, out));
-    flups_device_sync();
+    backend_sync();
 }
 
 inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
@@ -288,7 +288,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DCT Type I
         case FFTW_REDFT00: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -303,7 +303,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -316,7 +316,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DCT Type II
         case FFTW_REDFT10: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -327,7 +327,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -341,7 +341,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DCT Type III
         case FFTW_REDFT01: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -354,7 +354,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_c2r(plan, (flups_complex *)mem, mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -367,7 +367,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DCT Type IV
         case FFTW_REDFT11: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -379,7 +379,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -392,7 +392,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DST Type I
         case FFTW_RODFT00: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -403,7 +403,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -416,7 +416,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DST Type II
         case FFTW_RODFT10: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -428,7 +428,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -442,7 +442,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DST Type III
         case FFTW_RODFT01: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -455,7 +455,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_c2r(plan, (flups_complex *)mem, mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -469,7 +469,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
         // DST Type IV
         case FFTW_RODFT11: {
             // Pre-processing
-            auto pre_op = m_kernel(const int idx) {
+            auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -481,7 +481,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
             // Post-processing
-            auto post_op = m_kernel(const int idx) {
+            auto post_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
                 const int j = idx / n;
 
@@ -497,7 +497,7 @@ inline void flups_execute_r2r(flups_plan plan, double *in, double *out) {
     }
 
     // Reset memory
-    flups_memset(mem, 0, plan.memsize * sizeof(double));
+    backend_memset(mem, 0, plan.memsize * sizeof(double));
 }
 
 inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
@@ -518,7 +518,7 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
                                           NULL, NULL, plan.n0,
                                           (flups_complex *)out, plan.n0));
     }
-    flups_device_sync();
+    backend_sync();
 }
 
 // Cleanup functions
@@ -531,4 +531,4 @@ inline void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
     ((void)0);
 }
 
-#endif
+#endif  // BACKEND_CUDA_HPP

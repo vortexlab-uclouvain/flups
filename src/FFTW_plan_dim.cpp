@@ -561,7 +561,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         //----------------------------------------------------------------------
         if (reset_first) {
             // we need to reset the first point of the memory space to 0
-            auto op = m_kernel(const int idx) {
+            auto op = m_backend_lambda(const int idx) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the first point of each 1-D transform
@@ -573,7 +573,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         // Do last point 
         else if (reset_last) {
             // we need to reset the last point of the memory space to 0
-            auto op = m_kernel(const int idx) {
+            auto op = m_backend_lambda(const int idx) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the last point of each 1-D transform
@@ -585,7 +585,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
         //Do first and last point 
         else if (reset_first_last) {
             // we need to properly set the first and the last point of the transform to 0
-            auto op = m_kernel(const int idx) {
+            auto op = m_backend_lambda(const int idx) {
                 // get the memory
                 opt_double_ptr dataloc = mydata + idx * fftw_stride;
                 // reset the first point
@@ -618,7 +618,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
 
             // we need to properly copy the first point into the last point
             if (real_dmn) {
-                auto op = m_kernel(const int idx) {
+                auto op = m_backend_lambda(const int idx) {
                     // get the memory
                     opt_double_ptr dataloc = mydata + idx * fftw_stride;
                     // copy the first point into the last point
@@ -627,7 +627,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 for_loop(op, howmany, "enforce period correction (real)");
 
             } else {
-                auto op = m_kernel(const int idx) {
+                auto op = m_backend_lambda(const int idx) {
                     opt_double_ptr dataloc = mydata + idx * fftw_stride;
                     // copy the first point into the last point
                     dataloc[2*nfftw]     = dataloc[0];

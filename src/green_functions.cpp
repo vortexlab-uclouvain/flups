@@ -129,7 +129,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     double *Gdata_device = NULL;
     if (Gdata != NULL) {
         const size_t memdim  = GN * GN * GN * sizeof(double);    // greendim = 3 => 3D
-        Gdata_device = (double*)flups_balloc(memdim);
+        Gdata_device = (double*)backend_malloc(memdim);
         m_cudart_check_errors(cudaMemcpy(Gdata_device, Gdata, memdim, cudaMemcpyHostToDevice));
     }
 
@@ -147,7 +147,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const double hfact_[3]    = {hfact[0], hfact[1], hfact[2]};
     const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         // unroll the index
         const int i0 = idx % nloc[ax0];
         const int i1 = (idx / nloc[ax0]) % nloc[ax1];
@@ -181,7 +181,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     const bool is_mehr = (typeGreen == MEHR_4F || typeGreen == MEHR_6F || typeGreen == MEHR_4L || typeGreen == MEHR_6L);
     const bool correct_istart = (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0);
     if (!is_lgf && !is_mehr && correct_istart) {
-        auto op = m_kernel(const int idx) {
+        auto op = m_backend_lambda(const int idx) {
             green[idx] = G0;
         };
         for_loop(op, 1, "3unb green reset");
@@ -189,7 +189,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     // free Gdata if needed
     if (Gdata != NULL) {
         m_free(Gdata);
-        flups_bfree(Gdata_device);
+        backend_free(Gdata_device);
     }
 
     END_FUNC;
@@ -278,7 +278,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;        
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
-            for_loop(m_kernel(int i) { init_Ji0(); }, 1, "init Ji0");
+            for_loop(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0");
             cudaMemcpyFromSymbol(&G, zero, sizeof(GreenKernel));
             cudaMemcpyFromSymbol(&Gk0, hej_0_2unb1spe_k0, sizeof(GreenKernel));
             cudaMemcpyFromSymbol(&Gr0, hej_0_2unb1spe_k0, sizeof(GreenKernel));
@@ -377,7 +377,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     double *Gdata_device = NULL;
     if (Gdata != NULL) {
         const size_t memdim  = GN * GN * sizeof(double);    // greendim = 2 => 2D
-        Gdata_device = (double*)flups_balloc(memdim);
+        Gdata_device = (double*)backend_malloc(memdim);
         m_cudart_check_errors(cudaMemcpy(Gdata_device, Gdata, memdim, cudaMemcpyHostToDevice));
     }
 
@@ -398,7 +398,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
     const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         // unroll the index
         const int i0 = idx % nloc[ax0];
         const int i1 = (idx / nloc[ax0]) % nloc[ax1];
@@ -442,7 +442,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
-        auto op = m_kernel(const int idx) {
+        auto op = m_backend_lambda(const int idx) {
             //caution: mistake in [Chatelain2010]
             green[idx] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));
         };
@@ -452,7 +452,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     // free Gdata if needed
     if (Gdata != NULL) {
         m_free(Gdata);
-        flups_bfree(Gdata_device);
+        backend_free(Gdata_device);
     }
 
     END_FUNC;
@@ -568,7 +568,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
     const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
     const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         // unroll the index
         const int i0 = idx % nloc[ax0];
         const int i1 = (idx / nloc[ax0]) % nloc[ax1];
@@ -745,7 +745,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
     const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-    auto op = m_kernel(const int idx) {
+    auto op = m_backend_lambda(const int idx) {
         // unroll the index
         const int i0 = idx % ni[0] + is[ax0];
         const int i1 = (idx / ni[0]) % ni[1] + is[ax1];
@@ -773,7 +773,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 \
         && koffset[0]+koffset[1]+koffset[2]<0.2 ) {
-        auto op = m_kernel(const int idx) {
+        auto op = m_backend_lambda(const int idx) {
             green[idx] = 0.0;
         };
         for_loop(op, 1, "0unb green reset");

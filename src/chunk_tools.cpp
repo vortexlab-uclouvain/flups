@@ -329,7 +329,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
     // Allocate temp array to do out-of-place transpose
-    chunk->shuffle_buff = (opt_double_ptr)flups_balloc(chunk->nda*chunk->size_padded*sizeof(double));
+    chunk->shuffle_buff = (opt_double_ptr)backend_malloc(chunk->nda*chunk->size_padded*sizeof(double));
 
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
@@ -399,7 +399,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         FLUPS_CHECK(m_isaligned(src_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
         // define the operator
-        auto op = m_kernel(const int idx) {
+        auto op = m_backend_lambda(const int idx) {
             // get the local indexes
             const int i0 = idx % nmax;
             const int i1 = (idx / nmax) % isize[ax[1]];
@@ -450,7 +450,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
         // define the operator
-        auto op = m_kernel(const int idx) {
+        auto op = m_backend_lambda(const int idx) {
             // get the local indexes
             const int i0 = idx % nmax;
             const int i1 = (idx / nmax) % isize[ax[1]];

@@ -27,8 +27,6 @@ ARCH_FILE ?= make_arch/make.docker_clang
 
 include $(ARCH_FILE)
 
-# Default to FFTW backend
-OPTS ?= -DFLUPS_FFTW_BACKEND
 ################################################################################
 # FROM HERE, DO NOT TOUCH
 #-----------------------------------------------------------------------------
@@ -62,13 +60,6 @@ KERNEL_DIR := ./kernel
 INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
-#---- CUDA (& cuFFT)
-CUDA_INC ?= /usr/local/cuda/include
-CUDA_LIB ?= /usr/local/cuda/lib64
-CUDA_LIBNAME ?= -lcudart -lcufft -lcublas
-INC += -I$(CUDA_INC)
-LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
-
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
@@ -99,14 +90,14 @@ H3LPR_LIBNAME ?= -lh3lpr
 INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
-#---- ACCFFT
-# ACCFFT_DIR ?= /usr/
-# ACCFFT_INC ?= ${ACCFFT_DIR}/include
-# ACCFFT_LIB ?= ${ACCFFT_DIR}/lib
-# ACCFFT_LIBNAME ?= -laccfft
-# INC += -I$(ACCFFT_INC)
-# LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
-
+#---- Use CUDA
+ifneq (,$(findstring -DHAVE_CUDA,$(OPTS)))
+	CUDA_INC ?= /usr/local/cuda/include
+	CUDA_LIB ?= /usr/local/cuda/lib64
+	CUDA_LIBNAME ?= -lcudart -lcufft -lcublas
+	INC += -I$(CUDA_INC)
+	LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
+endif
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory

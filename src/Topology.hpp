@@ -2,58 +2,61 @@
  * @file Topology.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2020
- * 
+ *
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
+ *
  * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
+ *
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 #ifndef TOPOLOGY_HPP
 #define TOPOLOGY_HPP
 
-#include "defines.hpp"
-#include "mpi.h"
-#include <cstring>
 #include <limits.h>
+#include <mpi.h>
+
+#include <cstring>
+
+#include "backend.hpp"
+#include "defines.hpp"
 
 /**
  * @brief Class Topology
- * 
+ *
  * A topology describes the layout of the data on the current processor.
- * 
+ *
  * The number of unkowns in each direction owned by a rank divides them in two groups.
  * First, we compute the integer division, nbyproc, between nglob_ and nproc_.
- * 
+ *
  * The first group, named g0, owns nbyproc+1 unknowns. The group starts at rank 0 and ends in rank mod(nglob_,nproc_)-1, included.
  * The second group, named g1, owns nbyproc unknowns. The group starts at rank mod(nglob_,nproc_) to rank nproc_, included.
- * 
+ *
  */
 class Topology {
    protected:
-    int       nproc_[3];   /**<@brief number of procs per dim (012-indexing)  */
-    int       axproc_[3];  /**<@brief axis of the procs for ranksplit  */
-    int       nf_;         /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
-    int       nloc_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
-    int       nmem_[3];    /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
-    int       axis_;       /**<@brief fastest rotating index in the topology  */
-    int       rankd_[3];   /**<@brief rank of the current process per dim (012-indexing)  */
-    int       nglob_[3];   /**<@brief number of unknowns per dim, global (012-indexing)  */
-    int       lda_;        /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
+    int nproc_[3];  /**<@brief number of procs per dim (012-indexing)  */
+    int axproc_[3]; /**<@brief axis of the procs for ranksplit  */
+    int nf_;        /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
+    int nloc_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int nmem_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int axis_;      /**<@brief fastest rotating index in the topology  */
+    int rankd_[3];  /**<@brief rank of the current process per dim (012-indexing)  */
+    int nglob_[3];  /**<@brief number of unknowns per dim, global (012-indexing)  */
+    int lda_;       /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
     // int       nbyproc_[3]; /**<@brief mean number of unknowns per dim = nloc except for the last one (012-indexing)  */
     const int alignment_;
     MPI_Comm  comm_; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
@@ -69,7 +72,7 @@ class Topology {
 
     /**
      * @name setters
-     * 
+     *
      * @{
      */
     void change_comm(MPI_Comm comm);
@@ -77,7 +80,7 @@ class Topology {
 
     /**
      * @name getters
-     * 
+     *
      * @{
      */
     inline int axis() const { return axis_; }
@@ -171,10 +174,10 @@ class Topology {
         // if the group id is smaller than the max number of group = res:
         // you cannot return a number of rank that is higher than the stride (that would happen with the last point of the group)
         // if the gid is after the last group then we don't care and let the rank be large enough
-        const int rrank = (gid < res)? m_min(gres / b, s - 1) : (gres/b);
+        const int rrank = (gid < res) ? m_min(gres / b, s - 1) : (gres / b);
         const int grank = gid * s;
         // const int rrank = (gid < res)? (rrank) ; m_min(gres / b, s - 1);  // the rrank is bound by s-1, always
-        const int rank  = m_min(nproc_[id] - 1, grank + rrank);
+        const int rank = m_min(nproc_[id] - 1, grank + rrank);
         FLUPS_CHECK(cmpt_start_id_from_rank(rank, id) <= global_id, "The global id = %d must be bigger than the start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d) = min(%d, %d * %d + %d)", global_id, rank, cmpt_start_id_from_rank(rank, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize, nproc_[id] - 1, (global_id / gsize), s, (global_id % gsize) / b);
         FLUPS_CHECK(global_id < cmpt_start_id_from_rank(rank + 1, id), "The global id = %d must be smaller than the next start id of rank %d = %d: nglob = %d, nproc = %d, gid = %d, b=%d, res=%d, s=%d, gsize=%d)", global_id, rank, cmpt_start_id_from_rank(rank + 1, id), nglob_[id], nproc_[id], global_id, b, res, s, gsize);
         return rank;
@@ -199,46 +202,46 @@ class Topology {
 
     /**
      * @name Usefull functions manipulating indexes and memory
-     * 
+     *
      * @{
      */
     void cmpt_sizes();
-    void memshift(const int sign,const int lia, double* data);
+    void memshift(const int sign, const int lia, double *data);
 
     /**
      * @brief returns the scalar local size on this proc, i.e. the number of unknowns for one component
-     * 
-     * @return size_t 
+     *
+     * @return size_t
      */
     inline size_t locsize() const { return (size_t)nloc_[0] * (size_t)nloc_[1] * (size_t)nloc_[2] * (size_t)nf_; }
 
     /**
      * @brief returns the memory size of on this proc for one component
-     * 
-     * @return size_t 
+     *
+     * @return size_t
      */
-    inline size_t memdim() const { return (size_t)nmem_[0] * (size_t)nmem_[1] *(size_t) nmem_[2] * (size_t)nf_; }
+    inline size_t memdim() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_; }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
-     * 
-     * @return size_t 
+     *
+     * @return size_t
      */
     inline size_t memsize() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_ * (size_t)lda_; }
 
     /**
      * @brief returns the starting global index on the current proc
-     * 
+     *
      */
     inline void get_istart_glob(int istart[3]) const {
-        istart[0]   = cmpt_start_id(0);
-        istart[1]   = cmpt_start_id(1);
-        istart[2]   = cmpt_start_id(2);
+        istart[0] = cmpt_start_id(0);
+        istart[1] = cmpt_start_id(1);
+        istart[2] = cmpt_start_id(2);
     }
     /**@} */
 
     /**
      * @brief switch the topology to a complex mode
-     * 
+     *
      */
     inline void switch2complex() {
         if (nf_ == 1) {
@@ -251,7 +254,7 @@ class Topology {
     }
     /**
      * @brief switch the topology to a real mode
-     * 
+     *
      */
     inline void switch2real() {
         if (nf_ == 2) {
@@ -265,34 +268,34 @@ class Topology {
 
     /**
      * @brief swith the current topo to the scalar case
-     * 
+     *
      */
-    inline void switch2Scalar(){
-        lda_=1;
+    inline void switch2Scalar() {
+        lda_ = 1;
     }
     /**
      * @brief switch the current topo to the vector state
-     * 
+     *
      */
-    inline void switch2Vector(){
-        lda_=3;
+    inline void switch2Vector() {
+        lda_ = 3;
     }
 
     void disp() const;
-    void disp_rank() ;
+    void disp_rank();
 };
 
 /**
  * @brief split the rank into rank per dimensions
- * 
+ *
  * axproc is not used if comm is of type MPI_CART.
- * 
+ *
  * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
  * @param nproc the number of procs along each direction
  * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
  * @param rankd the rank per dimension in XYZ format
  */
-inline static void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
+static inline void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
     const int ax0 = axproc[0];
     const int ax1 = axproc[1];
     const int ax2 = axproc[2];
@@ -310,12 +313,12 @@ inline static void ranksplit(const int rank, const int axproc[3], const int npro
 
 /**
  * @brief get the rank from the rank per dimension
- * 
+ *
  * @param rankd the rank in XYZ format
  * @param topo the topology
  * @return int the rank ID in the communicator of the Topology
  */
-inline static int rankindex(const int rankd[3], const Topology *topo) {
+static inline int rankindex(const int rankd[3], const Topology *topo) {
     const int ax0 = topo->axproc(0);
     const int ax1 = topo->axproc(1);
     const int ax2 = topo->axproc(2);
@@ -332,59 +335,59 @@ inline static int rankindex(const int rankd[3], const Topology *topo) {
 
 /**
  * @brief compute the memory local index for a point (i0,i1,i2) in axsrc-indexing in a memory in the axtrg-indexing
- * 
+ *
  * @param axsrc the FRI for the point (i0,i1,i2)
  * @param i0
- * @param i1 
- * @param i2 
+ * @param i1
+ * @param i2
  * @param axtrg the target FRI
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
  * @param lda leading dimension of array, number of vector components
- * @return size_t 
+ * @return size_t
  */
-static inline size_t __host__ __device__ localIndex(const int axsrc, const int i0, const int i1, const int i2,
-                                const int axtrg, const int size[3], const int nf, const int lda) {
+m_host_device static inline size_t localIndex(const int axsrc, const int i0, const int i1, const int i2,
+                                              const int axtrg, const int size[3], const int nf, const int lda) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
-    const int dax1 = (dax0 + 1) % 3; 
+    const int dax1 = (dax0 + 1) % 3;
     const int dax2 = (dax0 + 2) % 3;
     const int ax0  = axtrg;
     const int ax1  = (ax0 + 1) % 3;
     const int ax2  = (ax0 + 2) % 3;
 
     // return localindex_xyz(i[0], i[1], i[2], topo);
-    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + size[ax2] * lda) );
+    return i[dax0] * nf + size[ax0] * nf * (i[dax1] + size[ax1] * (i[dax2] + size[ax2] * lda));
 }
 /**
  * @brief compute the memory local index for a point (i0,id) in axsrc-indexing in a memory in the same indexing
- * 
+ *
  * The memory id is computed as the collapsed version of the 3 external loops:
  * - the loop on the lda
  * - the loop on the ax2 direction
  * - the loop on the ax1 direction
- * 
+ *
  * @param axsrc the FRI for the point (i0,i1,i2)
  * @param i0 the index aligned along the axsrc axis
  * @param id the collapsed id of the outer three loops
  * @param size the size of the memory (012-indexing)
  * @param nf the number of unknows in one element
- * @return size_t 
+ * @return size_t
  */
-static inline __host__ __device__ size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
-    const int ax0  = axsrc;
+m_host_device static inline size_t collapsedIndex(const int axsrc, const int i0, const int id, const int size[3], const int nf) {
+    const int ax0 = axsrc;
     return i0 * nf + size[ax0] * nf * id;
 }
 
 /**
  * @brief split a global index along the different direction using the FRI axtrg, for one component
- * 
+ *
  * @param id the global id
  * @param size the size in 012-indexing
  * @param axtrg the target axis
  * @param idv the indexes along each directions
  */
-static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
+m_host_device static inline void localSplit(const size_t id, const int size[3], const int axtrg, int idv[3], const int nf) {
     const int ax0   = axtrg;
     const int ax1   = (ax0 + 1) % 3;
     const int ax2   = (ax0 + 2) % 3;
@@ -394,30 +397,21 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
     idv[ax1] = (id % (size0 * size[ax1])) / size0;
     idv[ax2] = id / (size0 * size[ax1]);
 }
-// static inline void localSplit(const size_t id, const int size[3], const int axtrg, int *id0, int *id1, int *id2, const int nf) {
-//     const int ax0   = axtrg;
-//     const int ax1   = (ax0 + 1) % 3;
-//     const int size0 = (size[ax0] * nf);
-
-//     (*id0) = id % size0;
-//     (*id1) = (id % (size0 * size[ax1])) / size0;
-//     (*id2) = id / (size0 * size[ax1]);
-// }
 
 /**
  * @brief compute the global symmetrized index of a given point, for one component
- * 
+ *
  * The 3 indexes are given along axsrc axis (i0,i1,i2) while the symmetrized output is given along the axtrg axis.
- * 
- * @param axsrc 
- * @param i0 
- * @param i1 
- * @param i2 
- * @param istart 
- * @param symstart 
- * @param axtrg 
- * @param is 
- * 
+ *
+ * @param axsrc
+ * @param i0
+ * @param i1
+ * @param i2
+ * @param istart
+ * @param symstart
+ * @param axtrg
+ * @param is
+ *
  * Symmetry computation:
  * We have to take the symmetry around symstart.
  * E.g. in X direction:
@@ -427,11 +421,11 @@ static inline void localSplit(const size_t id, const int size[3], const int axtr
  * To do so, we use 2 tricks:
  * - The `abs` is used to stay on the positivie side and hence avoid negative memory access
  * - The `max` is used to prevent the computation of the value in 0, which is never used in the symmetry.
- * 
+ *
  * The final formula is then ( in the X direction):
  *      `max( abs(2.0 symstart[0] - ix) , 1)`
  */
-inline static void __host__ __device__ cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+m_host_device static inline void cmpt_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration
     const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
     // cmpt the shift in axis and the axis for the symstart
@@ -445,6 +439,6 @@ inline static void __host__ __device__ cmpt_symID(const int axsrc, const int i0,
     is[0] = (symstart[ax0] == 0.0 || ie[dax0] <= symstart[ax0]) ? ie[dax0] : -std::max((int)fabs(2.0 * symstart[ax0] - ie[dax0]), 1);
     is[1] = (symstart[ax1] == 0.0 || ie[dax1] <= symstart[ax1]) ? ie[dax1] : -std::max((int)fabs(2.0 * symstart[ax1] - ie[dax1]), 1);
     is[2] = (symstart[ax2] == 0.0 || ie[dax2] <= symstart[ax2]) ? ie[dax2] : -std::max((int)fabs(2.0 * symstart[ax2] - ie[dax2]), 1);
-    
 }
+
 #endif

@@ -1,8 +1,9 @@
-#ifndef BACKEND_BACKEND_FFTW_HPP_
-#define BACKEND_BACKEND_FFTW_HPP_
+#ifndef BACKEND_FFTW_HPP
+#define BACKEND_FFTW_HPP
 
-#include "omp.h"
-#include "fftw3.h"
+#include <fftw3.h>
+#include <omp.h>
+
 #include "defines.hpp"
 
 // Datatypes
@@ -19,26 +20,26 @@ using flups_shuffle_plan = fftw_plan;
 using flups_complex      = fftw_complex;
 
 // Init & cleanup backend
-inline void init_backend() {
+inline void backend_init() {
     fftw_init_threads();
 }
 
-inline void finalize_backend() {
+inline void backend_finalize() {
     fftw_cleanup_threads();
     fftw_cleanup();
 
 #ifdef FLUPS_WISDOM_PATH
-    FLUPS_WARNING("Importing wisdom from %s",FLUPS_WISDOM_PATH);
+    FLUPS_WARNING("Importing wisdom from %s", FLUPS_WISDOM_PATH);
     fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
 #endif
 }
 
 // Allocation functions
-inline void flups_memset(void *ptr, int val, size_t size) {
+inline void backend_memset(void *ptr, int val, size_t size) {
     std::memset(ptr, val, size);
 }
 
-inline void* flups_balloc(size_t size) {
+inline void *backend_malloc(size_t size) {
     return m_calloc(size);
 }
 
@@ -78,7 +79,7 @@ inline flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, dou
     if (!iscomplex) {
         return fftw_plan_guru_r2r(0, NULL, 2, dims, in, out, NULL, FLUPS_FFTW_FLAG);
     } else {
-        return fftw_plan_guru_dft(0, NULL, 2, dims, (flups_complex*)in, (flups_complex*)out, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
+        return fftw_plan_guru_dft(0, NULL, 2, dims, (flups_complex *)in, (flups_complex *)out, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
     }
 }
 
@@ -105,12 +106,11 @@ inline void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *o
         fftw_execute_r2r(plan, in, out);
     } else {
         fftw_execute_dft(plan, (opt_complex_ptr)(in), (opt_complex_ptr)(out));
-
     }
 }
 
 // Cleanup functions
-inline void flups_bfree(void *ptr) {
+inline void backend_free(void *ptr) {
     m_free(ptr);
 }
 
@@ -122,4 +122,4 @@ inline void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
     fftw_destroy_plan(plan);
 }
 
-#endif
+#endif  // BACKEND_FFTW_HPP

@@ -29,14 +29,14 @@ SwitchTopoX::~SwitchTopoX() {
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
         flups_destroy_shuffle_plan(i2o_chunks_[ic].shuffle);
-        flups_bfree(i2o_chunks_[ic].shuffle_buff);
+        backend_free(i2o_chunks_[ic].shuffle_buff);
         MPI_Type_free(&i2o_chunks_[ic].dtype);
         MPI_Type_free(&i2o_chunks_[ic].dest_dtype);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
         // the shuffle happens in the "in" topology
         flups_destroy_shuffle_plan(o2i_chunks_[ic].shuffle);
-        flups_bfree(o2i_chunks_[ic].shuffle_buff);
+        backend_free(o2i_chunks_[ic].shuffle_buff);
         MPI_Type_free(&o2i_chunks_[ic].dtype);
         MPI_Type_free(&o2i_chunks_[ic].dest_dtype);
     }
