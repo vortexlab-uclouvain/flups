@@ -4,7 +4,11 @@
 #include <fftw3.h>
 #include <omp.h>
 
+#include <string>
+
 #include "defines.hpp"
+
+using std::string;
 
 // Datatypes
 struct flups_fft_arch {
@@ -18,6 +22,21 @@ using flups_kind         = fftw_r2r_kind;
 using flups_plan         = fftw_plan;
 using flups_shuffle_plan = fftw_plan;
 using flups_complex      = fftw_complex;
+
+// Kernel execution
+#define m_device
+#define m_constant
+#define m_host_device
+#define m_backend_lambda [=]
+
+template <typename O>
+void for_loop(const O &op, const int n, string name) {
+    FLUPS_INFO("Launching kernel: %s", name.c_str());
+    for (int i = 0; i < n; i++) {
+        op(i);
+    }
+    FLUPS_INFO("Kernel %s done", name.c_str());
+}
 
 // Init & cleanup backend
 inline void backend_init() {
@@ -41,6 +60,14 @@ inline void backend_memset(void *ptr, int val, size_t size) {
 
 inline void *backend_malloc(size_t size) {
     return m_calloc(size);
+}
+
+// Memcopy function - from host to device and vice-versa
+#define m_memcpy_d2h 0
+#define m_memcpy_h2d 1
+
+inline void backend_memcpy(double *dst, double *src, size_t size, int unused_arg) {
+    std::memcpy(dst, src, size);
 }
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {

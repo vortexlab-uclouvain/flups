@@ -153,6 +153,14 @@ inline void backend_free(void *ptr) {
     m_cudart_check_errors(cudaFree(ptr));
 }
 
+// Memcopy function - from host to device and vice-versa
+#define m_memcpy_d2h cudaMemcpyDeviceToHost
+#define m_memcpy_h2d cudaMemcpyHostToDevice
+
+inline void backend_memcpy(double *dst, double *src, size_t size, cudaMemcpyKind kind) {
+    m_cudart_check_errors(cudaMemcpy(dst, src, size, kind));
+}
+
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
     flups_plan plan;
     // parameters for the r2r transform

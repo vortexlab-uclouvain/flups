@@ -1344,22 +1344,12 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
 
     const size_t memdim  = topo->memsize();
 
-#if M_HAVE_GPU
-    if (sign == FLUPS_FORWARD) {
-        m_cudart_check_errors(
-            cudaMemcpy(owndata, argdata, memdim*sizeof(double), cudaMemcpyHostToDevice));
+    if (FLUPS_FORWARD == sign) {
+        backend_memcpy(owndata, argdata, memdim * sizeof(double), m_memcpy_h2d);
     } else {
-        m_cudart_check_errors(
-            cudaMemcpy(argdata, owndata, memdim*sizeof(double), cudaMemcpyDeviceToHost));
+        backend_memcpy(argdata, owndata, memdim * sizeof(double), m_memcpy_d2h);
     }
-#else
-    if (sign == FLUPS_FORWARD) {
-        memcpy(owndata, argdata, memdim*sizeof(double));
-    } else {
-        memcpy(argdata, owndata, memdim*sizeof(double));
-    }
-#endif
-    
+
     m_profStop(prof_,"copy rhs");
     //-------------------------------------------------------------------------
     END_FUNC;

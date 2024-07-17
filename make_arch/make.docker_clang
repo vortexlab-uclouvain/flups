@@ -5,7 +5,12 @@ CC  = mpicc
 CXXFLAGS := -fPIC -g -O3 -std=c++17 -Wno-format-security -DPROF
 LDFLAGS  := -fPIC -g -O3 -lstdc++   -lm
 
-## GPU-related stuff
+## CPU compilation flags
+#OPTS     +=
+#CXXFLAGS += -fopenmp
+#LDFLAGS  += -fopenmp
+
+## GPU compilation flags (CUDA)
 OPTS     += -DHAVE_CUDA -DWITHOUT_OPENMP
 CXXFLAGS += -x cuda --cuda-gpu-arch=sm_86
 LDFLAGS  +=
