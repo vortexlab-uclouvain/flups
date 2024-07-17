@@ -88,8 +88,10 @@ struct flups_plan {
 
 // Kernel execution
 // TODO: set default block size via compile param ?
-#define BLOCK_SIZE 256
-#define m_kernel [=] __device__
+#define BLOCK_SIZE      256
+#define m_device        __device__
+#define m_host_device   __host__ __device__
+#define m_kernel        [=]__device__
 
 template <typename O>
 __global__ void for_loop_kernel(const O op, const int n) {

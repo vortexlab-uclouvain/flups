@@ -159,10 +159,10 @@ namespace LGFOneUnbounded {
     // ----------------------------------------------------------------------------------------
     // Symbols
     // ----------------------------------------------------------------------------------------
-    inline real_t lgf2_symbol(real_t k) { return 4.0 * pow(sin(k/2.), 2); }
-    inline real_t lgf4_symbol(real_t k) { return 4.0 * (4./3.*pow(sin(k/2.), 2) - 1./12.*pow(sin(k), 2)); }
-    inline real_t lgf6_symbol(real_t k) { return 4.0 * (3./2.*pow(sin(k/2.), 2) - 3./20.*pow(sin(k), 2) + 1./90.*pow(sin(1.5*k), 2)); }
-    inline real_t lgf8_symbol(real_t k) { return 4.0 * (8./5.*pow(sin(k/2.), 2) - 1./5. *pow(sin(k), 2) + 8./315.*pow(sin(1.5*k), 2) - 1./560.*pow(sin(2.*k), 2)); }
+    m_host_device real_t lgf2_symbol(real_t k) { return 4.0 * pow(sin(k/2.), 2); }
+    m_host_device real_t lgf4_symbol(real_t k) { return 4.0 * (4./3.*pow(sin(k/2.), 2) - 1./12.*pow(sin(k), 2)); }
+    m_host_device real_t lgf6_symbol(real_t k) { return 4.0 * (3./2.*pow(sin(k/2.), 2) - 3./20.*pow(sin(k), 2) + 1./90.*pow(sin(1.5*k), 2)); }
+    m_host_device real_t lgf8_symbol(real_t k) { return 4.0 * (8./5.*pow(sin(k/2.), 2) - 1./5. *pow(sin(k), 2) + 8./315.*pow(sin(1.5*k), 2) - 1./560.*pow(sin(2.*k), 2)); }
 
     // ----------------------------------------------------------------------------------------
     // LGF2
