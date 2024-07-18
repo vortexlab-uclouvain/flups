@@ -63,11 +63,30 @@ inline void *backend_malloc(size_t size) {
 }
 
 // Memcopy function - from host to device and vice-versa
-#define m_memcpy_d2h 0
-#define m_memcpy_h2d 1
+typedef enum {
+    memcpyD2H,
+    memcpyH2D,
+    memcpyD2D,
+    memcpyH2H,
+} memcpyKind_t;
 
-inline void backend_memcpy(double *dst, double *src, size_t size, int unused_arg) {
+inline void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
+    FLUPS_CHECK(memcpyH2H == kind, "Only host to host memcpy is suppoerted here");
     std::memcpy(dst, src, size);
+}
+
+// Helper function to find where the memory lives
+typedef enum {
+    memTypeHost,
+    memTypeDevice,
+    memTypeUnregistered,
+} memType_t;
+
+inline memType_t backend_get_memtype(const void *ptr) {
+    if (NULL == ptr) {
+        return memTypeUnregistered;
+    }
+    return memTypeHost;
 }
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {

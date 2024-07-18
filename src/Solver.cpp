@@ -512,7 +512,7 @@ Solver::~Solver() {
     MPI_Comm_free(&mycomm);
 #endif
     delete_topologies_(topo_hat_);
-    
+
     if (data_ != NULL) backend_free(data_);
 
     // cleanup backend
@@ -557,7 +557,7 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
             }
         }
     }
-    end_loop: ;
+end_loop:;
 #endif
 
     // deallocate the plans
@@ -691,18 +691,18 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #elif defined(COMM_ISR)
-                switchtopo[ip]     = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else
 
-                switchtopo[ip]     = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
 #else  // deprecated - still there for comparison purpose
 
 #if defined(COMM_NONBLOCK)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
 #endif
@@ -715,17 +715,17 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #elif defined(COMM_ISR)
-                switchtopo[ip]     = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else
-                switchtopo[ip]     = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
 #else  // deprecated - still there for comparison purpose
 
 #if defined(COMM_NONBLOCK)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
 #else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
 #endif
@@ -884,8 +884,8 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = need_send ? ((opt_double_ptr)backend_malloc(max_mem*sizeof(double))) : nullptr;
-    *recv_buff = need_recv ? ((opt_double_ptr)backend_malloc(max_mem*sizeof(double))) : nullptr;
+    *send_buff = need_send ? ((opt_double_ptr)backend_malloc(max_mem * sizeof(double))) : nullptr;
+    *recv_buff = need_recv ? ((opt_double_ptr)backend_malloc(max_mem * sizeof(double))) : nullptr;
 
     // ociate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
@@ -961,10 +961,9 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
         }
     }
 
-
     if (size_tot > 0) {
         // allocate memory
-        double *mem = (double*)backend_malloc(size_tot*sizeof(double));
+        double *mem = (double *)backend_malloc(size_tot * sizeof(double));
         // every plan get the same memory location
         for (int ip = 0; ip < ndim_; ip++) {
             int lda = planmap[ip]->lda();
@@ -1131,7 +1130,6 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
         }
     }
 
-
     //-------------------------------------------------------------------------
     /** - scale the Green data using #volfact_ */
     //-------------------------------------------------------------------------
@@ -1200,7 +1198,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
         topo->get_istart_glob(istart);
         if (istart[0] == 0 && istart[1] == 0 && istart[2] == 0) {
-            backend_memset(data, 0, topo->nf()*sizeof(double));
+            backend_memset(data, 0, topo->nf() * sizeof(double));
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
@@ -1261,7 +1259,7 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
  */
 void Solver::solve(double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
-    FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type !=ROT), "You need vectors when using the ROT solver");
+    FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type != ROT), "You need vectors when using the ROT solver");
     FLUPS_CHECK(!(type == ROT && odiff_ == NOD), "If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
     FLUPS_CHECK((type == ROT && (odiff_ == SPE || odiff_ == FD2 || odiff_ == FD4 || odiff_ == FD6)) || (type != ROT), "The differenciation order asked does not exist ");
     FLUPS_CHECK(field != NULL, "field is NULL");
@@ -1342,15 +1340,21 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
     double *owndata = data_;
     double *argdata = data;
 
-    const size_t memdim  = topo->memsize();
+    const size_t    memdim      = topo->memsize();
+    const memType_t arg_memtype = backend_get_memtype(argdata);
+    const memType_t own_memtype = backend_get_memtype(owndata);
+    FLUPS_CHECK(memTypeHost == arg_memtype || memTypeDevice == arg_memtype, "argdata is not a valid host or device pointer, is %d", arg_memtype);
+    FLUPS_CHECK(memTypeHost == own_memtype || memTypeDevice == own_memtype, "owndata is not a valid host or device pointer, is %d", own_memtype);
 
     if (FLUPS_FORWARD == sign) {
-        backend_memcpy(owndata, argdata, memdim * sizeof(double), m_memcpy_h2d);
+        memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyH2D) : (memTypeHost == own_memtype ? memcpyD2H : memcpyD2D);
+        backend_memcpy(owndata, argdata, memdim * sizeof(double), kind);
     } else {
-        backend_memcpy(argdata, owndata, memdim * sizeof(double), m_memcpy_d2h);
+        memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyD2H) : (memTypeHost == own_memtype ? memcpyH2D : memcpyD2D);
+        backend_memcpy(argdata, owndata, memdim * sizeof(double), kind);
     }
 
-    m_profStop(prof_,"copy rhs");
+    m_profStop(prof_, "copy rhs");
     //-------------------------------------------------------------------------
     END_FUNC;
 }

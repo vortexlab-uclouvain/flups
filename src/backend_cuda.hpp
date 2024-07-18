@@ -154,11 +154,30 @@ inline void backend_free(void *ptr) {
 }
 
 // Memcopy function - from host to device and vice-versa
-#define m_memcpy_d2h cudaMemcpyDeviceToHost
-#define m_memcpy_h2d cudaMemcpyHostToDevice
+typedef enum {
+    memcpyD2H = cudaMemcpyDeviceToHost,
+    memcpyH2D = cudaMemcpyHostToDevice,
+    memcpyD2D = cudaMemcpyDeviceToDevice,
+    memcpyH2H = cudaMemcpyHostToHost,
+} memcpyKind_t;
 
-inline void backend_memcpy(double *dst, double *src, size_t size, cudaMemcpyKind kind) {
-    m_cudart_check_errors(cudaMemcpy(dst, src, size, kind));
+inline void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
+    m_cudart_check_errors(cudaMemcpy(dst, src, size, (cudaMemcpyKind)kind));
+}
+
+// Helper function to find where the memory lives
+typedef enum {
+    memTypeHost         = cudaMemoryTypeHost,
+    memTypeDevice       = cudaMemoryTypeDevice,
+    memTypeUnregistered = cudaMemoryTypeUnregistered,
+} memType_t;
+
+inline memType_t backend_get_memtype(const void *ptr) {
+    cudaPointerAttributes attr;
+    m_cudart_check_errors(cudaPointerGetAttributes(&attr, ptr));
+    const memType_t memtype = (memType_t)attr.type;
+    // Host pointer returns cudaMemoryTypeUnregistered --> turn it into host if ptr is not NULL
+    return (memTypeUnregistered == memtype && NULL != ptr) ? memTypeHost : memtype;
 }
 
 inline flups_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {

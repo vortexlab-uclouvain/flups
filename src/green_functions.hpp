@@ -111,7 +111,7 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
 #if M_HAVE_GPU
     // if we are on GPU, we need to copy the data to the device !
     double *device_ptr = (double *)backend_malloc(sizeof(double) * datasize);
-    backend_memcpy(device_ptr, *data, sizeof(double) * datasize, m_memcpy_h2d);
+    backend_memcpy(device_ptr, *data, sizeof(double) * datasize, memcpyH2D);
     // now we can free the host pointer
     m_free(*data);
     (*data) = device_ptr;
