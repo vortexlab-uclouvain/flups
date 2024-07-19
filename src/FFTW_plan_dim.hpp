@@ -89,7 +89,7 @@ class FFTW_plan_dim {
 
     bool   isr2c_       = false;    /**< @brief is this plan the one that changes to complex?*/
     bool   isSpectral_  = false;    /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
-    int    fftw_stride_ = 0;        /**<@brief the memory space between two ffts */
+    int    fft_stride_ = 0;        /**<@brief the memory space between two ffts */
     int    howmany_     = 0;        /**<@brief the number of FFT's to do */
     
     int    n_out_       = 1;        /**< @brief the number of element coming out of the transform. When dealing with vector, this number must be constant throughout the different components*/
@@ -101,14 +101,14 @@ class FFTW_plan_dim {
     double koffset_     = 0.0;      /**< @brief additive factor to have the correct k numbers*/
 
     int* n_in_          = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
-    int* fftwstart_in_  = NULL;     /**< @brief the starting index for the input field to be given to FFTW functions*/
-    int* fftwstart_out_ = NULL;     /**< @brief the starting index for the output field to be given to FFTW functions*/
+    int* fftstart_in_  = NULL;     /**< @brief the starting index for the input field to be given to FFTW functions*/
+    int* fftstart_out_ = NULL;     /**< @brief the starting index for the output field to be given to FFTW functions*/
 
     PlanType       type_;                        /**< @brief type of this plan, see #PlanType*/
     BoundaryType*  bc_[2]        = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
     int*           postpro_type_ = NULL;         /**< @brief correction type of this plan, see #PlanPostproType*/
     bool*          imult_        = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
-    flups_kind* kind_            = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    flups_r2r_kind_t* kind_            = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
     flups_fft_plan*     plan_        = NULL;         /**< @brief the array of FFTW plan*/
 
    public:

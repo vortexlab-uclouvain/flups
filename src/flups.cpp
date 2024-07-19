@@ -133,22 +133,18 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
 
 // destroy the solver
 void flups_cleanup(Solver* s) {
-    flups_cleanup_all(s);
-}
-
-// Destroy the solver and cleanup fftw
-void flups_cleanup_all(Solver* s) {
     delete s;
-    flups_cleanup_fftw();
 }
 
-// cleanup all the structures related to fftw
-void flups_cleanup_fftw() {
-#if FLUPS_OPENMP
-    fftw_cleanup_threads();
-#endif
+// Destroy the solver and cleanup the backend
+void flups_cleanup_all(Solver* s) {
+    flups_cleanup(s);
+    flups_cleanup_backend();
+}
 
-    fftw_cleanup();
+// cleanup all the structures related to the backend
+void flups_cleanup_backend() {
+    backend_finalize();
 };
 
 // setup the solver

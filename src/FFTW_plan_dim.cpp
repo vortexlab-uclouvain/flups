@@ -161,13 +161,13 @@ FFTW_plan_dim::FFTW_plan_dim(const int lda, const int dimID, const double h[3], 
     // Allocate the component dependent stuffs
     //-------------------------------------------------------------------------
     n_in_          = (int*)m_calloc(sizeof(int) * lda_);
-    fftwstart_in_  = (int*)m_calloc(sizeof(int) * lda_);
-    fftwstart_out_ = (int*)m_calloc(sizeof(int) * lda_);
+    fftstart_in_  = (int*)m_calloc(sizeof(int) * lda_);
+    fftstart_out_ = (int*)m_calloc(sizeof(int) * lda_);
     // normfact_ = (double*)m_calloc(sizeof(double) * lda_);
     for(int lia = 0; lia < lda_; lia ++){
         n_in_[lia]           = 1;
-        fftwstart_in_[lia] = 0;
-        fftwstart_out_[lia] = 0;
+        fftstart_in_[lia] = 0;
+        fftstart_out_[lia] = 0;
     }
     normfact_ = 1.0;
     postpro_type_ = (int*)m_calloc(sizeof(int) * lda_);
@@ -202,8 +202,8 @@ FFTW_plan_dim::~FFTW_plan_dim() {
     if (bc_[1] != NULL) m_free(bc_[1]);
 
     if (n_in_ != NULL) m_free(n_in_);
-    if (fftwstart_in_ != NULL) m_free(fftwstart_in_);
-    if (fftwstart_out_ != NULL) m_free(fftwstart_out_);
+    if (fftstart_in_ != NULL) m_free(fftstart_in_);
+    if (fftstart_out_ != NULL) m_free(fftstart_out_);
     if (imult_ != NULL) m_free(imult_);
     if (kind_ != NULL) m_free(kind_);
     if (postpro_type_ != NULL) m_free(postpro_type_);
@@ -328,16 +328,11 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     for (int id = dimID_ + 1; id < 3; id++) howmany_ *= topo->nloc(id);
 
     // compute the stride
-    fftw_stride_ = memsize[dimID_] * topo->nf();
+    fft_stride_ = memsize[dimID_] * topo->nf();
 
     //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
-    // we make sure to use only 1 thread, the multi-threading is used in the solver, not inside a plan
-#if FLUPS_OPENMP    
-    fftw_plan_with_nthreads(1);
-#endif 
-
     // allocate the plan
     plan_ = (flups_fft_plan*) m_calloc(sizeof(flups_fft_plan) * lda_);
 
@@ -345,7 +340,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     flups_fft_arch arch;
     arch.howmany = howmany_;
     arch.stride = topo->nf();
-    arch.dist = fftw_stride_;
+    arch.dist = fft_stride_;
         
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
@@ -362,7 +357,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
     FLUPS_INFO("dimID     = %d", dimID_);
     FLUPS_INFO("howmany   = %d", howmany_);
-    FLUPS_INFO("fftw stride   = %d", fftw_stride_);
+    FLUPS_INFO("fft stride   = %d", fft_stride_);
     FLUPS_INFO("lda       = %d", lda_);
     FLUPS_INFO(" size n   = %d", n_in_[0]);
     FLUPS_INFO("plan created with stride = %d", topo->nf());
@@ -405,7 +400,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     for (int id = dimID_ + 1; id < 3; id++) howmany_ *= topo->nloc(id);
     
     // compute the stride
-    fftw_stride_ = memsize[dimID_];
+    fft_stride_ = memsize[dimID_];
 
     // allocate the plan
     plan_ = (flups_fft_plan*) m_calloc(sizeof(flups_fft_plan) * lda_);
@@ -415,7 +410,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     arch.dim = n_in_[0];
     arch.howmany = howmany_;
     arch.stride = 1;
-    arch.dist = fftw_stride_;
+    arch.dist = fft_stride_;
        
     if (isr2c_) {
         FLUPS_CHECK(topo->nf() == 1, "the nf of the input topology has to be 1 = real topo");
@@ -435,7 +430,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
         FLUPS_INFO("dimID     = %d", dimID_);
         FLUPS_INFO("howmany   = %d", howmany_);
-        FLUPS_INFO("fftw stride   = %d", fftw_stride_);
+        FLUPS_INFO("fftw stride   = %d", fft_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
@@ -461,7 +456,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("memsize = %d x %d x %d", memsize[0], memsize[1], memsize[2]);
         FLUPS_INFO("dimID     = %d", dimID_);
         FLUPS_INFO("howmany   = %d", howmany_);
-        FLUPS_INFO("fftw stride   = %d", fftw_stride_);
+        FLUPS_INFO("fftw stride   = %d", fft_stride_);
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
@@ -498,16 +493,18 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
         // get the memory
         double* mydata = nullptr;
         if (type_ == SYMSYM || type_ == MIXUNB) {
-            mydata = data + lia * memdim + io * fftw_stride_;
+            mydata = data + lia * memdim + io * fft_stride_;
         } else if (type_ == PERPER || type_ == UNBUNB) {
             if (isr2c_) {
-                mydata = data + lia * memdim + io * fftw_stride_;
+                mydata = data + lia * memdim + io * fft_stride_;
             } else {
-                mydata = data + lia * memdim + io * fftw_stride_ * 2;
+                mydata = data + lia * memdim + io * fft_stride_ * 2;
             }
         }
         // check the alignment
-        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %zu and fftw_stride = %d", fftw_alignment_of(mydata), id, fftw_stride_);
+#if defined(HAVE_FFTW)
+        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %zu and fft_stride = %d", fftw_alignment_of(mydata), id, fft_stride_);
+#endif
     }
 #endif
 }
@@ -536,7 +533,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
     //      - when doing a real to real transform, the fftw stride can be taken as such.
     //      - when performing a real to complex transform, the stide is taken in the input 
     //        frame of reference, and is therefore kept as the number of real.  
-    const size_t fftw_stride = (size_t)(fftw_stride_ * (isr2c_ ? 1 : nf));
+    const size_t fft_stride = (size_t)(fft_stride_ * (isr2c_ ? 1 : nf));
 
     for (int lia = 0; lia < lda_; lia++) {
         //----------------------------------------------------------------------
@@ -563,7 +560,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             // we need to reset the first point of the memory space to 0
             auto op = m_backend_lambda(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fft_stride;
                 // reset the first point of each 1-D transform
                 dataloc[0] = 0.0;
             };
@@ -575,7 +572,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             // we need to reset the last point of the memory space to 0
             auto op = m_backend_lambda(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fft_stride;
                 // reset the last point of each 1-D transform
                 dataloc[nloc - 1] = 0.0;
             };
@@ -587,7 +584,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             // we need to properly set the first and the last point of the transform to 0
             auto op = m_backend_lambda(const int idx) {
                 // get the memory
-                opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                opt_double_ptr dataloc = mydata + idx * fft_stride;
                 // reset the first point
                 dataloc[0] = 0.0;
                 // reset the last point
@@ -607,7 +604,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             // reserved for this in the output data layout (See FFTW_plan_dim_node.cpp). When going
             // in the backward direction, the point on the boundary is the last point in the input 
             // configuration, i.e. the index n_in_ 
-            const int  nfftw    = (FLUPS_FORWARD == sign_) ? n_out_ - 1 : n_in_[lia];
+            const int  nfft = (FLUPS_FORWARD == sign_) ? n_out_ - 1 : n_in_[lia];
 
             // ......................
             // This correction is done in the complex domain in most of the case. 
@@ -620,18 +617,18 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
             if (real_dmn) {
                 auto op = m_backend_lambda(const int idx) {
                     // get the memory
-                    opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                    opt_double_ptr dataloc = mydata + idx * fft_stride;
                     // copy the first point into the last point
-                    dataloc[nfftw] = dataloc[0];
+                    dataloc[nfft] = dataloc[0];
                 };
                 for_loop(op, howmany, "enforce period correction (real)");
 
             } else {
                 auto op = m_backend_lambda(const int idx) {
-                    opt_double_ptr dataloc = mydata + idx * fftw_stride;
+                    opt_double_ptr dataloc = mydata + idx * fft_stride;
                     // copy the first point into the last point
-                    dataloc[2*nfftw]     = dataloc[0];
-                    dataloc[2*nfftw + 1] = dataloc[1];
+                    dataloc[2*nfft]     = dataloc[0];
+                    dataloc[2*nfft + 1] = dataloc[1];
                 };
                 for_loop(op, howmany, "enforce period correction (complex)");
             }
@@ -682,7 +679,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     // copy the variable to avoid issues while compiling using openMP and gcc
     const size_t howmany     = howmany_;
     const size_t onmax       = howmany_ * lda_;
-    const size_t fftw_stride = (size_t)fftw_stride_;
+    const size_t fft_stride = (size_t)fft_stride_;
     const size_t memdim      = topo->memdim();
     const size_t memsize     = topo->memsize();
     // get the plan pointer
@@ -703,7 +700,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             // get the memory offset
             int offset = lia*memdim;
             // execute the plan
-            flups_execute_r2r(plan[lia], (double*)(data + offset + fftwstart_in_[lia]), (double*)(data + offset + fftwstart_out_[lia]));
+            flups_execute_r2r(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]));
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {
@@ -713,7 +710,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // get the memory offset
                     int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_r2c(plan[lia], (double*)(data + offset + fftwstart_in_[lia]), (flups_complex*)(data + offset + fftwstart_out_[lia]));
+                    flups_execute_r2c(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]));
                 }
 
             } else {  // DFT - C2R
@@ -722,7 +719,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                     // get the memory offset
                     int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset + fftwstart_in_[lia]), (double*)(data + offset + fftwstart_out_[lia]));
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]));
                 }
             }
 
@@ -732,7 +729,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
                 // get the memory offset
                 int offset = lia*memdim;
                 // execute the plan
-                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset + fftwstart_in_[lia]), (flups_complex*)(data + offset + fftwstart_out_[lia]), sign);
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]), sign);
             }
         }
     }
@@ -787,28 +784,28 @@ void FFTW_plan_dim::disp() {
         }
         FLUPS_INFO("%s", msg);
         if ((type_ == SYMSYM && !isGreen_) || type_ == MIXUNB) {
-            if (kind_[lia] == FFTW_REDFT00) {
+            if (kind_[lia] == FLUPS_DCT_I) {
                 FLUPS_INFO("- kind = REDFT00 = DCT type I");
             }
-            if (kind_[lia] == FFTW_REDFT10) {
+            if (kind_[lia] == FLUPS_DCT_II) {
                 FLUPS_INFO("- kind = REDFT10 = DCT type II");
             }
-            if (kind_[lia] == FFTW_REDFT01) {
+            if (kind_[lia] == FLUPS_DCT_III) {
                 FLUPS_INFO("- kind = REDFT01 = DCT type III");
             }
-            if (kind_[lia] == FFTW_REDFT11) {
+            if (kind_[lia] == FLUPS_DCT_IV) {
                 FLUPS_INFO("- kind = REDFT11 = DCT type IV");
             }
-            if (kind_[lia] == FFTW_RODFT00) {
+            if (kind_[lia] == FLUPS_DST_I) {
                 FLUPS_INFO("- kind = RODFT00 = DST type I");
             }
-            if (kind_[lia] == FFTW_RODFT10) {
+            if (kind_[lia] == FLUPS_DST_II) {
                 FLUPS_INFO("- kind = RODFT10 = DST type II");
             }
-            if (kind_[lia] == FFTW_RODFT01) {
+            if (kind_[lia] == FLUPS_DST_III) {
                 FLUPS_INFO("- kind = RODFT01 = DST type III");
             }
-            if (kind_[lia] == FFTW_RODFT11) {
+            if (kind_[lia] == FLUPS_DST_IV) {
                 FLUPS_INFO("- kind = RODFT11 = DST type IV");
             }
         }

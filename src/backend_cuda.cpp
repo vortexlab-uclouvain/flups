@@ -88,7 +88,7 @@ flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_comp
     return plan;
 }
 
-flups_shuffle_plan flups_plan_shuffle(fftw_iodim dims[2], double *in, double *out, bool iscomplex) {
+flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *out, bool iscomplex) {
     flups_shuffle_plan plan;
     plan.n0 = dims[0].n;
     plan.n1 = dims[1].n;

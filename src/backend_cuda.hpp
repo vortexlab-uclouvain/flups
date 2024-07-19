@@ -4,7 +4,6 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <cufft.h>
-#include <fftw3.h>
 
 #include <string>
 
@@ -13,8 +12,25 @@
 using std::string;
 
 // Datatypes
-using flups_kind    = fftw_r2r_kind;
 using flups_complex = cufftDoubleComplex;
+
+typedef enum {
+    FLUPS_DCT_I,
+    FLUPS_DCT_II,
+    FLUPS_DCT_III,
+    FLUPS_DCT_IV,
+    FLUPS_DST_I,
+    FLUPS_DST_II,
+    FLUPS_DST_III,
+    FLUPS_DST_IV,
+} flups_r2r_kind_t;
+
+// Helper struct, see FFTW doc.
+struct flups_iodim {
+    int n;
+    int is;
+    int os;
+};
 
 struct flups_fft_arch {
     int dim;
@@ -34,12 +50,12 @@ struct flups_fft_plan {
     // cuFFT plan handle
     cufftHandle fft;
     // parameters for the r2r transform
-    int        n;        // number of inputs/output real values
-    int        dist;     // distance between two successive fft's
-    int        stride;   // data stride
-    int        howmany;  // number of fft's to perform
-    flups_kind kind;     // kinf of the r2r transform
-    bool       is_r2r = false;
+    int              n;        // number of inputs/output real values
+    int              dist;     // distance between two successive fft's
+    int              stride;   // data stride
+    int              howmany;  // number of fft's to perform
+    flups_r2r_kind_t kind;     // kinf of the r2r transform
+    bool             is_r2r = false;
     // parameters for the equivalent r2c transform
     int dim;      // size of the equivalent r2c fft
     int idist;    // input  distance between two successive fft's

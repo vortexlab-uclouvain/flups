@@ -69,7 +69,7 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms, the #koffset_ for each dimension */
     //-------------------------------------------------------------------------
-    kind_ = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_ = (flups_r2r_kind_t*)m_calloc(sizeof(flups_r2r_kind_t) * lda_);
 
     // because of the constrain on the BC, we only the kind argument is linked to the lia
     // while the other values (n_in, n_out and koffset) will remain unchanged accross the lda
@@ -81,8 +81,8 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
         if (isGreen_) {
             // In this case, the green functions are spectral. There is no need for correction
             postpro_type_[lia]  = POSTPRO_NONE;
-            fftwstart_in_[lia]  = 0;
-            fftwstart_out_[lia] = 0;
+            fftstart_in_[lia]  = 0;
+            fftstart_out_[lia] = 0;
             imult_[lia]         = false;
 
             if (bc_[0][lia] == EVEN) {
@@ -129,12 +129,12 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
 
                 // No correction or offset needed
                 postpro_type_[lia]  = POSTPRO_NONE;
-                fftwstart_in_[lia]  = 0;
-                fftwstart_out_[lia] = 0;
+                fftstart_in_[lia]  = 0;
+                fftstart_out_[lia] = 0;
                 koffset_            = 0.0;
 
                 // Both the forward and the backward tranform uses a REDFT00 transform
-                kind_[lia] = FFTW_REDFT00;  // DCT type I
+                kind_[lia] = FLUPS_DCT_I;  // DCT type I
 
             } else if (bc_[1][lia] == ODD) {
                 // We need to remove the 0 at the end of the input
@@ -145,19 +145,19 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 // always the samed DCT
                 if (sign_ == FLUPS_FORWARD) {
                     // DCT type III
-                    kind_[lia]          = FFTW_REDFT01;
-                    fftwstart_in_[lia]  = 0;
-                    fftwstart_out_[lia] = 0;
+                    kind_[lia]          = FLUPS_DCT_III;
+                    fftstart_in_[lia]  = 0;
+                    fftstart_out_[lia] = 0;
                     //When performing a type-III DCT, fftw only takes care of the n-1 first points
                     // we need to ensure that the last point is 0. 
                     postpro_type_[lia] = NULL_LAST_POINT;
                 
                 } else if (sign_ == FLUPS_BACKWARD) {
                     // DCT type II (inverse of the type III)
-                    kind_[lia] = FFTW_REDFT10;
+                    kind_[lia] = FLUPS_DCT_II;
                     // no correction is needed
-                    fftwstart_in_[lia]  = 0;
-                    fftwstart_out_[lia] = 0;
+                    fftstart_in_[lia]  = 0;
+                    fftstart_out_[lia] = 0;
                     // The boundary should be ODD - i.e. the last point (not touched by fftw) must be 0.
                     postpro_type_[lia]  = NULL_LAST_POINT;
                 }
@@ -183,25 +183,25 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                 // always the correct DST
                 if (sign_ == FLUPS_FORWARD) {
                     //  --------- DST type-I forward ------------
-                    kind_[lia] = FFTW_RODFT00;
+                    kind_[lia] = FLUPS_DST_I;
                     // The first data and last data of the memory are not taken in to account by fftw
                     // We shift the data of the input. 
                     // In the output, we need to add the null mode and the flip-flop mode which are
                     // null when performing a DFT on a odd-odd signal. Therefore the output is shifted by 
                     // 1 and we enforce the first and in the last point of the memory to 0
-                    fftwstart_in_[lia] = 1;
-                    fftwstart_out_[lia] = 1;
+                    fftstart_in_[lia] = 1;
+                    fftstart_out_[lia] = 1;
                     postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
                     //  --------- DST type-I backward ------------
-                    kind_[lia] = FFTW_RODFT00;  
+                    kind_[lia] = FLUPS_DST_I;  
                     // The first data and last data of the memory are not taken in to account by fftw, as they are null
                     // We shift the data of the input to remove the mean mode of the input of fftw
                     // In the output, we need to enforce the boundary conditions which are null on both side.
                     // Therefore the output is shifted by 1 and we enforce 0 in the first and in the last point of the memory
-                    fftwstart_in_[lia] = 1;
-                    fftwstart_out_[lia] = 1;
+                    fftstart_in_[lia] = 1;
+                    fftstart_out_[lia] = 1;
                     postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
             // ------------ ODD - EVEN ------------
@@ -225,9 +225,9 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // Therefore, the data given to fftw as input start at 1 while the output start at 0. 
                     // In the output, the last data is not touched by fftw and we ensure that it is equal to 0 to 
                     // avoid the influence of any spurious value in the memory space
-                    kind_[lia]          = FFTW_RODFT01;
-                    fftwstart_in_[lia]  = 1;
-                    fftwstart_out_[lia] = 0;
+                    kind_[lia]          = FLUPS_DST_III;
+                    fftstart_in_[lia]  = 1;
+                    fftstart_out_[lia] = 0;
                     postpro_type_[lia]  = NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
@@ -235,9 +235,9 @@ void FFTW_plan_dim_node::init_real2real_(const int size[3], const bool isComplex
                     // The first point of the input data is non zero and is needed by fftw. 
                     // In the output, the first point given by fftw correspond to the first point inside the domain
                     // The boundary is null and we enforce it in the post-processing of the plan.
-                    kind_[lia]          = FFTW_RODFT10;
-                    fftwstart_in_[lia]  = 0;
-                    fftwstart_out_[lia] = 1;
+                    kind_[lia]          = FLUPS_DST_II;
+                    fftstart_in_[lia]  = 0;
+                    fftstart_out_[lia] = 1;
                     postpro_type_[lia]  = NULL_FIRST_POINT;
                 }
             }
@@ -284,7 +284,7 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
     //-------------------------------------------------------------------------
     /** - Get the #kind_ of Fourier transforms */
     //-------------------------------------------------------------------------
-    kind_ = (fftw_r2r_kind*)m_calloc(sizeof(fftw_r2r_kind) * lda_);
+    kind_ = (flups_r2r_kind_t*)m_calloc(sizeof(flups_r2r_kind_t) * lda_);
 
     //-------------------------------------------------------------------------
     /** - Get the #normfact_  The normfactor is independant of the component but depend on the number of point we give to the fft*/
@@ -309,15 +309,15 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 koffset_ = 0.0;
             }
             // no correction is needed
-            fftwstart_in_[lia]  = 0;
-            fftwstart_out_[lia] = 0;
+            fftstart_in_[lia]  = 0;
+            fftstart_out_[lia] = 0;
             postpro_type_[lia] = POSTPRO_NONE;
             
             // we do a DCT, so no imult
             imult_[lia] = false;
             // The Green function is ALWAYS EVEN - EVEN
-            if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;  // DCT type I
-            if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;
+            if (sign_ == FLUPS_FORWARD) kind_[lia] = FLUPS_DCT_I;  // DCT type I
+            if (sign_ == FLUPS_BACKWARD) kind_[lia] = FLUPS_DCT_I;
 
         } else {
             if ((bc_[0][lia] == EVEN && bc_[1][lia] == UNB) || (bc_[0][lia] == UNB && bc_[1][lia] == EVEN)) {  // We have a DCT - we are EVEN - EVEN over 2L
@@ -329,14 +329,14 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 koffset_ = 0.0;
 
                 // All the information are needed when performing a DCT
-                fftwstart_in_[lia]  = 0;
-                fftwstart_out_[lia] = 0;
+                fftstart_in_[lia]  = 0;
+                fftstart_out_[lia] = 0;
                 postpro_type_[lia] = POSTPRO_NONE;
                 
                 // we do a DCT, so no imult
                 imult_[lia] = false;
-                if (sign_ == FLUPS_FORWARD) kind_[lia] = FFTW_REDFT00;   // DCT type I
-                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FFTW_REDFT00;  // DCT type I
+                if (sign_ == FLUPS_FORWARD) kind_[lia] = FLUPS_DCT_I;   // DCT type I
+                if (sign_ == FLUPS_BACKWARD) kind_[lia] = FLUPS_DCT_I;  // DCT type I
 
             } else if ((bc_[0][lia] == UNB && bc_[1][lia] == ODD) || (bc_[0][lia] == ODD && bc_[1][lia] == UNB)) {
                 // We have a DST - we are ODD - ODD over 2L
@@ -354,17 +354,17 @@ void FFTW_plan_dim_node::init_mixunbounded_(const int size[3], const bool isComp
                 if (sign_ == FLUPS_FORWARD) {
                     //  --- DST type I ---
                     // See the ODD-ODD case for details on the correction
-                    kind_[lia]     = FFTW_RODFT00;  
-                    fftwstart_in_[lia]  = 1;
-                    fftwstart_out_[lia] = 1;
+                    kind_[lia]     = FLUPS_DST_I;  
+                    fftstart_in_[lia]  = 1;
+                    fftstart_out_[lia] = 1;
                     postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
                 if (sign_ == FLUPS_BACKWARD) {
                     //  --- DST type I ---
                     // See the ODD-ODD case for details on the correction
-                    kind_[lia]     = FFTW_RODFT00;  // DST type I
-                    fftwstart_in_[lia]  = 1;
-                    fftwstart_out_[lia] = 1;
+                    kind_[lia]     = FLUPS_DST_I;  // DST type I
+                    fftstart_in_[lia]  = 1;
+                    fftstart_out_[lia] = 1;
                     postpro_type_[lia] = NULL_FIRST_POINT + NULL_LAST_POINT;
                 }
             } else {
@@ -423,8 +423,8 @@ void FFTW_plan_dim_node::init_periodic_(const int size[3], const bool isComplex)
     for (int lia = 0; lia < lda_; lia++) {
         postpro_type_[lia]  = ENFORCE_PERIOD;
         // postpro_type_[lia]  = POSTPRO_NONE;
-        fftwstart_in_[lia]  = 0;
-        fftwstart_out_[lia] = 0;
+        fftstart_in_[lia]  = 0;
+        fftstart_out_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }
@@ -472,8 +472,8 @@ void FFTW_plan_dim_node::init_unbounded_(const int size[3], const bool isComplex
     //-------------------------------------------------------------------------
     for (int lia = 0; lia < lda_; lia++) {
         postpro_type_[lia] = POSTPRO_NONE;
-        fftwstart_in_[lia]  = 0;
-        fftwstart_out_[lia] = 0;
+        fftstart_in_[lia]  = 0;
+        fftstart_out_[lia] = 0;
         // we do a DFT, so no imult
         imult_[lia] = false;
     }

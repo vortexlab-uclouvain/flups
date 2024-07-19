@@ -280,12 +280,7 @@ void ChunkToNewComm(const MPI_Comm new_comm, const MPI_Group new_group, MemChunk
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    // enable the multithreading for this plan
-#if FLUPS_OPENMP
-    fftw_plan_with_nthreads(omp_get_max_threads());
-#endif
-
-    fftw_iodim dims[2];
+    flups_iodim dims[2];
     // dim[0] = dimension of the targeted FRI (FFTW-convention)
     dims[0].n  = 1;
     dims[0].is = 1;

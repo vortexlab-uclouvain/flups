@@ -7,7 +7,7 @@
 
 #if M_HAVE_GPU
 
-flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_kind kind) {
+flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind) {
     flups_fft_plan plan;
     // parameters for the r2r transform
     plan.n       = arch.dim;
@@ -21,30 +21,30 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
 
     switch (kind) {
         // DCT Type I
-        case FFTW_REDFT00:
+        case FLUPS_DCT_I:
             plan.dim     = 2 * plan.n - 2;
             plan.idist   = 2 * plan.n;  // should be 2n-2 (but cufft doesn't like it)
             plan.odist   = plan.n;
             plan.memsize = (2 * plan.n) * plan.howmany;
             break;
         // DST Type I
-        case FFTW_RODFT00:
+        case FLUPS_DST_I:
             plan.dim     = 2 * plan.n + 2;
             plan.idist   = 2 * plan.n + 4;  // should be 2n+2 (but cufft doesn't like it)
             plan.odist   = plan.n + 2;
             plan.memsize = (2 * plan.n + 4) * plan.howmany;
             break;
         // DCT/DST Type II
-        case FFTW_REDFT10:
-        case FFTW_RODFT10:
+        case FLUPS_DCT_II:
+        case FLUPS_DST_II:
             plan.dim     = 2 * plan.n;
             plan.idist   = 2 * plan.n + 2;  // should be 2n (but cufft doesn't like it)
             plan.odist   = plan.n + 1;
             plan.memsize = (2 * plan.n + 2) * plan.howmany;
             break;
         // DCT/DST Type III
-        case FFTW_REDFT01:
-        case FFTW_RODFT01:
+        case FLUPS_DCT_III:
+        case FLUPS_DST_III:
             plan.dim     = 2 * plan.n;
             plan.idist   = plan.n + 1;
             plan.odist   = 2 * plan.n + 2;  // here too !
@@ -53,8 +53,8 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
             is_r2c = false;
             break;
         // DCT/DST Type IV
-        case FFTW_REDFT11:
-        case FFTW_RODFT11:
+        case FLUPS_DCT_IV:
+        case FLUPS_DST_IV:
             plan.dim     = 8 * plan.n;
             plan.idist   = 8 * plan.n + 2;  //  should be 8n (but cufft doesn't like it)
             plan.odist   = 4 * plan.n + 1;
@@ -88,7 +88,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
     switch (plan.kind) {
         // DCT Type I
-        case FFTW_REDFT00: {
+        case FLUPS_DCT_I: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -116,7 +116,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DCT Type II
-        case FFTW_REDFT10: {
+        case FLUPS_DCT_II: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -141,7 +141,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DCT Type III
-        case FFTW_REDFT01: {
+        case FLUPS_DCT_III: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -167,7 +167,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DCT Type IV
-        case FFTW_REDFT11: {
+        case FLUPS_DCT_IV: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -192,7 +192,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DST Type I
-        case FFTW_RODFT00: {
+        case FLUPS_DST_I: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -216,7 +216,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DST Type II
-        case FFTW_RODFT10: {
+        case FLUPS_DST_II: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -242,7 +242,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DST Type III
-        case FFTW_RODFT01: {
+        case FLUPS_DST_III: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;
@@ -269,7 +269,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         // DST Type IV
-        case FFTW_RODFT11: {
+        case FLUPS_DST_IV: {
             // Pre-processing
             auto pre_op = m_backend_lambda(const int idx) {
                 const int i = idx % n;

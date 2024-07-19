@@ -46,11 +46,6 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     backend_init();
 
-#ifdef FLUPS_WISDOM_PATH
-    FLUPS_WARNING("Importing wisdom from %s", FLUPS_WISDOM_PATH);
-    fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
-#endif
-
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
     //-------------------------------------------------------------------------
@@ -58,24 +53,24 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
     double *data      = (double *)m_calloc(10 * alignSize * sizeof(double));
     // initialize the fftw alignement
-    fftwalignment_ = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
+    fftalignment_ = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
     // get the fftw alignement and stop if it is lower than the one we assumed
     for (int i = 1; i < 10 * alignSize; i++) {
         if (fftw_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i > alignSize) {
-                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: FFTW=%d vs FLUPS=%d", fftwalignment_, FLUPS_ALIGNMENT);
+                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: FFTW=%d vs FLUPS=%d", fftalignment_, FLUPS_ALIGNMENT);
             }
             // else, just stop and advise the user to change
             break;
         }
-        fftwalignment_ += sizeof(double);
+        fftalignment_ += sizeof(double);
     }
-    if (fftwalignment_ != FLUPS_ALIGNMENT) {
-        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
+    if (fftalignment_ != FLUPS_ALIGNMENT) {
+        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftalignment_, FLUPS_ALIGNMENT);
         FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     } else {
-        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
+        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", fftalignment_, FLUPS_ALIGNMENT);
         FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     }
 
@@ -514,9 +509,6 @@ Solver::~Solver() {
     delete_topologies_(topo_hat_);
 
     if (data_ != NULL) backend_free(data_);
-
-    // cleanup backend
-    backend_finalize();
     //-------------------------------------------------------------------------
     END_FUNC;
 }
@@ -677,7 +669,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             // the rank distribution is computed using the dimOrder array, where every topology
             // const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
-            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
+            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftalignment_, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -771,7 +763,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // create the new topology in the output layout (size and isComplex). lda of Green is always 1.
-            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
+            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, fftalignment_, topo_phys_->get_comm());
             // switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < ndim_ - 1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -1382,9 +1374,9 @@ void Solver::do_FFT(double *data, const int sign) {
             }
             m_profStopi(prof_, "SwitchTopo");
             // run the FFT
-            m_profStarti(prof_, "fftw");
+            m_profStarti(prof_, "fft");
             plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
@@ -1393,9 +1385,9 @@ void Solver::do_FFT(double *data, const int sign) {
         }
     } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
-            m_profStarti(prof_, "fftw");
+            m_profStarti(prof_, "fft");
             plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
@@ -1409,9 +1401,9 @@ void Solver::do_FFT(double *data, const int sign) {
         }
     } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
-            m_profStarti(prof_, "fftw");
+            m_profStarti(prof_, "fft");
             plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();

@@ -2,7 +2,6 @@
 #define BACKEND_FFTW_HPP
 
 #include <fftw3.h>
-#include <omp.h>
 
 #include <string>
 
@@ -18,10 +17,21 @@ struct flups_fft_arch {
     int dist;
 };
 
-using flups_kind         = fftw_r2r_kind;
 using flups_fft_plan     = fftw_plan;
 using flups_shuffle_plan = fftw_plan;
 using flups_complex      = fftw_complex;
+using flups_iodim        = fftw_iodim;
+
+typedef enum {
+    FLUPS_DCT_I   = FFTW_REDFT00,
+    FLUPS_DCT_II  = FFTW_REDFT10,
+    FLUPS_DCT_III = FFTW_REDFT01,
+    FLUPS_DCT_IV  = FFTW_REDFT11,
+    FLUPS_DST_I   = FFTW_RODFT00,
+    FLUPS_DST_II  = FFTW_RODFT10,
+    FLUPS_DST_III = FFTW_RODFT01,
+    FLUPS_DST_IV  = FFTW_RODFT11,
+} flups_r2r_kind_t;
 
 typedef enum {
     memcpyD2H,
