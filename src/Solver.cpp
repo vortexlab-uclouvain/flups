@@ -549,7 +549,7 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
     for (int ip = 0; ip < ndim_; ip++) {
         int lda = planmap[ip]->lda();
         for (int ida = 0; ida < lda; ida++) {
-            flups_plan *plan = planmap[ip]->get_plan();
+            flups_fft_plan *plan = planmap[ip]->get_plan();
             // if we have a r2r plan, take the memsize
             if (plan != NULL && plan[ida].mem != NULL) {
                 backend_free(plan[ida].mem);
@@ -953,7 +953,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     for (int ip = 0; ip < ndim_; ip++) {
         int lda = planmap[ip]->lda();
         for (int ida = 0; ida < lda; ida++) {
-            flups_plan *plan = planmap[ip]->get_plan();
+            flups_fft_plan *plan = planmap[ip]->get_plan();
             // if we have a r2r plan, take the memsize
             if (plan != NULL && plan[ida].is_r2r) {
                 size_tot = std::max(plan[ida].memsize, size_tot);
@@ -968,7 +968,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
         for (int ip = 0; ip < ndim_; ip++) {
             int lda = planmap[ip]->lda();
             for (int ida = 0; ida < lda; ida++) {
-                flups_plan *plan = planmap[ip]->get_plan();
+                flups_fft_plan *plan = planmap[ip]->get_plan();
                 // if we have a r2r plan
                 if (plan != NULL && plan[ida].is_r2r) {
                     plan[ida].mem = mem;

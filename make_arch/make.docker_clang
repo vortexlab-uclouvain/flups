@@ -6,7 +6,7 @@ CXXFLAGS := -fPIC -g -O3 -std=c++17 -Wno-format-security -DPROF
 LDFLAGS  := -fPIC -g -O3 -lstdc++   -lm
 
 ## CPU compilation flags
-#OPTS     +=
+#OPTS     += -DHAVE_FFTW
 #CXXFLAGS += -fopenmp
 #LDFLAGS  += -fopenmp
 

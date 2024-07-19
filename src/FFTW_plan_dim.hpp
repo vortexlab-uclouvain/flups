@@ -109,7 +109,7 @@ class FFTW_plan_dim {
     int*           postpro_type_ = NULL;         /**< @brief correction type of this plan, see #PlanPostproType*/
     bool*          imult_        = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
     flups_kind* kind_            = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    flups_plan*     plan_        = NULL;         /**< @brief the array of FFTW plan*/
+    flups_fft_plan*     plan_        = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -141,7 +141,7 @@ class FFTW_plan_dim {
     inline void         get_outsize(int* size) const { size[dimID_] = n_out_; };
     inline void         get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
     inline void         get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
-    inline flups_plan*  get_plan() const { return plan_; }
+    inline flups_fft_plan*  get_plan() const { return plan_; }
     /**@} */
 
     /**

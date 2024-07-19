@@ -339,7 +339,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
 #endif 
 
     // allocate the plan
-    plan_ = (flups_plan*) m_calloc(sizeof(flups_plan) * lda_);
+    plan_ = (flups_fft_plan*) m_calloc(sizeof(flups_fft_plan) * lda_);
 
     // Plan details
     flups_fft_arch arch;
@@ -408,7 +408,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     fftw_stride_ = memsize[dimID_];
 
     // allocate the plan
-    plan_ = (flups_plan*) m_calloc(sizeof(flups_plan) * lda_);
+    plan_ = (flups_fft_plan*) m_calloc(sizeof(flups_fft_plan) * lda_);
 
     // Plan details
     flups_fft_arch arch;
@@ -686,7 +686,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     const size_t memdim      = topo->memdim();
     const size_t memsize     = topo->memsize();
     // get the plan pointer
-    const flups_plan* plan = plan_;
+    const flups_fft_plan* plan = plan_;
     const int sign         = sign_;
 
     //-------------------------------------------------------------------------
