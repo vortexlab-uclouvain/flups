@@ -1,8 +1,21 @@
 #ifndef LGF_ONE_UNBOUNDED_HPP_
 #define LGF_ONE_UNBOUNDED_HPP_
 
-#include <cmath>
+// Pick which <complex> header we should use, depending on the compiler
+// NVCC can't compile <complex>, and clang can't compile <cuda/std/complex>
+#if defined(BACKEND_CUDA)
+#define __USE_CUDA_STDLIB (!__clang__)
+#else
+#define __USE_CUDA_STDLIB 0
+#endif
+
+#if __USE_CUDA_STDLIB
+#include <cuda/std/complex>
+#else
 #include <complex>
+#endif
+
+#include <cmath>
 #include <array>
 #include <tuple>
 
@@ -14,9 +27,13 @@ namespace LGFOneUnbounded {
     // ----------------------------------------------------------------------------------------
     // Types
     // ----------------------------------------------------------------------------------------
+    using real_t = double;                          //!< Note: floating point literals in this file are double precision.
+#if __USE_CUDA_STDLIB
+    using complex_t = cuda::std::complex<real_t>;   //!< complex precision matches real precision 
+#else
+    using complex_t = std::complex<real_t>;         //!< complex precision matches real precision 
+#endif
 
-    using real_t = double;                  //!< Note: floating point literals in this file are double precision.
-    using complex_t = std::complex<real_t>; //!< complex precision matches real precision 
 
     // ----------------------------------------------------------------------------------------
     // Utility functions
@@ -26,7 +43,8 @@ namespace LGFOneUnbounded {
     /**
      * @brief a square root with complex return type that accepts real or complex arguments
      */
-    template <typename T> m_device complex_t complex_sqrt(T z) { 
+    template <typename T>
+    m_device complex_t complex_sqrt(T z) { 
         return sqrt(static_cast<complex_t>(z)); 
     }
 
@@ -37,7 +55,8 @@ namespace LGFOneUnbounded {
      * @param n the number of coefficients
      * @param x the evaluation point
      */
-    template<typename T> m_device T horner(const real_t* a, int n, T x) {
+    template <typename T>
+    m_device T horner(const real_t* a, int n, T x) {
         T out = a[n - 1];
         for (int i = 2; i <= n; i++) {
             out = x*out + a[n - i];

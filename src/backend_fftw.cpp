@@ -43,7 +43,6 @@ memType_t backend_get_memtype(const void *ptr) {
 }
 
 flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind) {
-    fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
                               in, &arch.dim, arch.stride, arch.dist,
                               out, &arch.dim, arch.stride, arch.dist,
@@ -51,7 +50,6 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
 }
 
 flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
-    fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_dft_r2c(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist,
                                   out, &arch.dim, 1, arch.dist / 2,
@@ -59,7 +57,6 @@ flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *ou
 }
 
 flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
-    fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_dft_c2r(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist / 2,
                                   out, &arch.dim, 1, arch.dist,
@@ -67,7 +64,6 @@ flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *ou
 }
 
 flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
-    fftw_plan_with_nthreads(omp_get_max_threads());
     return fftw_plan_many_dft(1, &arch.dim, arch.howmany,
                               in, &arch.dim, 1, arch.dist,
                               out, &arch.dim, 1, arch.dist,

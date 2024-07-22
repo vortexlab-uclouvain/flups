@@ -6,7 +6,7 @@
 #include "backend_cuda.hpp"
 #elif defined(HAVE_HIP)
 #define M_HAVE_GPU 1
-#error "HIP backend not yet implemented
+#error "HIP backend not yet implemented"
 #elif defined(BACKEND_FFTW)
 #define M_HAVE_GPU 0
 #include "backend_fftw.hpp"

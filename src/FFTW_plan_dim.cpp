@@ -675,14 +675,11 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
     }
 
     // copy the variable to avoid issues while compiling using openMP and gcc
-    const size_t howmany     = howmany_;
-    const size_t onmax       = howmany_ * lda_;
-    const size_t fft_stride = (size_t)fft_stride_;
-    const size_t memdim      = topo->memdim();
-    const size_t memsize     = topo->memsize();
+    const size_t memdim  = topo->memdim();
+    const size_t memsize = topo->memsize();
     // get the plan pointer
     const flups_fft_plan* plan = plan_;
-    const int sign         = sign_;
+    const int sign             = sign_;
 
     //-------------------------------------------------------------------------
     /** - check the alignment if needed. Cannot be done inside the loop when compiling with GCC and default(none) */

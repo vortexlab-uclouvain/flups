@@ -184,6 +184,10 @@ class Solver {
      *
      * @{
      */
+#if defined(BACKEND_CUDA)
+    // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#extended-lambda-restrictions
+   public:
+#endif
     void dothemagic_std_real(double* data);
     void dothemagic_std_complex(double* data);
     void dothemagic_rot_real_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
@@ -201,10 +205,15 @@ class Solver {
      *
      * @{
      */
+   private:
     void cmptGreenFunction_(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void cmptGreenSymmetry_(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
-    void scaleGreenFunction_(const Topology* topo, double* data, bool killModeZero);
     void finalizeGreenFunction_(Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* planmap[3]);
+#if defined (BACKEND_CUDA)
+    // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#extended-lambda-restrictions
+   public:
+#endif
+    void scaleGreenFunction_(const Topology* topo, double* data, bool killModeZero);
     /**@} */
 
    public:

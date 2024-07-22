@@ -2,18 +2,11 @@ CXX = mpic++
 CC  = mpicc
 
 ## Compile & linker flags
-CXXFLAGS := -fPIC -g -O3 -std=c++17 -Wno-format-security -DPROF
-LDFLAGS  := -fPIC -g -O3 -lstdc++   -lm
+CXXFLAGS := -g -O3 -std=c++17
+LDFLAGS  := -g -O3 -lstdc++ -lm
 
-## CPU compilation flags
-#OPTS     += -DBACKEND_FFTW
-#CXXFLAGS += -fopenmp
-#LDFLAGS  += -fopenmp
-
-## GPU compilation flags (CUDA)
-OPTS     += -DBACKEND_CUDA
-CXXFLAGS += -x cuda --cuda-gpu-arch=sm_86
-LDFLAGS  +=
+## Pick backend
+OPTS += -DBACKEND_CUDA
 
 ## Asan flags
 ## Note: export ASAN_OPTIONS=protect_shadow_gap=0:use_sigaltstack=0 before running
