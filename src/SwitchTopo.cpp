@@ -26,10 +26,11 @@
  * 
  */
 
-
 #include "SwitchTopo.hpp"
 #include "Topology.hpp"
 #include "h3lpr/macros.hpp"
+
+#if (FLUPS_MPI_AGGRESSIVE == 0)
 
 using namespace std;
 
@@ -666,3 +667,5 @@ void SwitchTopo::add_toGraph(int* sourcesW, int* destsW) const{
     // is relative so it doesnt matter.
     END_FUNC;
 }
+
+#endif  // FLUPS_MPI_AGGRESSIVE

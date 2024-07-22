@@ -1,13 +1,13 @@
 #ifndef BACKEND_HPP
 #define BACKEND_HPP
 
-#if defined(HAVE_CUDA)
+#if defined(BACKEND_CUDA)
 #define M_HAVE_GPU 1
 #include "backend_cuda.hpp"
 #elif defined(HAVE_HIP)
 #define M_HAVE_GPU 1
 #error "HIP backend not yet implemented
-#elif defined(HAVE_FFTW)
+#elif defined(BACKEND_FFTW)
 #define M_HAVE_GPU 0
 #include "backend_fftw.hpp"
 #else
@@ -27,6 +27,7 @@ void *backend_malloc(size_t size);
 void  backend_free(void *ptr);
 
 // Memory management functions
+size_t    backend_alignment_of(double *ptr);
 void      backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind);
 memType_t backend_get_memtype(const void *ptr);
 

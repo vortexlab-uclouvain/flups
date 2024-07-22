@@ -1,4 +1,4 @@
-#if defined(HAVE_CUDA)
+#if defined(BACKEND_CUDA)
 
 #include "backend.hpp"
 
@@ -43,6 +43,13 @@ void *backend_malloc(size_t size) {
 
 void backend_free(void *ptr) {
     m_cudart_check_errors(cudaFree(ptr));
+}
+
+// Return alignment of pointer
+// TODO: what is the proper alignment on GPUs, and how to implement it ?
+size_t backend_alignment_of(double *ptr) {
+    FLUPS_CHECK(memTypeDevice == backend_get_memtype(ptr), "Pointer is not on device");
+    return ((size_t)ptr % FLUPS_ALIGNMENT);
 }
 
 // Memcopy function - from host to device and vice-versa
@@ -142,4 +149,4 @@ void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
     ((void)0);
 }
 
-#endif  // HAVE_CUDA
+#endif  // BACKEND_CUDA

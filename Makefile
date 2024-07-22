@@ -60,13 +60,6 @@ KERNEL_DIR := ./kernel
 INC := -I$(SRC_DIR)
 
 #-----------------------------------------------------------------------------
-#---- FFTW
-FFTW_INC ?= /usr/include
-FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
-INC += -I$(FFTW_INC)
-LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
-
 #---- HDF5
 HDF5_INC ?= /usr/include
 HDF5_LIB ?= /usr/lib
@@ -90,14 +83,30 @@ H3LPR_LIBNAME ?= -lh3lpr
 INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
+#-----------------------------------------------------------------------------
+# Pick a backend -- by default, we pick FFTW
+ifeq (,$(findstring -DBACKEND_,$(OPTS)))
+	OPTS += -DBACKEND_FFTW
+endif
+
+#---- Use FFTW
+ifneq (,$(findstring -DBACKEND_FFTW,$(OPTS)))
+    FFTW_INC ?= /usr/include
+    FFTW_LIB ?= /usr/lib
+    FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
+    INC += -I$(FFTW_INC)
+    LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
+endif
+
 #---- Use CUDA
-ifneq (,$(findstring -DHAVE_CUDA,$(OPTS)))
+ifneq (,$(findstring -DBACKEND_CUDA,$(OPTS)))
 	CUDA_INC ?= /usr/local/cuda/include
 	CUDA_LIB ?= /usr/local/cuda/lib64
 	CUDA_LIBNAME ?= -lcudart -lcufft -lcublas
 	INC += -I$(CUDA_INC)
 	LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
 endif
+
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory

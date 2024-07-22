@@ -502,9 +502,7 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
             }
         }
         // check the alignment
-#if defined(HAVE_FFTW)
-        FLUPS_CHECK(fftw_alignment_of(mydata) == 0, "data for FFTW have to be aligned on the FFTW alignement! Alignment is %d with id = %zu and fft_stride = %d", fftw_alignment_of(mydata), id, fft_stride_);
-#endif
+        FLUPS_CHECK(backend_alignment_of(mydata) == 0, "data for FFT have to be aligned on the defined backend alignment! Alignment is %zu with id = %zu and fft_stride = %d", backend_alignment_of(mydata), id, fft_stride_);
     }
 #endif
 }

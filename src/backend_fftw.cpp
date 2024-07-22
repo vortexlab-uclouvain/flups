@@ -1,4 +1,4 @@
-#if defined(HAVE_FFTW)
+#if defined(BACKEND_FFTW)
 
 #include "backend.hpp"
 
@@ -21,6 +21,11 @@ void backend_memset(void *ptr, int val, size_t size) {
 
 void *backend_malloc(size_t size) {
     return m_calloc(size);
+}
+
+// Return alignment of pointer
+size_t backend_alignment_of(double *ptr) {
+    return (size_t)fftw_alignment_of(ptr);
 }
 
 // Memcopy function - from host to device and vice-versa
@@ -116,4 +121,4 @@ void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
     fftw_destroy_plan(plan);
 }
 
-#endif  // HAVE_FFTW
+#endif  // BACKEND_FFTW

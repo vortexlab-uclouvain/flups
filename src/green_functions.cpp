@@ -29,7 +29,7 @@
 
 // Helper function to get the function pointer, depending on if it's on the GPU or not
 inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr) {
-#if defined(HAVE_CUDA)
+#if defined(BACKEND_CUDA)
     m_cudart_check_errors(cudaMemcpyFromSymbol(host_ptr, *device_ptr, sizeof(GreenKernel)));
 #else
     *host_ptr = *device_ptr;

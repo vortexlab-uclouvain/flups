@@ -49,32 +49,37 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
     //-------------------------------------------------------------------------
+#if !M_HAVE_GPU
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
-    double *data      = (double *)m_calloc(10 * alignSize * sizeof(double));
+    double *data      = (double *)backend_malloc(10 * alignSize * sizeof(double));
     // initialize the fftw alignement
-    fftalignment_ = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
+    flupsalignment_ = (backend_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
     // get the fftw alignement and stop if it is lower than the one we assumed
     for (int i = 1; i < 10 * alignSize; i++) {
-        if (fftw_alignment_of(&(data[i])) == 0) {
+        if (backend_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i > alignSize) {
-                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: FFTW=%d vs FLUPS=%d", fftalignment_, FLUPS_ALIGNMENT);
+                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the backend alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: backend=%d vs FLUPS=%d", flupsalignment_, FLUPS_ALIGNMENT);
             }
             // else, just stop and advise the user to change
             break;
         }
-        fftalignment_ += sizeof(double);
+        flupsalignment_ += sizeof(double);
     }
-    if (fftalignment_ != FLUPS_ALIGNMENT) {
-        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftalignment_, FLUPS_ALIGNMENT);
+    if (flupsalignment_ != FLUPS_ALIGNMENT) {
+        FLUPS_WARNING("Backend alignement is OK, yet not optimal: backend = %d vs FLUPS = %d", flupsalignment_, FLUPS_ALIGNMENT);
         FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     } else {
-        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", fftalignment_, FLUPS_ALIGNMENT);
+        FLUPS_INFO("Backend alignement is OK: backend = %d vs FLUPS = %d", flupsalignment_, FLUPS_ALIGNMENT);
         FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
     }
 
     m_free(data);
+#else
+    // TODO: how to check the alignment on the GPU?
+    flupsalignment_ = FLUPS_ALIGNMENT;
+#endif
 
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -669,7 +674,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             // the rank distribution is computed using the dimOrder array, where every topology
             // const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
-            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftalignment_, topo_phys_->get_comm());
+            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, flupsalignment_, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -763,7 +768,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // create the new topology in the output layout (size and isComplex). lda of Green is always 1.
-            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, fftalignment_, topo_phys_->get_comm());
+            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, flupsalignment_, topo_phys_->get_comm());
             // switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < ndim_ - 1) {
                 // get the fieldstart = the point where the old topo has to begin in the new

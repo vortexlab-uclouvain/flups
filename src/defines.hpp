@@ -327,7 +327,7 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
 
-#if defined(HAVE_CUDA)
+#if defined(BACKEND_CUDA)
 typedef int* opt_int_ptr;
 typedef double* opt_double_ptr;
 typedef fftw_complex* opt_complex_ptr;
