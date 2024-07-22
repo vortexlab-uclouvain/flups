@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    flups_cleanup_fftw();
+    flups_cleanup_backend();
     MPI_Finalize();
 }
 

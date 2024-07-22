@@ -139,6 +139,7 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones whan allocating data. 
 - `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
 - `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename
+- `BACKEND_FFTW|CUDA` indicates which backend to choose. The default is FFTW. Note that CUDA backend requires Nvidia GPUs.
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
 
@@ -224,8 +225,8 @@ flups_solve(mysolver,rhs, rhs);
 
 Then, destroy the solver and the created topology
 ```
-flups_cleanup(mysolver); // destroy the solver
-flups_cleanup_fftw();    // cleanup the fftw stuff
+flups_cleanup(mysolver);    // destroy the solver
+flups_cleanup_backend();    // cleanup the fftw stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {

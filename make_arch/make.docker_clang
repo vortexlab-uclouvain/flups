@@ -6,7 +6,7 @@ CXXFLAGS := -g -O3 -std=c++17
 LDFLAGS  := -g -O3 -lstdc++ -lm
 
 ## Pick backend
-OPTS += -DBACKEND_CUDA
+OPTS += -DBACKEND_FFTW
 
 ## Asan flags
 ## Note: export ASAN_OPTIONS=protect_shadow_gap=0:use_sigaltstack=0 before running
