@@ -49,7 +49,10 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
     //-------------------------------------------------------------------------
-#if !M_HAVE_GPU
+#if M_HAVE_GPU
+    // TODO: how to check the alignment on the GPU?
+    flupsalignment_ = FLUPS_ALIGNMENT;
+#else
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
     double *data      = (double *)backend_malloc(10 * alignSize * sizeof(double));
@@ -76,9 +79,6 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
     }
 
     m_free(data);
-#else
-    // TODO: how to check the alignment on the GPU?
-    flupsalignment_ = FLUPS_ALIGNMENT;
 #endif
 
     //-------------------------------------------------------------------------
@@ -881,17 +881,24 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     }
     FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
 
-    *send_buff = need_send ? ((opt_double_ptr)backend_malloc(max_mem * sizeof(double))) : nullptr;
-    *recv_buff = need_recv ? ((opt_double_ptr)backend_malloc(max_mem * sizeof(double))) : nullptr;
+#if (FLUPS_MPI_AGGRESSIVE)
+    if (need_send) {
+        send_buff->calloc(max_mem * sizeof(double));
+    }
+    if (need_recv) {
+        recv_buff->calloc(max_mem * sizeof(double));
+    }
+#else
+    *send_buff = need_send ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+    *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
+#endif
 
-    // ociate the buffers to the switchtopo
+    // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
 #if (FLUPS_MPI_AGGRESSIVE)
-            switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
-            // TODO(gilles): fix this
-            // switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
-            //                               need_recv ? (*recv_buff)() : nullptr);
+            switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
+                                          need_recv ? (*recv_buff)() : nullptr);
 #else
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
 #endif
@@ -907,17 +914,8 @@ void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, m_ptr_t *send_buff
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #endif
 #if (FLUPS_MPI_AGGRESSIVE)
-    if (*send_buff != NULL) {
-        backend_free(*send_buff);
-        (*send_buff) = NULL;
-    }
-    if (*recv_buff != NULL) {
-        backend_free(*recv_buff);
-        (*recv_buff) = NULL;
-    }
-    // TODO(gilles): fix this
-    // send_buff->free();
-    // recv_buff->free();
+    send_buff->free();
+    recv_buff->free();
 #else
     if (*send_buff != NULL) {
         backend_free(*send_buff);

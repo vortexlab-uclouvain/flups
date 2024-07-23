@@ -327,7 +327,7 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
 
-#if defined(BACKEND_CUDA)
+#if defined(BACKEND_CUDA) || defined(BACKEND_HIP)
 typedef int* opt_int_ptr;
 typedef double* opt_double_ptr;
 typedef fftw_complex* opt_complex_ptr;
@@ -337,10 +337,36 @@ typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_
 typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 #endif
 
-// Alias for the pointer type
-// Should be handled by H3LPR, but for now define it internally as
-// H3LPR doesn't support device memory allocation yet
-using m_ptr_t = opt_double_ptr;
+// Alias for the pointer type used by MPI send/recv buffers
+#if (FLUPS_MPI_AGGRESSIVE)
+// H3LPR doesn't support GPU backends yet, so we define our own class.
+#if defined(BACKEND_CUDA) || defined(BACKEND_HIP)
+// Forward declare those functions to avoid circular include mess
+void *backend_malloc(size_t size);
+void  backend_free(void *ptr);
+
+class m_gpu_ptr {
+    void* ptr_;
+
+   public:
+    m_gpu_ptr() : ptr_(nullptr){};
+    explicit m_gpu_ptr(const size_t size_byte) noexcept { this->calloc(size_byte); };
+    void calloc(const size_t size_byte) { ptr_ = backend_malloc(size_byte); };
+    void free() {
+        if (ptr_ != nullptr) backend_free(ptr_);
+    };
+    double* operator()() const noexcept { return reinterpret_cast<double*>(ptr_); };
+};
+
+using m_ptr_t = m_gpu_ptr;
+#else
+#if (FLUPS_MPI_ALLOC)
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
+#else
+using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
+#endif  // FLUPS_MPI_ALLOC
+#endif  // BACKEND_*
+#endif  // FLUPS_MPI_AGGRESSIVE
 
 #define m_profStarti(prof, name, ...)                                    \
     ({                                                                   \
