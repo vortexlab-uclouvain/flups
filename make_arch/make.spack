@@ -1,0 +1,35 @@
+
+CXX = mpic++
+CC  = mpicc
+
+# Pick backend
+OPTS := -DBACKEND_CUDA
+
+# Compiler flags
+CXXFLAGS := -O3
+
+# H3LPR
+H3LPR_DIR := $(shell spack location -i h3lpr)
+H3LPR_INC := $(H3LPR_DIR)/include
+H3LPR_LIB := $(H3LPR_DIR)/lib
+
+# FFTW
+FFTW_DIR  := $(shell spack location -i fftw)
+FFTW_INC  := $(FFTW_DIR)/include
+FFTW_LIB  := $(FFTW_DIR)/lib
+
+# HDF5
+HDF5_DIR  := $(shell spack location -i hdf5)
+HDF5_INC  := $(HDF5_DIR)/include
+HDF5_LIB  := $(HDF5_DIR)/lib
+
+# CUDA
+CUDA_DIR  := $(shell spack location -i cuda)
+CUDA_INC  := $(CUDA_DIR)/include
+CUDA_LIB  := $(CUDA_DIR)/lib64
+
+# Google Test
+GTEST_DIR := $(shell spack location -i googletest)
+GTEST_INC := ${GTEST_DIR}/include
+GTEST_LIB := ${GTEST_DIR}/lib64
+
