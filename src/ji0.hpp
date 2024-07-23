@@ -36,16 +36,23 @@
 #define C_GAMMA 0.5772156649015328606
 #define N_KEPT 50
 
-m_constant long double inv_f_sqr[N_KEPT + 1];
+// long double isn't supported in device code
+#if M_HAVE_GPU
+using ldouble_t = double;
+#else
+using ldouble_t = long double;
+#endif
+
+m_constant ldouble_t inv_f_sqr[N_KEPT + 1];
 
 /**
  * @brief static precomputation of required coefficients.
  *
  */
 m_device void init_Ji0() {
-    inv_f_sqr[0] = (long double)1;
+    inv_f_sqr[0] = (ldouble_t)1;
     for (int i = 1; i <= N_KEPT; i++) {
-        inv_f_sqr[i]     = inv_f_sqr[i - 1] * (long double)i;
+        inv_f_sqr[i]     = inv_f_sqr[i - 1] * (ldouble_t)i;
         inv_f_sqr[i - 1] = 1 / (inv_f_sqr[i - 1] * inv_f_sqr[i - 1]);  // square the previous value
     }
     inv_f_sqr[N_KEPT] = 1 / (inv_f_sqr[N_KEPT] * inv_f_sqr[N_KEPT]);
@@ -57,10 +64,10 @@ m_device void init_Ji0() {
  * @ref init_Ji0 must be called before.
  */
 m_device double Ji0c(double x) {
-    long double val = 0.0;
+    ldouble_t val = 0.0;
 
     for (int n = N_KEPT; n > 0; n--) {
-        val -= pow((long double)-(.25 * x * x), n) * inv_f_sqr[n] / n * .5;
+        val -= pow((ldouble_t)-(.25 * x * x), n) * inv_f_sqr[n] / n * .5;
     }
     return (double)val;
 }
