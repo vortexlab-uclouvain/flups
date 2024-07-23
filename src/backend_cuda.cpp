@@ -1,6 +1,7 @@
 #if defined(BACKEND_CUDA)
 
 #include "backend.hpp"
+#include "defines.hpp"
 
 cublasHandle_t cuHandle;
 
@@ -48,7 +49,7 @@ void backend_free(void *ptr) {
 // Return alignment of pointer
 // TODO: what is the proper alignment on GPUs, and how to implement it ?
 size_t backend_alignment_of(double *ptr) {
-    FLUPS_CHECK(memTypeDevice == backend_get_memtype(ptr), "Pointer is not on device");
+    BACKEND_CHECK(memTypeDevice == backend_get_memtype(ptr), "Pointer is not on device");
     return ((size_t)ptr % FLUPS_ALIGNMENT);
 }
 

@@ -72,8 +72,8 @@ class SwitchTopo {
     opt_double_ptr *sendBuf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr *recvBuf_ = NULL; /**<@brief The recv buffer for MPI recv */
 
-    fftw_plan* i2o_shuffle_ = NULL;
-    fftw_plan* o2i_shuffle_ = NULL;
+    flups_shuffle_plan* i2o_shuffle_ = NULL;
+    flups_shuffle_plan* o2i_shuffle_ = NULL;
 
     H3LPR::Profiler* prof_    = NULL;
     int       iswitch_ = -1;
@@ -144,7 +144,7 @@ class SwitchTopo {
     void cmpt_commSplit_();
     void setup_subComm_(const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
     void cmpt_start_and_count_(MPI_Comm comm, const int nBlock, const int lda, int* blockSize[3], int* destRank, int** count, int** start);
-    void setup_shuffle_(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, fftw_plan* shuffle);
+    void setup_shuffle_(const int bSize[3], const Topology* topo_in, const Topology* topo_out, double* data, flups_shuffle_plan* shuffle);
     void gather_blocks_(const Topology* topo, int nByBlock[3], int istart[3],int iend[3], int nBlockv[3], int* blockSize[3], int* blockiStart[3], int* nBlock, int** destRank);
     void gather_tags_(MPI_Comm comm, const int inBlock, const int onBlock, const int* i2o_destRank, const int* o2i_destRank, int** i2o_destTag, int** o2i_destTag);
 };

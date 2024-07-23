@@ -61,7 +61,7 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
             plan.memsize = (8 * plan.n + 2) * plan.howmany;
             break;
         default:
-            FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
+            BACKEND_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
     // Note: some plans (typically involved in the computation of the Green function
@@ -295,7 +295,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
             break;
         }
         default:
-            FLUPS_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
+            BACKEND_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
     // Reset memory

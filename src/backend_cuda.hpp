@@ -7,12 +7,27 @@
 
 #include <string>
 
-#include "defines.hpp"
+#include "flups_interface.h"
+#include "h3lpr/macros.hpp"
 
 using std::string;
 
+// Backend print & assert functions
+#define BACKEND_INFO(format, ...)                          \
+    ({                                                     \
+        m_verb_def("CUDA backend", format, ##__VA_ARGS__); \
+    })
+
+#define BACKEND_CHECK(format, ...)                           \
+    ({                                                       \
+        m_assert_def("CUDA backend", format, ##__VA_ARGS__); \
+    })
+
 // Datatypes
 using flups_complex = cufftDoubleComplex;
+typedef int*           opt_int_ptr;
+typedef double*        opt_double_ptr;
+typedef flups_complex* opt_complex_ptr;
 
 typedef enum {
     FLUPS_DCT_I,
@@ -46,7 +61,7 @@ struct flups_shuffle_plan {
 
 struct flups_fft_plan {
     // memory pointer (used only for r2r plans)
-    double *mem = NULL;
+    double* mem = NULL;
     // cuFFT plan handle
     cufftHandle fft;
     // parameters for the r2r transform
@@ -78,28 +93,28 @@ typedef enum {
 
 // Check CUDA API errors
 #ifndef DNDEBUG
-#define m_cudart_check_errors(res)                                                               \
-    do {                                                                                         \
-        cudaError_t __err = res;                                                                 \
-        FLUPS_CHECK(cudaSuccess == __err, "Fatal CUDA RT error: %s", cudaGetErrorString(__err)); \
+#define m_cudart_check_errors(res)                                                                 \
+    do {                                                                                           \
+        cudaError_t __err = res;                                                                   \
+        BACKEND_CHECK(cudaSuccess == __err, "Fatal CUDA RT error: %s", cudaGetErrorString(__err)); \
     } while (0)
 
-#define m_cublas_check_errors(res)                                                                           \
-    do {                                                                                                     \
-        cublasStatus_t __err = res;                                                                          \
-        FLUPS_CHECK(CUBLAS_STATUS_SUCCESS == __err, "Fatal cuBLAS error: %s", cublasGetStatusString(__err)); \
+#define m_cublas_check_errors(res)                                                                             \
+    do {                                                                                                       \
+        cublasStatus_t __err = res;                                                                            \
+        BACKEND_CHECK(CUBLAS_STATUS_SUCCESS == __err, "Fatal cuBLAS error: %s", cublasGetStatusString(__err)); \
     } while (0)
 
-#define m_cufft_check_errors(res)                                            \
-    do {                                                                     \
-        cufftResult_t __err = res;                                           \
-        FLUPS_CHECK(CUFFT_SUCCESS == __err, "Fatal cuFFT error: %d", __err); \
+#define m_cufft_check_errors(res)                                              \
+    do {                                                                       \
+        cufftResult_t __err = res;                                             \
+        BACKEND_CHECK(CUFFT_SUCCESS == __err, "Fatal cuFFT error: %d", __err); \
     } while (0)
 
-#define m_check_errors(msg)                                                                         \
-    do {                                                                                            \
-        cudaError_t __err = cudaGetLastError();                                                     \
-        FLUPS_CHECK(cudaSuccess == __err, "Fatal error: %s (%s).", msg, cudaGetErrorString(__err)); \
+#define m_check_errors(msg)                                                                           \
+    do {                                                                                              \
+        cudaError_t __err = cudaGetLastError();                                                       \
+        BACKEND_CHECK(cudaSuccess == __err, "Fatal error: %s (%s).", msg, cudaGetErrorString(__err)); \
     } while (0)
 #else
 #define m_cudart_check_errors(msg) \
@@ -128,13 +143,13 @@ __global__ void for_loop_kernel(const O op, const int n) {
 }
 
 template <typename O>
-void for_loop(const O &op, const int n, string name) {
-    FLUPS_INFO("Launching kernel: %s", name.c_str());
+void for_loop(const O& op, const int n, string name) {
+    BACKEND_INFO("Launching kernel: %s", name.c_str());
     for_loop_kernel<O><<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE>>>(op, n);
     m_check_errors(name.c_str());
     // synchronize (kernel launches are asynchronous)
     m_cudart_check_errors(cudaDeviceSynchronize());
-    FLUPS_INFO("Kernel %s done", name.c_str());
+    BACKEND_INFO("Kernel %s done", name.c_str());
 }
 
 #endif  // BACKEND_CUDA_HPP

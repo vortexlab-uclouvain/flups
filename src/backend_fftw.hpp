@@ -5,9 +5,32 @@
 
 #include <string>
 
-#include "defines.hpp"
+#include "flups_interface.h"
+#include "h3lpr/macros.hpp"
 
 using std::string;
+
+// FFTW planner flag driven by the NDEBUG flag
+#ifndef FFTW_FLAG
+#ifdef NDEBUG
+#define FLUPS_FFTW_FLAG FFTW_PATIENT
+#else
+#define FLUPS_FFTW_FLAG FFTW_ESTIMATE
+#endif
+#else
+#define FLUPS_FFTW_FLAG FFTW_FLAG
+#endif
+
+// Backend print & assert functions
+#define BACKEND_INFO(format, ...)                          \
+    ({                                                     \
+        m_verb_def("FFTW backend", format, ##__VA_ARGS__); \
+    })
+
+#define BACKEND_CHECK(format, ...)                           \
+    ({                                                       \
+        m_assert_def("FFTW backend", format, ##__VA_ARGS__); \
+    })
 
 // Datatypes
 struct flups_fft_arch {
@@ -21,6 +44,10 @@ using flups_fft_plan     = fftw_plan;
 using flups_shuffle_plan = fftw_plan;
 using flups_complex      = fftw_complex;
 using flups_iodim        = fftw_iodim;
+
+typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))           opt_int_ptr;
+typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))        opt_double_ptr;
+typedef flups_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 
 typedef enum {
     FLUPS_DCT_I   = FFTW_REDFT00,
@@ -53,12 +80,12 @@ typedef enum {
 #define m_backend_lambda [=]
 
 template <typename O>
-void for_loop(const O &op, const int n, string name) {
-    FLUPS_INFO("Launching kernel: %s", name.c_str());
+void for_loop(const O& op, const int n, string name) {
+    BACKEND_INFO("Launching kernel: %s", name.c_str());
     for (int i = 0; i < n; i++) {
         op(i);
     }
-    FLUPS_INFO("Kernel %s done", name.c_str());
+    BACKEND_INFO("Kernel %s done", name.c_str());
 }
 
 #endif  // BACKEND_FFTW_HPP

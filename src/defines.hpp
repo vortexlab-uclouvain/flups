@@ -31,31 +31,17 @@
 #include <iostream>
 
 #include <execinfo.h>
-#include "fftw3.h"
 #include "mpi.h"
 #include "flups_interface.h" // get the main defines
 #include "h3lpr/macros.hpp" // return the h3lpr macros
 #include "h3lpr/profiler.hpp" // profiler
 #include "h3lpr/ptr.hpp" // pointer allocation
 
+#include "backend.hpp"
+
 //==============================================================================
 //                      Compilation flags
 //==============================================================================
-/**
- * @brief FFTW planner flag driven by the NDEBUG flag
- *
- */
-#ifndef FFTW_FLAG
-#ifdef NDEBUG
-#define FLUPS_FFTW_FLAG FFTW_PATIENT
-#else
-#define FLUPS_FFTW_FLAG FFTW_ESTIMATE
-#endif
-#else
-#define FLUPS_FFTW_FLAG FFTW_FLAG
-#endif
-
-
 /**
  * @brief MPI flag to use deprecated version of the communications 
 */
@@ -326,16 +312,6 @@ template <typename T>
 static inline int FLUPS_CMPT_ALIGNMENT(T a) {
     return ((uintptr_t)(const void*)a) % FLUPS_ALIGNMENT;
 }
-
-#if defined(BACKEND_CUDA) || defined(BACKEND_HIP)
-typedef int* opt_int_ptr;
-typedef double* opt_double_ptr;
-typedef fftw_complex* opt_complex_ptr;
-#else
-typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_int_ptr;
-typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_double_ptr;
-typedef fftw_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
-#endif
 
 // Alias for the pointer type used by MPI send/recv buffers
 #if (FLUPS_MPI_AGGRESSIVE)

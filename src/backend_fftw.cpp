@@ -1,6 +1,24 @@
 #if defined(BACKEND_FFTW)
 
 #include "backend.hpp"
+#include "h3lpr/ptr.hpp"
+
+// Define the FFTW memory allocator & free (using H3LPR)
+#define m_fftw_calloc(size)                                                        \
+    ({                                                                             \
+        H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, void *, FLUPS_ALIGNMENT> ptr(size); \
+                                                                                   \
+        ptr();                                                                     \
+    })
+
+/**
+ * @brief free the memory allocated using m_calloc
+ *
+ */
+#define m_fftw_free(data) \
+    {                     \
+        std::free(data);  \
+    }
 
 // Init & cleanup backend
 void backend_init() {
@@ -20,7 +38,7 @@ void backend_memset(void *ptr, int val, size_t size) {
 }
 
 void *backend_malloc(size_t size) {
-    return m_calloc(size);
+    return m_fftw_calloc(size);
 }
 
 // Return alignment of pointer
@@ -30,7 +48,7 @@ size_t backend_alignment_of(double *ptr) {
 
 // Memcopy function - from host to device and vice-versa
 void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
-    FLUPS_CHECK(memcpyH2H == kind, "Only host to host memcpy is suppoerted here");
+    BACKEND_CHECK(memcpyH2H == kind, "Only host to host memcpy is suppoerted here");
     std::memcpy(dst, src, size);
 }
 
@@ -106,7 +124,7 @@ void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, boo
 
 // Cleanup functions
 void backend_free(void *ptr) {
-    m_free(ptr);
+    m_fftw_free(ptr);
 }
 
 void flups_destroy_plan(flups_fft_plan plan) {

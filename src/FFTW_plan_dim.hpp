@@ -32,7 +32,6 @@
 #include "Topology.hpp"
 #include "defines.hpp"
 #include "backend.hpp"
-#include "fftw3.h"
 
 /**
  * @brief A FFTW plan in one dimension

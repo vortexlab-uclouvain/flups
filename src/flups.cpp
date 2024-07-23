@@ -275,7 +275,9 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
         fprintf(file, "- comm_world size: %d\n", comm_size);
         fprintf(file, "- defines:\n");
+#if defined(BACKEND_FFTW)
         fprintf(file, "\tFLUPS_FFTW_FLAG = %d (estimate: %d, measure: %d, patient: %d)\n", FLUPS_FFTW_FLAG, FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT);
+#endif
         fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
 #if (FLUPS_MPI_AGGRESSIVE)
         fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
