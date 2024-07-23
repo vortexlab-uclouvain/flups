@@ -218,6 +218,7 @@ TEST(PostProcessing, TestDst){
     flups_free(field);
     flups_topo_free(topo);
     flups_cleanup(mysolver);
+    flups_cleanup_backend();
 
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
@@ -408,6 +409,7 @@ TEST(PostProcessing, TestDft){
     flups_free(field);
     flups_topo_free(topo);
     flups_cleanup(mysolver);
+    flups_cleanup_backend();
 
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {

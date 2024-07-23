@@ -20,8 +20,6 @@ void backend_init() {
 
 void backend_finalize() {
     m_cublas_check_errors(cublasDestroy(cuHandle));
-    // cleanup all the device's resources
-    m_cudart_check_errors(cudaDeviceReset());
 }
 
 void backend_sync() {
