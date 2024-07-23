@@ -7,18 +7,21 @@ cublasHandle_t cuHandle;
 
 // Init & cleanup backend
 void backend_init() {
-    m_cublas_check_errors(cublasCreate(&cuHandle));
-
     // Set default GPU device
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int num_devices;
     m_cudart_check_errors(cudaGetDeviceCount(&num_devices));
     m_cudart_check_errors(cudaSetDevice(rank % num_devices));
+
+    //  Initialize cuBLAS
+    m_cublas_check_errors(cublasCreate(&cuHandle));
 }
 
 void backend_finalize() {
     m_cublas_check_errors(cublasDestroy(cuHandle));
+    // cleanup all the device's resources
+    m_cudart_check_errors(cudaDeviceReset());
 }
 
 void backend_sync() {
