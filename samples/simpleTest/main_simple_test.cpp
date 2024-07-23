@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
-    m_log("Starting on %d device with %d threads...", omp_get_num_devices(), omp_get_max_threads());
+    m_log("Starting on %d device with %d threads...", omp_get_num_devices(), 1);
 
     //-------------------------------------------------------------------------
     // Definition of the problem

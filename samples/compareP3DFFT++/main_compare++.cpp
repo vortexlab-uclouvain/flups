@@ -146,9 +146,9 @@ int main(int argc, char *argv[]) {
 
     // prepare profiling
 #ifdef SKIP_P3D
-    std::string FLUPSprof = "only_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string FLUPSprof = "only_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
 #else
-    std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
 #endif
     Profiler *FLUprof = new Profiler(FLUPSprof);
 
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
     if (rank == 0)
         printf("Using processor grid %d x %d with pencils in x\n", dims[0], dims[1]);
 
-    std::string P3DFFTprof = "compare_P3DFFT_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string P3DFFTprof = "compare_P3DFFT_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
     Profiler   *P3Dprof    = new Profiler(P3DFFTprof);
 
     P3Dprof->create("init", "root");

@@ -99,7 +99,7 @@ void Solver::dothemagic_std_complex(double *data) {
         dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
 #endif
     };
-    for_loop(op, onmax * inmax, "convolution");
+    for_loop(op, onmax * inmax, "dothemaigc_std");
 
     END_FUNC;
 }
