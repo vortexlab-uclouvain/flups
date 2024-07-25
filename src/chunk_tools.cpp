@@ -370,8 +370,9 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
     const int ax0        = chunk->axis;
+    const int ax1        = (ax0 + 1) % 3;
     const int isize[3]   = {chunk->isize[0], chunk->isize[1], chunk->isize[2]};
-    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+    const int ax[3]      = {ax0, ax1, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
     // get the indexes to copy
@@ -397,8 +398,8 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         auto op = m_backend_lambda(const int idx) {
             // get the local indexes
             const int i0 = idx % nmax;
-            const int i1 = (idx / nmax) % isize[ax[1]];
-            const int i2 = idx / (nmax * isize[ax[1]]);
+            const int i1 = (idx / nmax) % isize[ax1];
+            const int i2 = idx / (nmax * isize[ax1]);
             // get the starting address
             const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
             double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
@@ -417,8 +418,9 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
     const int ax0        = chunk->axis;
+    const int ax1        = (ax0 + 1) % 3;
     const int isize[3]   = {chunk->isize[0], chunk->isize[1], chunk->isize[2]};
-    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+    const int ax[3]      = {ax0, ax1, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
     // get the indexes to copy
@@ -448,8 +450,8 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         auto op = m_backend_lambda(const int idx) {
             // get the local indexes
             const int i0 = idx % nmax;
-            const int i1 = (idx / nmax) % isize[ax[1]];
-            const int i2 = idx / (nmax * isize[ax[1]]);
+            const int i1 = (idx / nmax) % isize[ax1];
+            const int i2 = idx / (nmax * isize[ax1]);
             // get the starting adddress for the memcpy
             const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
             double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);

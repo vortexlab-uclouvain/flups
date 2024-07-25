@@ -28,6 +28,7 @@ using flups_complex = cufftDoubleComplex;
 typedef int*           opt_int_ptr;
 typedef double*        opt_double_ptr;
 typedef flups_complex* opt_complex_ptr;
+typedef cudaStream_t   stream_t;
 
 typedef enum {
     FLUPS_DCT_I,
@@ -127,6 +128,10 @@ typedef enum {
     { ((void)0); }
 #endif
 
+// Define some streams
+static stream_t comp_stream;
+static stream_t copy_stream;
+
 // Kernel execution
 #define BLOCK_SIZE 256
 #define m_device __device__
@@ -145,10 +150,9 @@ __global__ void for_loop_kernel(const O op, const int n) {
 template <typename O>
 void for_loop(const O& op, const int n, string name) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
-    for_loop_kernel<O><<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE>>>(op, n);
+    for_loop_kernel<O><<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, comp_stream>>>(op, n);
     m_check_errors(name.c_str());
-    // synchronize (kernel launches are asynchronous)
-    m_cudart_check_errors(cudaDeviceSynchronize());
+    m_cudart_check_errors(cudaStreamSynchronize(comp_stream));
     BACKEND_INFO("Kernel %s done", name.c_str());
 }
 

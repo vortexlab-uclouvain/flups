@@ -48,6 +48,7 @@ using flups_iodim        = fftw_iodim;
 typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))           opt_int_ptr;
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))        opt_double_ptr;
 typedef flups_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
+typedef int                                                                 stream_t;
 
 typedef enum {
     FLUPS_DCT_I   = FFTW_REDFT00,
@@ -72,6 +73,10 @@ typedef enum {
     memTypeDevice,
     memTypeUnregistered,
 } memType_t;
+
+// Define some streams (never actually used, everything is synchronous on the CPU)
+static stream_t comp_stream = 0;
+static stream_t copy_stream = 1;
 
 // Kernel execution
 #define m_device

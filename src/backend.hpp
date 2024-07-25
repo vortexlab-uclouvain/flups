@@ -20,6 +20,7 @@ void backend_finalize();
 
 // Synchronization functions
 void backend_sync();
+void backend_sync_stream(stream_t stream);
 
 // Allocation functions
 void  backend_memset(void *ptr, int val, size_t size);

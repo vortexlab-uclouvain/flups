@@ -32,6 +32,10 @@ void backend_finalize() {
     fftw_cleanup();
 }
 
+// Sync functions -- actually no ops on the CPU
+void backend_sync() { ((void)0); }
+void backend_sync_stream(stream_t stream) { ((void)0); }
+
 // Allocation functions
 void backend_memset(void *ptr, int val, size_t size) {
     std::memset(ptr, val, size);

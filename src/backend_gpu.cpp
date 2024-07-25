@@ -71,6 +71,7 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
                                        &plan.dim, 1, plan.idist,
                                        &plan.dim, 1, plan.odist,
                                        is_r2c ? CUFFT_D2Z : CUFFT_Z2D, plan.howmany));
+    m_cufft_check_errors(cufftSetStream(plan.fft, comp_stream));
     return plan;
 }
 

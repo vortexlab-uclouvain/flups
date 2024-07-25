@@ -16,14 +16,27 @@ void backend_init() {
 
     //  Initialize cuBLAS
     m_cublas_check_errors(cublasCreate(&cuHandle));
+
+    // Initialize streams
+    m_cudart_check_errors(cudaStreamCreate(&comp_stream));
+    m_cudart_check_errors(cudaStreamCreate(&copy_stream));
+    m_cublas_check_errors(cublasSetStream(cuHandle, comp_stream));
 }
 
 void backend_finalize() {
+    // Cleanup the streams
+    m_cudart_check_errors(cudaStreamDestroy(comp_stream));
+    m_cudart_check_errors(cudaStreamDestroy(copy_stream));
+
     m_cublas_check_errors(cublasDestroy(cuHandle));
 }
 
 void backend_sync() {
     m_cudart_check_errors(cudaDeviceSynchronize());
+}
+
+void backend_sync_stream(stream_t stream) {
+    m_cudart_check_errors(cudaStreamSynchronize(stream));
 }
 
 // Allocation functions
@@ -56,7 +69,9 @@ size_t backend_alignment_of(double *ptr) {
 
 // Memcopy function - from host to device and vice-versa
 void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
-    m_cudart_check_errors(cudaMemcpy(dst, src, size, (cudaMemcpyKind)kind));
+    m_cudart_check_errors(cudaMemcpyAsync(dst, src, size, (cudaMemcpyKind)kind, copy_stream));
+    // now we synchronize !
+    backend_sync_stream(copy_stream);
 }
 
 // Helper function to find where the memory lives
@@ -75,6 +90,7 @@ flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *ou
                                        &arch.dim, 1, arch.dist,
                                        &arch.dim, 1, arch.dist / 2,
                                        CUFFT_D2Z, arch.howmany));
+    m_cufft_check_errors(cufftSetStream(plan.fft, comp_stream));
     return plan;
 }
 
@@ -85,6 +101,7 @@ flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *ou
                                        &arch.dim, 1, arch.dist / 2,
                                        &arch.dim, 1, arch.dist,
                                        CUFFT_Z2D, arch.howmany));
+    m_cufft_check_errors(cufftSetStream(plan.fft, comp_stream));
     return plan;
 }
 
@@ -94,6 +111,7 @@ flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_comp
                                        &arch.dim, 1, arch.dist,
                                        &arch.dim, 1, arch.dist,
                                        CUFFT_Z2Z, arch.howmany));
+    m_cufft_check_errors(cufftSetStream(plan.fft, comp_stream));
     return plan;
 }
 
@@ -107,17 +125,17 @@ flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *o
 // Execute functions
 void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign) {
     m_cufft_check_errors(cufftExecZ2Z(plan.fft, in, out, sign));
-    backend_sync();
+    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out) {
     m_cufft_check_errors(cufftExecD2Z(plan.fft, in, out));
-    backend_sync();
+    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out) {
     m_cufft_check_errors(cufftExecZ2D(plan.fft, in, out));
-    backend_sync();
+    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
@@ -138,7 +156,7 @@ void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, boo
                                           NULL, NULL, plan.n0,
                                           (flups_complex *)out, plan.n0));
     }
-    backend_sync();
+    backend_sync_stream(comp_stream);
 }
 
 // Cleanup functions
