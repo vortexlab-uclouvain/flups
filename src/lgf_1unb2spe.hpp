@@ -3,13 +3,7 @@
 
 // Pick which <complex> header we should use, depending on the compiler
 // NVCC can't compile <complex>, and clang can't compile <cuda/std/complex>
-#if defined(BACKEND_CUDA)
-#define __USE_CUDA_STDLIB (!__clang__)
-#else
-#define __USE_CUDA_STDLIB 0
-#endif
-
-#if __USE_CUDA_STDLIB
+#if defined(__NVCC__)
 #include <cuda/std/complex>
 #else
 #include <complex>
@@ -28,7 +22,7 @@ namespace LGFOneUnbounded {
     // Types
     // ----------------------------------------------------------------------------------------
     using real_t = double;                          //!< Note: floating point literals in this file are double precision.
-#if __USE_CUDA_STDLIB
+#if __NVCC__
     using complex_t = cuda::std::complex<real_t>;   //!< complex precision matches real precision 
 #else
     using complex_t = std::complex<real_t>;         //!< complex precision matches real precision 
