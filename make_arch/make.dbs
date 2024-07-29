@@ -1,0 +1,27 @@
+CXX = $(PREFIX)/bin/mpic++
+CC  = $(PREFIX)/bin/mpicc
+
+# Pick backend
+OPTS := -DBACKEND_CUDA
+
+# Compiler flags
+CXXFLAGS := -O3 -g
+LDFLAGS  := -lpthread -lm
+
+# H3LPR
+H3LPR_DIR := $(PREFIX)
+H3LPR_INC := $(H3LPR_DIR)/include
+H3LPR_LIB := $(H3LPR_DIR)/lib
+
+# CUDA
+CUDA_DIR  := $(EBROOTCUDA)
+CUDA_INC  := $(CUDA_DIR)/include
+CUDA_LIB  := $(CUDA_DIR)/lib
+
+# Google Test
+GTEST_DIR := $(PREFIX)
+GTEST_INC := ${GTEST_DIR}/include
+GTEST_LIB := ${GTEST_DIR}/lib64
+
+# HDF5 (not needed)
+HDF5_LIBNAME :=
