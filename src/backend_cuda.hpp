@@ -111,20 +111,12 @@ typedef enum {
         cufftResult_t __err = res;                                             \
         BACKEND_CHECK(CUFFT_SUCCESS == __err, "Fatal cuFFT error: %d", __err); \
     } while (0)
-
-#define m_check_errors(msg)                                                                           \
-    do {                                                                                              \
-        cudaError_t __err = cudaGetLastError();                                                       \
-        BACKEND_CHECK(cudaSuccess == __err, "Fatal error: %s (%s).", msg, cudaGetErrorString(__err)); \
-    } while (0)
 #else
 #define m_cudart_check_errors(msg) \
     { ((void)0); }
 #define m_cublas_check_errors(msg) \
     { ((void)0); }
 #define m_cufft_check_errors(msg) \
-    { ((void)0); }
-#define m_check_errors(msg) \
     { ((void)0); }
 #endif
 
@@ -140,7 +132,7 @@ static stream_t copy_stream;
 #define m_backend_lambda [=] __device__
 
 template <typename O>
-__global__ void for_loop_kernel(const O op, const int n) {
+__global__ void cuda_kernel_(const O op, const int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         op(i);
@@ -150,8 +142,9 @@ __global__ void for_loop_kernel(const O op, const int n) {
 template <typename O>
 void for_loop(const O& op, const int n, string name) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
-    for_loop_kernel<O><<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, 0, comp_stream>>>(op, n);
-    m_check_errors(name.c_str());
+    const void* args[] = {&op, &n};
+    m_cudart_check_errors(
+        cudaLaunchKernel((void*)cuda_kernel_<O>, (n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, const_cast<void**>(args), 0, comp_stream));
     m_cudart_check_errors(cudaStreamSynchronize(comp_stream));
     BACKEND_INFO("Kernel %s done", name.c_str());
 }
