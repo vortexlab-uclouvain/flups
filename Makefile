@@ -116,7 +116,7 @@ endif
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory
 LGF_PATH=$(abspath $(PREFIX)/include)
-DEF += -DKERNEL_PATH=${LGF_PATH}
+DEF += -DKERNEL_PATH=\"${LGF_PATH}\"
 LGF_DATA := $(wildcard $(KERNEL_DIR)/*.ker)
 
 #-----------------------------------------------------------------------------

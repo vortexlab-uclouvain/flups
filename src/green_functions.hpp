@@ -29,11 +29,6 @@
 #include "expint.hpp"
 #include "backend.hpp"
 
-// define macros to strigyfy, both are required!
-#define STR(a) ZSTR(a)
-#define ZSTR(a) #a
-
-
 void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double length);
 void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
 void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
@@ -66,7 +61,7 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
 
     // some defined parameters:
     char lgfname[512];
-    char path[] = STR(KERNEL_PATH);
+    char path[] = KERNEL_PATH;
     int datasize = 0;
     if (greendim == 3) {
         (*N) = 32;
