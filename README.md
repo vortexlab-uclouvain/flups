@@ -322,3 +322,4 @@ The _daily test_ is a smaller, in-house, test suite, that can be executed on a d
 
 - [CI testing](doc/CI.md)
 - [real to real FFT](doc/Mode_Correction.md)
+- [GPU support](doc/GPU.md)
