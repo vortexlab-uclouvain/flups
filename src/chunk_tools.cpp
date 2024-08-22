@@ -406,7 +406,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             // copy the data
             vtrg[i0] = vsrc[i0];
         };
-        for_loop(op, n_loop * nmax, "CopyChunk2Data");
+        parallel_for(op, n_loop * nmax, "CopyChunk2Data");
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -458,7 +458,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // copy the data
             vtrg[i0] = vsrc[i0];
         };
-        for_loop(op, n_loop * nmax, "CopyData2chunk");
+        parallel_for(op, n_loop * nmax, "CopyData2chunk");
     }
     //--------------------------------------------------------------------------
     END_FUNC;

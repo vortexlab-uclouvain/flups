@@ -133,14 +133,17 @@ static stream_t copy_stream;
 
 template <typename O>
 __global__ void cuda_kernel_(const O op, const int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) {
+    // Grid-stride loop
+    // see: https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
+    const int start  = blockIdx.x * blockDim.x + threadIdx.x;
+    const int stride = blockDim.x * gridDim.x;
+    for (int i = start; i < n; i += stride) {
         op(i);
     }
 }
 
 template <typename O>
-void for_loop(const O& op, const int n, string name) {
+void parallel_for(const O& op, const int n, string name) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
     const void* args[] = {&op, &n};
     m_cudart_check_errors(

@@ -375,7 +375,7 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
         dataloc2[ii * 2 + 1] = normfact * (rot2r * gc + rot2c * gr);
 #endif
     };
-    for_loop(op, ondim * inmax, "dothemagic_rot");
+    parallel_for(op, ondim * inmax, "dothemagic_rot");
 
     END_FUNC;
 }

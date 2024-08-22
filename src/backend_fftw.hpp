@@ -85,7 +85,7 @@ static stream_t copy_stream = 1;
 #define m_backend_lambda [=]
 
 template <typename O>
-void for_loop(const O& op, const int n, string name) {
+void parallel_for(const O& op, const int n, string name) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
     for (int i = 0; i < n; i++) {
         op(i);

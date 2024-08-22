@@ -175,7 +175,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         const double tmp[9] = {r, length, 0, 0, static_cast<double>(std::abs(is[ax0])), static_cast<double>(std::abs(is[ax1])), static_cast<double>(std::abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
         green[id + i0 * nf] = G(tmp, Gdata);
     };
-    for_loop(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "3unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "3unb green");
 
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
     const bool is_lgf         = (typeGreen == LGF_2 || typeGreen == LGF_4 || typeGreen == LGF_6 || typeGreen == LGF_8);
@@ -185,7 +185,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         auto op = m_backend_lambda(const int idx) {
             green[idx] = G0;
         };
-        for_loop(op, 1, "3unb green reset");
+        parallel_for(op, 1, "3unb green reset");
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -276,7 +276,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
-            for_loop(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0");
+            parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0");
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &hej_0_2unb1spe_k0);
             get_kernel_ptr(&Gr0, &hej_0_2unb1spe_k0);
@@ -428,7 +428,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             green[id + i0 * nf] = G(tmp, Gdata);
         }
     };
-    for_loop(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green");
 
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
@@ -436,7 +436,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: mistake in [Chatelain2010]
             green[idx] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));
         };
-        for_loop(op, 1, "2unb green reset");
+        parallel_for(op, 1, "2unb green reset");
     }
 
     // free Gdata if needed
@@ -594,7 +594,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             green[id + i0 * nf] = G(tmp, NULL);
         }
     };
-    for_loop(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "1unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "1unb green");
     END_FUNC;
 }
 
@@ -757,14 +757,14 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
 
         green[id + i0 * nf] = G(tmp, NULL);
     };
-    for_loop(op, ni[0] * ni[1] * ni[2], "0unb green");
+    parallel_for(op, ni[0] * ni[1] * ni[2], "0unb green");
 
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 && koffset[0] + koffset[1] + koffset[2] < 0.2) {
         auto op = m_backend_lambda(const int idx) {
             green[idx] = 0.0;
         };
-        for_loop(op, 1, "0unb green reset");
+        parallel_for(op, 1, "0unb green reset");
     }
     END_FUNC;
 }

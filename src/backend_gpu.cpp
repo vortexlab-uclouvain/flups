@@ -101,7 +101,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                     mem[j * idist + i] *= .5;
                 }
             };
-            for_loop(pre_op, n * howmany, "DCT Type I pre-processing");
+            parallel_for(pre_op, n * howmany, "DCT Type I pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -112,7 +112,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 out[j * dist + stride * i] = 2.0 * mem[2 * (j * odist + i)];
             };
-            for_loop(post_op, n * howmany, "DCT Type I post-processing");
+            parallel_for(post_op, n * howmany, "DCT Type I post-processing");
 
             break;
         }
@@ -125,7 +125,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 mem[j * idist + i] = in[j * dist + stride * i];
             };
-            for_loop(pre_op, n * howmany, "DCT Type II pre-processing");
+            parallel_for(pre_op, n * howmany, "DCT Type II pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -137,7 +137,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 double t                   = -i * M_PI / (2.0 * n);
                 out[j * dist + stride * i] = 2.0 * (mem[2 * (j * odist + i)] * cos(t) - mem[2 * (j * odist + i) + 1] * sin(t));
             };
-            for_loop(post_op, n * howmany, "DCT Type II post-processing");
+            parallel_for(post_op, n * howmany, "DCT Type II post-processing");
 
             break;
         }
@@ -152,7 +152,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 mem[2 * (j * idist + i)]     = in[j * dist + stride * i] * cos(t);
                 mem[2 * (j * idist + i) + 1] = in[j * dist + stride * i] * sin(t);
             };
-            for_loop(pre_op, n * howmany, "DCT Type III pre-processing");
+            parallel_for(pre_op, n * howmany, "DCT Type III pre-processing");
 
             flups_execute_c2r(plan, (flups_complex *)mem, mem);
 
@@ -163,7 +163,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 out[j * dist + stride * i] = mem[1 + j * odist + i];
             };
-            for_loop(post_op, n * howmany, "DCT Type III post-processing");
+            parallel_for(post_op, n * howmany, "DCT Type III post-processing");
 
             break;
         }
@@ -177,7 +177,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 mem[j * idist + (2 * i + 1)]           = in[j * dist + stride * i];
                 mem[j * idist + (4 * n - (2 * i + 1))] = -in[j * dist + stride * i];
             };
-            for_loop(pre_op, n * howmany, "DCT Type IV pre-processing");
+            parallel_for(pre_op, n * howmany, "DCT Type IV pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -188,7 +188,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 out[j * dist + stride * i] = mem[2 * (j * odist + (2 * i + 1))];
             };
-            for_loop(post_op, n * howmany, "DCT Type IV post-processing");
+            parallel_for(post_op, n * howmany, "DCT Type IV post-processing");
 
             break;
         }
@@ -201,7 +201,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 mem[1 + j * idist + i] = in[j * dist + stride * i];
             };
-            for_loop(pre_op, n * howmany, "DST Type I pre-processing");
+            parallel_for(pre_op, n * howmany, "DST Type I pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -212,7 +212,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
 
                 out[j * dist + stride * i] = -2.0 * mem[3 + 2 * (j * odist + i)];
             };
-            for_loop(post_op, n * howmany, "DST Type I post-processing");
+            parallel_for(post_op, n * howmany, "DST Type I post-processing");
 
             break;
         }
@@ -226,7 +226,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 const int sign     = 2 * (i % 2 == 0) - 1;
                 mem[j * idist + i] = sign * in[j * dist + stride * i];
             };
-            for_loop(pre_op, n * howmany, "DST Type II pre-processing");
+            parallel_for(pre_op, n * howmany, "DST Type II pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -238,7 +238,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 double t                             = -i * M_PI / (2.0 * n);
                 out[j * dist + (n - 1) - stride * i] = 2.0 * (mem[2 * (j * odist + i)] * cos(t) - mem[2 * (j * odist + i) + 1] * sin(t));
             };
-            for_loop(post_op, n * howmany, "DST Type II post-processing");
+            parallel_for(post_op, n * howmany, "DST Type II post-processing");
 
             break;
         }
@@ -253,7 +253,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 mem[2 * (j * idist + i)]     = in[j * dist + (n - 1) - stride * i] * cos(t);
                 mem[2 * (j * idist + i) + 1] = in[j * dist + (n - 1) - stride * i] * sin(t);
             };
-            for_loop(pre_op, n * howmany, "DST Type III pre-processing");
+            parallel_for(pre_op, n * howmany, "DST Type III pre-processing");
 
             flups_execute_c2r(plan, (flups_complex *)mem, mem);
 
@@ -265,7 +265,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 const int sign             = 2 * (i % 2 == 0) - 1;
                 out[j * dist + stride * i] = sign * mem[1 + j * odist + i];
             };
-            for_loop(post_op, n * howmany, "DST Type III post-processing");
+            parallel_for(post_op, n * howmany, "DST Type III post-processing");
 
             break;
         }
@@ -279,7 +279,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 mem[j * idist + (2 * i + 1)]           = in[j * dist + (n - 1) - stride * i];
                 mem[j * idist + (4 * n - (2 * i + 1))] = -in[j * dist + (n - 1) - stride * i];
             };
-            for_loop(pre_op, n * howmany, "DST Type IV pre-processing");
+            parallel_for(pre_op, n * howmany, "DST Type IV pre-processing");
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem);
 
@@ -291,7 +291,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
                 const int sign             = 2 * (i % 2 == 0) - 1;
                 out[j * dist + stride * i] = sign * mem[2 * (j * odist + (2 * i + 1))];
             };
-            for_loop(post_op, n * howmany, "DST Type IV post-processing");
+            parallel_for(post_op, n * howmany, "DST Type IV post-processing");
 
             break;
         }

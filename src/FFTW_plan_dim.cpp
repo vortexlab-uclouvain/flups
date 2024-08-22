@@ -562,7 +562,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the first point of each 1-D transform
                 dataloc[0] = 0.0;
             };
-            for_loop(op, howmany, "reset first correction");
+            parallel_for(op, howmany, "reset first correction");
         }
         //----------------------------------------------------------------------
         // Do last point 
@@ -574,7 +574,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the last point of each 1-D transform
                 dataloc[nloc - 1] = 0.0;
             };
-            for_loop(op, howmany, "reset last correction");
+            parallel_for(op, howmany, "reset last correction");
         }
         //----------------------------------------------------------------------
         //Do first and last point 
@@ -588,7 +588,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the last point
                 dataloc[nloc - 1] = 0.0;
             };
-            for_loop(op, howmany, "reset first and last correction");
+            parallel_for(op, howmany, "reset first and last correction");
         }
         //----------------------------------------------------------------------
         // Enforce period
@@ -619,7 +619,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                     // copy the first point into the last point
                     dataloc[nfft] = dataloc[0];
                 };
-                for_loop(op, howmany, "enforce period correction (real)");
+                parallel_for(op, howmany, "enforce period correction (real)");
 
             } else {
                 auto op = m_backend_lambda(const int idx) {
@@ -628,7 +628,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                     dataloc[2*nfft]     = dataloc[0];
                     dataloc[2*nfft + 1] = dataloc[1];
                 };
-                for_loop(op, howmany, "enforce period correction (complex)");
+                parallel_for(op, howmany, "enforce period correction (complex)");
             }
         }
         //----------------------------------------------------------------------

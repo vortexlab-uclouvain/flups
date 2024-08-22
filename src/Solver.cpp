@@ -1186,7 +1186,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         dataloc[ii] *= volfact;
     };
-    for_loop(op, onmax * inmax, "scale green");
+    parallel_for(op, onmax * inmax, "scale green");
 
     if (killModeZero) {
         int istart[3];
