@@ -104,6 +104,10 @@ ifneq (,$(findstring -DBACKEND_CUDA,$(OPTS)))
 	INC += -I$(CUDA_INC)
 	LIB += -L$(CUDA_LIB) $(CUDA_LIBNAME) -Wl,-rpath,$(CUDA_LIB)
 	LIB += -L$(CUDA_LIB)/stubs -Wl,-rpath,$(CUDA_LIB)/stubs
+	ifneq (,$(findstring nvcc,$(shell $(CXX) --version)))
+		CXXFLAGS += --forward-unknown-to-host-compiler
+		LDFLAGS  += --forward-unknown-to-host-compiler
+	endif
 endif
 
 #-----------------------------------------------------------------------------

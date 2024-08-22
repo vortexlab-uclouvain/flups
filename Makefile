@@ -108,7 +108,8 @@ ifneq (,$(findstring -DBACKEND_CUDA,$(OPTS)))
 	LIB += -L$(CUDA_LIB)/stubs -Wl,-rpath,$(CUDA_LIB)/stubs
 	CXXFLAGS += -x cu
 	ifneq (,$(findstring nvcc,$(shell $(CXX) --version)))
-		CXXFLAGS += --extended-lambda --expt-relaxed-constexpr
+		CXXFLAGS += --forward-unknown-to-host-compiler --extended-lambda --expt-relaxed-constexpr
+		LDFLAGS  += --forward-unknown-to-host-compiler
 	endif
 endif
 
@@ -136,12 +137,7 @@ IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
 # mandatory flags
-M_FLAGS := -DGIT_COMMIT=\"$(GIT_COMMIT)\"
-ifneq (,$(findstring nvcc,$(shell $(CXX) --version)))
-	M_FLAGS += -Xcompiler -fPIC
-else
-	M_FLAGS += -fPIC
-endif
+M_FLAGS := -fPIC -DGIT_COMMIT=\"$(GIT_COMMIT)\"
 
 ################################################################################
 $(OBJ_DIR)/isr_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
