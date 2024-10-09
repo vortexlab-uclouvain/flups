@@ -167,6 +167,12 @@
 #define FLUPS_MPI_ALLOC 0
 #endif
 
+#ifndef MPI_BANDWIDTH
+#define FLUPS_BANDWIDTH 0
+#else
+#define FLUPS_BANDWIDTH 1
+#endif
+
 //==============================================================================
 /**
  * @brief allocates size bytes using the flups allocation (alignement)

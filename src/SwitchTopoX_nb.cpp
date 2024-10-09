@@ -3,7 +3,7 @@
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int *recv_order_list,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof)  ;
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, const size_t nbytes_comm, H3LPR::Profiler *prof);
 
 SwitchTopoX_nb::SwitchTopoX_nb(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -38,7 +38,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     // allocate the completed_id array
     const int n_rqst = m_max(i2o_nchunks_, o2i_nchunks_);
     completed_id_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
-    recv_order_    = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
+    recv_order_      = reinterpret_cast<int *>(m_calloc(n_rqst * sizeof(int)));
 
     //..........................................................................
     // get information on shared rank
@@ -112,8 +112,9 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
             MPI_Send_init(buf, (int)(count), MPI_DOUBLE, cchunk->dest_rank, send_tag, cchunk->comm, send_rqst + prior_idx[0]);
             // increment the counter
             (prior_idx[0])++;
-#endif 
-
+#endif
+            // Compute the total number of data I will send/recv over the network
+            if (cchunk->dest_rank != send_tag)  nbytes_comm_ += 2 * count * sizeof(double);
         }
         FLUPS_CHECK(noprior_idx[0] == (prior_idx[0] - 1), "the prior index = %d should be = %d + 1 = %d", prior_idx[0], noprior_idx[0], noprior_idx[0] + 1);
     };
@@ -133,7 +134,7 @@ void SwitchTopoX_nb::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvD
     END_FUNC;
 }
 
-SwitchTopoX_nb::~SwitchTopoX_nb(){
+SwitchTopoX_nb::~SwitchTopoX_nb() {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     for (int ir = 0; ir < i2o_nchunks_; ++ir) {
@@ -176,12 +177,12 @@ void SwitchTopoX_nb::execute(opt_double_ptr v, const int sign) const {
         SendRecv(i2o_nchunks_, i2o_send_rqst_, i2o_chunks_,
                  o2i_nchunks_, i2o_recv_rqst_, o2i_chunks_,
                  i2o_send_order_, completed_id_, recv_order_,
-                 topo_in_, topo_out_, v, prof_);
+                 topo_in_, topo_out_, v, nbytes_comm_, prof_);
     } else {
         SendRecv(o2i_nchunks_, o2i_send_rqst_, o2i_chunks_,
                  i2o_nchunks_, o2i_recv_rqst_, i2o_chunks_,
                  o2i_send_order_, completed_id_, recv_order_,
-                 topo_out_, topo_in_, v, prof_);
+                 topo_out_, topo_in_, v, nbytes_comm_, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
@@ -203,11 +204,10 @@ void SwitchTopoX_nb::disp() const {
     FLUPS_INFO("------------------------------------------");
 }
 
-
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int *recv_order_list,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, const size_t nbytes_comm, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // Get the memory arrangement
@@ -253,6 +253,10 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     int       finished_send = 0;                     // count the number of completed send
     bool      is_mem_reset  = false;                 // track if the mem has been reset
 
+#if FLUPS_BANDWIDTH
+    double start_time, stop_time;
+#endif
+
     //..........................................................................
     m_profStart(prof, "send/recv");
 
@@ -268,6 +272,9 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         m_profStop(prof, "start");
 
         // Start a first batch of send request
+#if FLUPS_BANDWIDTH
+        start_time = MPI_Wtime();
+#endif
         send_my_batch(n_send_rqst, &send_cntr, send_batch);
     }
     m_profStop(prof, "pre-send");
@@ -284,14 +291,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     // while we have to send msgs to others or recv msg or copy the one we have received
     while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst) || (copy_cntr < n_recv_rqst)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
-        //FLUPS_WARNING("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
 
         //......................................................................
         // [1] test if we have finished some send requests and start new ones
         //......................................................................
         if (finished_send < n_send_rqst) {
-            // FLUPS_WARNING("Testing %d/%d send requests, finished = %d",send_cntr,n_send_rqst,finished_send);
-            //  completed id can be reused here as it has been allocated on the max of send and recv
+            // completed id can be reused here as it has been allocated on the max of send and recv
             int n_send_completed = 0;
             MPI_Testsome(send_cntr, send_rqst, &n_send_completed, completed_id, MPI_STATUSES_IGNORE);
 
@@ -302,8 +307,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             FLUPS_CHECK(n_to_resend >= 0, " You need to send a positive number of request");
             send_my_batch(n_send_rqst, &send_cntr, n_to_resend);
         }
+
         // if all the send have completed I can reset the memory to 0
         if (!is_mem_reset && (finished_send == n_send_rqst)) {
+#if FLUPS_BANDWIDTH
+            stop_time = MPI_Wtime();
+#endif
             const size_t reset_size = topo_out->memsize();
             backend_memset(mem, 0, reset_size * sizeof(double));
             is_mem_reset = true;
@@ -351,12 +360,12 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             const int n_ready = recv_cntr - copy_cntr;
             for (int icpy = 0; icpy < n_ready; ++icpy) {
                 const int rqst_id = recv_order_list[copy_cntr];
-                FLUPS_INFO("treating recv request %d/%d with id = %d",copy_cntr, n_recv_rqst, rqst_id);
+                FLUPS_INFO("treating recv request %d/%d with id = %d", copy_cntr, n_recv_rqst, rqst_id);
 
                 // copy the data
                 m_profStart(prof, "copy");
-                MemChunk *chunk = recv_chunks + rqst_id;
-                bool did_shuffle = (chunk->axis != chunk->dest_axis);
+                MemChunk *chunk       = recv_chunks + rqst_id;
+                bool      did_shuffle = (chunk->axis != chunk->dest_axis);
                 CopyChunk2Data(chunk, nmem_out, mem, did_shuffle);
                 m_profStop(prof, "copy");
 
@@ -373,6 +382,13 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
 #endif
 
     FLUPS_INFO("Copying data completed");
+#if FLUPS_BANDWIDTH
+    const double elapsed_time = stop_time - start_time;
+    const double bandwidth    = ((double)nbytes_comm / elapsed_time) / (double)(1 << 30);
+    if (nbytes_comm > 0) {
+        printf("Bandwidth (for %d B sent) = %f GB/s\n", (int)nbytes_comm, bandwidth);
+    }
+#endif
     //--------------------------------------------------------------------------
     END_FUNC;
 }
