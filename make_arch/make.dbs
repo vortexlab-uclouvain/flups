@@ -2,10 +2,10 @@ CXX = $(PREFIX)/bin/mpic++
 CC  = $(PREFIX)/bin/mpicc
 
 # Pick backend
-OPTS := -DBACKEND_CUDA
+OPTS := -DBACKEND_CUDA -DNDEBUG
 
 # Compiler flags
-CXXFLAGS := -O3 -g
+CXXFLAGS := -O3
 LDFLAGS  := -lpthread -lm
 
 # H3LPR
@@ -17,6 +17,11 @@ H3LPR_LIB := $(H3LPR_DIR)/lib
 CUDA_DIR  := $(EBROOTCUDA)
 CUDA_INC  := $(CUDA_DIR)/include
 CUDA_LIB  := $(CUDA_DIR)/lib
+
+# HeFFTE
+HEFFTE_DIR := $(PREFIX)
+HEFFTE_INC := $(HEFFTE_DIR)/include
+HEFFTE_LIB := $(HEFFTE_DIR)/lib64
 
 # Google Test
 GTEST_DIR := $(PREFIX)

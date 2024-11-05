@@ -13,6 +13,12 @@ OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86
 #CXXFLAGS += -fsanitize=address -fsanitize=undefined
 #LDFLAGS  += -fsanitize=address -fsanitize=undefined
 
+## HEFFTE
+HEFFTE_DIR := ${HOME}/heffte-2.4.1/build
+HEFFTE_LIB := ${HEFFTE_DIR}/lib
+HEFFTE_INC := ${HEFFTE_DIR}/include
+HEFFTE_LIBNAME := -lheffte
+
 ## CUDA
 CUDA_DIR := /usr/local/cuda
 CUDA_LIB := ${CUDA_DIR}/lib64
