@@ -131,6 +131,10 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     return s;
 }
 
+
+void flups_cleanup_solver(Solver* s) {
+    delete s;
+}
 // destroy the solver
 void flups_cleanup(Solver* s) {
     flups_cleanup_all(s);
