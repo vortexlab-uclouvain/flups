@@ -398,11 +398,22 @@ FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], 
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
+ * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function 
+ * @warning this function is kept for backward compatibility
  */
 void flups_cleanup(FLUPS_Solver* s);
 
 /**
- * @brief Free the memomry of the solver and the data employed by the backend
+ * @brief must be called before execution terminates as it frees the memory used by the solver
+ *
+ * @param s
+ * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function 
+ * @warning this function is kept for backward compatibility
+ */
+void flups_cleanup_solver(FLUPS_Solver* s);
+
+/**
+ * @brief Free the memomry of the solver and the data employed by fftw
  *
  * @warning this function free all the data of the backend. If you use multiple solver
  *        you should not call this function
