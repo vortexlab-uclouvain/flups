@@ -76,7 +76,6 @@ typedef enum {
 
 // Define some streams (never actually used, everything is synchronous on the CPU)
 static stream_t comp_stream = 0;
-static stream_t copy_stream = 1;
 
 // Kernel execution
 #define m_device

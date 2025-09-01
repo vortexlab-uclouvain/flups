@@ -20,14 +20,12 @@ void backend_init() {
 
     // Initialize streams
     m_cudart_check_errors(cudaStreamCreate(&comp_stream));
-    m_cudart_check_errors(cudaStreamCreate(&copy_stream));
     m_cublas_check_errors(cublasSetStream(cuHandle, comp_stream));
 }
 
 void backend_finalize() {
     // Cleanup the streams
     m_cudart_check_errors(cudaStreamDestroy(comp_stream));
-    m_cudart_check_errors(cudaStreamDestroy(copy_stream));
 
     m_cublas_check_errors(cublasDestroy(cuHandle));
 }
@@ -71,9 +69,7 @@ size_t backend_alignment_of(double *ptr) {
 
 // Memcopy function - from host to device and vice-versa
 void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
-    m_cudart_check_errors(cudaMemcpyAsync(dst, src, size, (cudaMemcpyKind)kind, copy_stream));
-    // now we synchronize !
-    backend_sync_stream(copy_stream);
+    m_cudart_check_errors(cudaMemcpyAsync(dst, src, size, (cudaMemcpyKind)kind, comp_stream));
 }
 
 // Helper function to find where the memory lives

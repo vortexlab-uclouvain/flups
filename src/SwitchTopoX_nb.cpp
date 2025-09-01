@@ -235,6 +235,8 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             m_profStart(prof, "copy");
             CopyData2Chunk(nmem_in, mem, c_chunk);
             m_profStop(prof, "copy");
+
+            // sync gpu before sending
             backend_sync_stream(comp_stream);
 
             // start the send
@@ -376,7 +378,6 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             }
         }
     }
-    backend_sync_stream(comp_stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
 

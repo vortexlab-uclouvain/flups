@@ -227,7 +227,6 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
         FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
         CopyData2Chunk(nmem_in, mem, chunk);
-        backend_sync_stream(comp_stream);
     };
 
     auto complete_recv = [=](MemChunk *chunk) {
@@ -254,6 +253,8 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
         m_profStopi(prof, "copy data 2 chunk");
     }
 
+    // sync GPU before sending
+    backend_sync_stream(comp_stream);
 
     m_profStarti(prof, "all2all - start");
 #if FLUPS_OLD_MPI
@@ -287,7 +288,6 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
         }
         m_profStopi(prof, "shuffle and copy chunk 2 data");
     }
-    backend_sync_stream(comp_stream);
 
     //--------------------------------------------------------------------------
     END_FUNC;

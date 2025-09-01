@@ -28,6 +28,8 @@
 #include "FFTW_plan_dim_cell.hpp"
 #include "FFTW_plan_dim_node.hpp"
 
+#include "backend.hpp"
+
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
  *
@@ -1274,6 +1276,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     FLUPS_CHECK(topo_phys_->nf() == 1, "The RHS topology cannot be complex");
     do_copy(topo_phys_, rhs, FLUPS_FORWARD);
+    // no need to sync here, everything is queued on the same stream
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_phys_, "rhs", mydata);
@@ -1308,6 +1311,8 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
     do_copy(topo_phys_, field, FLUPS_BACKWARD);
+    // we consider the solve API to be synchronous: need to sync
+    backend_sync_stream(comp_stream);
 
 #ifdef DUMP_DBG
     // io if needed

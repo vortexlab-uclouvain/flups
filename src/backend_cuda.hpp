@@ -122,7 +122,6 @@ typedef enum {
 
 // Define some streams
 extern stream_t comp_stream;
-static stream_t copy_stream;
 
 // Kernel execution
 #define BLOCK_SIZE 256

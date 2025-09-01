@@ -182,6 +182,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             int       rank_in_chunk;
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
 
+            // need to sync the GPU before sending
             backend_sync_stream(comp_stream);
 
             // start the Isend and store it using ridx to make sure we can test it later
@@ -298,7 +299,6 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             }
         }
     }
-    backend_sync_stream(comp_stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
     //--------------------------------------------------------------------------
