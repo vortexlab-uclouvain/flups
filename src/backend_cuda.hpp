@@ -121,7 +121,7 @@ typedef enum {
 #endif
 
 // Define some streams
-static stream_t comp_stream;
+extern stream_t comp_stream;
 static stream_t copy_stream;
 
 // Kernel execution
@@ -148,7 +148,6 @@ void parallel_for(const O& op, const int n, string name) {
     const void* args[] = {&op, &n};
     m_cudart_check_errors(
         cudaLaunchKernel((void*)cuda_kernel_<O>, (n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, const_cast<void**>(args), 0, comp_stream));
-    m_cudart_check_errors(cudaStreamSynchronize(comp_stream));
     BACKEND_INFO("Kernel %s done", name.c_str());
 }
 

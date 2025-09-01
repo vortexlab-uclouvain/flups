@@ -4,6 +4,7 @@
 #include "defines.hpp"
 
 cublasHandle_t cuHandle;
+cudaStream_t comp_stream;
 
 // Init & cleanup backend
 void backend_init() {
@@ -46,6 +47,7 @@ void backend_memset(void *ptr, int val, size_t size) {
 }
 
 void *backend_malloc(size_t size) {
+    backend_sync_stream(comp_stream);
     void  *ptr;
     size_t m_calloc_size_        = size + FLUPS_ALIGNMENT - 1;
     size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % FLUPS_ALIGNMENT;
@@ -125,17 +127,14 @@ flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *o
 // Execute functions
 void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign) {
     m_cufft_check_errors(cufftExecZ2Z(plan.fft, in, out, sign));
-    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out) {
     m_cufft_check_errors(cufftExecD2Z(plan.fft, in, out));
-    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out) {
     m_cufft_check_errors(cufftExecZ2D(plan.fft, in, out));
-    backend_sync_stream(comp_stream);
 }
 
 void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
@@ -156,7 +155,6 @@ void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, boo
                                           NULL, NULL, plan.n0,
                                           (flups_complex *)out, plan.n0));
     }
-    backend_sync_stream(comp_stream);
 }
 
 // Cleanup functions

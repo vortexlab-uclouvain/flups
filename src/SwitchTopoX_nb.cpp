@@ -1,4 +1,5 @@
 #include "SwitchTopoX_nb.hpp"
+#include "backend.hpp"
 
 void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_rqst, MPI_Request *recv_rqst, MemChunk *recv_chunks,
@@ -234,6 +235,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             m_profStart(prof, "copy");
             CopyData2Chunk(nmem_in, mem, c_chunk);
             m_profStop(prof, "copy");
+            backend_sync_stream(comp_stream);
 
             // start the send
             m_profStart(prof, "start");
@@ -374,6 +376,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             }
         }
     }
+    backend_sync_stream(comp_stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
 

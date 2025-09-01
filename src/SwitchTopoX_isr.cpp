@@ -1,4 +1,5 @@
 #include "SwitchTopoX_isr.hpp"
+#include "backend.hpp"
 
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
@@ -181,6 +182,8 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             int       rank_in_chunk;
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
 
+            backend_sync_stream(comp_stream);
+
             // start the Isend and store it using ridx to make sure we can test it later
             m_profStart(prof, "start");
             MPI_Isend(mem + c_chunk->offset, 1, c_chunk->dtype, c_chunk->dest_rank, rank_in_chunk, c_chunk->comm, send_rqst + ridx);
@@ -295,6 +298,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             }
         }
     }
+    backend_sync_stream(comp_stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
     //--------------------------------------------------------------------------
