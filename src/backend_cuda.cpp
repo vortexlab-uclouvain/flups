@@ -8,12 +8,12 @@ cudaStream_t comp_stream;
 
 // Init & cleanup backend
 void backend_init() {
-    // Set default GPU device
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int num_devices;
-    m_cudart_check_errors(cudaGetDeviceCount(&num_devices));
-    m_cudart_check_errors(cudaSetDevice(rank % num_devices));
+    // // Set default GPU device
+    // int rank;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // int num_devices;
+    // m_cudart_check_errors(cudaGetDeviceCount(&num_devices));
+    // m_cudart_check_errors(cudaSetDevice(rank % num_devices));
 
     //  Initialize cuBLAS
     m_cublas_check_errors(cublasCreate(&cuHandle));
