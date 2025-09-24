@@ -113,11 +113,17 @@ typedef enum {
     } while (0)
 #else
 #define m_cudart_check_errors(msg) \
-    { ((void)0); }
+    {                              \
+        ((void)0);                 \
+    }
 #define m_cublas_check_errors(msg) \
-    { ((void)0); }
+    {                              \
+        ((void)0);                 \
+    }
 #define m_cufft_check_errors(msg) \
-    { ((void)0); }
+    {                             \
+        ((void)0);                \
+    }
 #endif
 
 // Define some streams

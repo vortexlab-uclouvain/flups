@@ -53,6 +53,13 @@ typedef enum SolverType   FLUPS_SolverType;
 typedef enum DiffType     FLUPS_DiffType;
 typedef enum CenterType   FLUPS_CenterType;
 
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
+
 /**@} */
 
 //=============================================================================
@@ -126,7 +133,7 @@ void flups_info(int argc, char** argv);
  * @param nf the number of unknows in one element
  * @return size_t
  */
-static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int lia, const int axtrg, const int size[3], const int nf) {
+static inline __host__ __device__ size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int lia, const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
@@ -187,7 +194,7 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
  * @param axtrg the FRI of the target topology, i.e. the way the memory is aligned in the current topology
  * @param is the spectral index
  */
-static inline void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+static inline __host__ __device__ void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration
     const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
     // cmpt the shift in axis and the axis for the symstart
