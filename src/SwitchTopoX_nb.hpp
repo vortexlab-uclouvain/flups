@@ -18,14 +18,13 @@ class SwitchTopoX_nb : public SwitchTopoX {
     MPI_Request* o2i_send_rqst_ = NULL;  //!< MPI send requests
     MPI_Request* o2i_recv_rqst_ = NULL;  //!< MPI recv requests
 
-    size_t nbytes_comm_ = 0;
-
    public:
     explicit SwitchTopoX_nb(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
     ~SwitchTopoX_nb();
 
-    virtual bool need_send_buf() const override { return true; };
-    virtual bool need_recv_buf() const override { return true; };
+    virtual bool need_send_buf()const override{return true;};
+    virtual bool need_recv_buf()const override{return true;};
+
 
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
     virtual void execute(opt_double_ptr data, const int sign) const override;
