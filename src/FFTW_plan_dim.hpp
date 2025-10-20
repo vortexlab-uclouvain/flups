@@ -30,8 +30,8 @@
 #include <tuple>
 
 #include "Topology.hpp"
-#include "defines.hpp"
 #include "backend.hpp"
+#include "defines.hpp"
 
 /**
  * @brief A FFTW plan in one dimension
@@ -67,7 +67,7 @@ class FFTW_plan_dim {
      * - byte 2 obtained as `(correction>>1)%2` copy the value of the first data in the last data
      *
      * The actual correction of a planned is asigned using the sum operator:
-     *       correction = NULL_LAST_POINT = 2 
+     *       correction = NULL_LAST_POINT = 2
      * will lead to
      * - (2>>0)%2 = 0 -> NO first point correction
      * - (2>>1)%2 = 1 -> YES last point correction
@@ -81,34 +81,34 @@ class FFTW_plan_dim {
     };
 
    protected:
-    const int  lda_;                /**<@brief the dimension of the solver */
-    const bool isGreen_;            /**< @brief boolean is true if this plan is for a Green's function */
-    const int  dimID_;              /**< @brief the dimension of the plan in the field reference */
-    const int  sign_;               /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
+    const int  lda_;     /**<@brief the dimension of the solver */
+    const bool isGreen_; /**< @brief boolean is true if this plan is for a Green's function */
+    const int  dimID_;   /**< @brief the dimension of the plan in the field reference */
+    const int  sign_;    /**< @brief FFT_FORWARD (-1) or FFT_BACKWARD(+1) */
 
-    bool   isr2c_       = false;    /**< @brief is this plan the one that changes to complex?*/
-    bool   isSpectral_  = false;    /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
-    int    fft_stride_ = 0;        /**<@brief the memory space between two ffts */
-    int    howmany_     = 0;        /**<@brief the number of FFT's to do */
-    
-    int    n_out_       = 1;        /**< @brief the number of element coming out of the transform. When dealing with vector, this number must be constant throughout the different components*/
-    int    fieldstart_  = 0;        /**< @brief the starting index for the field copy in the direction of the plan*/
-    double symstart_    = 0.0;      /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
-    double volfact_     = 1.0;      /**< @brief volume factor*/
-    double normfact_    = 1.0;      /**< @brief factor you need to multiply to get the transform on the right scaling*/
-    double kfact_       = 0.0;      /**< @brief multiplication factor to have the correct k numbers*/
-    double koffset_     = 0.0;      /**< @brief additive factor to have the correct k numbers*/
+    bool isr2c_      = false; /**< @brief is this plan the one that changes to complex?*/
+    bool isSpectral_ = false; /**< @brief indicate if the Green's function has to be done spectrally (leading to a helmolz problem) */
+    int  fft_stride_ = 0;     /**<@brief the memory space between two ffts */
+    int  howmany_    = 0;     /**<@brief the number of FFT's to do */
 
-    int* n_in_          = NULL;     /**< @brief the number of element in the transform, i. e. given to fftw calls*/
-    int* fftstart_in_  = NULL;     /**< @brief the starting index for the input field to be given to FFTW functions*/
-    int* fftstart_out_ = NULL;     /**< @brief the starting index for the output field to be given to FFTW functions*/
+    int    n_out_      = 1;   /**< @brief the number of element coming out of the transform. When dealing with vector, this number must be constant throughout the different components*/
+    int    fieldstart_ = 0;   /**< @brief the starting index for the field copy in the direction of the plan*/
+    double symstart_   = 0.0; /**< @brief the first index to be copied for the symmetry done on the Green's function, set to 0 if no symmetry is needed*/
+    double volfact_    = 1.0; /**< @brief volume factor*/
+    double normfact_   = 1.0; /**< @brief factor you need to multiply to get the transform on the right scaling*/
+    double kfact_      = 0.0; /**< @brief multiplication factor to have the correct k numbers*/
+    double koffset_    = 0.0; /**< @brief additive factor to have the correct k numbers*/
 
-    PlanType       type_;                        /**< @brief type of this plan, see #PlanType*/
-    BoundaryType*  bc_[2]        = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
-    int*           postpro_type_ = NULL;         /**< @brief correction type of this plan, see #PlanPostproType*/
-    bool*          imult_        = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
-    flups_r2r_kind_t* kind_            = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
-    flups_fft_plan*     plan_        = NULL;         /**< @brief the array of FFTW plan*/
+    int* n_in_         = NULL; /**< @brief the number of element in the transform, i. e. given to fftw calls*/
+    int* fftstart_in_  = NULL; /**< @brief the starting index for the input field to be given to FFTW functions*/
+    int* fftstart_out_ = NULL; /**< @brief the starting index for the output field to be given to FFTW functions*/
+
+    PlanType          type_;                        /**< @brief type of this plan, see #PlanType*/
+    BoundaryType*     bc_[2]        = {NULL, NULL}; /**< @brief boundary condition for the ith component [0][i]=LEFT/MIN - [1][i]=RIGHT/MAX*/
+    int*              postpro_type_ = NULL;         /**< @brief correction type of this plan, see #PlanPostproType*/
+    bool*             imult_        = NULL;         /**< @brief boolean indicating that we have to multiply by (-i) in forward and (i) in backward*/
+    flups_r2r_kind_t* kind_         = NULL;         /**< @brief kind of transfrom to perform (used by r2r and mix plan only)*/
+    flups_fft_plan*   plan_         = NULL;         /**< @brief the array of FFTW plan*/
 
    public:
     FFTW_plan_dim(const int lda, const int dimID, const double h[3], const double L[3], BoundaryType* mybc[2], const int sign, const bool isGreen);
@@ -116,31 +116,31 @@ class FFTW_plan_dim {
 
     void init(const int size[3], const bool isComplex);
 
-    void allocate_plan(const Topology* topo, double* data);
-    void execute_plan(const Topology* topo, double* data) const;
-    void postprocess_plan(const Topology*, double* data);
+    void allocate_plan(const Topology* topo, double* data, stream_t stream);
+    void execute_plan(const Topology* topo, double* data, stream_t stream) const;
+    void postprocess_plan(const Topology*, double* data, stream_t stream);
 
     /**
      * @name Getters - return the value
      *
      */
     /**@{ */
-    inline bool         isSpectral() const { return isSpectral_; }
-    inline bool         isr2c() const { return isr2c_; }
-    inline bool         imult(const int lia) const { return imult_[lia]; }
-    inline bool         isr2c_doneByFFT() const { return isr2c_ && (!isSpectral_); }
-    inline int          dimID() const { return dimID_; }
-    inline int          type() const { return type_; }
-    inline int          lda() const { return lda_; }
-    inline double       symstart() const { return symstart_; }
-    inline double       normfact() const { return normfact_; }
-    inline double       volfact() const { return volfact_; }
-    inline double       kfact() const { return kfact_; }
-    inline double       koffset() const { return koffset_; }
-    inline void         get_outsize(int* size) const { size[dimID_] = n_out_; };
-    inline void         get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
-    inline void         get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
-    inline flups_fft_plan*  get_plan() const { return plan_; }
+    inline bool            isSpectral() const { return isSpectral_; }
+    inline bool            isr2c() const { return isr2c_; }
+    inline bool            imult(const int lia) const { return imult_[lia]; }
+    inline bool            isr2c_doneByFFT() const { return isr2c_ && (!isSpectral_); }
+    inline int             dimID() const { return dimID_; }
+    inline int             type() const { return type_; }
+    inline int             lda() const { return lda_; }
+    inline double          symstart() const { return symstart_; }
+    inline double          normfact() const { return normfact_; }
+    inline double          volfact() const { return volfact_; }
+    inline double          kfact() const { return kfact_; }
+    inline double          koffset() const { return koffset_; }
+    inline void            get_outsize(int* size) const { size[dimID_] = n_out_; };
+    inline void            get_fieldstart(int* start) const { start[dimID_] = fieldstart_; };
+    inline void            get_isNowComplex(bool* isComplex) const { (*isComplex) = (*isComplex) || isr2c_; };
+    inline flups_fft_plan* get_plan() const { return plan_; }
     /**@} */
 
     /**
@@ -164,8 +164,8 @@ class FFTW_plan_dim {
      * @name Plan allocation
      */
     /**@{ */
-    void allocate_plan_real_(const Topology* topo, double* data);
-    void allocate_plan_complex_(const Topology* topo, double* data);
+    void allocate_plan_real_(const Topology* topo, double* data, stream_t stream);
+    void allocate_plan_complex_(const Topology* topo, double* data, stream_t stream);
     /**@} */
 
     /**

@@ -121,6 +121,15 @@ int flups_topo_rankindex(const Topology* topo, const int rankd[3]) {
 //********************************************************************* */
 
 // get a new solver
+Solver* flups_init_stream(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3], stream_t stream) {
+    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, stream, NULL);
+    return s;
+}
+Solver* flups_init_stream_timed(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType center_type[3], stream_t stream, FLUPS_Profiler* prof) {
+    auto    h_prof = reinterpret_cast<H3LPR::Profiler*>(prof);
+    Solver* s      = new Solver(t, bc, h, L, orderDiff, center_type, stream, h_prof);
+    return s;
+}
 Solver* flups_init(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3]) {
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
     return s;

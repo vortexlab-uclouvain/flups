@@ -47,7 +47,7 @@ inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr) {
  * @param typeGreen the type of Green function
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
     BEGIN_FUNC;
     // assert that the green spacing is not 0.0 everywhere
     FLUPS_CHECK(hfact[0] != 0.0, "hfact[0] cannot be 0");
@@ -92,42 +92,42 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case LGF_2:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(LGF_2, 3, &GN, &Gdata);
+            lgf_readfile_(LGF_2, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &lgf_2_3unb0spe);
             break;
         case LGF_4:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(LGF_4, 3, &GN, &Gdata);
+            lgf_readfile_(LGF_4, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &lgf_4_3unb0spe);
             break;
         case LGF_6:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(LGF_6, 3, &GN, &Gdata);
+            lgf_readfile_(LGF_6, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &lgf_6_3unb0spe);
             break;
         case LGF_8:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(LGF_8, 3, &GN, &Gdata);
+            lgf_readfile_(LGF_8, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &lgf_8_3unb0spe);
             break;
         case MEHR_4L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(MEHR_4L, 3, &GN, &Gdata);
+            lgf_readfile_(MEHR_4L, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &mehr_4l_3unb0spe);
             break;
         case MEHR_6L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(MEHR_6L, 3, &GN, &Gdata);
+            lgf_readfile_(MEHR_6L, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &mehr_6l_3unb0spe);
             break;
         case MEHR_4F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(MEHR_4F, 3, &GN, &Gdata);
+            lgf_readfile_(MEHR_4F, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &mehr_4f_3unb0spe);
             break;
         case MEHR_6F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
-            lgf_readfile_(MEHR_6F, 3, &GN, &Gdata);
+            lgf_readfile_(MEHR_6F, 3, &GN, &Gdata, stream);
             get_kernel_ptr(&G, &mehr_6f_3unb0spe);
             break;
         default:
@@ -175,7 +175,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         const double tmp[9] = {r, length, 0, 0, static_cast<double>(std::abs(is[ax0])), static_cast<double>(std::abs(is[ax1])), static_cast<double>(std::abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
         green[id + i0 * nf] = G(tmp, Gdata);
     };
-    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "3unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "3unb green", stream);
 
     // reset the value in 0.0 but not for LGF's since we have already pre-computed its value
     const bool is_lgf         = (typeGreen == LGF_2 || typeGreen == LGF_4 || typeGreen == LGF_6 || typeGreen == LGF_8);
@@ -185,7 +185,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
         auto op = m_backend_lambda(const int idx) {
             green[idx] = G0;
         };
-        parallel_for(op, 1, "3unb green reset");
+        parallel_for(op, 1, "3unb green reset", stream);
     }
     // free Gdata if needed
     if (Gdata != NULL) {
@@ -216,7 +216,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
             full spectral part afterwards, while going through Solver::cmptGreenFunction_.
  *
  */
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -276,7 +276,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
-            parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0");
+            parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0", stream);
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &hej_0_2unb1spe_k0);
             get_kernel_ptr(&Gr0, &hej_0_2unb1spe_k0);
@@ -291,7 +291,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(LGF_2, 2, &GN, &Gdata);
+            lgf_readfile_(LGF_2, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &lgf_2_2unb0spe);
@@ -301,7 +301,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(LGF_4, 2, &GN, &Gdata);
+            lgf_readfile_(LGF_4, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &lgf_4_2unb0spe);
@@ -311,7 +311,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(LGF_6, 2, &GN, &Gdata);
+            lgf_readfile_(LGF_6, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &lgf_6_2unb0spe);
@@ -321,7 +321,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
-            lgf_readfile_(LGF_8, 2, &GN, &Gdata);
+            lgf_readfile_(LGF_8, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &lgf_8_2unb0spe);
@@ -331,7 +331,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
-            lgf_readfile_(MEHR_4L, 2, &GN, &Gdata);
+            lgf_readfile_(MEHR_4L, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe);
@@ -341,7 +341,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
-            lgf_readfile_(MEHR_6L, 2, &GN, &Gdata);
+            lgf_readfile_(MEHR_6L, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe);
@@ -351,7 +351,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
-            lgf_readfile_(MEHR_4F, 2, &GN, &Gdata);
+            lgf_readfile_(MEHR_4F, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &mehr_4f_2unb0spe);
@@ -361,7 +361,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
-            lgf_readfile_(MEHR_6F, 2, &GN, &Gdata);
+            lgf_readfile_(MEHR_6F, 2, &GN, &Gdata, stream);
             // associate the Green's function
             get_kernel_ptr(&G, &zero);
             get_kernel_ptr(&Gk0, &mehr_6f_2unb0spe);
@@ -428,7 +428,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             green[id + i0 * nf] = G(tmp, Gdata);
         }
     };
-    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green", stream);
 
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
@@ -436,7 +436,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: mistake in [Chatelain2010]
             green[idx] = 0.25 * c_1o2pi * (M_PI - 6.0 + 2.0 * log(0.5 * M_PI * r_eq2D * r_eq2D));
         };
-        parallel_for(op, 1, "2unb green reset");
+        parallel_for(op, 1, "2unb green reset", stream);
     }
 
     // free Gdata if needed
@@ -461,7 +461,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
  * @param typeGreen the type of Green function
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
-void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -594,7 +594,7 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
             green[id + i0 * nf] = G(tmp, NULL);
         }
     };
-    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "1unb green");
+    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "1unb green", stream);
     END_FUNC;
 }
 
@@ -618,8 +618,8 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
  * @param typeGreen the type of Green function
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length) {
-    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, length, NULL, NULL);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
+    cmpt_Green_0dirunbounded(topo, hgrid, kfact, koffset, symstart, green, typeGreen, length, NULL, NULL, stream);
 }
 
 /**
@@ -640,7 +640,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
  * @param istart_custom global index where we start to fill data, in each dir. If NULL, we start at the beginning of the spectral space.
  * @param iend_custom global index where we end to fill data, in each dir. If NULL, we end at the end of the spectral space.
  */
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3]) {
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3], stream_t stream) {
     BEGIN_FUNC;
 
     // assert that the green spacing is not 0.0 everywhere
@@ -757,14 +757,14 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
 
         green[id + i0 * nf] = G(tmp, NULL);
     };
-    parallel_for(op, ni[0] * ni[1] * ni[2], "0unb green");
+    parallel_for(op, ni[0] * ni[1] * ni[2], "0unb green", stream);
 
     // reset the value in 0.0
     if (istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0 && koffset[0] + koffset[1] + koffset[2] < 0.2) {
         auto op = m_backend_lambda(const int idx) {
             green[idx] = 0.0;
         };
-        parallel_for(op, 1, "0unb green reset");
+        parallel_for(op, 1, "0unb green reset", stream);
     }
     END_FUNC;
 }

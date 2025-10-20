@@ -74,9 +74,6 @@ typedef enum {
     memTypeUnregistered,
 } memType_t;
 
-// Define some streams (never actually used, everything is synchronous on the CPU)
-static stream_t comp_stream = 0;
-
 // Kernel execution
 #define m_device
 #define m_constant
@@ -84,7 +81,7 @@ static stream_t comp_stream = 0;
 #define m_backend_lambda [=]
 
 template <typename O>
-void parallel_for(const O& op, const int n, string name) {
+void parallel_for(const O& op, const int n, string name, stream_t) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
     for (int i = 0; i < n; i++) {
         op(i);

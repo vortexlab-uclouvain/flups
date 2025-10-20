@@ -30,13 +30,13 @@
  * @brief perform the convolution for real to real cases
  * 
  */
-void Solver::dothemagic_std_real(double *data) {
+void Solver::dothemagic_std_real(double *data, stream_t stream) {
 #elif (KIND == 1)
 /**
  * @brief perform the convolution for complex to complex cases
  * 
  */
-void Solver::dothemagic_std_complex(double *data) {
+void Solver::dothemagic_std_complex(double *data, stream_t stream) {
 #endif
 
     BEGIN_FUNC;
@@ -99,7 +99,7 @@ void Solver::dothemagic_std_complex(double *data) {
         dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
 #endif
     };
-    parallel_for(op, onmax * inmax, "dothemaigc_std");
+    parallel_for(op, onmax * inmax, "dothemaigc_std", stream);
 
     END_FUNC;
 }

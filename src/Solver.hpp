@@ -132,6 +132,9 @@ class Solver {
 #endif
     /**@} */
 
+    // stream
+    stream_t stream_ = 0;   // use default stream
+
     // time the solve
     H3LPR::Profiler* prof_ = NULL;
 
@@ -188,16 +191,16 @@ class Solver {
     // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#extended-lambda-restrictions
    public:
 #endif
-    void dothemagic_std_real(double* data);
-    void dothemagic_std_complex(double* data);
-    void dothemagic_rot_real_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
-    void dothemagic_rot_complex_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
-    void dothemagic_rot_real_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_real_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_real_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+    void dothemagic_std_real(double* data, stream_t stream);
+    void dothemagic_std_complex(double* data, stream_t stream);
+    void dothemagic_rot_real_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], stream_t stream);
+    void dothemagic_rot_complex_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], stream_t stream);
+    void dothemagic_rot_real_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_real_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_real_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
     /**@} */
 
     /**
@@ -218,6 +221,9 @@ class Solver {
 
    public:
     Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
+    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], stream_t stream, H3LPR::Profiler* prof) : stream_(stream) {
+        Solver(topo, rhsbc, h, L, orderDiff, centerType, prof);
+    }
     ~Solver();
 
     void      setup(const bool changeTopoComm);

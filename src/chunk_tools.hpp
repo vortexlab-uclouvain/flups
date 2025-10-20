@@ -42,10 +42,10 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
 
 void ChunkToNewComm(const MPI_Comm new_comm, const MPI_Group new_group, MemChunk* chunk, bool* is_in_comm);
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk);
-void DoShuffleChunk(MemChunk* chunk);
+void DoShuffleChunk(MemChunk* chunk, stream_t stream);
 
-void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff);
-void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk);
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff, stream_t stream);
+void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk, stream_t stream);
 
 void ChunkToMPIDataType(const int nmem[3], MemChunk* chunk);//, size_t* offset, MPI_Datatype* type_xyzd);
 void ChunkToDestMPIDataType(MemChunk* chunk);

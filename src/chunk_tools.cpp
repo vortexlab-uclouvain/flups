@@ -338,14 +338,14 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
  * 
  * @param chunk 
  */
-void DoShuffleChunk(MemChunk* chunk) {
+void DoShuffleChunk(MemChunk* chunk, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     for (int ida = 0; ida < chunk->nda; ++ida) {
         opt_double_ptr data_in  = chunk->data         + ida * chunk->size_padded;
         opt_double_ptr data_out = chunk->shuffle_buff + ida * chunk->size_padded;
 
-        flups_execute_shuffle(chunk->shuffle, data_in, data_out, 2 == chunk->nf);
+        flups_execute_shuffle(chunk->shuffle, data_in, data_out, 2 == chunk->nf, stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -364,7 +364,7 @@ void DoShuffleChunk(MemChunk* chunk) {
  * @param chunk the chunk of memory to copy
  * @param data the vector of data corresponding to the current memory
  */
-void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff) {
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
@@ -406,13 +406,13 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
             // copy the data
             vtrg[i0] = vsrc[i0];
         };
-        parallel_for(op, n_loop * nmax, "CopyChunk2Data");
+        parallel_for(op, n_loop * nmax, "CopyChunk2Data", stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
-void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk) {
+void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
@@ -458,7 +458,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
             // copy the data
             vtrg[i0] = vsrc[i0];
         };
-        parallel_for(op, n_loop * nmax, "CopyData2chunk");
+        parallel_for(op, n_loop * nmax, "CopyData2chunk", stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;

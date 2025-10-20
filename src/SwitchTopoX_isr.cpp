@@ -4,7 +4,7 @@
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int* recv_order_list,
-              const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof);
+              const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof);
 
 SwitchTopoX_isr::SwitchTopoX_isr(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -122,7 +122,7 @@ SwitchTopoX_isr::~SwitchTopoX_isr() {
  * @param v
  * @param sign
  */
-void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
+void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign, stream_t stream) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
@@ -130,12 +130,12 @@ void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
         SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_,
                  o2i_nchunks_, recv_rqst_, o2i_chunks_,
                  i2o_send_order_, completed_id_, recv_order_,
-                 topo_out_, v, prof_);
+                 topo_out_, v, stream, prof_);
     } else {
         SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_,
                  i2o_nchunks_, recv_rqst_, i2o_chunks_,
                  o2i_send_order_, completed_id_, recv_order_,
-                 topo_in_, v, prof_);
+                 topo_in_, v, stream, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
@@ -160,7 +160,7 @@ void SwitchTopoX_isr::disp() const {
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int* recv_order_list,
-              const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
+              const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // Define the send of a batch of requests
@@ -183,7 +183,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
 
             // need to sync the GPU before sending
-            backend_sync_stream(comp_stream);
+            backend_sync_stream(stream);
 
             // start the Isend and store it using ridx to make sure we can test it later
             m_profStart(prof, "start");
@@ -273,7 +273,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 m_profStart(prof, "shuffle");
                 MemChunk *chunk = recv_chunks + rqst_id;
                 bool do_shuffle = (chunk->axis != chunk->dest_axis);
-                if (do_shuffle) DoShuffleChunk(chunk);
+                if (do_shuffle) DoShuffleChunk(chunk, stream);
                 m_profStop(prof, "shuffle");
                 // save the id for copy'ing it later
                 recv_order_list[recv_cntr] = completed_id[id];
@@ -293,7 +293,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 m_profStart(prof, "copy");
                 MemChunk *chunk = recv_chunks + rqst_id;
                 bool did_shuffle = (chunk->axis != chunk->dest_axis);
-                CopyChunk2Data(chunk, nmem_out, mem, did_shuffle);
+                CopyChunk2Data(chunk, nmem_out, mem, did_shuffle, stream);
                 m_profStop(prof, "copy");
                 ++copy_cntr;
             }

@@ -270,15 +270,15 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
  * @param isComplex if the transpoed data is complex or real
  * @param data the pointer to the transposed data (has to be allocated)
  */
-void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
+void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data, stream_t stream) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // allocate the plan
     //-------------------------------------------------------------------------
     if (type_ == SYMSYM || type_ == MIXUNB) {
-        allocate_plan_real_(topo, data);
+        allocate_plan_real_(topo, data, stream);
     } else if (type_ == PERPER || type_ == UNBUNB) {
-        allocate_plan_complex_(topo, data);
+        allocate_plan_complex_(topo, data, stream);
     }
     END_FUNC;
 }
@@ -299,7 +299,7 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
  * @param data the pointer to the transposed data (has to be allocated)
  * 
  */
-void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
+void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data, stream_t stream) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - Sanity checks */
@@ -345,7 +345,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
         arch.dim = n_in_[lia];
-        plan_[lia] = flups_plan_r2r(arch, data, data, kind_[lia]);
+        plan_[lia] = flups_plan_r2r(arch, data, data, kind_[lia], stream);
     }
 
     FLUPS_INFO("------------------------------------------");
@@ -375,7 +375,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
  * @param memsize the size of the data BEFORE THE PLAN is executed
  * @param data memory
  */
-void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
+void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data, stream_t stream) {
     BEGIN_FUNC;
 
     assert(data != NULL);
@@ -435,9 +435,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = flups_plan_r2c(arch, data, (flups_complex*)data);
+            plan_[0] = flups_plan_r2c(arch, data, (flups_complex*)data, stream);
         } else {
-            plan_[0] = flups_plan_c2r(arch, (flups_complex*)data, data);
+            plan_[0] = flups_plan_c2r(arch, (flups_complex*)data, data, stream);
         }
 
     } else {
@@ -460,7 +460,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
-        plan_[0] = flups_plan_c2c(arch, (flups_complex*)data, (flups_complex*)data, sign_);
+        plan_[0] = flups_plan_c2c(arch, (flups_complex*)data, (flups_complex*)data, sign_, stream);
     }
 
     // the plan is the same in every other direction
@@ -515,7 +515,7 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
  *
  * @param data
  */
-void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
+void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data, stream_t stream) {
     BEGIN_FUNC;
     // check the data alignment
     check_dataAlign_(topo, data);
@@ -562,7 +562,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the first point of each 1-D transform
                 dataloc[0] = 0.0;
             };
-            parallel_for(op, howmany, "reset first correction");
+            parallel_for(op, howmany, "reset first correction", stream);
         }
         //----------------------------------------------------------------------
         // Do last point 
@@ -574,7 +574,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the last point of each 1-D transform
                 dataloc[nloc - 1] = 0.0;
             };
-            parallel_for(op, howmany, "reset last correction");
+            parallel_for(op, howmany, "reset last correction", stream);
         }
         //----------------------------------------------------------------------
         //Do first and last point 
@@ -588,7 +588,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                 // reset the last point
                 dataloc[nloc - 1] = 0.0;
             };
-            parallel_for(op, howmany, "reset first and last correction");
+            parallel_for(op, howmany, "reset first and last correction", stream);
         }
         //----------------------------------------------------------------------
         // Enforce period
@@ -619,7 +619,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                     // copy the first point into the last point
                     dataloc[nfft] = dataloc[0];
                 };
-                parallel_for(op, howmany, "enforce period correction (real)");
+                parallel_for(op, howmany, "enforce period correction (real)", stream);
 
             } else {
                 auto op = m_backend_lambda(const int idx) {
@@ -628,7 +628,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
                     dataloc[2*nfft]     = dataloc[0];
                     dataloc[2*nfft + 1] = dataloc[1];
                 };
-                parallel_for(op, howmany, "enforce period correction (complex)");
+                parallel_for(op, howmany, "enforce period correction (complex)", stream);
             }
         }
         //----------------------------------------------------------------------
@@ -656,7 +656,7 @@ void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data) {
  * Then, we have to use the memdim() function of the Topology
  * 
  */
-void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
+void FFTW_plan_dim::execute_plan(const Topology* topo, double* data, stream_t stream) const {
     BEGIN_FUNC;
     FLUPS_CHECK(!isSpectral_, "Trying to execute a plan for data which has already been setup spectraly");
     FLUPS_CHECK(topo->lda() == lda_, "The given topology's lda does not match with the initialisation one");
@@ -695,7 +695,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data) const {
             // get the memory offset
             int offset = lia*memdim;
             // execute the plan
-            flups_execute_r2r(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]));
+            flups_execute_r2r(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]), stream);
         }
     } else if (type_ == PERPER || type_ == UNBUNB) {
         if (isr2c_) {

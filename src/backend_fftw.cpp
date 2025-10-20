@@ -51,7 +51,7 @@ size_t backend_alignment_of(double *ptr) {
 }
 
 // Memcopy function - from host to device and vice-versa
-void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind) {
+void backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind, stream_t stream) {
     BACKEND_CHECK(memcpyH2H == kind, "Only host to host memcpy is suppoerted here");
     std::memcpy(dst, src, size);
 }
@@ -64,28 +64,28 @@ memType_t backend_get_memtype(const void *ptr) {
     return memTypeHost;
 }
 
-flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind) {
+flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind, stream_t) {
     return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
                               in, &arch.dim, arch.stride, arch.dist,
                               out, &arch.dim, arch.stride, arch.dist,
                               (fftw_r2r_kind *)&kind, FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
+flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out, stream_t) {
     return fftw_plan_many_dft_r2c(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist,
                                   out, &arch.dim, 1, arch.dist / 2,
                                   FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
+flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out, stream_t) {
     return fftw_plan_many_dft_c2r(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist / 2,
                                   out, &arch.dim, 1, arch.dist,
                                   FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
+flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign, stream_t) {
     return fftw_plan_many_dft(1, &arch.dim, arch.howmany,
                               in, &arch.dim, 1, arch.dist,
                               out, &arch.dim, 1, arch.dist,
@@ -113,11 +113,11 @@ void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out) {
     fftw_execute_dft_c2r(plan, in, out);
 }
 
-void flups_execute_r2r(flups_fft_plan plan, double *in, double *out) {
+void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t) {
     fftw_execute_r2r(plan, in, out);
 }
 
-void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
+void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex, stream_t) {
     // We do this shuffle in-place
     if (!iscomplex) {
         fftw_execute_r2r(plan, in, out);

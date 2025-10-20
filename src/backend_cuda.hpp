@@ -126,9 +126,6 @@ typedef enum {
     }
 #endif
 
-// Define some streams
-extern stream_t comp_stream;
-
 // Kernel execution
 #define BLOCK_SIZE 256
 #define m_device __device__
@@ -148,11 +145,11 @@ __global__ void cuda_kernel_(const O op, const int n) {
 }
 
 template <typename O>
-void parallel_for(const O& op, const int n, string name) {
+void parallel_for(const O& op, const int n, string name, stream_t stream) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
     const void* args[] = {&op, &n};
     m_cudart_check_errors(
-        cudaLaunchKernel((void*)cuda_kernel_<O>, (n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, const_cast<void**>(args), 0, comp_stream));
+        cudaLaunchKernel((void*)cuda_kernel_<O>, (n + BLOCK_SIZE - 1) / BLOCK_SIZE, BLOCK_SIZE, const_cast<void**>(args), 0, stream));
     BACKEND_INFO("Kernel %s done", name.c_str());
 }
 

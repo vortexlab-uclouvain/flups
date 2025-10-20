@@ -29,11 +29,11 @@
 #include "defines.hpp"
 #include "expint.hpp"
 
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3]);
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3], stream_t stream);
 
 /**
  * @brief read the LGF file in the KERNEL_PATH folder
@@ -42,7 +42,7 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
  * @param [out] data the data where we store the
  */
-static void lgf_readfile_(GreenType typeGreen, const int greendim, int *N, double **data) {
+static void lgf_readfile_(GreenType typeGreen, const int greendim, int *N, double **data, stream_t stream) {
     BEGIN_FUNC;
 
     // get LGF order
@@ -106,8 +106,8 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int *N, doubl
 #if M_HAVE_GPU
     // if we are on GPU, we need to copy the data to the device !
     double *device_ptr = (double *)backend_malloc(sizeof(double) * datasize);
-    backend_memcpy(device_ptr, *data, sizeof(double) * datasize, memcpyH2D);
-    backend_sync_stream(comp_stream);
+    backend_memcpy(device_ptr, *data, sizeof(double) * datasize, memcpyH2D, stream);
+    backend_sync_stream(stream);
     // now we can free the host pointer
     m_free(*data);
     (*data) = device_ptr;

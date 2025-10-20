@@ -29,8 +29,9 @@
 #ifndef FLUPS_H
 #define FLUPS_H
 
-#include "flups_interface.h"
 #include <mpi.h>
+
+#include "flups_interface.h"
 
 #ifdef __cplusplus
 #include <cmath>
@@ -52,6 +53,13 @@ typedef enum GreenType    FLUPS_GreenType;
 typedef enum SolverType   FLUPS_SolverType;
 typedef enum DiffType     FLUPS_DiffType;
 typedef enum CenterType   FLUPS_CenterType;
+
+#if defined(BACKEND_CUDA)
+#include <cuda_runtime.h>
+typedef cudaStream_t FLUPS_Stream;
+#elif defined(BACKEND_FFTW)
+typedef void* FLUPS_Stream;
+#endif
 
 #ifndef __host__
 #define __host__
@@ -401,11 +409,14 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const 
  */
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof);
 
+FLUPS_Solver* flups_init_stream(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3], FLUPS_Stream stream);
+FLUPS_Solver* flups_init_stream_timed(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType center_type[3], FLUPS_Stream stream, FLUPS_Profiler* prof);
+
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
- * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function 
+ * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function
  * @warning this function is kept for backward compatibility
  */
 void flups_cleanup(FLUPS_Solver* s);
@@ -414,7 +425,7 @@ void flups_cleanup(FLUPS_Solver* s);
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
- * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function 
+ * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function
  * @warning this function is kept for backward compatibility
  */
 void flups_cleanup_solver(FLUPS_Solver* s);
@@ -436,7 +447,7 @@ void flups_cleanup_all(FLUPS_Solver* s);
  * should be called after all the solver have freed
  *
  */
-void flups_cleanup_backend(); 
+void flups_cleanup_backend();
 
 /**
  * @brief sets the type of the Green's function used by the solver
@@ -548,7 +559,7 @@ FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
  * @brief Instruct flups to not perform the first SwitchTopology from the user topology to the first pencil one
  *
  * @warning be very careful with these call, it might end up with undefined behavior
- * 
+ *
  * @param s flups solver
  */
 void flups_skip_firstSwitchtopo(FLUPS_Solver* s);
@@ -583,7 +594,7 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**
  * @brief for a set of boundary conditions returns the succession of directions for the pencils
- * 
+ *
  * @param bc the boundary conditions
  * @param dirs the different directions of the pencils ([0] is the first direction, etc.)
  */

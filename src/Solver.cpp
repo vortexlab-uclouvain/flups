@@ -941,7 +941,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < ndim_; ip++) {
-        planmap[ip]->allocate_plan(topo[ip], data);
+        planmap[ip]->allocate_plan(topo[ip], data, stream_);
     }
 
 #if M_HAVE_GPU
@@ -1084,16 +1084,16 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     int n_unbounded = ndim_ - nbr_spectral;
     if ((n_unbounded) == 3) {
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", typeGreen_);
-        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 2) {
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", typeGreen_);
-        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 1) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", typeGreen_);
-        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 0) {
         FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", typeGreen_);
-        cmpt_Green_0dirunbounded(topo[0], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_0dirunbounded(topo[0], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);
     }
     // else {
     //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, ndim_, nbr_spectral);
@@ -1114,12 +1114,12 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            switchtopo_green_[ip]->execute(green, FLUPS_FORWARD);
+            switchtopo_green_[ip]->execute(green, FLUPS_FORWARD, stream_);
         }
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            plan_green_[ip]->execute_plan(topo[ip], green);
+            plan_green_[ip]->execute_plan(topo[ip], green, stream_);
         }
 
         if (plan_green_[ip]->isr2c_doneByFFT()) {
@@ -1149,7 +1149,7 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
             istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  // avoid rewriting on the part of Green already computed
             kfact[dimID]    = planmap[ip]->kfact();
         }
-        cmpt_Green_0dirunbounded(topo[ndim_ - 1], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, istart_cstm, NULL);
+        cmpt_Green_0dirunbounded(topo[ndim_ - 1], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, istart_cstm, NULL, stream_);
     }
 #ifdef DUMP_DBG
     hdf5_dump(topo[ndim_ - 1], "green_h", green);
@@ -1188,7 +1188,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         dataloc[ii] *= volfact;
     };
-    parallel_for(op, onmax * inmax, "scale green");
+    parallel_for(op, onmax * inmax, "scale green", stream_);
 
     if (killModeZero) {
         int istart[3];
@@ -1311,8 +1311,6 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     /** - copy the solution in the field */
     //-------------------------------------------------------------------------
     do_copy(topo_phys_, field, FLUPS_BACKWARD);
-    // we consider the solve API to be synchronous: need to sync
-    backend_sync_stream(comp_stream);
 
 #ifdef DUMP_DBG
     // io if needed
@@ -1348,10 +1346,10 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
 
     if (FLUPS_FORWARD == sign) {
         memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyH2D) : (memTypeHost == own_memtype ? memcpyD2H : memcpyD2D);
-        backend_memcpy(owndata, argdata, memdim * sizeof(double), kind);
+        backend_memcpy(owndata, argdata, memdim * sizeof(double), kind, stream_);
     } else {
         memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyD2H) : (memTypeHost == own_memtype ? memcpyH2D : memcpyD2D);
-        backend_memcpy(argdata, owndata, memdim * sizeof(double), kind);
+        backend_memcpy(argdata, owndata, memdim * sizeof(double), kind, stream_);
     }
 
     m_profStop(prof_, "copy rhs");
@@ -1378,49 +1376,49 @@ void Solver::do_FFT(double *data, const int sign) {
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
             // run the FFT
             m_profStarti(prof_, "fft");
-            plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
+            plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
             m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
-            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
         }
     } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fft");
-            plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
+            plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
             m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
-            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
         }
     } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
             m_profStarti(prof_, "fft");
-            plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
+            plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
             m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
-            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
 
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
         }
@@ -1445,9 +1443,9 @@ void Solver::do_mult(double *data, const SolverType type) {
     // every lda is done at once inside the dothemagic functions
     if (type == STD) {
         if (!topo_hat_[ndim_ - 1]->isComplex()) {
-            dothemagic_std_real(data);
+            dothemagic_std_real(data, stream_);
         } else {
-            dothemagic_std_complex(data);
+            dothemagic_std_complex(data, stream_);
         }
     } else {
         // compute the coefficients: kfact, koffset and symstart
@@ -1484,23 +1482,23 @@ void Solver::do_mult(double *data, const SolverType type) {
         }
         if (!topo_hat_[ndim_ - 1]->isComplex()) {
             if (odiff_ == SPE) {
-                dothemagic_rot_real_o1(data, koffset, kfact, symstart);
+                dothemagic_rot_real_o1(data, koffset, kfact, symstart, stream_);
             } else if (odiff_ == FD2) {
-                dothemagic_rot_real_o2(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o2(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD4) {
-                dothemagic_rot_real_o4(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o4(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD6) {
-                dothemagic_rot_real_o6(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o6(data, koffset, kfact, symstart, hgrid_, stream_);
             }
         } else {
             if (odiff_ == SPE) {
-                dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
+                dothemagic_rot_complex_o1(data, koffset, kfact, symstart, stream_);
             } else if (odiff_ == FD2) {
-                dothemagic_rot_complex_o2(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o2(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD4) {
-                dothemagic_rot_complex_o4(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o4(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD6) {
-                dothemagic_rot_complex_o6(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o6(data, koffset, kfact, symstart, hgrid_, stream_);
             }
         }
     }

@@ -2,8 +2,8 @@
 #define SWITCHTOPOX_HPP_
 
 #include "Topology.hpp"
-#include "defines.hpp"
 #include "chunk_tools.hpp"
+#include "defines.hpp"
 
 /**
  * @brief More efficient implementation of the SwitchTopo
@@ -37,16 +37,15 @@ class SwitchTopoX {
     explicit SwitchTopoX(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof);
     virtual ~SwitchTopoX();
 
-    virtual bool need_send_buf()const  = 0;
-    virtual bool need_recv_buf()const  = 0;
+    virtual bool need_send_buf() const = 0;
+    virtual bool need_recv_buf() const = 0;
 
     // abstract functions
-    void setup();
+    void         setup();
     virtual void print_info() const;
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
-    virtual void execute(opt_double_ptr data, const int sign) const = 0;
-    virtual void disp() const                                       = 0;
-    
+    virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const = 0;
+    virtual void disp() const                                                        = 0;
 
     size_t get_bufMemSize() const;
     size_t get_ChunkArraysMemSize(const int lda, const int nchunks, const MemChunk *chunks) const;

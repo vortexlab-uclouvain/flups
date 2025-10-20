@@ -32,49 +32,49 @@
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3]) {
+void Solver::dothemagic_rot_real_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], stream_t stream) {
 #elif (KIND == 11)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3]) {
+void Solver::dothemagic_rot_complex_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], stream_t stream) {
 #elif (KIND == 02)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_real_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #elif (KIND == 12)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_complex_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #elif (KIND == 04)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_real_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #elif (KIND == 14)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_complex_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #elif (KIND == 06)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_real_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #elif (KIND == 16)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3]) {
+void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
 #endif
     BEGIN_FUNC;
     int cdim = ndim_ - 1;  // get current dim
@@ -375,7 +375,7 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
         dataloc2[ii * 2 + 1] = normfact * (rot2r * gc + rot2c * gr);
 #endif
     };
-    parallel_for(op, ondim * inmax, "dothemagic_rot");
+    parallel_for(op, ondim * inmax, "dothemagic_rot", stream);
 
     END_FUNC;
 }
