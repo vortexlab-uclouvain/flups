@@ -449,6 +449,15 @@ void flups_cleanup_backend();
 void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
 
 /**
+ * @brief sets the stream to be used by FLUPS for GPU backends
+ *
+ * @warning must be done before @ref flups_setup
+ *
+ * @param stream
+ */
+void flups_set_stream(void* stream);
+
+/**
  * @brief setup the solver and do the memory allocation
  *
  * @warning after this call the solver cannot been change anymore!

@@ -33,6 +33,7 @@
 #include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
 #include "Topology.hpp"
+#include "backend.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
 
@@ -131,7 +132,6 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     return s;
 }
 
-
 void flups_cleanup_solver(Solver* s) {
     delete s;
 }
@@ -154,6 +154,11 @@ void flups_cleanup_backend() {
 // setup the solver
 void flups_set_greenType(Solver* s, const GreenType type) {
     s->set_GreenType(type);
+}
+
+void flups_set_stream(void* stream) {
+    stream_t* s = reinterpret_cast<stream_t*>(stream);
+    comp_stream = *s;
 }
 
 void flups_setup(Solver* s, const bool changeComm) {

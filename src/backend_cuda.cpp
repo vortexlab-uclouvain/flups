@@ -4,7 +4,7 @@
 #include "defines.hpp"
 
 cublasHandle_t cuHandle;
-cudaStream_t comp_stream;
+cudaStream_t   comp_stream = 0;
 
 // Init & cleanup backend
 void backend_init() {
@@ -17,16 +17,9 @@ void backend_init() {
 
     //  Initialize cuBLAS
     m_cublas_check_errors(cublasCreate(&cuHandle));
-
-    // Initialize streams
-    m_cudart_check_errors(cudaStreamCreate(&comp_stream));
-    m_cublas_check_errors(cublasSetStream(cuHandle, comp_stream));
 }
 
 void backend_finalize() {
-    // Cleanup the streams
-    m_cudart_check_errors(cudaStreamDestroy(comp_stream));
-
     m_cublas_check_errors(cublasDestroy(cuHandle));
 }
 
@@ -134,6 +127,9 @@ void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out) {
 }
 
 void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex) {
+    // Set stream
+    m_cublas_check_errors(cublasSetStream(cuHandle, comp_stream));
+
     if (!iscomplex) {
         double alpha = 1.0;
         m_cublas_check_errors(cublasDgeam(cuHandle,
