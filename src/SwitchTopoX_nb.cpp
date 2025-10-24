@@ -309,7 +309,7 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
         // if all the send have completed I can reset the memory to 0
         if (!is_mem_reset && (finished_send == n_send_rqst)) {
             const size_t reset_size = topo_out->memsize();
-            backend_memset(mem, 0, reset_size * sizeof(double));
+            backend_memset(mem, 0, reset_size * sizeof(double), stream);
             is_mem_reset = true;
         }
 

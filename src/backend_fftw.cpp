@@ -37,7 +37,7 @@ void backend_sync() { ((void)0); }
 void backend_sync_stream(stream_t stream) { ((void)0); }
 
 // Allocation functions
-void backend_memset(void *ptr, int val, size_t size) {
+void backend_memset(void *ptr, int val, size_t size, stream_t) {
     std::memset(ptr, val, size);
 }
 

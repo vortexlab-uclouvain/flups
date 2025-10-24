@@ -253,7 +253,7 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             is_mem_reset = (finished_send == n_send_chunk);
             if (is_mem_reset) {
                 const size_t reset_size = topo_out->memsize();
-                backend_memset(mem, 0, reset_size * sizeof(double));
+                backend_memset(mem, 0, reset_size * sizeof(double), stream);
                 FLUPS_INFO("reset mem done ");
             }
         }

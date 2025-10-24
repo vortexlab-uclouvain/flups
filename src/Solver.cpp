@@ -1195,7 +1195,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
         topo->get_istart_glob(istart);
         if (istart[0] == 0 && istart[1] == 0 && istart[2] == 0) {
-            backend_memset(data, 0, topo->nf() * sizeof(double));
+            backend_memset(data, 0, topo->nf() * sizeof(double), stream_);
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
@@ -1269,7 +1269,7 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
     //-------------------------------------------------------------------------
     /** - clean the data memory */
     //-------------------------------------------------------------------------
-    backend_memset(mydata, 0, sizeof(double) * get_allocSize());
+    backend_memset(mydata, 0, sizeof(double) * get_allocSize(), stream_);
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */

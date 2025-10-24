@@ -300,7 +300,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
     }
 
     // Reset memory
-    backend_memset(mem, 0, plan.memsize * sizeof(double));
+    backend_memset(mem, 0, plan.memsize * sizeof(double), stream);
 }
 
 #endif  // M_HAVE_GPU

@@ -23,7 +23,7 @@ void backend_sync();
 void backend_sync_stream(stream_t stream);
 
 // Allocation functions
-void  backend_memset(void *ptr, int val, size_t size);
+void  backend_memset(void *ptr, int val, size_t size, stream_t stream);
 void *backend_malloc(size_t size);
 void  backend_free(void *ptr);
 

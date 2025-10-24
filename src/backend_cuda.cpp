@@ -31,9 +31,8 @@ void backend_sync_stream(stream_t stream) {
 }
 
 // Allocation functions
-void backend_memset(void *ptr, int val, size_t size) {
-    m_cudart_check_errors(cudaMemset(ptr, val, size));
-    backend_sync();
+void backend_memset(void *ptr, int val, size_t size, stream_t stream) {
+    m_cudart_check_errors(cudaMemsetAsync(ptr, val, size, stream));
 }
 
 void *backend_malloc(size_t size) {
@@ -42,8 +41,6 @@ void *backend_malloc(size_t size) {
     size_t m_calloc_padded_size_ = m_calloc_size_ - m_calloc_size_ % FLUPS_ALIGNMENT;
     m_cudart_check_errors(cudaMalloc(&ptr, m_calloc_padded_size_));
 
-    // Set the memory to zero
-    backend_memset(ptr, 0, m_calloc_padded_size_);
     return ptr;
 }
 
