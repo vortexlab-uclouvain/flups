@@ -33,6 +33,7 @@
 #include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
 #include "Topology.hpp"
+#include "backend.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
 
@@ -121,15 +122,6 @@ int flups_topo_rankindex(const Topology* topo, const int rankd[3]) {
 //********************************************************************* */
 
 // get a new solver
-Solver* flups_init_stream(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3], stream_t stream) {
-    Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, stream, NULL);
-    return s;
-}
-Solver* flups_init_stream_timed(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType center_type[3], stream_t stream, FLUPS_Profiler* prof) {
-    auto    h_prof = reinterpret_cast<H3LPR::Profiler*>(prof);
-    Solver* s      = new Solver(t, bc, h, L, orderDiff, center_type, stream, h_prof);
-    return s;
-}
 Solver* flups_init(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3]) {
     Solver* s = new Solver(t, bc, h, L, orderDiff, center_type, NULL);
     return s;
@@ -139,7 +131,6 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     Solver* s      = new Solver(t, bc, h, L, orderDiff, center_type, h_prof);
     return s;
 }
-
 
 void flups_cleanup_solver(Solver* s) {
     delete s;
@@ -163,6 +154,12 @@ void flups_cleanup_backend() {
 // setup the solver
 void flups_set_greenType(Solver* s, const GreenType type) {
     s->set_GreenType(type);
+}
+
+void flups_set_stream(Solver* s, void* stream) {
+    stream_t* h_stream = reinterpret_cast<stream_t*>(stream);
+
+    s->set_stream(*h_stream);
 }
 
 void flups_setup(Solver* s, const bool changeComm) {

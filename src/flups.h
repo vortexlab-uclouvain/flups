@@ -54,13 +54,6 @@ typedef enum SolverType   FLUPS_SolverType;
 typedef enum DiffType     FLUPS_DiffType;
 typedef enum CenterType   FLUPS_CenterType;
 
-#if defined(BACKEND_CUDA)
-#include <cuda_runtime.h>
-typedef cudaStream_t FLUPS_Stream;
-#elif defined(BACKEND_FFTW)
-typedef void* FLUPS_Stream;
-#endif
-
 #ifndef __host__
 #define __host__
 #endif
@@ -409,9 +402,6 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const 
  */
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof);
 
-FLUPS_Solver* flups_init_stream(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], DiffType orderDiff, const CenterType center_type[3], FLUPS_Stream stream);
-FLUPS_Solver* flups_init_stream_timed(Topology* t, BoundaryType* bc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType center_type[3], FLUPS_Stream stream, FLUPS_Profiler* prof);
-
 /**
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
@@ -458,6 +448,16 @@ void flups_cleanup_backend();
  * @param type the type of the solver (CHAT2 by default)
  */
 void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
+
+/**
+ * @brief sets the stream to be used by FLUPS for GPU backends
+ *
+ * @warning must be done before @ref flups_setup
+ *
+ * @param s
+ * @param stream
+ */
+void flups_set_stream(Solver* s, void* stream);
 
 /**
  * @brief setup the solver and do the memory allocation

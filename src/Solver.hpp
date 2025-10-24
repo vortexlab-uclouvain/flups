@@ -221,9 +221,6 @@ class Solver {
 
    public:
     Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], H3LPR::Profiler* prof);
-    Solver(Topology* topo, BoundaryType* rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centerType[3], stream_t stream, H3LPR::Profiler* prof) : stream_(stream) {
-        Solver(topo, rhsbc, h, L, orderDiff, centerType, prof);
-    }
     ~Solver();
 
     void      setup(const bool changeTopoComm);
@@ -289,6 +286,12 @@ class Solver {
     void set_GreenType(const GreenType type) { typeGreen_ = type; }
     void set_alpha(const double alpha) { alphaGreen_ = alpha; }
     /**@} */
+
+    /**
+     * @brief GPU stream used by the solver
+     * 
+     */
+    void set_stream(stream_t stream) { stream_ = stream; }
 
     /**
      * @name Print MPI info of the Switchtopos
