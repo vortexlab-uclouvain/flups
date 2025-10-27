@@ -93,7 +93,6 @@ typedef enum {
 } memType_t;
 
 // Check CUDA API errors
-#ifndef DNDEBUG
 #define m_cudart_check_errors(res)                                                                 \
     do {                                                                                           \
         cudaError_t __err = res;                                                                   \
@@ -111,20 +110,6 @@ typedef enum {
         cufftResult_t __err = res;                                             \
         BACKEND_CHECK(CUFFT_SUCCESS == __err, "Fatal cuFFT error: %d", __err); \
     } while (0)
-#else
-#define m_cudart_check_errors(msg) \
-    {                              \
-        ((void)0);                 \
-    }
-#define m_cublas_check_errors(msg) \
-    {                              \
-        ((void)0);                 \
-    }
-#define m_cufft_check_errors(msg) \
-    {                             \
-        ((void)0);                \
-    }
-#endif
 
 // Kernel execution
 #define BLOCK_SIZE 256
