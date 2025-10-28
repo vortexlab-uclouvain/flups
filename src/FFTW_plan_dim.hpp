@@ -116,7 +116,7 @@ class FFTW_plan_dim {
 
     void init(const int size[3], const bool isComplex);
 
-    void allocate_plan(const Topology* topo, double* data, stream_t stream);
+    void allocate_plan(const Topology* topo, double* data);
     void execute_plan(const Topology* topo, double* data, stream_t stream) const;
     void postprocess_plan(const Topology*, double* data, stream_t stream);
 
@@ -164,8 +164,8 @@ class FFTW_plan_dim {
      * @name Plan allocation
      */
     /**@{ */
-    void allocate_plan_real_(const Topology* topo, double* data, stream_t stream);
-    void allocate_plan_complex_(const Topology* topo, double* data, stream_t stream);
+    void allocate_plan_real_(const Topology* topo, double* data);
+    void allocate_plan_complex_(const Topology* topo, double* data);
     /**@} */
 
     /**

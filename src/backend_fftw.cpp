@@ -64,28 +64,28 @@ memType_t backend_get_memtype(const void *ptr) {
     return memTypeHost;
 }
 
-flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind, stream_t) {
+flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind) {
     return fftw_plan_many_r2r(1, &arch.dim, arch.howmany,
                               in, &arch.dim, arch.stride, arch.dist,
                               out, &arch.dim, arch.stride, arch.dist,
                               (fftw_r2r_kind *)&kind, FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out, stream_t) {
+flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     return fftw_plan_many_dft_r2c(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist,
                                   out, &arch.dim, 1, arch.dist / 2,
                                   FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out, stream_t) {
+flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     return fftw_plan_many_dft_c2r(1, &arch.dim, arch.howmany,
                                   in, &arch.dim, 1, arch.dist / 2,
                                   out, &arch.dim, 1, arch.dist,
                                   FLUPS_FFTW_FLAG);
 }
 
-flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign, stream_t) {
+flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     return fftw_plan_many_dft(1, &arch.dim, arch.howmany,
                               in, &arch.dim, 1, arch.dist,
                               out, &arch.dim, 1, arch.dist,

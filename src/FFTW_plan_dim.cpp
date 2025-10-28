@@ -270,15 +270,15 @@ void FFTW_plan_dim::init(const int size[3], const bool isComplex) {
  * @param isComplex if the transpoed data is complex or real
  * @param data the pointer to the transposed data (has to be allocated)
  */
-void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data, stream_t stream) {
+void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // allocate the plan
     //-------------------------------------------------------------------------
     if (type_ == SYMSYM || type_ == MIXUNB) {
-        allocate_plan_real_(topo, data, stream);
+        allocate_plan_real_(topo, data);
     } else if (type_ == PERPER || type_ == UNBUNB) {
-        allocate_plan_complex_(topo, data, stream);
+        allocate_plan_complex_(topo, data);
     }
     END_FUNC;
 }
@@ -299,7 +299,7 @@ void FFTW_plan_dim::allocate_plan(const Topology *topo, double* data, stream_t s
  * @param data the pointer to the transposed data (has to be allocated)
  * 
  */
-void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data, stream_t stream) {
+void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     /** - Sanity checks */
@@ -345,7 +345,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data, stre
     // we initiate the plan with the size #n_in_, because this is the real number of data needed
     for (int lia = 0; lia < lda_; lia++) {
         arch.dim = n_in_[lia];
-        plan_[lia] = flups_plan_r2r(arch, data, data, kind_[lia], stream);
+        plan_[lia] = flups_plan_r2r(arch, data, data, kind_[lia]);
     }
 
     FLUPS_INFO("------------------------------------------");
@@ -375,7 +375,7 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data, stre
  * @param memsize the size of the data BEFORE THE PLAN is executed
  * @param data memory
  */
-void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data, stream_t stream) {
+void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     BEGIN_FUNC;
 
     assert(data != NULL);
@@ -435,9 +435,9 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data, s
         FLUPS_INFO("------------------------------------------");
 
         if (sign_ == FLUPS_FORWARD) {
-            plan_[0] = flups_plan_r2c(arch, data, (flups_complex*)data, stream);
+            plan_[0] = flups_plan_r2c(arch, data, (flups_complex*)data);
         } else {
-            plan_[0] = flups_plan_c2r(arch, (flups_complex*)data, data, stream);
+            plan_[0] = flups_plan_c2r(arch, (flups_complex*)data, data);
         }
 
     } else {
@@ -460,7 +460,7 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data, s
         FLUPS_INFO("size n    = %d", n_in_[0]);
         FLUPS_INFO("------------------------------------------");
 
-        plan_[0] = flups_plan_c2c(arch, (flups_complex*)data, (flups_complex*)data, sign_, stream);
+        plan_[0] = flups_plan_c2c(arch, (flups_complex*)data, (flups_complex*)data, sign_);
     }
 
     // the plan is the same in every other direction

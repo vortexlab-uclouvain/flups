@@ -941,7 +941,7 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     for (int ip = 0; ip < ndim_; ip++) {
-        planmap[ip]->allocate_plan(topo[ip], data, stream_);
+        planmap[ip]->allocate_plan(topo[ip], data);
     }
 
 #if M_HAVE_GPU

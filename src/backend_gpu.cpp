@@ -7,7 +7,7 @@
 
 #if M_HAVE_GPU
 
-flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind, stream_t stream) {
+flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flups_r2r_kind_t kind) {
     flups_fft_plan plan;
     // parameters for the r2r transform
     plan.n       = arch.dim;
@@ -71,7 +71,6 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
                                        &plan.dim, 1, plan.idist,
                                        &plan.dim, 1, plan.odist,
                                        is_r2c ? CUFFT_D2Z : CUFFT_Z2D, plan.howmany));
-    m_cufft_check_errors(cufftSetStream(plan.fft, stream));
     return plan;
 }
 

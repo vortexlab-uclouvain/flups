@@ -69,35 +69,32 @@ memType_t backend_get_memtype(const void *ptr) {
     return (memTypeUnregistered == memtype && NULL != ptr) ? memTypeHost : memtype;
 }
 
-flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out, stream_t stream) {
+flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_fft_plan plan;
     m_cufft_check_errors(cufftPlanMany(&plan.fft, 1, &arch.dim,
                                        &arch.dim, 1, arch.dist,
                                        &arch.dim, 1, arch.dist / 2,
                                        CUFFT_D2Z, arch.howmany));
-    m_cufft_check_errors(cufftSetStream(plan.fft, stream));
     return plan;
 }
 
-flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out, stream_t stream) {
+flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_fft_plan plan;
     m_cufft_check_errors(cufftPlanMany(&plan.fft, 1, &arch.dim,
                                        &arch.dim, 1, arch.dist / 2,
                                        &arch.dim, 1, arch.dist,
                                        CUFFT_Z2D, arch.howmany));
-    m_cufft_check_errors(cufftSetStream(plan.fft, stream));
     return plan;
 }
 
-flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign, stream_t stream) {
+flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     flups_fft_plan plan;
     m_cufft_check_errors(cufftPlanMany(&plan.fft, 1, &arch.dim,
                                        &arch.dim, 1, arch.dist,
                                        &arch.dim, 1, arch.dist,
                                        CUFFT_Z2Z, arch.howmany));
-    m_cufft_check_errors(cufftSetStream(plan.fft, stream));
     return plan;
 }
 
