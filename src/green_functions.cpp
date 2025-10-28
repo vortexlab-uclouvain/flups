@@ -29,9 +29,9 @@
 #include "ji0.hpp"
 
 // Helper function to get the function pointer, depending on if it's on the GPU or not
-inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr) {
+inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, stream_t stream) {
 #if defined(BACKEND_CUDA)
-    m_cudart_check_errors(cudaMemcpyFromSymbol(host_ptr, *device_ptr, sizeof(GreenKernel)));
+    m_cudart_check_errors(cudaMemcpyFromSymbolAsync(host_ptr, *device_ptr, sizeof(GreenKernel), 0, cudaMemcpyDeviceToHost, stream));
 #else
     *host_ptr = *device_ptr;
 #endif
@@ -63,72 +63,72 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     //==========================    3D  =================================
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_3unb0spe);
+            get_kernel_ptr(&G, &hej_2_3unb0spe, stream);
             G0 = -M_SQRT2 / (4.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_3unb0spe);
+            get_kernel_ptr(&G, &hej_4_3unb0spe, stream);
             G0 = -3.0 * M_SQRT2 / (8.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_3unb0spe);
+            get_kernel_ptr(&G, &hej_6_3unb0spe, stream);
             G0 = -15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_3unb0spe);
+            get_kernel_ptr(&G, &hej_8_3unb0spe, stream);
             G0 = -35.0 * M_SQRT2 / (64.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_3unb0spe);
+            get_kernel_ptr(&G, &hej_10_3unb0spe, stream);
             G0 = -315.0 * M_SQRT2 / (512.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_0:
-            get_kernel_ptr(&G, &hej_0_3unb0spe);
+            get_kernel_ptr(&G, &hej_0_3unb0spe, stream);
             G0 = -1.0 / (2.0 * M_PI * M_PI * length);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_3unb0spe);
+            get_kernel_ptr(&G, &chat_2_3unb0spe, stream);
             G0 = -0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.) / (hfact[0] * hfact[1] * hfact[2]);
             break;
         case LGF_2:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_2, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_2_3unb0spe);
+            get_kernel_ptr(&G, &lgf_2_3unb0spe, stream);
             break;
         case LGF_4:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_4, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_4_3unb0spe);
+            get_kernel_ptr(&G, &lgf_4_3unb0spe, stream);
             break;
         case LGF_6:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_6, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_6_3unb0spe);
+            get_kernel_ptr(&G, &lgf_6_3unb0spe, stream);
             break;
         case LGF_8:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_8, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_8_3unb0spe);
+            get_kernel_ptr(&G, &lgf_8_3unb0spe, stream);
             break;
         case MEHR_4L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_4L, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_4l_3unb0spe);
+            get_kernel_ptr(&G, &mehr_4l_3unb0spe, stream);
             break;
         case MEHR_6L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_6L, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_6l_3unb0spe);
+            get_kernel_ptr(&G, &mehr_6l_3unb0spe, stream);
             break;
         case MEHR_4F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_4F, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_4f_3unb0spe);
+            get_kernel_ptr(&G, &mehr_4f_3unb0spe, stream);
             break;
         case MEHR_6F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_6F, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_6f_3unb0spe);
+            get_kernel_ptr(&G, &mehr_6f_3unb0spe, stream);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -246,45 +246,45 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     switch (typeGreen) {
         case HEJ_2:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_2_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_2_2unb1spe_r0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_2_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_2_2unb1spe_r0, stream);
             break;
         case HEJ_4:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_4_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_4_2unb1spe_r0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_4_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_4_2unb1spe_r0, stream);
             break;
         case HEJ_6:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_6_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_6_2unb1spe_r0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_6_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_6_2unb1spe_r0, stream);
             break;
         case HEJ_8:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_8_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_8_2unb1spe_r0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_8_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_8_2unb1spe_r0, stream);
             break;
         case HEJ_10:
             FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_10_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_10_2unb1spe_r0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_10_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_10_2unb1spe_r0, stream);
             break;
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
             parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0", stream);
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &hej_0_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &hej_0_2unb1spe_k0);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &hej_0_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &hej_0_2unb1spe_k0, stream);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_2unb1spe);
-            get_kernel_ptr(&Gk0, &chat_2_2unb1spe_k0);
-            get_kernel_ptr(&Gr0, &chat_2_2unb1spe_r0);
+            get_kernel_ptr(&G, &chat_2_2unb1spe, stream);
+            get_kernel_ptr(&Gk0, &chat_2_2unb1spe_k0, stream);
+            get_kernel_ptr(&Gr0, &chat_2_2unb1spe_r0, stream);
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
@@ -293,9 +293,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &lgf_2_2unb0spe);
-            get_kernel_ptr(&Gr0, &lgf_2_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &lgf_2_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &lgf_2_2unb0spe, stream);
             break;
         case LGF_4:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -303,9 +303,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(LGF_4, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &lgf_4_2unb0spe);
-            get_kernel_ptr(&Gr0, &lgf_4_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &lgf_4_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &lgf_4_2unb0spe, stream);
             break;
         case LGF_6:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -313,9 +313,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(LGF_6, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &lgf_6_2unb0spe);
-            get_kernel_ptr(&Gr0, &lgf_6_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &lgf_6_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &lgf_6_2unb0spe, stream);
             break;
         case LGF_8:
             FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -323,9 +323,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(LGF_8, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &lgf_8_2unb0spe);
-            get_kernel_ptr(&Gr0, &lgf_8_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &lgf_8_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &lgf_8_2unb0spe, stream);
             break;
         case MEHR_4L:
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -333,9 +333,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(MEHR_4L, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe);
-            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
             break;
         case MEHR_6L:
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -343,9 +343,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(MEHR_6L, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe);
-            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
             break;
         case MEHR_4F:
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -353,9 +353,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(MEHR_4F, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &mehr_4f_2unb0spe);
-            get_kernel_ptr(&Gr0, &mehr_4f_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &mehr_4f_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &mehr_4f_2unb0spe, stream);
             break;
         case MEHR_6F:
             FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
@@ -363,9 +363,9 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(MEHR_6F, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero);
-            get_kernel_ptr(&Gk0, &mehr_6f_2unb0spe);
-            get_kernel_ptr(&Gr0, &mehr_6f_2unb0spe);
+            get_kernel_ptr(&G, &zero, stream);
+            get_kernel_ptr(&Gk0, &mehr_6f_2unb0spe, stream);
+            get_kernel_ptr(&Gr0, &mehr_6f_2unb0spe, stream);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -479,63 +479,63 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_1unb2spe);
-            get_kernel_ptr(&G0, &hej_2_1unb2spe_k0);
+            get_kernel_ptr(&G, &hej_2_1unb2spe, stream);
+            get_kernel_ptr(&G0, &hej_2_1unb2spe_k0, stream);
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_1unb2spe);
-            get_kernel_ptr(&G0, &hej_4_1unb2spe_k0);
+            get_kernel_ptr(&G, &hej_4_1unb2spe, stream);
+            get_kernel_ptr(&G0, &hej_4_1unb2spe_k0, stream);
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_1unb2spe);
-            get_kernel_ptr(&G0, &hej_6_1unb2spe_k0);
+            get_kernel_ptr(&G, &hej_6_1unb2spe, stream);
+            get_kernel_ptr(&G0, &hej_6_1unb2spe_k0, stream);
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_1unb2spe);
-            get_kernel_ptr(&G0, &hej_8_1unb2spe_k0);
+            get_kernel_ptr(&G, &hej_8_1unb2spe, stream);
+            get_kernel_ptr(&G0, &hej_8_1unb2spe_k0, stream);
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_1unb2spe);
-            get_kernel_ptr(&G0, &hej_10_1unb2spe_k0);
+            get_kernel_ptr(&G, &hej_10_1unb2spe, stream);
+            get_kernel_ptr(&G0, &hej_10_1unb2spe_k0, stream);
             break;
         case HEJ_0:
             FLUPS_CHECK(false, "HEJ0 kernel not available for 1D unbounded problems.");
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_1unb2spe);
-            get_kernel_ptr(&G0, &chat_2_1unb2spe_k0);
+            get_kernel_ptr(&G, &chat_2_1unb2spe, stream);
+            get_kernel_ptr(&G0, &chat_2_1unb2spe_k0, stream);
             break;
         case LGF_2:
-            get_kernel_ptr(&G, &lgf_2_1unb2spe);
-            get_kernel_ptr(&G0, &lgf_2_1unb2spe);
+            get_kernel_ptr(&G, &lgf_2_1unb2spe, stream);
+            get_kernel_ptr(&G0, &lgf_2_1unb2spe, stream);
             break;
         case LGF_4:
-            get_kernel_ptr(&G, &lgf_4_1unb2spe);
-            get_kernel_ptr(&G0, &lgf_4_1unb2spe);
+            get_kernel_ptr(&G, &lgf_4_1unb2spe, stream);
+            get_kernel_ptr(&G0, &lgf_4_1unb2spe, stream);
             break;
         case LGF_6:
-            get_kernel_ptr(&G, &lgf_6_1unb2spe);
-            get_kernel_ptr(&G0, &lgf_6_1unb2spe);
+            get_kernel_ptr(&G, &lgf_6_1unb2spe, stream);
+            get_kernel_ptr(&G0, &lgf_6_1unb2spe, stream);
             break;
         case LGF_8:
-            get_kernel_ptr(&G, &lgf_8_1unb2spe);
-            get_kernel_ptr(&G0, &lgf_8_1unb2spe);
+            get_kernel_ptr(&G, &lgf_8_1unb2spe, stream);
+            get_kernel_ptr(&G0, &lgf_8_1unb2spe, stream);
             break;
         case MEHR_4L:
-            get_kernel_ptr(&G, &mehr_4l_1unb2spe);
-            get_kernel_ptr(&G0, &mehr_4l_1unb2spe);
+            get_kernel_ptr(&G, &mehr_4l_1unb2spe, stream);
+            get_kernel_ptr(&G0, &mehr_4l_1unb2spe, stream);
             break;
         case MEHR_6L:
-            get_kernel_ptr(&G, &mehr_6l_1unb2spe);
-            get_kernel_ptr(&G0, &mehr_6l_1unb2spe);
+            get_kernel_ptr(&G, &mehr_6l_1unb2spe, stream);
+            get_kernel_ptr(&G0, &mehr_6l_1unb2spe, stream);
             break;
         case MEHR_4F:
-            get_kernel_ptr(&G, &mehr_4f_1unb2spe);
-            get_kernel_ptr(&G0, &mehr_4f_1unb2spe);
+            get_kernel_ptr(&G, &mehr_4f_1unb2spe, stream);
+            get_kernel_ptr(&G0, &mehr_4f_1unb2spe, stream);
             break;
         case MEHR_6F:
-            get_kernel_ptr(&G, &mehr_6f_1unb2spe);
-            get_kernel_ptr(&G0, &mehr_6f_1unb2spe);
+            get_kernel_ptr(&G, &mehr_6f_1unb2spe, stream);
+            get_kernel_ptr(&G0, &mehr_6f_1unb2spe, stream);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -652,50 +652,50 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     GreenKernel G;
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_0unb3spe);
+            get_kernel_ptr(&G, &hej_2_0unb3spe, stream);
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_0unb3spe);
+            get_kernel_ptr(&G, &hej_4_0unb3spe, stream);
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_0unb3spe);
+            get_kernel_ptr(&G, &hej_6_0unb3spe, stream);
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_0unb3spe);
+            get_kernel_ptr(&G, &hej_8_0unb3spe, stream);
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_0unb3spe);
+            get_kernel_ptr(&G, &hej_10_0unb3spe, stream);
             break;
         case HEJ_0:
             // spectral solution is here given by 1/k^2, i.e. same as the CHAT_2 kernel
-            get_kernel_ptr(&G, &chat_2_0unb3spe);
+            get_kernel_ptr(&G, &chat_2_0unb3spe, stream);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_0unb3spe);
+            get_kernel_ptr(&G, &chat_2_0unb3spe, stream);
             break;
         case LGF_2:
-            get_kernel_ptr(&G, &lgf_2_0unb3spe);
+            get_kernel_ptr(&G, &lgf_2_0unb3spe, stream);
             break;
         case LGF_4:
-            get_kernel_ptr(&G, &lgf_4_0unb3spe);
+            get_kernel_ptr(&G, &lgf_4_0unb3spe, stream);
             break;
         case LGF_6:
-            get_kernel_ptr(&G, &lgf_6_0unb3spe);
+            get_kernel_ptr(&G, &lgf_6_0unb3spe, stream);
             break;
         case LGF_8:
-            get_kernel_ptr(&G, &lgf_8_0unb3spe);
+            get_kernel_ptr(&G, &lgf_8_0unb3spe, stream);
             break;
         case MEHR_4L:
-            get_kernel_ptr(&G, &mehr_4l_0unb3spe);
+            get_kernel_ptr(&G, &mehr_4l_0unb3spe, stream);
             break;
         case MEHR_6L:
-            get_kernel_ptr(&G, &mehr_6l_0unb3spe);
+            get_kernel_ptr(&G, &mehr_6l_0unb3spe, stream);
             break;
         case MEHR_4F:
-            get_kernel_ptr(&G, &mehr_4f_0unb3spe);
+            get_kernel_ptr(&G, &mehr_4f_0unb3spe, stream);
             break;
         case MEHR_6F:
-            get_kernel_ptr(&G, &mehr_6f_0unb3spe);
+            get_kernel_ptr(&G, &mehr_6f_0unb3spe, stream);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
