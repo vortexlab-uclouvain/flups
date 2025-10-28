@@ -369,6 +369,9 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
             }
         }
     }
+
+    // Not sure why this is needed, but we run into issues if we don't sync here
+    backend_sync_stream(stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
 
