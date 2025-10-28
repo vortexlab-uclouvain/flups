@@ -103,7 +103,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DCT Type I pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -127,7 +127,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DCT Type II pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -154,7 +154,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DCT Type III pre-processing", stream);
 
-            flups_execute_c2r(plan, (flups_complex *)mem, mem);
+            flups_execute_c2r(plan, (flups_complex *)mem, mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -179,7 +179,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DCT Type IV pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -203,7 +203,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DST Type I pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -228,7 +228,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DST Type II pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -255,7 +255,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DST Type III pre-processing", stream);
 
-            flups_execute_c2r(plan, (flups_complex *)mem, mem);
+            flups_execute_c2r(plan, (flups_complex *)mem, mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {
@@ -281,7 +281,7 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
             };
             parallel_for(pre_op, n * howmany, "DST Type IV pre-processing", stream);
 
-            flups_execute_r2c(plan, mem, (flups_complex *)mem);
+            flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
             // Post-processing
             auto post_op = m_backend_lambda(const int idx) {

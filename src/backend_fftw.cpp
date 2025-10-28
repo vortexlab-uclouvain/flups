@@ -101,15 +101,15 @@ flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *o
 }
 
 // Execute functions
-void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign) {
+void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign, stream_t) {
     fftw_execute_dft(plan, in, out);
 }
 
-void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out) {
+void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out, stream_t) {
     fftw_execute_dft_r2c(plan, in, out);
 }
 
-void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out) {
+void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out, stream_t) {
     fftw_execute_dft_c2r(plan, in, out);
 }
 

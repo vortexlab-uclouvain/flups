@@ -41,9 +41,9 @@ flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *o
 
 // Execute functions
 void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t stream);
-void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out);
-void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out);
-void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign);
+void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out, stream_t stream);
+void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out, stream_t stream);
+void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign, stream_t stream);
 void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex, stream_t stream);
 
 // Cleanup functions

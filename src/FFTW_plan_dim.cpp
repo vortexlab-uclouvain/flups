@@ -705,7 +705,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data, stream_t st
                     // get the memory offset
                     int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_r2c(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]));
+                    flups_execute_r2c(plan[lia], (double*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]), stream);
                 }
 
             } else {  // DFT - C2R
@@ -714,7 +714,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data, stream_t st
                     // get the memory offset
                     int offset = lia*memdim;
                     // execute the plan
-                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]));
+                    flups_execute_c2r(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (double*)(data + offset + fftstart_out_[lia]), stream);
                 }
             }
 
@@ -724,7 +724,7 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data, stream_t st
                 // get the memory offset
                 int offset = lia*memdim;
                 // execute the plan
-                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]), sign);
+                flups_execute_c2c(plan[lia], (flups_complex*)(data + offset + fftstart_in_[lia]), (flups_complex*)(data + offset + fftstart_out_[lia]), sign, stream);
             }
         }
     }
