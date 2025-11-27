@@ -225,6 +225,27 @@ install_static: lib_static
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
+# macOS specific: create a unified dynamic library from static libraries
+lib_macos: $(TARGET_LIB_NB).a
+	@echo "Creating unified macOS dynamic library..."
+	$(CXX) -dynamiclib -o $(PREFIX)/lib/libflups.dylib \
+		-Wl,-force_load,$(TARGET_LIB_A2A).a \
+		-L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB) \
+		-L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB) \
+		-L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB) \
+		$(LDFLAGS) \
+		-install_name @rpath/libflups.dylib
+
+install_macos: lib_static lib_macos
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@echo "macOS unified dynamic library created: $(PREFIX)/lib/libflups.dylib"
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
+
 
 install_dprec_static: lib_static_deprec
 	@mkdir -p $(PREFIX)/lib
