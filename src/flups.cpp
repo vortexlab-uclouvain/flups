@@ -62,6 +62,10 @@ bool flups_topo_get_isComplex(const Topology* t) {
     return t->isComplex();
 }
 
+int flups_topo_get_lda(const Topology* t) {
+    return t->lda();
+}
+
 int flups_topo_get_axis(const Topology* t) {
     return t->axis();
 }
