@@ -95,3 +95,23 @@ compil gtest :
     - cd ./test/
     - make all -j4
 
+python_api_test:
+  stage: build
+  artifacts:
+    paths:
+      - ./lib/*.a
+      - ./lib/*.so
+      - ./include/*
+    when: on_success
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make install_static -j4
+    # Install Python dependencies
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install numpy mpi4py pytest
+    # Run Python API tests
+    - export PYTHONPATH=$PWD/python_api:$PYTHONPATH
+    - python3 python_api/tests/mpi_validation_simple.py
+    - mpirun -np 2 python3 python_api/tests/mpi_validation_simple.py
+    - mpirun -np 4 python3 python_api/tests/mpi_validation_simple.py
+
