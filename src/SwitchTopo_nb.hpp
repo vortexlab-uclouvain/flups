@@ -36,7 +36,6 @@
 #include "hdf5_io.hpp"
 #include "mpi.h"
 #include "Topology.hpp"
-#include "omp.h"
 #include "SwitchTopo.hpp"
 
 /**

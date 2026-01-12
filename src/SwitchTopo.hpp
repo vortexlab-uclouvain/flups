@@ -30,8 +30,6 @@
 #include "Topology.hpp"
 #include "defines.hpp"
 #include "mpi.h"
-#include "omp.h"
-// #include "h3lpr/profiler.hpp"
 #include "h3lpr/ptr.hpp"
 
 /**

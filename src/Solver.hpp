@@ -47,8 +47,6 @@
 #include "SwitchTopo_nb.hpp"
 #endif
 
-#include "omp.h"
-
 #ifdef HAVE_METIS
 #include "metis.h"
 #endif
