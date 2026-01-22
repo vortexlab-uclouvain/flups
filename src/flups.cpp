@@ -135,6 +135,7 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
 void flups_cleanup_solver(Solver* s) {
     delete s;
 }
+
 // destroy the solver
 void flups_cleanup(Solver* s) {
     flups_cleanup_all(s);
@@ -143,11 +144,11 @@ void flups_cleanup(Solver* s) {
 // Destroy the solver and cleanup fftw
 void flups_cleanup_all(Solver* s) {
     delete s;
-    flups_cleanup_fftw();
+    flups_cleanup_backend();
 }
 
 // cleanup all the structures related to fftw
-void flups_cleanup_fftw() {
+void flups_cleanup_backend() {
 #if FLUPS_OPENMP
     fftw_cleanup_threads();
 #endif
@@ -159,6 +160,9 @@ void flups_cleanup_fftw() {
 void flups_set_greenType(Solver* s, const GreenType type) {
     s->set_GreenType(type);
 }
+
+
+void flups_set_stream(Solver* s, void* stream) {}
 
 void flups_setup(Solver* s, const bool changeComm) {
     s->setup(changeComm);
