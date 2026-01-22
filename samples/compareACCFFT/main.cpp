@@ -259,7 +259,7 @@ int main(int argc, char *argv[]) {
     // --- FLUPS -------
 
     // force the call to destructor of the solver to cleanup the comm patterns
-    flups_cleanup(mysolver);
+    flups_cleanup_solver(mysolver);
     flups_topo_free(topoTmp);
 
     // free the bcs
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    flups_cleanup_fftw();
+    flups_cleanup_backend();
     MPI_Finalize();
 }
 
