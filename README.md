@@ -225,7 +225,7 @@ flups_solve(mysolver,rhs, rhs);
 Then, destroy the solver and the created topology
 ```
 flups_cleanup(mysolver); // destroy the solver
-flups_cleanup_fftw();    // cleanup the fftw stuff
+flups_cleanup_backend();    // cleanup the backend (fftw, cufft, ...) stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {

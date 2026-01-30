@@ -448,7 +448,7 @@ int main(int argc, char *argv[]) {
     p3dfft::cleanup();
 #endif
 
-    flups_cleanup_fftw();
+    flups_cleanup_backend();
     MPI_Finalize();
 }
 
