@@ -12,11 +12,19 @@ import sys
 import numpy as np
 from ctypes import (
     c_void_p, c_int, c_bool, c_double, c_size_t, c_char_p,
-    POINTER, Structure, byref
+    POINTER, Structure, byref, cast, CFUNCTYPE
 )
 from mpi4py import MPI
 
 from .enums import BoundaryType, GreenType, SolverType, DiffType, CenterType
+
+# Try to get the MPI library for proper MPI_Comm type handling
+try:
+    from mpi4py.MPI import _lib as mpi_lib
+    _HAS_MPI_LIB = True
+except ImportError:
+    _HAS_MPI_LIB = False
+    mpi_lib = None
 
 
 # Find and load the FLUPS library
@@ -26,6 +34,9 @@ def find_flups_library():
         'libflups.so',       # Linux
         'libflups.dylib',    # macOS
         'libflups.dll',      # Windows
+        'libflups_nb.so',       # Linux
+        'libflups_nb.dylib',    # macOS
+        'libflups_nb.dll',      # Windows
         'flups.so',
         'flups.dylib',
     ]
@@ -66,10 +77,21 @@ except FileNotFoundError as e:
 
 # MPI communicator conversion
 def mpi_comm_to_int(comm):
-    """Convert MPI4Py communicator to integer handle"""
+    """
+    Convert MPI4Py communicator to proper MPI_Comm handle for ctypes.
+    
+    This function extracts the actual MPI_Comm handle from mpi4py and
+    converts it to a format that can be passed to FLUPS through ctypes.
+    """
     if comm is None:
-        return MPI.COMM_WORLD.py2f()
-    return comm.py2f()
+        comm = MPI.COMM_WORLD
+    
+    # The proper way to get MPI_Comm from mpi4py is to use the handle
+    # which is an integer representing the MPI communicator
+    mpi_comm_value = comm.handle
+    
+    # Convert to c_void_p to preserve the pointer semantics
+    return c_void_p(mpi_comm_value)
 
 
 # Opaque structure pointers
@@ -110,7 +132,7 @@ if _lib is not None:
         c_bool,                   # isComplex
         POINTER(c_int),           # axproc[3]
         c_int,                    # alignment
-        c_int                     # MPI_Comm
+        c_void_p                  # MPI_Comm
     ]
     _lib.flups_topo_new.restype = POINTER(FLUPS_Topology)
     
@@ -193,11 +215,20 @@ if _lib is not None:
     _lib.flups_cleanup_solver.argtypes = [POINTER(FLUPS_Solver)]
     _lib.flups_cleanup_solver.restype = None
     
+    _lib.flups_cleanup.argtypes = [POINTER(FLUPS_Solver)]
+    _lib.flups_cleanup.restype = None
+    
     _lib.flups_cleanup_all.argtypes = [POINTER(FLUPS_Solver)]
     _lib.flups_cleanup_all.restype = None
     
-    _lib.flups_cleanup_fftw.argtypes = []
-    _lib.flups_cleanup_fftw.restype = None
+    _lib.flups_cleanup_backend.argtypes = []
+    _lib.flups_cleanup_backend.restype = None
+    
+    _lib.flups_cleanup_all.argtypes = [POINTER(FLUPS_Solver)]
+    _lib.flups_cleanup_all.restype = None
+    
+    _lib.flups_cleanup_backend.argtypes = []
+    _lib.flups_cleanup_backend.restype = None
     
     _lib.flups_set_greenType.argtypes = [POINTER(FLUPS_Solver), c_int]
     _lib.flups_set_greenType.restype = None

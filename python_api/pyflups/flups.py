@@ -16,6 +16,9 @@ from .enums import (
     FLUPS_FORWARD, FLUPS_BACKWARD, FLUPS_ALIGNMENT
 )
 
+# Global counter for active solvers
+_active_solvers_count = 0
+
 
 class Topology:
     """
@@ -32,7 +35,8 @@ class Topology:
                  is_complex: bool = False,
                  axproc: Optional[Union[List[int], np.ndarray]] = None,
                  alignment: int = FLUPS_ALIGNMENT,
-                 comm: Optional[MPI.Comm] = None):
+                 comm: Optional[MPI.Comm] = None,
+                 _owned: bool = True):
         """
         Create a new topology
         
@@ -54,8 +58,12 @@ class Topology:
             Memory alignment constant (default: FLUPS_ALIGNMENT)
         comm : MPI.Comm, optional
             MPI communicator (default: MPI.COMM_WORLD)
+        _owned : bool, optional
+            Internal flag: if True, this object owns the topology and will free it.
+            If False, the topology is owned by another object (e.g., Solver)
         """
         self._topo = None
+        self._owned = _owned
         
         # Convert inputs to ctypes arrays
         nglob_arr = (c_int * 3)(*nglob)
@@ -63,27 +71,38 @@ class Topology:
         
         if axproc is not None:
             axproc_arr = (c_int * 3)(*axproc)
-            axproc_ptr = axproc_arr
+            axproc_ptr = byref(axproc_arr)
         else:
-            axproc_ptr = None
+            # Pass NULL pointer when axproc is not provided
+            axproc_ptr = cast(None, POINTER(c_int))
         
         # Convert MPI communicator
         if comm is None:
             comm = MPI.COMM_WORLD
         mpi_comm = fw.mpi_comm_to_int(comm)
         
-        # Create topology
-        self._topo = fw._lib.flups_topo_new(
-            axis, lda, nglob_arr, nproc_arr, 
-            is_complex, axproc_ptr, alignment, mpi_comm
-        )
+        # Create topology - with error handling for MPI incompatibilities
+        try:
+            self._topo = fw._lib.flups_topo_new(
+                axis, lda, nglob_arr, nproc_arr, 
+                is_complex, axproc_ptr, alignment, mpi_comm
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to create FLUPS topology. This may be due to MPI version mismatch.\n"
+                f"FLUPS was likely compiled with a different MPI than the current environment.\n"
+                f"Original error: {e}"
+            ) from e
         
         if not self._topo:
-            raise RuntimeError("Failed to create FLUPS topology")
+            raise RuntimeError(
+                "Failed to create FLUPS topology. Null pointer returned. "
+                "This usually indicates an MPI communicator issue."
+            )
     
     def __del__(self):
-        """Destructor to free topology"""
-        if self._topo is not None:
+        """Destructor to free topology only if owned by this object"""
+        if self._topo is not None and self._owned:
             fw._lib.flups_topo_free(self._topo)
             self._topo = None
     
@@ -289,12 +308,34 @@ class Solver:
         
         self._bc_arrays = bc_arrays  # Keep reference to prevent garbage collection
         self._bc_c = bc_c
+        
+        # Increment active solver count
+        global _active_solvers_count
+        _active_solvers_count += 1
     
     def __del__(self):
-        """Destructor to free solver"""
+        """Destructor to free solver
+        
+        When the last solver is destroyed, also clean up backend resources
+        to allow multiple solvers to coexist safely.
+        """
+        global _active_solvers_count
+        
         if self._solver is not None:
+            # Delete the solver object
             fw._lib.flups_cleanup_solver(self._solver)
             self._solver = None
+            
+            # Decrement counter
+            _active_solvers_count -= 1
+            
+            # Clean up backend when last solver is destroyed
+            if _active_solvers_count <= 0:
+                _active_solvers_count = 0  # Prevent negative count
+                try:
+                    fw._lib.flups_cleanup_backend()
+                except:
+                    pass  # Ignore errors during backend cleanup
     
     def set_green_type(self, green_type: GreenType):
         """
@@ -404,18 +445,30 @@ class Solver:
         return np.ctypeslib.as_array(ptr, shape=(size,))
     
     def get_inner_topo_physical(self) -> Topology:
-        """Get the first pencil topology in physical space"""
+        """
+        Get the first pencil topology in physical space
+        
+        Warning: This topology is owned by the solver and will be freed when the solver is destroyed.
+        Do not call __del__ on this topology.
+        """
         topo_ptr = fw._lib.flups_get_innerTopo_physical(self._solver)
-        # Create a Topology wrapper (note: don't free this as it's owned by solver)
+        # Create a Topology wrapper with _owned=False (don't free this as it's owned by solver)
         topo = Topology.__new__(Topology)
         topo._topo = topo_ptr
+        topo._owned = False  # Mark as not owned so __del__ won't free it
         return topo
     
     def get_inner_topo_spectral(self) -> Topology:
-        """Get the spectral topology"""
+        """
+        Get the spectral topology
+        
+        Warning: This topology is owned by the solver and will be freed when the solver is destroyed.
+        Do not call __del__ on this topology.
+        """
         topo_ptr = fw._lib.flups_get_innerTopo_spectral(self._solver)
         topo = Topology.__new__(Topology)
         topo._topo = topo_ptr
+        topo._owned = False  # Mark as not owned so __del__ won't free it
         return topo
     
     def skip_first_switchtopo(self):
@@ -442,9 +495,9 @@ class Solver:
         fw._lib.flups_switchtopo_info(self._solver)
     
     @staticmethod
-    def cleanup_fftw():
-        """Free data employed by FFTW (call after all solvers are freed)"""
-        fw._lib.flups_cleanup_fftw()
+    def cleanup_backend():
+        """Free data employed by backend (call after all solvers are freed)"""
+        fw._lib.flups_cleanup_backend()
 
 
 def hdf5_dump(topology: Topology, filename: str, data: np.ndarray):
