@@ -446,7 +446,7 @@ void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
  * @param s
  * @param stream
  */
-void flups_set_stream(Solver* s, void* stream);
+void flups_set_stream(FLUPS_Solver* s, void* stream);
 
 /**
  * @brief setup the solver and do the memory allocation
