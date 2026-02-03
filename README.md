@@ -282,7 +282,6 @@ The **PyFLUPS** module provides an object‑oriented interface to FLUPS (MPI + N
 **Prerequisites**: FLUPS built and installed, Python ≥ 3.7, `numpy`, `mpi4py`.
 
 **Quick install** (from the `python_api` folder):
-
 - `pip install -e .`
 - Set `FLUPS_LIB_PATH` to the FLUPS `lib` folder (e.g., `export FLUPS_LIB_PATH=/path/to/flups/lib`).
 

@@ -8,7 +8,7 @@ Licensed under the Apache License, Version 2.0
 """
 
 __version__ = "1.0.0"
-__author__ = "Thomas Gillis, Denis-Gabriel Caprace, and contributors"
+__author__ = "Pierre Balty, Thomas Gillis, Denis-Gabriel Caprace, and contributors"
 
 from .enums import (
     BoundaryType,
@@ -36,20 +36,20 @@ __all__ = [
     'Topology',
     'Solver',
     'Profiler',
-    
+
     # Enums
     'BoundaryType',
     'GreenType',
     'SolverType',
     'DiffType',
     'CenterType',
-    
+
     # Constants
     'FLUPS_FORWARD',
     'FLUPS_BACKWARD',
     'FLUPS_BACKWARD_DIFF',
     'FLUPS_ALIGNMENT',
-    
+
     # Functions
     'hdf5_dump',
     'print_data',

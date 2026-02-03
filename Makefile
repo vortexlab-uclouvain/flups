@@ -157,6 +157,8 @@ validation: install_static
 # for the validation, do a static lib
 test : install_static
 
+python : install_dynamic
+
 # compile static and dynamic lib
 all: lib_static lib_dynamic
 

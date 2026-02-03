@@ -18,46 +18,116 @@ FLUPS is a high-performance library for solving Poisson equations using FFT-base
 
 ## Installation
 
-### Prerequisites
+### 1. Prerequisites
 
-1. **FLUPS library**: You must first build the FLUPS C++ library
-2. **Python dependencies**:
-   - Python >= 3.7
-   - numpy >= 1.18.0
-   - mpi4py >= 3.0.0
-
-### Build FLUPS
+First, ensure you have the FLUPS C++ library compiled:
 
 ```bash
-# Navigate to the FLUPS root directory
 cd /path/to/flups
-
-# Build the library (example with default architecture)
-make ARCH_FILE=make_arch/make.default
+ARCH_FILE=/your/arch/file make python
 ```
 
-### Install PyFLUPS
+**Required dependencies:**
+- Python >= 3.7
+- numpy >= 1.18.0
+- mpi4py >= 3.0.0
+
+### 2. Set up Python environment (optional but recommended)
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Upgrade pip
+pip install --upgrade pip
+```
+
+### 3. Install PyFLUPS
 
 ```bash
 # Navigate to the python_api directory
 cd python_api
 
-# Install in development mode (recommended for testing)
+# Install dependencies
+pip install numpy mpi4py
+
+# Install PyFLUPS in development mode (recommended for testing)
 pip install -e .
 
 # Or install normally
 pip install .
 ```
 
-### Set Library Path
+### 4. Set library path
 
-Set the `FLUPS_LIB_PATH` environment variable to point to the compiled FLUPS library:
+Add to your `.bashrc` or `.zshrc`:
 
 ```bash
 export FLUPS_LIB_PATH=/path/to/flups/lib
 ```
 
-Or add it to your `.bashrc` or `.zshrc` file.
+Or set it temporarily:
+```bash
+export FLUPS_LIB_PATH=/path/to/flups/lib
+```
+
+## Testing the Installation
+
+### Quick Test
+
+Create a file `test_import.py`:
+
+```python
+import pyflups as pf
+print("PyFLUPS version:", pf.__version__)
+print("Available classes:", dir(pf))
+```
+
+Run:
+```bash
+python test_import.py
+```
+
+### MPI Test
+
+```bash
+cd examples
+mpirun -np 4 python simple_poisson.py
+```
+
+## Troubleshooting
+
+### Library not found
+
+**Error:** `Could not find FLUPS library`
+
+**Solution:** 
+- Verify library exists: `ls $FLUPS_LIB_PATH`
+- Check for `libflups.so` (Linux) or `libflups.dylib` (macOS)
+- Ensure FLUPS is compiled: `make ARCH_FILE=make_arch/make.osx_gcc` (for macOS)
+
+### MPI errors
+
+Make sure `mpi4py` is installed and compatible with your MPI installation.
+
+## Verifying the Setup
+
+Run all examples:
+```bash
+cd examples
+
+# Simple Poisson
+mpirun -np 4 python simple_poisson.py
+
+# Vector field
+mpirun -np 4 python vector_field.py
+
+# Advanced usage
+mpirun -np 4 python advanced_usage.py
+```
+
+Expected output: Each script should complete without errors and display results.
 
 ## Quick Start
 
@@ -262,6 +332,7 @@ If you use FLUPS in your research, please cite:
 
 ## Authors
 
+- Pierre Balty
 - Thomas Gillis
 - Denis-Gabriel Caprace
 - Contributors from UCLouvain Vortex Lab
