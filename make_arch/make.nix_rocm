@@ -1,0 +1,13 @@
+CC  = mpicc
+CXX = mpic++
+
+## Compile & linker flags
+CXXFLAGS := -g -O3 -std=c++17
+LDFLAGS  := -g -O3 -lstdc++ -lm
+
+## Pick backend
+OPTS += -DBACKEND_HIP
+
+## H3LPR
+H3LPR_INC := $(H3LPR_DIR)/include
+H3LPR_LIB := $(H3LPR_DIR)/lib

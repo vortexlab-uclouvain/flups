@@ -1,0 +1,9 @@
+CC  = mpicc
+CXX = mpic++
+
+## Compile & linker flags
+CXXFLAGS := -g -O3 -std=c++17
+LDFLAGS  := -g -O3 -lstdc++ -lm
+
+## Pick backend
+OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86

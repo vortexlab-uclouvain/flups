@@ -1,24 +1,24 @@
 ################################################################################
 # @copyright Copyright © UCLouvain 2020
-# 
+#
 # FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
-# 
+#
 # Copyright (C) <2020> <Universite catholique de Louvain (UCLouvain), Belgique>
-# 
+#
 # List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #  http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
+#
 ################################################################################
 
 ################################################################################
@@ -34,7 +34,7 @@ CXX ?= mpic++
 AR ?= ar
 
 #-----------------------------------------------------------------------------
-# Do not show GNU makefile command and info 
+# Do not show GNU makefile command and info
 #.SILENT:
 # git commit
 #GIT_COMMIT ?= $(shell git describe --always --dirty)
@@ -113,6 +113,17 @@ ifneq (,$(findstring -DBACKEND_CUDA,$(OPTS)))
 	endif
 endif
 
+#---- Use HIP
+ifneq (,$(findstring -DBACKEND_HIP,$(OPTS)))
+	HIP_INC ?= /opt/rocm/include
+	HIP_LIB ?= /opt/rocm/lib
+	HIP_LIBNAME ?= -lrocblas -lrocfft
+	INC += -I$(HIP_INC) -I$(ROCBLAS_DIR)/include -I$(ROCFFT_DIR)/include
+	LIB += -L$(HIP_LIB) $(HIP_LIBNAME) -Wl,-rpath,$(HIP_LIB)
+	LIB += -L$(HIP_LIB)/stubs -Wl,-rpath,$(HIP_LIB)/stubs
+	CXXFLAGS += -x hip
+endif
+
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory
@@ -159,8 +170,8 @@ $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -E $< -o $@
 
 ################################################################################
-default: 
-	@$(MAKE) info 
+default:
+	@$(MAKE) info
 	@$(MAKE) lib_static
 
 # for the validation, do a static lib
@@ -178,7 +189,7 @@ all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
 
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 
-nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so 
+nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so
 
 lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_ISR).a
 
@@ -231,7 +242,7 @@ install_dynamic: lib_dynamic
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
-install_static: lib_static 
+install_static: lib_static
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
 	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
@@ -256,8 +267,8 @@ install_dprec_dynamic: lib_dynamic_deprec
 	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
-# for a standard installation, do the dynamic link	
-install: 
+# for a standard installation, do the dynamic link
+install:
 	@$(MAKE) info
 	@$(MAKE) install_static
 
@@ -289,7 +300,7 @@ destroy:
 .EXPORT_ALL_VARIABLES:
 
 .PHONY: info
-info: 
+info:
 	@$(MAKE) --file=info.mak
 #-------------------------------------------------------------------------------
 

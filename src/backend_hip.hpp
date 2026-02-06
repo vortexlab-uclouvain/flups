@@ -1,0 +1,124 @@
+#ifndef BACKEND_HIP_HPP
+#define BACKEND_HIP_HPP
+
+#include <hip/hip_runtime.h>
+#include <rocblas/rocblas.h>
+#include <rocfft/rocfft.h>
+
+#include <string>
+
+#include "backend_gpu.hpp"
+#include "h3lpr/macros.hpp"
+
+using std::string;
+
+// Backend print & assert functions
+#define BACKEND_INFO(format, ...)                         \
+    ({                                                    \
+        m_verb_def("HIP backend", format, ##__VA_ARGS__); \
+    })
+
+#define BACKEND_CHECK(format, ...)                          \
+    ({                                                      \
+        m_assert_def("HIP backend", format, ##__VA_ARGS__); \
+    })
+
+// Datatypes
+// Use a simple POD complex type compatible with rocFFT's layout (two doubles)
+typedef struct {
+    double x;
+    double y;
+} flups_complex;
+
+typedef int*           opt_int_ptr;
+typedef double*        opt_double_ptr;
+typedef flups_complex* opt_complex_ptr;
+typedef hipStream_t    stream_t;
+
+struct flups_fft_plan {
+    // memory pointer (used only for r2r plans)
+    double* mem = NULL;
+    // rocFFT plan handle (opaque)
+    rocfft_plan fft = NULL;
+    // parameters for the r2r transform
+    int              n;        // number of inputs/output real values
+    int              dist;     // distance between two successive fft's
+    int              stride;   // data stride
+    int              howmany;  // number of fft's to perform
+    flups_r2r_kind_t kind;     // kinf of the r2r transform
+    bool             is_r2r = false;
+    // parameters for the equivalent r2c transform
+    int dim;      // size of the equivalent r2c fft
+    int idist;    // input  distance between two successive fft's
+    int odist;    // output distance between two successive fft's
+    int memsize;  // size of the needed memory space
+};
+
+// Memcopy kinds map to HIP's memcpy kinds
+typedef enum {
+    memcpyD2H = hipMemcpyDeviceToHost,
+    memcpyH2D = hipMemcpyHostToDevice,
+    memcpyD2D = hipMemcpyDeviceToDevice,
+    memcpyH2H = hipMemcpyHostToHost,
+} memcpyKind_t;
+
+// Memory type enumeration (maps to HIP memory type constants)
+typedef enum {
+    memTypeHost         = hipMemoryTypeHost,
+    memTypeDevice       = hipMemoryTypeDevice,
+    memTypeUnregistered = hipMemoryTypeUnregistered,
+} memType_t;
+
+// Check HIP / rocBLAS / rocFFT API errors
+#define m_hiprt_check_errors(res)                                                               \
+    do {                                                                                        \
+        hipError_t __err = res;                                                                 \
+        BACKEND_CHECK(hipSuccess == __err, "Fatal HIP RT error: %s", hipGetErrorString(__err)); \
+    } while (0)
+
+#define m_rocblas_check_errors(res)                                                            \
+    do {                                                                                       \
+        rocblas_status __err = res;                                                            \
+        BACKEND_CHECK(rocblas_status_success == __err, "Fatal rocBLAS error: %d", (int)__err); \
+    } while (0)
+
+#define m_rocfft_check_errors(res)                                                           \
+    do {                                                                                     \
+        rocfft_status __err = res;                                                           \
+        BACKEND_CHECK(rocfft_status_success == __err, "Fatal rocFFT error: %d", (int)__err); \
+    } while (0)
+
+// Kernel execution
+#define BLOCK_SIZE 256
+#define m_device __device__
+#define m_constant __constant__
+#define m_host_device __host__ __device__
+#define m_backend_lambda [=] __device__
+
+template <typename O>
+__global__ void hip_kernel_(const O op, const int n) {
+    // Grid-stride loop
+    const int start  = blockIdx.x * blockDim.x + threadIdx.x;
+    const int stride = blockDim.x * gridDim.x;
+    for (int i = start; i < n; i += stride) {
+        op(i);
+    }
+}
+
+template <typename O>
+void parallel_for(const O& op, const int n, string name, stream_t stream) {
+    BACKEND_INFO("Launching kernel: %s", name.c_str());
+    const int grid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    // Launch kernel using HIP runtime
+    hipLaunchKernelGGL((hip_kernel_<O>),
+                       dim3(grid),
+                       dim3(BLOCK_SIZE),
+                       0,
+                       stream,
+                       op,
+                       n);
+    // Note: hipLaunchKernelGGL is a macro that both launches and returns immediately (async w.r.t. host)
+    BACKEND_INFO("Kernel %s done", name.c_str());
+}
+
+#endif  // BACKEND_HIP_HPP

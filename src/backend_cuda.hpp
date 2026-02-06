@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "flups_interface.h"
+#include "backend_gpu.hpp"
 #include "h3lpr/macros.hpp"
 
 using std::string;
@@ -29,36 +29,6 @@ typedef int*           opt_int_ptr;
 typedef double*        opt_double_ptr;
 typedef flups_complex* opt_complex_ptr;
 typedef cudaStream_t   stream_t;
-
-typedef enum {
-    FLUPS_DCT_I,
-    FLUPS_DCT_II,
-    FLUPS_DCT_III,
-    FLUPS_DCT_IV,
-    FLUPS_DST_I,
-    FLUPS_DST_II,
-    FLUPS_DST_III,
-    FLUPS_DST_IV,
-} flups_r2r_kind_t;
-
-// Helper struct, see FFTW doc.
-struct flups_iodim {
-    int n;
-    int is;
-    int os;
-};
-
-struct flups_fft_arch {
-    int dim;
-    int howmany;
-    int stride;
-    int dist;
-};
-
-struct flups_shuffle_plan {
-    int n0;
-    int n1;
-};
 
 struct flups_fft_plan {
     // memory pointer (used only for r2r plans)

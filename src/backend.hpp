@@ -4,9 +4,9 @@
 #if defined(BACKEND_CUDA)
 #define M_HAVE_GPU 1
 #include "backend_cuda.hpp"
-#elif defined(HAVE_HIP)
+#elif defined(BACKEND_HIP)
 #define M_HAVE_GPU 1
-#error "HIP backend not yet implemented"
+#include "backend_hip.hpp"
 #elif defined(BACKEND_FFTW)
 #define M_HAVE_GPU 0
 #include "backend_fftw.hpp"
