@@ -44,19 +44,6 @@ compil comm:
     - cd ./samples/validation
     - make all -j4
 
-# compil metis:
-#   stage: build
-#   artifacts: 
-#     paths:
-#       - ./samples/validation/flups_validation_nb
-#       - ./samples/validation/flups_validation_a2a
-#       - ./include/*
-#     when: on_success
-#   script:
-#     - export ARCH_FILE=make_arch/make.docker_valid_metis
-#     - make install -j4
-#     - cd ./samples/validation
-#     - make all -j2
 
 compil solve_advanced:
   stage: build
@@ -90,7 +77,7 @@ compil gtest :
       - ./include/*
     when: on_success
   script:
-    - export ARCH_FILE=make_arch/make.docker_gcc_test
+    - export ARCH_FILE=make_arch/make.docker_clang_test
     - make install_static -j4
     - cd ./test/
     - make all -j4
