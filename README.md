@@ -27,7 +27,9 @@ FLUPS is described in [this paper](https://arxiv.org/abs/2006.09300). If you use
 ## Installation
 
 FLUPS is a C++ library, with an API in C.
-The compilation of FLUPS was tested with Intel compilers (v19.1) and GCC (v7.5).
+The compilation of FLUPS was tested with Intel compilers (v19.1), GCC (v7.5) and Clang (v11.0).
+
+You can either compile FLUPS by yourself, or use the provided Dockerfile to create a container with all the dependencies installed.
 
 ### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the intel compilers)

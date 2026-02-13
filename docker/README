@@ -4,14 +4,13 @@
 
 ```bash
 hpccm --recipe docker1.py > Dockerfile && cat docker_ext >> Dockerfile
-docker build --ssh default -f Dockerfile -t vanreeslab/flups:v1.1 .
+docker build --ssh default -f Dockerfile -t vanreeslab/flups:v1.2 .
 docker login
-docker push vanreeslab/flups:v1.1
+docker push vanreeslab/flups:v1.2
 ```
 
 
 # # build image for validation
-
 # # docker build -t immc/flups-valid:v0.4 .
 # docker build -t vanreeslab/flups:v0.5 .
 # #v0.3 has valgrind but not metis
