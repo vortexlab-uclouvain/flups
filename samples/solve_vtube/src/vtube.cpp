@@ -1,14 +1,14 @@
 /**
- * @file vtube.cpp
  * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
  *      See LICENSE file in top-level directory
  */
 
 #include "vtube.hpp"
+
 #include "omp.h"
 
-template <> 
-double gexpint<1>(const double z){
+template <>
+double gexpint<1>(const double z) {
     // for real values E1(x) = -Ei(-x):
     // according to
     // https://en.cppreference.com/w/cpp/numeric/special_functions/expint and
@@ -16,9 +16,9 @@ double gexpint<1>(const double z){
     return (-std::expint(-z));
 }
 
-double vort_inf(const double r, const double sigma){
+double vort_inf(const double r, const double sigma) {
     // Gregoire winckelmans 2004 encyclopedia
-    const double rho1  = r / sigma;
+    const double rho1 = r / sigma;
     return 1.0 / (c_2pi * sigma * sigma) * exp(-rho1 * rho1 * 0.5);
 }
 double vel_inf(const double r, const double sigma) {
@@ -28,10 +28,10 @@ double vel_inf(const double r, const double sigma) {
     return (r < eps) ? 0 : 1.0 / (c_2pi * r) * (1.0 - exp(-rho1 * rho1 * 0.5));
 }
 
-double vort_compact(const double r, const double R){
+double vort_compact(const double r, const double R) {
     // Wincklemans 2015, hand-written notes (cfr vortexbib)
-    const double rho2  = r / (R);
-    const double oo_rad2 = 1.0/(R*R);
+    const double rho2    = r / (R);
+    const double oo_rad2 = 1.0 / (R * R);
     return (rho2 >= 1.0) ? (0.0) : (1.0 / c_2pi * (2.0 * oo_rad2) * (1.0 / gexpint<2>(1.0)) * exp(-1.0 / (1.0 - rho2 * rho2)));
 }
 double vel_compact(const double r, const double R) {
@@ -67,9 +67,9 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     const double fact    = (double)(!is_cell);
 
     // Ensure that 64 points in cell-centred mode is equivalent 64 points in node-centred mode
-    const int    nglob[3] = {myCase.nglob[0] + (int)fact,
-                             myCase.nglob[1] + (int)fact,
-                             myCase.nglob[2] + (int)fact};
+    const int nglob[3] = {myCase.nglob[0] + (int)fact,
+                          myCase.nglob[1] + (int)fact,
+                          myCase.nglob[2] + (int)fact};
 
     // h definition depends on if we are cell- of node-centred
     const double h[3] = {L[0] / (nglob[0] - fact),
@@ -78,13 +78,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 
     FLUPS_CenterType center_type[3];
     for (int i = 0; i < 3; i++) {
-            center_type[i] = myCase.center[i];
+        center_type[i] = myCase.center[i];
     }
 
-    FLUPS_BoundaryType* mybc[3][2];
-    for(int id=0; id<3; id++){
-        for(int is=0; is<2; is++){
-            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*lda);
+    FLUPS_BoundaryType *mybc[3][2];
+    for (int id = 0; id < 3; id++) {
+        for (int is = 0; is < 2; is++) {
+            mybc[id][is] = (FLUPS_BoundaryType *)flups_malloc(sizeof(int) * lda);
         }
     }
 
@@ -104,7 +104,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     //-------------------------------------------------------------------------
     std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
-    FLUPS_Solver *  mysolver;
+    FLUPS_Solver   *mysolver;
     mysolver = flups_init_timed(topo, mybc, h, L, order, center_type, prof);
 
     flups_set_greenType(mysolver, typeGreen);
@@ -148,8 +148,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         double *rhs1 = rhs + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
         double *rhs2 = rhs + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
         double *sol0 = sol + flups_locID(ax0, 0, 0, 0, 0, ax0, nmem, 1);
-        double* sol1 = sol + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
-        double* sol2 = sol + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
+        double *sol1 = sol + flups_locID(ax0, 0, 0, 0, 1, ax0, nmem, 1);
+        double *sol2 = sol + flups_locID(ax0, 0, 0, 0, 2, ax0, nmem, 1);
 
         int dir0 = (vdir + 1) % 3;
         int dir1 = (vdir + 2) % 3;
@@ -298,53 +298,53 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                                 sol2[id] += 0.0 * myCase.ysign * myCase.xsign;
                             }
                         }
-                    // } else if (cross) {
-                    //     const double lpos[3] = {pos[0] - (myCase.xcntr * L[0]),
-                    //                             pos[1] - (myCase.ycntr * L[1]),
-                    //                             pos[2] - (myCase.zcntr * L[2])};
-                    //     double      *lrhs[3] = {rhs0, rhs1, rhs2};
-                    //     double      *lsol[3] = {sol0, sol1, sol2};
+                        // } else if (cross) {
+                        //     const double lpos[3] = {pos[0] - (myCase.xcntr * L[0]),
+                        //                             pos[1] - (myCase.ycntr * L[1]),
+                        //                             pos[2] - (myCase.zcntr * L[2])};
+                        //     double      *lrhs[3] = {rhs0, rhs1, rhs2};
+                        //     double      *lsol[3] = {sol0, sol1, sol2};
 
-                    //     for (int i = 0; i < 3; ++i) {
-                    //         lrhs[(i + 0) % 3][id] = 0.0;
-                    //         lrhs[(i + 1) % 3][id] = 0.0;
-                    //         lrhs[(i + 2) % 3][id] = 0.0;
-                    //         lsol[(i + 0) % 3][id] = 0.0;
-                    //         lsol[(i + 1) % 3][id] = 0.0;
-                    //         lsol[(i + 2) % 3][id] = 0.0;
-                    //     }
+                        //     for (int i = 0; i < 3; ++i) {
+                        //         lrhs[(i + 0) % 3][id] = 0.0;
+                        //         lrhs[(i + 1) % 3][id] = 0.0;
+                        //         lrhs[(i + 2) % 3][id] = 0.0;
+                        //         lsol[(i + 0) % 3][id] = 0.0;
+                        //         lsol[(i + 1) % 3][id] = 0.0;
+                        //         lsol[(i + 2) % 3][id] = 0.0;
+                        //     }
 
-                    //     for (int i = 0; i < 3; ++i) {
-                    //         const double x = lpos[(i + 1) % 3];
-                    //         const double y = lpos[(i + 2) % 3];
-                    //         // tube in z
-                    //         const double theta = std::atan2(y, x);  // get the angle in the x-y plane
-                    //         const double r     = sqrt(x * x + y * y);
-                    //         const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
-                    //         const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
-                    //         lrhs[(i + 0) % 3][id] += -vort;
-                    //         lrhs[(i + 1) % 3][id] += 0.0;
-                    //         lrhs[(i + 2) % 3][id] += 0.0;
-                    //         lsol[(i + 0) % 3][id] += 0.0;
-                    //         lsol[(i + 1) % 3][id] += -sin(theta) * vel;
-                    //         lsol[(i + 2) % 3][id] += +cos(theta) * vel;
-                    //     }
-                    // } else if (gauss) {
-                    //     const double x = pos[0] - (myCase.xcntr * L[0]);
-                    //     const double y = pos[1] - (myCase.ycntr * L[1]);
-                    //     const double z = pos[2] - (myCase.zcntr * L[2]);
-                    //     // tube in z
-                    //     const double r     = sqrt(x * x + y * y + z*z);
-                    //     const double rho = r/sigma;
-                    //     const double vort  = 1.0/(4.0*M_PI*pow(sigma,3)) * sqrt(2.0/M_PI) * exp(-0.5 * rho * rho) ;
-                    //     const double vel   = 1.0;
-                    //     lrhs[(i + 0) % 3][id] += -vort;
-                    //     lrhs[(i + 1) % 3][id] += 0.0;
-                    //     lrhs[(i + 2) % 3][id] += 0.0;
-                    //     lsol[(i + 0) % 3][id] += 0.0;
-                    //     lsol[(i + 1) % 3][id] += -sin(theta) * vel;
-                    //     lsol[(i + 2) % 3][id] += +cos(theta) * vel;
-                    // }
+                        //     for (int i = 0; i < 3; ++i) {
+                        //         const double x = lpos[(i + 1) % 3];
+                        //         const double y = lpos[(i + 2) % 3];
+                        //         // tube in z
+                        //         const double theta = std::atan2(y, x);  // get the angle in the x-y plane
+                        //         const double r     = sqrt(x * x + y * y);
+                        //         const double vort  = (compact) ? vort_compact(r, R) : vort_inf(r, sigma);
+                        //         const double vel   = (compact) ? vel_compact(r, R) : vel_inf(r, sigma);
+                        //         lrhs[(i + 0) % 3][id] += -vort;
+                        //         lrhs[(i + 1) % 3][id] += 0.0;
+                        //         lrhs[(i + 2) % 3][id] += 0.0;
+                        //         lsol[(i + 0) % 3][id] += 0.0;
+                        //         lsol[(i + 1) % 3][id] += -sin(theta) * vel;
+                        //         lsol[(i + 2) % 3][id] += +cos(theta) * vel;
+                        //     }
+                        // } else if (gauss) {
+                        //     const double x = pos[0] - (myCase.xcntr * L[0]);
+                        //     const double y = pos[1] - (myCase.ycntr * L[1]);
+                        //     const double z = pos[2] - (myCase.zcntr * L[2]);
+                        //     // tube in z
+                        //     const double r     = sqrt(x * x + y * y + z*z);
+                        //     const double rho = r/sigma;
+                        //     const double vort  = 1.0/(4.0*M_PI*pow(sigma,3)) * sqrt(2.0/M_PI) * exp(-0.5 * rho * rho) ;
+                        //     const double vel   = 1.0;
+                        //     lrhs[(i + 0) % 3][id] += -vort;
+                        //     lrhs[(i + 1) % 3][id] += 0.0;
+                        //     lrhs[(i + 2) % 3][id] += 0.0;
+                        //     lsol[(i + 0) % 3][id] += 0.0;
+                        //     lsol[(i + 1) % 3][id] += -sin(theta) * vel;
+                        //     lsol[(i + 2) % 3][id] += +cos(theta) * vel;
+                        // }
                     } else if (ring) {
                         //---------------------------------------------------------------
                         //                      WARNING
@@ -409,13 +409,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                         }
                     } else if (periodic) {
                         {
-                            const double x = pos[0];
-                            const double y = pos[1];
-                            const double z = pos[2];
+                            const double x    = pos[0];
+                            const double y    = pos[1];
+                            const double z    = pos[2];
                             const double k[3] = {2.0 * M_PI, 2.0 * M_PI, 2.0 * M_PI};
-                            rhs0[id] = cos(k[1] * y) / k[1];
-                            rhs1[id] = cos(k[2] * z) / k[2];
-                            rhs2[id] = cos(k[0] * x) / k[0];
+                            rhs0[id]          = cos(k[1] * y) / k[1];
+                            rhs1[id]          = cos(k[2] * z) / k[2];
+                            rhs2[id]          = cos(k[0] * x) / k[0];
                             // rot_x = sin(k[2] * z) -> sol = -1/k[2] * sin(k[2] * z)
                             // rot_y = sin(k[0] * x) -> sol = -1/k[0] * sin(k[0] * x)
                             // rot_z = sin(k[1] * y) -> sol = -1/k[1] * sin(k[1] * y)
@@ -447,15 +447,15 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
                             const double z    = pos[2];
                             const double k[3] = {1.5 * M_PI, 1.5 * M_PI, 1.5 * M_PI};
 
-                            rhs0[id] = 0.0; //sin(k[1] * y) / k[1];
+                            rhs0[id] = 0.0;  // sin(k[1] * y) / k[1];
                             rhs1[id] = sin(k[2] * z) / k[2];
-                            rhs2[id] = 0.0; //sin(k[0] * x) / k[0];
+                            rhs2[id] = 0.0;  // sin(k[0] * x) / k[0];
                             // rot_x = cos(k[2] * z) -> sol = -1/k[2]^2 * cos(k[2] * z)
                             // rot_y = cos(k[0] * x) -> sol = -1/k[0]^2 * cos(k[0] * x)
                             // rot_z = cos(k[1] * y) -> sol = -1/k[1]^2 * cos(k[1] * y)
                             sol0[id] = -1.0 / (k[2] * k[2]) * cos(k[2] * z);
-                            sol1[id] = 0.0; //-1.0 / (k[0] * k[0]) * cos(k[0] * x);
-                            sol2[id] = 0.0; //-1.0 / (k[1] * k[1]) * cos(k[1] * y);
+                            sol1[id] = 0.0;  //-1.0 / (k[0] * k[0]) * cos(k[0] * x);
+                            sol2[id] = 0.0;  //-1.0 / (k[1] * k[1]) * cos(k[1] * y);
                         }
                     }
                 }
@@ -478,10 +478,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         flups_solve(mysolver, field, rhs, ROT);
     }
 
-
     flups_profiler_disp(prof);
     flups_profiler_free(prof);
-
 
 #ifdef DUMP_DBG
     // write the source term and the solution
@@ -502,7 +500,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     std::memset(err2, 0, sizeof(double) * lda);
     std::memset(erri, 0, sizeof(double) * lda);
 
-    //determine the volume associated to a mesh
+    // determine the volume associated to a mesh
     double vol = 1.0;
     for (int id = 0; id < 3; id++) {
         if (mybc[id][0][0] != NONE && mybc[id][1][0] != NONE) {
@@ -516,23 +514,23 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
         const int ax2     = (ax0 + 2) % 3;
         const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
         for (int lia = 0; lia < lda; lia++) {
-            // Check if flups is able to compute the last point of the domain. If at least one of the direction is periodic, 
+            // Check if flups is able to compute the last point of the domain. If at least one of the direction is periodic,
             // and we are in an node centred framework, then the last point in each direction may be influenced
-            const bool last_point_valid = !(!is_cell && ( mybc[lia][0][0] == PER || mybc[lia][0][1] == PER || mybc[lia][0][2] == PER ));
-            
+            const bool last_point_valid = !(!is_cell && (mybc[lia][0][0] == PER || mybc[lia][0][1] == PER || mybc[lia][0][2] == PER));
+
             // If the last point is not valid, remove it from the error computation
             const int iend[3] = {flups_topo_get_nloc(topo, ax0),
                                  flups_topo_get_nloc(topo, ax1),
                                  flups_topo_get_nloc(topo, ax2)};
-            
+
             for (int i2 = 0; i2 < iend[2]; i2++) {
                 for (int i1 = 0; i1 < iend[1]; i1++) {
                     for (int i0 = 0; i0 < iend[0]; i0++) {
                         const size_t id  = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
                         const double err = sol[id] - field[id];
-                        lerri[lia] = max(lerri[lia], fabs(err));
+                        lerri[lia]       = max(lerri[lia], fabs(err));
                         lerr2[lia] += (err * err) * vol;
-                        error[id]  = err; 
+                        error[id] = err;
                     }
                 }
             }
@@ -552,9 +550,9 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
 #endif
 
     char   filename[512];
-    string folder = "./data";
-    string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
-    sprintf(filename, "%s/%s_%s_%d_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), type, vdir, (int) myCase.xsign, (int)myCase.ysign, typeGreen);
+    string folder  = "./data";
+    string ct_name = is_cell ? "CellCenter" : "NodeCenter";
+    sprintf(filename, "%s/%s_%s_%d_%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), type, vdir, (int)myCase.xsign, (int)myCase.ysign, typeGreen);
 
     if (rank == 0) {
         struct stat st = {0};
@@ -585,12 +583,13 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     free(lerri);
     free(err2);
     free(erri);
-    
+
     flups_free(sol);
     flups_free(rhs);
     flups_free(field);
     flups_free(error);
-    flups_cleanup(mysolver);
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
     flups_topo_free(topo);
 
     for (int id = 0; id < 3; id++) {

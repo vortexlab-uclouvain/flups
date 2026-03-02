@@ -16,9 +16,12 @@ For the list of all the contributors to the development of FLUPS, description an
 FLUPS' design, implementation, and performances are described in two papers.
 
 If you use FLUPS, please cite them in your publications:
-- [Balty et al.](https://arxiv.org/abs/2211.07777), **FLUPS - a flexible and performant massively parallel Fourier transform library**, submitted, 2022
+- [Balty et al.](https://arxiv.org/abs/2211.07777), **FLUPS - a flexible and performant massively parallel Fourier transform library**, IEEE Transactions on Parallel and Distributed Systems, 2023
 - [Caprace et al.](https://arxiv.org/abs/2006.09300), **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2021
 
+
+The high-order Lattice Green's functions (LGF and MEHR) available in FLUPS are described in a third paper. If you use those kernels, please cite the related paper in your publications:
+- [Gabbard et al.](https://arxiv.org/abs/2309.13503), **Lattice Green’s Functions for High-Order Finite Difference Stencils**, SIAM Journal on Numerical Analysis, 2024
 
 ## Why should you use FLUPS?
 - You can solve the Poisson on rectangular and uniform distributed grids;
@@ -34,6 +37,7 @@ If you use FLUPS, please cite them in your publications:
 
 FLUPS is a C++ library, with an API in C.
 The compilation of FLUPS was tested with GCC (v9.4) and clang (v12.0).
+You can either compile FLUPS by yourself, or use the provided Dockerfile to create a container with all the dependencies installed.
 
 ### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the mpich compilers)
@@ -231,7 +235,8 @@ flups_solve(mysolver,rhs, rhs);
 
 Then, destroy the solver and the created topology
 ```
-flups_cleanup(mysolver);
+flups_cleanup(mysolver); // destroy the solver
+flups_cleanup_backend();    // cleanup the backend (fftw, cufft, ...) stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {
@@ -282,6 +287,20 @@ For 1.5Go, max 168
 :warning: FLUPS was nerver tested above 1024^3 unknowns per core.
 -->
 
+
+## Python API
+
+The **PyFLUPS** module provides an object‑oriented interface to FLUPS (MPI + NumPy), with support for boundary conditions, Green’s kernels, and standard/rotational solvers.
+
+**Prerequisites**: FLUPS built and installed, Python ≥ 3.7, `numpy`, `mpi4py`.
+
+**Quick install** (from the `python_api` folder):
+- `pip install -e .`
+- Set `FLUPS_LIB_PATH` to the FLUPS `lib` folder (e.g., `export FLUPS_LIB_PATH=/path/to/flups/lib`).
+
+**Usage**: import `pyflups`, create a `Topology`, then a `Solver`, configure the kernel (e.g., `GreenType`), and call `solve()`.
+
+For a minimal example and full documentation, see [python_api/README.md](python_api/README.md) and scripts in [python_api/examples](python_api/examples).
 
 
 ## Implementation details and developers guide

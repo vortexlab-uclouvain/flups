@@ -29,7 +29,7 @@
  * @brief Memory alignment in bytes.
  *
  */
-#define FLUPS_ALIGNMENT 16
+#define FLUPS_ALIGNMENT 8
 
 //==============================================================================
 /**

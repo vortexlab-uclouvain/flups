@@ -8,16 +8,16 @@
 
 #include <algorithm>  // std::remove
 
+#include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
 #include "Topology.hpp"
-#include "FFTW_plan_dim.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
 
 extern "C" {
 
 void* flups_malloc(size_t size) {
-    return m_calloc(size); 
+    return m_calloc(size);
 }
 
 void flups_free(void* data) {
@@ -38,6 +38,10 @@ void flups_topo_free(const Topology* t) {
 
 bool flups_topo_get_isComplex(const Topology* t) {
     return t->isComplex();
+}
+
+int flups_topo_get_lda(const Topology* t) {
+    return t->lda();
 }
 
 int flups_topo_get_axis(const Topology* t) {
@@ -109,15 +113,38 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     return s;
 }
 
-// destroy the solver
-void flups_cleanup(Solver* s) {
+
+void flups_cleanup_solver(Solver* s) {
     delete s;
 }
+
+// destroy the solver
+void flups_cleanup(Solver* s) {
+    flups_cleanup_all(s);
+}
+
+// Destroy the solver and cleanup fftw
+void flups_cleanup_all(Solver* s) {
+    delete s;
+    flups_cleanup_backend();
+}
+
+// cleanup all the structures related to fftw
+void flups_cleanup_backend() {
+#if FLUPS_OPENMP
+    fftw_cleanup_threads();
+#endif
+
+    fftw_cleanup();
+};
 
 // setup the solver
 void flups_set_greenType(Solver* s, const GreenType type) {
     s->set_GreenType(type);
 }
+
+
+void flups_set_stream(Solver* s, void* stream) {}
 
 void flups_setup(Solver* s, const bool changeComm) {
     s->setup(changeComm);
@@ -142,7 +169,7 @@ void flups_set_alpha(Solver* s, const double alpha) {
     s->set_alpha(alpha);
 }
 
-double* flups_get_innerBuffer(FLUPS_Solver* s){
+double* flups_get_innerBuffer(FLUPS_Solver* s) {
     return s->get_innerBuffer();
 }
 
@@ -154,7 +181,7 @@ Topology* flups_get_innerTopo_spectral(Solver* s) {
     return s->get_innerTopo_spectral();
 }
 
-void flups_skip_firstSwitchtopo(Solver* s){
+void flups_skip_firstSwitchtopo(Solver* s) {
     s->skip_firstSwitchtopo();
 }
 

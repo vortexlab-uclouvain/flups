@@ -59,10 +59,6 @@ for bcs in BCs :
             print("skip kernel 7 and 2dirunbounded... unsupported error due to inherent approximation.")
             continue
 
-        if (kern in ['11','12','13','14'] and bcs[4:6] == ["9","9"]) :
-            print("Mehrstellen stencils not implemented for 2D problems")
-            continue
-
         if(bcs[4:6] == ["9","9"]):
             str_bcs = str(bcs[0]) + "," + str(bcs[1])+ "," + str(bcs[2])+ "," + str(bcs[3])+ "," + str(bcs[4])+ "," + str(bcs[5]) 
             r = subprocess.run(["mpirun"] + ["-np"] + ["2"] + ["./flups_validation_nb"] + ["--np=1,2,1"] + ["--kernel="+str(kern)] + ["--center=" + str(centerType)] + ["--res=16,16,1"] + ["--nres=1"] + ["--bc="+str_bcs], capture_output=True)

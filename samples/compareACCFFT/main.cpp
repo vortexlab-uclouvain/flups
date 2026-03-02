@@ -7,10 +7,9 @@
 #include <iostream>
 
 #include "accfft.h"
-#include "h3lpr/profiler.hpp"
-#include "h3lpr/parser.hpp"
 #include "flups.h"
-
+#include "h3lpr/parser.hpp"
+#include "h3lpr/profiler.hpp"
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
@@ -31,29 +30,28 @@ int main(int argc, char *argv[]) {
     // Get info from the command line
     //--------------------------------------------------------------------------
     H3LPR::Parser parser(argc, (const char **)argv);
-    const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {64,64,64});
+    const auto    arg_nglob = parser.GetValues<int, 3>("--nglob", "the global resolution, will be used for both ACCFFT and FLUPS", {64, 64, 64});
     const auto    arg_nproc = parser.GetValues<int, 3>("--nproc", "the proc distribution, for FLUPS only", {1, 1, 1});
     const auto    arg_dom   = parser.GetValues<double, 3>("--dom", "the size of the domain, must be compatible with nglob", {1.0, 1.0, 1.0});
     const int     n_iter    = parser.GetValue<int>("--niter", "the number of iterations to perform", 20);
     const int     n_warm    = parser.GetValue<int>("--warm", "the number of iterations to perform when warming up", 1);
-    const bool profile = parser.GetFlag("--profile","forward the profiler to flups");
+    const bool    profile   = parser.GetFlag("--profile", "forward the profiler to flups");
     parser.Finalize();
 
     //--------------------------------------------------------------------------
     // Definition of the problem
     //--------------------------------------------------------------------------
-    const int nglob[3] = {arg_nglob[0], arg_nglob[1], arg_nglob[2]};
-    const int nproc[3] = {arg_nproc[0], arg_nproc[1], arg_nproc[2]};
-    const double L[3]  = {arg_dom[0], arg_dom[1], arg_dom[2]};
-    
+    const int    nglob[3] = {arg_nglob[0], arg_nglob[1], arg_nglob[2]};
+    const int    nproc[3] = {arg_nproc[0], arg_nproc[1], arg_nproc[2]};
+    const double L[3]     = {arg_dom[0], arg_dom[1], arg_dom[2]};
 
     // get the grid spacing
     const double h[3] = {L[0] / nglob[0], L[1] / nglob[1], L[2] / nglob[2]};
 
     // get the PER PER PER BC everywhere
     const FLUPS_CenterType center_type[3] = {CELL_CENTER, CELL_CENTER, CELL_CENTER};
-    //const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
-    FLUPS_BoundaryType    *mybc[3][2];
+    // const FLUPS_CenterType center_type[3] = {NODE_CENTER, NODE_CENTER, NODE_CENTER};
+    FLUPS_BoundaryType *mybc[3][2];
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {
             mybc[id][is]    = (FLUPS_BoundaryType *)flups_malloc(sizeof(int) * 1);
@@ -61,7 +59,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-     //..........................................................................
+    //..........................................................................
     // Display
     flups_info(argc, argv);
     if (rank == 0) {
@@ -75,11 +73,9 @@ int main(int argc, char *argv[]) {
         printf("--------------------------------------------------------------\n");
     }
 
-
-
     //--------------------------------------------------------------------------
-    std::string prof_name = "beatme_nglob" + std::to_string(nglob[0]) +"_"+ std::to_string(nglob[1]) + "_" + std::to_string(nglob[2]) + "_nrank" + std::to_string(comm_size);
-    H3LPR::Profiler    prof(prof_name);
+    std::string     prof_name = "beatme_nglob" + std::to_string(nglob[0]) + "_" + std::to_string(nglob[1]) + "_" + std::to_string(nglob[2]) + "_nrank" + std::to_string(comm_size);
+    H3LPR::Profiler prof(prof_name);
 
     //--------------------------------------------------------------------------
     /** - Initialize FLUPS */
@@ -87,17 +83,17 @@ int main(int argc, char *argv[]) {
     if (rank == 0) printf("Initialization of FLUPS\n");
 
     // create a real topology
-    FLUPS_Profiler* flups_prof = (profile)? (FLUPS_Profiler*) &prof : nullptr;
-    FLUPS_Topology *topoTmp = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
-    FLUPS_Solver  *mysolver = flups_init_timed(topoTmp, mybc, h, L, NOD, center_type, flups_prof);
+    FLUPS_Profiler *flups_prof = (profile) ? (FLUPS_Profiler *)&prof : nullptr;
+    FLUPS_Topology *topoTmp    = flups_topo_new(0, 1, nglob, nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Solver   *mysolver   = flups_init_timed(topoTmp, mybc, h, L, NOD, center_type, flups_prof);
 
     // set the CHAT2 green type (even if it's not used)
     flups_set_greenType(mysolver, CHAT_2);
     flups_setup(mysolver, true);
-    double *solFLU = flups_get_innerBuffer(mysolver);  
+    double *solFLU = flups_get_innerBuffer(mysolver);
 
     // to fill the data we use the inner topo
-    const Topology *topoIn =flups_get_innerTopo_physical(mysolver);
+    const Topology *topoIn = flups_get_innerTopo_physical(mysolver);
     // instruct the solver to skip the first ST
     flups_skip_firstSwitchtopo(mysolver);
 
@@ -115,18 +111,18 @@ int main(int argc, char *argv[]) {
 
     //..........................................................................
     // set some straightforward data
-    int start_id[3]; 
+    int start_id[3];
     flups_topo_get_istartGlob(topoIn, start_id);
     int topo_nmem[3] = {flups_topo_get_nmem(topoIn, 0), flups_topo_get_nmem(topoIn, 1), flups_topo_get_nmem(topoIn, 2)};
 
     // set a simple expression
     double val = 0.0;
-    for (int i2 = 0; i2 < flups_topo_get_nloc(topoIn, 2); ++i2){
-	for(int i1 = 0; i1 < flups_topo_get_nloc(topoIn, 1); ++ i1){
-	      for(int i0 = 0; i0 < flups_topo_get_nloc(topoIn, 0); ++i0){
-                //double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
-                //double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
-                //double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topoIn, 2); ++i2) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topoIn, 1); ++i1) {
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topoIn, 0); ++i0) {
+                // double x   = 2.0 * M_PI / nglob[0] * (i0 + topoIn->cmpt_start_id(0));
+                // double y   = 2.0 * M_PI / nglob[1] * (i1 + topoIn->cmpt_start_id(1));
+                // double z   = 2.0 * M_PI / nglob[2] * (i2 + topoIn->cmpt_start_id(2));
                 double x   = 2.0 * M_PI / nglob[0] * (i0 + start_id[0]);
                 double y   = 2.0 * M_PI / nglob[1] * (i1 + start_id[1]);
                 double z   = 2.0 * M_PI / nglob[2] * (i2 + start_id[2]);
@@ -147,9 +143,9 @@ int main(int argc, char *argv[]) {
     accfft_create_comm(MPI_COMM_WORLD, c_dims, &c_comm);
 
     // let ACCFFT decide on the topology choice, pencil in Z, as always
-    int    isize[3], osize[3], istart[3], ostart[3];
+    int isize[3], osize[3], istart[3], ostart[3];
 
-    int n_acc[3] = {nglob[2],nglob[1],nglob[0]};
+    int    n_acc[3]  = {nglob[2], nglob[1], nglob[0]};
     size_t alloc_max = accfft_local_size_dft_r2c(n_acc, isize, istart, osize, ostart, c_comm);
 
     double *data_acc = (double *)accfft_alloc(alloc_max);
@@ -268,7 +264,7 @@ int main(int argc, char *argv[]) {
     // --- FLUPS -------
 
     // force the call to destructor of the solver to cleanup the comm patterns
-    flups_cleanup(mysolver);
+    flups_cleanup_solver(mysolver);
     flups_topo_free(topoTmp);
 
     // free the bcs
@@ -278,6 +274,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    flups_cleanup_backend();
     MPI_Finalize();
 }
 

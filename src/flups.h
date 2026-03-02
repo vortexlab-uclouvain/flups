@@ -378,8 +378,37 @@ FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], 
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
+ * @warning this function free all the data of the backend (fftw, cufft,...). If you use multiple solver, you should **not** call this function 
+ * @warning this function is kept for backward compatibility
  */
 void flups_cleanup(FLUPS_Solver* s);
+
+/**
+ * @brief must be called before execution terminates as it frees the memory used by the solver
+ *
+ * @param s
+ * @warning If you use multiple solver, you should call this function for each solver before cleaning up the backend
+ */
+void flups_cleanup_solver(FLUPS_Solver* s);
+
+/**
+ * @brief Free the memomry of the solver and the data employed by by the back end (fftw, cufft,...).
+ *
+ * @warning this function free all the data of the back end (fftw, cufft,...).
+ *          If you use multiple solver, you should  call this function only for the last solver
+ * @param s
+ */
+void flups_cleanup_all(FLUPS_Solver* s);
+
+/**
+ * @brief Free data employed by the backend (fftw,...) 
+ *
+ * @warning this function free all the data of fftw. If you use multiple solver, this function
+ * should be called after all the solver have freed
+ *
+ */
+void flups_cleanup_backend(); 
+
 
 /**
  * @brief sets the type of the Green's function used by the solver
@@ -390,6 +419,14 @@ void flups_cleanup(FLUPS_Solver* s);
  * @param type the type of the solver (CHAT2 by default)
  */
 void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
+
+/**
+ * @brief sets the stream to be used by FLUPS **only for GPU backends**
+ *
+ * @param s
+ * @param stream
+ */
+void flups_set_stream(FLUPS_Solver* s, void* stream);
 
 /**
  * @brief setup the solver and do the memory allocation

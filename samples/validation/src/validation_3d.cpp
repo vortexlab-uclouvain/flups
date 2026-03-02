@@ -4,10 +4,10 @@
  *      See LICENSE file in top-level directory
  */
 
-#include <unistd.h>
-#include <limits.h>
-
 #include "validation_3d.hpp"
+
+#include <limits.h>
+#include <unistd.h>
 
 #include "omp.h"
 
@@ -26,31 +26,31 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
  * @param nSolve number of times we call the same solver (for timing)
  */
 void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve, const std::string output_dir) {
-    int rank, comm_size;
+    int      rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
-    const int *   nproc  = myCase.nproc;
-    const double *L      = myCase.L;
+    const int    *nproc = myCase.nproc;
+    const double *L     = myCase.L;
 
-    const bool is_cell = myCase.center_type[0] == CELL_CENTER; 
-    const double fact = (double) (!is_cell);
+    const bool   is_cell = myCase.center_type[0] == CELL_CENTER;
+    const double fact    = (double)(!is_cell);
 
-    const int nglob[3] = {myCase.nglob[0] + (int)fact, myCase.nglob[1] + (int)fact,
+    const int    nglob[3] = {myCase.nglob[0] + (int)fact, myCase.nglob[1] + (int)fact,
                           (myCase.nglob[2] == 1) ? 1 : myCase.nglob[2] + (int)fact};
-    const double h[3] = {L[0] / (nglob[0] - fact), L[1] / (nglob[1] - fact),
+    const double h[3]     = {L[0] / (nglob[0] - fact), L[1] / (nglob[1] - fact),
                          nglob[2] == 1 ? 1 : L[2] / (nglob[2] - fact)};
 
     FLUPS_CenterType center_type[3];
     for (int i = 0; i < 3; i++) {
-            center_type[i] = myCase.center_type[i];
+        center_type[i] = myCase.center_type[i];
     }
 
-    FLUPS_BoundaryType* mybc[3][2];
-    for(int id=0; id<3; id++){
-        for(int is=0; is<2; is++){
-            mybc[id][is] = (FLUPS_BoundaryType*) flups_malloc(sizeof(int)*lda);
+    FLUPS_BoundaryType *mybc[3][2];
+    for (int id = 0; id < 3; id++) {
+        for (int is = 0; is < 2; is++) {
+            mybc[id][is] = (FLUPS_BoundaryType *)flups_malloc(sizeof(int) * lda);
         }
     }
 
@@ -81,9 +81,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     //-------------------------------------------------------------------------
     std::string     name = "validation_nx" + std::to_string((int)(nglob[0])) + "_ny" + std::to_string((int)(nglob[1])) + "_nz" + std::to_string((int)(nglob[2])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
-    
+
     m_profStart(prof, "Validation--Init-Flups");
-    FLUPS_Solver *  mysolver;
+    FLUPS_Solver *mysolver;
     mysolver = flups_init_timed(topo, mybc, h, L, NOD, center_type, prof);
 
     flups_set_greenType(mysolver, typeGreen);
@@ -94,7 +94,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     MPI_Comm_rank(comm, &rank);
     m_profStop(prof, "Validation--Init-Flups");
 
-    //flups_switchtopo_info(mysolver);
+    // flups_switchtopo_info(mysolver);
 
     //-------------------------------------------------------------------------
     /** - allocate rhs and solution */
@@ -126,19 +126,19 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
      */
     for (int lia = 0; lia < lda; lia++) {
         for (int j2 = -1; j2 < 2; j2++) {
-            if (j2 != 0 && mybc[2][(j2 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+            if (j2 != 0 && mybc[2][(j2 + 1) / 2] == UNB) continue;  // skip unbounded dirs
             for (int j1 = -1; j1 < 2; j1++) {
-                if (j1 != 0 && mybc[1][(j1 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+                if (j1 != 0 && mybc[1][(j1 + 1) / 2] == UNB) continue;  // skip unbounded dirs
                 for (int j0 = -1; j0 < 2; j0++) {
-                    if (j0 != 0 && mybc[0][(j0 + 1) / 2] == UNB) continue;  //skip unbounded dirs
+                    if (j0 != 0 && mybc[0][(j0 + 1) / 2] == UNB) continue;  // skip unbounded dirs
 
                     double sign = 1.0;
                     double centerPos[3];
-                    double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  //inner left corner of the current block i'm looking at
+                    double orig[3] = {j0 * L[0], j1 * L[1], j2 * L[2]};  // inner left corner of the current block i'm looking at
 
-                    sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                    sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[1][(j1 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
-                    sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[2][(j2 + 1) / 2] == ODD);  //multiply by -1 if the symm is odd
+                    sign *= j0 == 0 ? 1.0 : 1 - 2 * (mybc[0][(j0 + 1) / 2] == ODD);  // multiply by -1 if the symm is odd
+                    sign *= j1 == 0 ? 1.0 : 1 - 2 * (mybc[1][(j1 + 1) / 2] == ODD);  // multiply by -1 if the symm is odd
+                    sign *= j2 == 0 ? 1.0 : 1 - 2 * (mybc[2][(j2 + 1) / 2] == ODD);  // multiply by -1 if the symm is odd
 
                     centerPos[0] = orig[0] + ((j0 != 0) && (mybc[0][(j0 + 1) / 2] != PER) ? (1.0 - center[0]) * L[0] : (center[0] * L[0]));
                     centerPos[1] = orig[1] + ((j1 != 0) && (mybc[1][(j1 + 1) / 2] != PER) ? (1.0 - center[1]) * L[1] : (center[1] * L[1]));
@@ -278,13 +278,13 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             }
         }
 
-        //USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
-        // manuRHS[0] = &fZero;
-        // manuSol[0] = &fCst;
-        // manuRHS[1] = &fZero;
-        // manuSol[1] = &fCst;
-        // manuRHS[2] = &d2dx2_fUnbSpietz;
-        // manuSol[2] = &fUnbSpietz;
+        // USE THE FOLLOWING TO TEST THE K=0 PART OF THE 1DIRUNBOUNDED KERNEL
+        //  manuRHS[0] = &fZero;
+        //  manuSol[0] = &fCst;
+        //  manuRHS[1] = &fZero;
+        //  manuSol[1] = &fCst;
+        //  manuRHS[2] = &d2dx2_fUnbSpietz;
+        //  manuSol[2] = &fUnbSpietz;
 
         {
             // Obtaining the reference sol and rhs
@@ -298,32 +298,32 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
             for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
                 for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
                     for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
-                        const size_t id   = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
-                        const double shift = is_cell ? 0.5: 0.0;
-                        const double x[3] = {(istart[ax0] + i0 + shift) * h[ax0],
-                                             (istart[ax1] + i1 + shift) * h[ax1],
-                                             (istart[ax2] + i2 + shift) * h[ax2]};
+                        const size_t id    = flups_locID(ax0, i0, i1, i2, lia, ax0, nmem, 1);
+                        const double shift = is_cell ? 0.5 : 0.0;
+                        const double x[3]  = {(istart[ax0] + i0 + shift) * h[ax0],
+                                              (istart[ax1] + i1 + shift) * h[ax1],
+                                              (istart[ax2] + i2 + shift) * h[ax2]};
 
                         // const double y[3] = {0.,(x[1]-.5)/params.sigma[1],(x[2]-.5)/params.sigma[2] };
                         // const double rsq = y[1]*y[1] + y[2]*y[2] ; //((x[1]-.5)*(x[1]-.5)+(x[2]-.5)*(x[2]-.5)) / .25;
                         // const double r = sqrt(rsq);
 
-                        //CST(z):
-                        // sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
-                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        // CST(z):
+                        //  sol[id] = fabs(rsq)>=1. ?  0.0 : exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        //  rhs[id] = fab s(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) ;
 
-                        //SIN(z):
-                        // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
-                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        // SIN(z):
+                        //  sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (sin(2. * M_PI * x[0] / L[0]));
+                        //  rhs[id] = fab s(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (sin(2.*M_PI*x[0] /L[0])) ;
-                        // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        //  rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
 
-                        //CST(z)+sin(z):
-                        // sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
-                        // rhs[id] = fabs(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
+                        // CST(z)+sin(z):
+                        //  sol[id] = fabs(rsq) >= 1. ? 0.0 : exp(c_C * (1. - 1. / (1. - rsq))) * (1. + sin(2. * M_PI * x[0] / L[0]));
+                        //  rhs[id] = fab s(rsq) >= 1. ? 0.0 : 4.*c_C* exp(c_C * (1. - 1. / (1. - rsq))) / (pow(rsq - 1., 4) * params.sigma[id] * params.sigma[id]) * \
                         //              (c_C * rsq - 1. + pow(y[1],4) + pow(y[2],4) + 2.* y[1]*y[1]*y[2]*y[2]) * (1.+sin(2.*M_PI*x[0] /L[0])) ;
-                        // rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
+                        //  rhs[id] += fabs(rsq) >= 1. ? 0.0 : -sin(2*M_PI*x[0] /L[0]) * (2. * M_PI / L[0])* (2. * M_PI / L[0])  * exp(c_C * (1. - 1. / (1. - rsq))) ;
 
                         for (int dir = 0; dir < 3; dir++) {
                             const int dir2 = (dir + 1) % 3;
@@ -341,7 +341,6 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 #endif
     m_profStop(prof, "Validation--Init-RHS");
 
-
 #ifdef DUMP_DBG
     char msg[512];
     // write the source term and the solution
@@ -351,17 +350,16 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_hdf5_dump(topo, msg, sol);
 #endif
 
-
     //-------------------------------------------------------------------------
     /** - Warm up */
     //-------------------------------------------------------------------------
     for (int is = 0; is < 5; is++) {
         MPI_Barrier(MPI_COMM_WORLD);
         m_profStart(prof, "Validation--Warm-up");
-        flups_solve(mysolver, field, rhs,STD);
+        flups_solve(mysolver, field, rhs, STD);
         m_profStop(prof, "Validation--Warm-up");
         MPI_Barrier(MPI_COMM_WORLD);
-    }	
+    }
 
     //-------------------------------------------------------------------------
     /** - solve the equations */
@@ -369,13 +367,12 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     for (int is = 0; is < nSolve; is++) {
         MPI_Barrier(MPI_COMM_WORLD);
         m_profStart(prof, "Validation--Solve");
-        flups_solve(mysolver, field, rhs,STD);
+        flups_solve(mysolver, field, rhs, STD);
         m_profStop(prof, "Validation--Solve");
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
     flups_profiler_disp(prof);
-
 
 #ifdef DUMP_DBG
     // write the source term and the solution
@@ -396,7 +393,7 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     std::memset(err2, 0, sizeof(double) * lda);
     std::memset(erri, 0, sizeof(double) * lda);
 
-    //determine the volume associated to a mesh
+    // determine the volume associated to a mesh
     double vol = 1.0;
     for (int id = 0; id < 3; id++) {
         if (mybc[id][0][0] != NONE && mybc[id][1][0] != NONE) {
@@ -430,12 +427,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         err2[i] = sqrt(err2[i]);
     }
 
-    
-    
-    string folder = output_dir + "/data";
-    string ct_name = is_cell ? "CellCenter" : "NodeCenter"; 
+    string folder  = output_dir + "/data";
+    string ct_name = is_cell ? "CellCenter" : "NodeCenter";
     char   filename[PATH_MAX];
-    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(),  __func__, ct_name.c_str(),  mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
+    sprintf(filename, "%s/%s_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(), __func__, ct_name.c_str(), mybc[0][0][0], mybc[0][1][0], mybc[1][0][0], mybc[1][1][0], mybc[2][0][0], mybc[2][1][0], typeGreen);
 
     if (rank == 0) {
         struct stat st_output = {0};
@@ -443,9 +438,9 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         if (stat(output_dir.c_str(), &st_output) == -1) {
             mkdir(output_dir.c_str(), 0770);
         }
-        
+
         if (stat(folder.c_str(), &st_folder) == -1) {
-                mkdir(folder.c_str(), 0770);
+            mkdir(folder.c_str(), 0770);
         }
 
         FILE *myfile = fopen(filename, "a+");
@@ -478,7 +473,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_free(sol);
     flups_free(rhs);
     flups_free(field);
-    flups_cleanup(mysolver);
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
     flups_profiler_free(prof);
     flups_topo_free(topo);
 

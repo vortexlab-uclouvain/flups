@@ -61,8 +61,10 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
     } else if (greendim == 2) {
         (*N) = 32;
         datasize = (*N) * (*N);
-        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen || MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
-            FLUPS_CHECK(false, "MEHR kernels not implemented in 2D");
+        if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_4L6L_2d_%d.ker", path, (*N));
+        } else if (MEHR_4F == typeGreen || MEHR_6F == typeGreen) {
+            sprintf(lgfname, "%s/MEHR_%dF_2d_%d.ker", path, order, (*N));
         } else {
             sprintf(lgfname, "%s/LGF_%d_2d_%d.ker", path, order, (*N));
         }
