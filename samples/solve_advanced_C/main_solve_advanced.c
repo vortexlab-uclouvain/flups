@@ -224,8 +224,8 @@ int main(int argc, char *argv[]) {
     flups_free(rhsFLU);
 
     flups_topo_free(topoIn);
-    flups_cleanup(mysolver);
-    flups_cleanup_fftw();
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
 
     for (int id = 0; id < 3; id++) {
         for (int is = 0; is < 2; is++) {

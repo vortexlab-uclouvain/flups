@@ -588,8 +588,8 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     flups_free(rhs);
     flups_free(field);
     flups_free(error);
-    flups_cleanup(mysolver);
-    flups_cleanup_fftw();
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
     flups_topo_free(topo);
 
     for (int id = 0; id < 3; id++) {
