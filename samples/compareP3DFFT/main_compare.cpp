@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
         }
     }
     Cp3dfft_clean();
-    flups_cleanup_fftw();
+    flups_cleanup_backend();
 
     MPI_Finalize();
 }

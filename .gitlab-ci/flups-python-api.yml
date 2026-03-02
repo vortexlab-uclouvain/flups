@@ -1,0 +1,15 @@
+python_api:
+  stage: python_api
+  script:
+    - export ARCH_FILE=make_arch/make.docker_valid_opt
+    - make python -j4
+    - export FLUPS_LIB_PATH=$PWD/lib
+    - export LD_LIBRARY_PATH=$FLUPS_LIB_PATH:$LD_LIBRARY_PATH
+    # Install Python package
+    - cd python_api
+    - pip3 install -e .
+    # Run Python API tests
+    - python3 tests/validation_simple.py
+    - mpirun -np 2 python3 tests/mpi_validation_simple.py
+    - mpirun -np 4 python3 tests/mpi_validation_simple.py
+

@@ -147,8 +147,8 @@ int main(int argc, char *argv[]) {
     flups_free(rhs);
     flups_free(field);
     flups_topo_free(topo);
-    flups_cleanup(mysolver);
-    flups_cleanup_fftw();
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
     flups_profiler_free(prof);
 
     for (int id = 0; id < 3; id++) {
