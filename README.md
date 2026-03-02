@@ -227,7 +227,7 @@ flups_solve(mysolver,rhs, rhs);
 Then, destroy the solver and the created topology
 ```
 flups_cleanup(mysolver); // destroy the solver
-flups_cleanup_fftw();    // cleanup the fftw stuff
+flups_cleanup_backend();    // cleanup the backend (fftw, cufft, ...) stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {
@@ -276,6 +276,20 @@ For 1.5Go, max 168
 
 :warning: FLUPS was nerver tested above 1024^3 unknowns per core.
 
+
+## Python API
+
+The **PyFLUPS** module provides an object‑oriented interface to FLUPS (MPI + NumPy), with support for boundary conditions, Green’s kernels, and standard/rotational solvers.
+
+**Prerequisites**: FLUPS built and installed, Python ≥ 3.7, `numpy`, `mpi4py`.
+
+**Quick install** (from the `python_api` folder):
+- `pip install -e .`
+- Set `FLUPS_LIB_PATH` to the FLUPS `lib` folder (e.g., `export FLUPS_LIB_PATH=/path/to/flups/lib`).
+
+**Usage**: import `pyflups`, create a `Topology`, then a `Solver`, configure the kernel (e.g., `GreenType`), and call `solve()`.
+
+For a minimal example and full documentation, see [python_api/README.md](python_api/README.md) and scripts in [python_api/examples](python_api/examples).
 
 
 ## Implementation details and developers guide

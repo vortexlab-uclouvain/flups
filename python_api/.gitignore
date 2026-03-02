@@ -1,0 +1,41 @@
+# Ignore Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.h5
+*.hdf5
+*.xmf
+data/
+
+# Compiled libraries
+*.so
+*.dylib
+*.dll
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
