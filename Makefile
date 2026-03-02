@@ -90,6 +90,17 @@ H3LPR_LIBNAME ?= -lh3lpr
 INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
+#---- ACCFFT
+ACCFFT_INC ?= $(ACCFFT_DIR)/include
+ACCFFT_LIB ?= $(ACCFFT_DIR)/lib
+ACCFFT_LIBNAME ?= -laccfft
+
+# Only enable if ACCFFT_DIR is set by the user (or any ACCFFT var you choose)
+ifdef ACCFFT_DIR
+  INC += -I$(ACCFFT_INC)
+  LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
+endif
+
 #-----------------------------------------------------------------------------
 # LGF SPECIAL CASE
 # by default the LGF kernel data is installed in the include directory
@@ -145,6 +156,8 @@ validation: install_static
 
 # for the validation, do a static lib
 test : install_static
+
+python : install_dynamic
 
 # compile static and dynamic lib
 all: lib_static lib_dynamic
@@ -214,6 +227,27 @@ install_static: lib_static
 	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
 	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@cp $(API) $(PREFIX)/include
+	@cp $(LGF_DATA) $(PREFIX)/include
+
+# macOS specific: create a unified dynamic library from static libraries
+lib_macos: $(TARGET_LIB_NB).a
+	@echo "Creating unified macOS dynamic library..."
+	$(CXX) -dynamiclib -o $(PREFIX)/lib/libflups.dylib \
+		-Wl,-force_load,$(TARGET_LIB_A2A).a \
+		-L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB) \
+		-L$(HDF5_LIB) $(HDF5_LIBNAME) -Wl,-rpath,$(HDF5_LIB) \
+		-L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB) \
+		$(LDFLAGS) \
+		-install_name @rpath/libflups.dylib
+
+install_macos: lib_static lib_macos
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp $(TARGET_LIB_ISR).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_A2A).a $(PREFIX)/lib
+	@cp $(TARGET_LIB_NB).a $(PREFIX)/lib
+	@echo "macOS unified dynamic library created: $(PREFIX)/lib/libflups.dylib"
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 

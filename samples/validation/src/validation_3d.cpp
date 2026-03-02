@@ -473,8 +473,8 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
     flups_free(sol);
     flups_free(rhs);
     flups_free(field);
-    flups_cleanup(mysolver);
-    flups_cleanup_fftw();
+    flups_cleanup_solver(mysolver);
+    flups_cleanup_backend();
     flups_profiler_free(prof);
     flups_topo_free(topo);
 
