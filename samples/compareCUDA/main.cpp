@@ -1,10 +1,14 @@
+#include <cassert>
 #include <cmath>
 #include <iostream>
 
 #include "flups.h"
 #include "h3lpr/parser.hpp"
 #include "h3lpr/profiler.hpp"
+
+#ifdef HAVE_HEFFTE
 #include "heffte.h"
+#endif
 
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
@@ -164,6 +168,7 @@ int main(int argc, char *argv[]) {
         flups_cleanup_backend();
     }
 
+#ifdef HAVE_HEFFTE
     //--------------------------------------------------------------------------
     /** - Benchmark HEFFTE */
     //--------------------------------------------------------------------------
@@ -241,6 +246,7 @@ int main(int argc, char *argv[]) {
         MPI_Reduce(&err_loc, &err_glob, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
         if (0 == rank) printf("HeFFTE error = %e\n", err_glob);
     }
+#endif
 
     prof.Disp();
     MPI_Finalize();

@@ -1,0 +1,15 @@
+FLUPS 
+- commit: 4a87f0e
+- comm_world size: 1
+- defines:
+	FLUPS_ALIGNMENT = 16
+	FLUPS_MPI_AGGRESSIVE ? yes
+	NDEBUG ? no
+	FLUPS_NEW_BALANCE ? yes
+	FLUPS_WISDOM_PATH = none
+	MPI_40 ? no
+	HDF5 ? no
+	Priority list order ? yes
+	Rolling rank ? yes
+	MPI ALLOC ? yes
+- argument list:
