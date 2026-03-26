@@ -75,12 +75,21 @@ INC += -I$(H3LPR_INC)
 LIB += -L$(H3LPR_LIB) $(H3LPR_LIBNAME) -Wl,-rpath,$(H3LPR_LIB)
 
 #---- HeFFTE
-ifneq (,$(findstring -DHAVE_HEFFTE,$(CXXFLAGS)))
+ifneq (,$(findstring -DHAVE_HEFFTE,$(OPTS)))
 	HEFFTE_INC ?= /usr/include
 	HEFFTE_LIB ?= /usr/lib
 	HEFFTE_LIBNAME ?= -lheffte
 	INC += -I$(HEFFTE_INC)
 	LIB += -L$(HEFFTE_LIB) $(HEFFTE_LIBNAME) -Wl,-rpath,$(HEFFTE_LIB)
+endif
+
+# --- CUFFTMP
+ifneq (,$(findstring -DHAVE_CUFFTMP,$(OPTS)))
+	CUFFTMP_INC ?= /usr/include
+	CUFFTMP_LIB ?= /usr/lib
+	CUFFTMP_LIBNAME ?= -lcufftMp
+	INC += -I$(CUFFTMP_INC)
+	LIB += -L$(CUFFTMP_LIB) $(CUFFTMP_LIBNAME) -Wl,-rpath,$(CUFFTMP_LIB)
 endif
 
 #-----------------------------------------------------------------------------

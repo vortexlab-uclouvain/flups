@@ -10,6 +10,10 @@
 #include "heffte.h"
 #endif
 
+#ifdef HAVE_CUFFTMP
+#include "cufftMp.h"
+#endif
+
 int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     // Initialize MPI
@@ -142,6 +146,7 @@ int main(int argc, char *argv[]) {
             m_profStart(&prof, "flups");
             m_profStart(&prof, "flups - forward");
             flups_do_FFT(mysolver, solFLU, FLUPS_FORWARD);
+            cudaDeviceSynchronize();
             m_profStop(&prof, "flups - forward");
             m_profStop(&prof, "flups");
 
@@ -150,6 +155,7 @@ int main(int argc, char *argv[]) {
             m_profStart(&prof, "flups");
             m_profStart(&prof, "flups - backward");
             flups_do_FFT(mysolver, solFLU, FLUPS_BACKWARD);
+            cudaDeviceSynchronize();
             m_profStop(&prof, "flups - backward");
             m_profStop(&prof, "flups");
         }
@@ -166,6 +172,83 @@ int main(int argc, char *argv[]) {
             }
         }
         flups_cleanup_backend();
+    }
+
+    //--------------------------------------------------------------------------
+    /** - Benchmark cuFFTMp */
+    //--------------------------------------------------------------------------
+    {
+        //--------------------------------------------------------------------------
+        /** - Initialize cuFFTMp */
+        //--------------------------------------------------------------------------
+        if (rank == 0) printf("Initialization of cuFFTMp\n");
+
+        int             n[3]            = {nglob[0], nglob[1], nglob[2]};
+        const long long stride[3]       = {1, 1, 1};
+        const long long input_start[3]  = {topo_start[0], topo_start[1], topo_start[2]};
+        const long long input_end[3]    = {topo_end[0], topo_end[1], topo_end[2]};
+        const long long output_start[3] = {spectral_start[0], spectral_start[1], spectral_start[2]};
+        const long long output_end[3]   = {spectral_end[0], spectral_end[1], spectral_end[2]};
+
+        // Create plan
+        cufftHandle plan_fwd, plan_bwd;
+        cufftCreate(&plan_fwd);
+        cufftCreate(&plan_bwd);
+        size_t workspace_fwd, workspace_bwd;
+
+        cufftMpMakePlanDecomposition(
+            plan_fwd, 3, n,
+            input_start, input_end, stride,
+            output_start, output_end, stride,
+            CUFFT_R2C, &comm, CUFFT_COMM_MPI, &workspace_fwd);
+        cufftMpMakePlanDecomposition(
+            plan_bwd, 3, n,
+            output_start, output_end, stride,
+            input_start, input_end, stride,
+            CUFFT_C2R, &comm, CUFFT_COMM_MPI, &workspace_bwd);
+
+        // Allocate multi-GPU descriptor
+        cudaLibXtDesc *desc_fwd, *desc_bwd;
+        cufftXtMalloc(plan_fwd, &desc_fwd, CUFFT_XT_FORMAT_INPLACE);
+        cufftXtMalloc(plan_bwd, &desc_bwd, CUFFT_XT_FORMAT_INPLACE);
+
+        //--------------------------------------------------------------------------
+        /** - warm up */
+        //--------------------------------------------------------------------------
+        for (int iter = 0; iter < n_warm; ++iter) {
+            cufftXtExecDescriptor(plan_fwd, desc_fwd, desc_fwd, CUFFT_FORWARD);
+            cufftXtExecDescriptor(plan_bwd, desc_bwd, desc_bwd, CUFFT_INVERSE);
+        }
+
+        //--------------------------------------------------------------------------
+        /** - Proceed to the solve in place */
+        //--------------------------------------------------------------------------
+        m_profStart(&prof, "beatme");
+        for (int iter = 0; iter < n_iter; iter++) {
+            MPI_Barrier(comm);
+            m_profStart(&prof, "cufftMp");
+            m_profStart(&prof, "cufftMp - forward");
+            cufftXtExecDescriptor(plan_fwd, desc_fwd, desc_fwd, CUFFT_FORWARD);
+            m_profStop(&prof, "cufftMp - forward");
+            m_profStop(&prof, "cufftMp");
+
+            MPI_Barrier(comm);
+
+            m_profStart(&prof, "cufftMp");
+            m_profStart(&prof, "cufftMp - backward");
+            cufftXtExecDescriptor(plan_bwd, desc_bwd, desc_bwd, CUFFT_INVERSE);
+            m_profStop(&prof, "cufftMp - backward");
+            m_profStop(&prof, "cufftMp");
+        }
+        m_profStop(&prof, "beatme");
+
+        //--------------------------------------------------------------------------
+        /** - cleanup */
+        //-------------------------------------------------------------------------
+        cufftXtFree(desc_fwd);
+        cufftXtFree(desc_bwd);
+        cufftDestroy(plan_fwd);
+        cufftDestroy(plan_bwd);
     }
 
 #ifdef HAVE_HEFFTE
