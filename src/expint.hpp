@@ -30,7 +30,7 @@ m_device static double expint(const int n, const double x);
 
 m_device static double expint_ei(double x) {
     double value;
- 
+
     if (x >= -4. && x <= 4.)
         value = expint1(x);
     else if (x > 4.)
@@ -173,13 +173,13 @@ m_device static double expint2(double x) {
 /*                      double expint()                              */
 /*                                                                    */
 /**********************************************************************/
-// Utility for calculating the exponential integral of order n  from -\infty to x. 
+// Utility for calculating the exponential integral of order n  from -\infty to x.
 // Evaluates the exponential integral E_n(x)
 // This snippets of code is taken from the book Numerical Recipies, third.
 //
-// Here MAXIT is the maximum allowed number of iterations; 
-// c_gamma is Euler’s constant \gamma; 
-// EPS is the desired relative error, not smaller than the machine precision; 
+// Here MAXIT is the maximum allowed number of iterations;
+// c_gamma is Euler’s constant \gamma;
+// EPS is the desired relative error, not smaller than the machine precision;
 // BIG is a number near the largest representable floating-point number.
 /**********************************************************************/
 m_constant static int    MAXIT = 1000;

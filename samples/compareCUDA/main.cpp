@@ -1,5 +1,7 @@
 #include <cassert>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 
 #include "flups.h"
@@ -18,14 +20,10 @@ int main(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     // Initialize MPI
     //-------------------------------------------------------------------------
+    MPI_Init(&argc, &argv);
+
     int      rank, comm_size;
     MPI_Comm comm = MPI_COMM_WORLD;
-
-    int provided;
-    // set MPI_THREAD_FUNNELED or MPI_THREAD_SERIALIZED
-    int requested = MPI_THREAD_FUNNELED;
-    MPI_Init_thread(&argc, &argv, requested, &provided);
-
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
 
@@ -67,6 +65,8 @@ int main(int argc, char *argv[]) {
     int topo_end[3];
     int spectral_start[3];
     int spectral_end[3];
+    int topo_nloc[3];
+    int spectral_nloc[3];
 
     //..........................................................................
     // Display
@@ -114,19 +114,22 @@ int main(int argc, char *argv[]) {
 
         // Get some info from the topology (everyone is going to use this)
         flups_topo_get_istartGlob(topoIn, topo_start);
-        const int topo_nmem[3] = {flups_topo_get_nmem(topoIn, 0), flups_topo_get_nmem(topoIn, 1), flups_topo_get_nmem(topoIn, 2)};
-        const int topo_nloc[3] = {flups_topo_get_nloc(topoIn, 0), flups_topo_get_nloc(topoIn, 1), flups_topo_get_nloc(topoIn, 2)};
-        topo_end[0]            = topo_start[0] + topo_nloc[0];
-        topo_end[1]            = topo_start[1] + topo_nloc[1];
-        topo_end[2]            = topo_start[2] + topo_nloc[2];
+        topo_nloc[0] = flups_topo_get_nloc(topoIn, 0);
+        topo_nloc[1] = flups_topo_get_nloc(topoIn, 1);
+        topo_nloc[2] = flups_topo_get_nloc(topoIn, 2);
+        topo_end[0]  = topo_start[0] + topo_nloc[0];
+        topo_end[1]  = topo_start[1] + topo_nloc[1];
+        topo_end[2]  = topo_start[2] + topo_nloc[2];
 
         // Get some info on the spectral topology
         FLUPS_Topology *topoSpec = flups_get_innerTopo_spectral(mysolver);
         flups_topo_get_istartGlob(topoSpec, spectral_start);
-        const int spectral_nloc[3] = {flups_topo_get_nloc(topoSpec, 0), flups_topo_get_nloc(topoSpec, 1), flups_topo_get_nloc(topoSpec, 2)};
-        spectral_end[0]            = spectral_start[0] + spectral_nloc[0];
-        spectral_end[1]            = spectral_start[1] + spectral_nloc[1];
-        spectral_end[2]            = spectral_start[2] + spectral_nloc[2];
+        spectral_nloc[0] = flups_topo_get_nloc(topoSpec, 0);
+        spectral_nloc[1] = flups_topo_get_nloc(topoSpec, 1);
+        spectral_nloc[2] = flups_topo_get_nloc(topoSpec, 2);
+        spectral_end[0]  = spectral_start[0] + spectral_nloc[0];
+        spectral_end[1]  = spectral_start[1] + spectral_nloc[1];
+        spectral_end[2]  = spectral_start[2] + spectral_nloc[2];
 
         //--------------------------------------------------------------------------
         /** - warm up */
@@ -177,47 +180,102 @@ int main(int argc, char *argv[]) {
     //--------------------------------------------------------------------------
     /** - Benchmark cuFFTMp */
     //--------------------------------------------------------------------------
+#define CUFFT_CHECK(call)                                                                               \
+    do {                                                                                                \
+        cufftResult result = (call);                                                                    \
+        if (result != CUFFT_SUCCESS) {                                                                  \
+            int _rank;                                                                                  \
+            MPI_Comm_rank(MPI_COMM_WORLD, &_rank);                                                      \
+            fprintf(stderr, "[rank %d] cuFFT error: %d at %s:%d\n", _rank, result, __FILE__, __LINE__); \
+            MPI_Abort(MPI_COMM_WORLD, 1);                                                               \
+        }                                                                                               \
+    } while (0)
+
     {
         //--------------------------------------------------------------------------
         /** - Initialize cuFFTMp */
         //--------------------------------------------------------------------------
         if (rank == 0) printf("Initialization of cuFFTMp\n");
 
-        int             n[3]            = {nglob[0], nglob[1], nglob[2]};
-        const long long stride[3]       = {1, 1, 1};
-        const long long input_start[3]  = {topo_start[0], topo_start[1], topo_start[2]};
-        const long long input_end[3]    = {topo_end[0], topo_end[1], topo_end[2]};
-        const long long output_start[3] = {spectral_start[0], spectral_start[1], spectral_start[2]};
-        const long long output_end[3]   = {spectral_end[0], spectral_end[1], spectral_end[2]};
+        int nx             = nglob[0];
+        int ny             = nglob[1];
+        int nz             = nglob[2];
+        int n[3]           = {nx, ny, nz};
+        int nz_real        = nz;
+        int nz_complex     = (nz / 2 + 1);
+        int nz_real_padded = 2 * nz_complex;
+
+        // helper stuff
+        const int nranks1d = std::sqrt(comm_size);
+        assert(nranks1d * nranks1d == comm_size);
+        const auto displacement = [](int length, int rank, int size) {
+            int ranks_cutoff = length % size;
+            return (rank < ranks_cutoff ? rank * (length / size + 1) : ranks_cutoff * (length / size + 1) + (rank - ranks_cutoff) * (length / size));
+        };
+
+        // get the disctribution (see cufftMp sample: https://github.com/NVIDIA/CUDALibrarySamples/blob/main/cuFFTMp/samples/r2c_c2r_pencils_cufftMpMakePlan/cufftmp_r2c_c2r_pencils_cufftMpMakePlan.cu)
+        long long input_start[3], input_end[3], output_start[3], output_end[3], input_stride[3], output_stride[3];
+        for (int i = 0; i < nranks1d; i++) {
+            for (int j = 0; j < nranks1d; j++) {
+                // skip ranks that don't belong to this pencil
+                if (rank != i * nranks1d + j) continue;
+
+                // input
+                input_start[0] = displacement(nx, i, nranks1d);
+                input_start[1] = displacement(ny, j, nranks1d);
+                input_start[2] = 0;
+
+                input_end[0] = displacement(nx, i + 1, nranks1d);
+                input_end[1] = displacement(ny, j + 1, nranks1d);
+                input_end[2] = nz_real;
+
+                input_stride[0] = nz_real_padded * (input_end[1] - input_start[1]);
+                input_stride[1] = nz_real_padded;
+                input_stride[2] = 1;
+
+                // output
+                output_start[0] = displacement(nx, i, nranks1d);
+                output_start[1] = 0;
+                output_start[2] = displacement(nz_complex, j, nranks1d);
+
+                output_end[0] = displacement(nx, i + 1, nranks1d);
+                output_end[1] = ny;
+                output_end[2] = displacement(nz_complex, j + 1, nranks1d);
+
+                output_stride[0] = (output_end[2] - output_start[2]) * (output_end[1] - output_start[1]);
+                output_stride[1] = (output_end[2] - output_start[2]);
+                output_stride[2] = 1;
+            }
+        }
 
         // Create plan
         cufftHandle plan_fwd, plan_bwd;
-        cufftCreate(&plan_fwd);
-        cufftCreate(&plan_bwd);
-        size_t workspace_fwd, workspace_bwd;
+        size_t      workspace_fwd, workspace_bwd;
 
-        cufftMpMakePlanDecomposition(
+        CUFFT_CHECK(cufftCreate(&plan_fwd));
+        CUFFT_CHECK(cufftCreate(&plan_bwd));
+
+        CUFFT_CHECK(cufftMpMakePlanDecomposition(
             plan_fwd, 3, n,
-            input_start, input_end, stride,
-            output_start, output_end, stride,
-            CUFFT_R2C, &comm, CUFFT_COMM_MPI, &workspace_fwd);
-        cufftMpMakePlanDecomposition(
+            input_start, input_end, input_stride,
+            output_start, output_end, output_stride,
+            CUFFT_R2C, &comm, CUFFT_COMM_MPI, &workspace_fwd));
+        CUFFT_CHECK(cufftMpMakePlanDecomposition(
             plan_bwd, 3, n,
-            output_start, output_end, stride,
-            input_start, input_end, stride,
-            CUFFT_C2R, &comm, CUFFT_COMM_MPI, &workspace_bwd);
+            input_start, input_end, input_stride,
+            output_start, output_end, output_stride,
+            CUFFT_C2R, &comm, CUFFT_COMM_MPI, &workspace_bwd));
 
         // Allocate multi-GPU descriptor
-        cudaLibXtDesc *desc_fwd, *desc_bwd;
-        cufftXtMalloc(plan_fwd, &desc_fwd, CUFFT_XT_FORMAT_INPLACE);
-        cufftXtMalloc(plan_bwd, &desc_bwd, CUFFT_XT_FORMAT_INPLACE);
+        cudaLibXtDesc *desc;
+        CUFFT_CHECK(cufftXtMalloc(plan_fwd, &desc, CUFFT_XT_FORMAT_DISTRIBUTED_INPUT));
 
         //--------------------------------------------------------------------------
         /** - warm up */
         //--------------------------------------------------------------------------
         for (int iter = 0; iter < n_warm; ++iter) {
-            cufftXtExecDescriptor(plan_fwd, desc_fwd, desc_fwd, CUFFT_FORWARD);
-            cufftXtExecDescriptor(plan_bwd, desc_bwd, desc_bwd, CUFFT_INVERSE);
+            CUFFT_CHECK(cufftXtExecDescriptor(plan_fwd, desc, desc, CUFFT_FORWARD));
+            CUFFT_CHECK(cufftXtExecDescriptor(plan_bwd, desc, desc, CUFFT_INVERSE));
         }
 
         //--------------------------------------------------------------------------
@@ -228,7 +286,7 @@ int main(int argc, char *argv[]) {
             MPI_Barrier(comm);
             m_profStart(&prof, "cufftMp");
             m_profStart(&prof, "cufftMp - forward");
-            cufftXtExecDescriptor(plan_fwd, desc_fwd, desc_fwd, CUFFT_FORWARD);
+            CUFFT_CHECK(cufftXtExecDescriptor(plan_fwd, desc, desc, CUFFT_FORWARD));
             m_profStop(&prof, "cufftMp - forward");
             m_profStop(&prof, "cufftMp");
 
@@ -236,7 +294,7 @@ int main(int argc, char *argv[]) {
 
             m_profStart(&prof, "cufftMp");
             m_profStart(&prof, "cufftMp - backward");
-            cufftXtExecDescriptor(plan_bwd, desc_bwd, desc_bwd, CUFFT_INVERSE);
+            CUFFT_CHECK(cufftXtExecDescriptor(plan_bwd, desc, desc, CUFFT_INVERSE));
             m_profStop(&prof, "cufftMp - backward");
             m_profStop(&prof, "cufftMp");
         }
@@ -245,11 +303,11 @@ int main(int argc, char *argv[]) {
         //--------------------------------------------------------------------------
         /** - cleanup */
         //-------------------------------------------------------------------------
-        cufftXtFree(desc_fwd);
-        cufftXtFree(desc_bwd);
-        cufftDestroy(plan_fwd);
-        cufftDestroy(plan_bwd);
+        CUFFT_CHECK(cufftXtFree(desc));
+        CUFFT_CHECK(cufftDestroy(plan_fwd));
+        CUFFT_CHECK(cufftDestroy(plan_bwd));
     }
+#undef CUFFT_CHECK
 
 #ifdef HAVE_HEFFTE
     //--------------------------------------------------------------------------

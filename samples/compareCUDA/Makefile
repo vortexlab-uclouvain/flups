@@ -90,6 +90,12 @@ ifneq (,$(findstring -DHAVE_CUFFTMP,$(OPTS)))
 	CUFFTMP_LIBNAME ?= -lcufftMp
 	INC += -I$(CUFFTMP_INC)
 	LIB += -L$(CUFFTMP_LIB) $(CUFFTMP_LIBNAME) -Wl,-rpath,$(CUFFTMP_LIB)
+
+	NVSHMEM_INC ?= /usr/include
+	NVSHMEM_LIB ?= /usr/lib
+	NVSHMEM_LIBNAME ?= -lnvshmem_host
+	INC += -I$(NVSHMEM_INC)
+	LIB += -L$(NVSHMEM_LIB) $(NVSHMEM_LIBNAME) -Wl,-rpath,$(NVSHMEM_LIB)
 endif
 
 #-----------------------------------------------------------------------------
