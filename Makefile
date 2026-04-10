@@ -117,10 +117,9 @@ endif
 ifneq (,$(findstring -DBACKEND_HIP,$(OPTS)))
 	HIP_INC ?= /opt/rocm/include
 	HIP_LIB ?= /opt/rocm/lib
-	HIP_LIBNAME ?= -lrocblas -lrocfft
-	INC += -I$(HIP_INC) -I$(ROCBLAS_DIR)/include -I$(ROCFFT_DIR)/include
+	HIP_LIBNAME ?= -lrocblas -lhipfft -lamdhip64
+	INC += -I$(HIP_INC)
 	LIB += -L$(HIP_LIB) $(HIP_LIBNAME) -Wl,-rpath,$(HIP_LIB)
-	LIB += -L$(HIP_LIB)/stubs -Wl,-rpath,$(HIP_LIB)/stubs
 	CXXFLAGS += -x hip
 endif
 

@@ -98,6 +98,16 @@ ifneq (,$(findstring -DHAVE_CUFFTMP,$(OPTS)))
 	LIB += -L$(NVSHMEM_LIB) $(NVSHMEM_LIBNAME) -Wl,-rpath,$(NVSHMEM_LIB)
 endif
 
+#---- Use HIP
+ifneq (,$(findstring -DBACKEND_HIP,$(OPTS)))
+	HIP_INC ?= /opt/rocm/include
+	HIP_LIB ?= /opt/rocm/lib
+	HIP_LIBNAME ?= -lrocblas -lhipfft -lamdhip64
+	INC += -I$(HIP_INC)
+	LIB += -L$(HIP_LIB) $(HIP_LIBNAME) -Wl,-rpath,$(HIP_LIB)
+	CXXFLAGS += -x hip
+endif
+
 #-----------------------------------------------------------------------------
 # Pick a backend -- by default, we pick FFTW
 ifeq (,$(findstring -DBACKEND_,$(OPTS)))

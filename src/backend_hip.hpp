@@ -2,8 +2,8 @@
 #define BACKEND_HIP_HPP
 
 #include <hip/hip_runtime.h>
+#include <hipfft/hipfft.h>
 #include <rocblas/rocblas.h>
-#include <rocfft/rocfft.h>
 
 #include <string>
 
@@ -24,12 +24,7 @@ using std::string;
     })
 
 // Datatypes
-// Use a simple POD complex type compatible with rocFFT's layout (two doubles)
-typedef struct {
-    double x;
-    double y;
-} flups_complex;
-
+using flups_complex = hipfftDoubleComplex;
 typedef int*           opt_int_ptr;
 typedef double*        opt_double_ptr;
 typedef flups_complex* opt_complex_ptr;
@@ -38,8 +33,8 @@ typedef hipStream_t    stream_t;
 struct flups_fft_plan {
     // memory pointer (used only for r2r plans)
     double* mem = NULL;
-    // rocFFT plan handle (opaque)
-    rocfft_plan fft = NULL;
+    // FFT plan handle (opaque)
+    hipfftHandle fft;
     // parameters for the r2r transform
     int              n;        // number of inputs/output real values
     int              dist;     // distance between two successive fft's
@@ -69,7 +64,7 @@ typedef enum {
     memTypeUnregistered = hipMemoryTypeUnregistered,
 } memType_t;
 
-// Check HIP / rocBLAS / rocFFT API errors
+// Check HIP / rocBLAS / hipFFT API errors
 #define m_hiprt_check_errors(res)                                                               \
     do {                                                                                        \
         hipError_t __err = res;                                                                 \
@@ -82,10 +77,10 @@ typedef enum {
         BACKEND_CHECK(rocblas_status_success == __err, "Fatal rocBLAS error: %d", (int)__err); \
     } while (0)
 
-#define m_rocfft_check_errors(res)                                                           \
-    do {                                                                                     \
-        rocfft_status __err = res;                                                           \
-        BACKEND_CHECK(rocfft_status_success == __err, "Fatal rocFFT error: %d", (int)__err); \
+#define m_hipfft_check_errors(res)                                                    \
+    do {                                                                              \
+        hipfftResult __err = res;                                                     \
+        BACKEND_CHECK(HIPFFT_SUCCESS == __err, "Fatal hipFFT error: %d", (int)__err); \
     } while (0)
 
 // Kernel execution

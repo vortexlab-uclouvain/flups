@@ -32,6 +32,8 @@
 inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, stream_t stream) {
 #if defined(BACKEND_CUDA)
     m_cudart_check_errors(cudaMemcpyFromSymbolAsync(host_ptr, *device_ptr, sizeof(GreenKernel), 0, cudaMemcpyDeviceToHost, stream));
+#elif defined(BACKEND_HIP)
+    m_hiprt_check_errors(hipMemcpyFromSymbolAsync(host_ptr, *device_ptr, sizeof(GreenKernel), 0, hipMemcpyDeviceToHost, stream));
 #else
     *host_ptr = *device_ptr;
 #endif

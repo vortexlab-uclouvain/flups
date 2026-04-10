@@ -1,24 +1,24 @@
 ################################################################################
 # @copyright Copyright © UCLouvain 2020
-# 
+#
 # FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
-# 
+#
 # Copyright (C) <2020> <Universite catholique de Louvain (UCLouvain), Belgique>
-# 
+#
 # List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #  http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
+#
 ################################################################################
 
 ################################################################################
@@ -50,6 +50,13 @@ INC := -I$(SRC_DIR)
 FLUPS_INC ?= ../../include
 FLUPS_LIB ?= ../../lib
 INC += -I$(FLUPS_INC)
+
+#---- MPI
+MPI_DIR ?= /usr
+MPI_INC ?= $(MPI_DIR)/include
+MPI_LIB ?= $(MPI_DIR)/lib
+INC += -I$(MPI_INC)
+LIB += -L$(MPI_LIB) -Wl,-rpath,$(MPI_LIB)
 
 #---- HDF5
 HDF5_INC ?= /usr/include
@@ -101,6 +108,16 @@ ifneq (,$(findstring -DBACKEND_CUDA,$(OPTS)))
 		CXXFLAGS += --forward-unknown-to-host-compiler
 		LDFLAGS  += --forward-unknown-to-host-compiler
 	endif
+endif
+
+#---- Use HIP
+ifneq (,$(findstring -DBACKEND_HIP,$(OPTS)))
+	HIP_INC ?= /opt/rocm/include
+	HIP_LIB ?= /opt/rocm/lib
+	HIP_LIBNAME ?= -lrocblas -lhipfft -lamdhip64
+	INC += -I$(HIP_INC)
+	LIB += -L$(HIP_LIB) $(HIP_LIBNAME) -Wl,-rpath,$(HIP_LIB)
+	CXXFLAGS += -x hip
 endif
 
 #-----------------------------------------------------------------------------
@@ -158,7 +175,7 @@ clean:
 	rm -f $(TARGET_EXE_DPREC_A2A)
 	rm -f $(TARGET_EXE_DPREC_NB)
 
-destroy: clean 
+destroy: clean
 	rm -f $(OBJ_DIR)/*
 	rm -rf include
 	rm -rf lib

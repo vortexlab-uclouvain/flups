@@ -68,20 +68,15 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
         //       for mixed BC's) require a non-unit stride of 2. Here, we handle that
         //       directly during the pre- and post-processing (thus the plan has unit stride).
 #if defined(BACKEND_CUDA)
-    m_cufft_check_errors(cufftPlanMany(&plan.fft, 1, &plan.dim,
+    m_hipfft_check_errors(cufftPlanMany(&plan.fft, 1, &plan.dim,
                                        &plan.dim, 1, plan.idist,
                                        &plan.dim, 1, plan.odist,
                                        is_r2c ? CUFFT_D2Z : CUFFT_Z2D, plan.howmany));
 #elif defined(BACKEND_HIP)
-    size_t length = (size_t)plan.dim;
-    m_rocfft_check_errors(rocfft_plan_create(&plan.fft,
-                                             rocfft_placement_inplace,
-                                             is_r2c ? rocfft_transform_type_real_forward : rocfft_transform_type_real_inverse,
-                                             rocfft_precision_double,
-                                             1,
-                                             &length,
-                                             plan.howmany,
-                                             NULL));
+    m_hipfft_check_errors(hipfftPlanMany(&plan.fft, 1, &plan.dim,
+                                    &plan.dim, 1, plan.idist,
+                                    &plan.dim, 1, plan.odist,
+                                    is_r2c ? HIPFFT_D2Z : HIPFFT_Z2D, plan.howmany));
 #else
 #error "Unsupported backend, something went wrong"
 #endif
