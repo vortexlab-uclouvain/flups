@@ -122,18 +122,17 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
     switch (plan.kind) {
         // DCT Type I
         case FLUPS_DCT_I: {
-            // Pre-processing
+            // Pre-processing: fill the whole FFT input row (zero-padding included),
+            // so the scratch buffer content is never read before being written
             auto pre_op = m_backend_lambda(const int idx) {
-                const int i = idx % n;
-                const int j = idx / n;
+                const int i = idx % idist;
+                const int j = idx / idist;
 
-                mem[j * idist + i] = in[j * dist + stride * i];
+                const double w = (i == 0 || i == n - 1) ? 0.5 : 1.0;
 
-                if (i == 0 || i == n - 1) {
-                    mem[j * idist + i] *= .5;
-                }
+                mem[j * idist + i] = (i < n) ? w * in[j * dist + stride * i] : 0.0;
             };
-            parallel_for(pre_op, n * howmany, "DCT Type I pre-processing", stream);
+            parallel_for(pre_op, idist * howmany, "DCT Type I pre-processing", stream);
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
@@ -172,11 +171,13 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 const int    half = n / 2;
                 const int    m    = (k <= half) ? k : (n - k);
                 const double sign = (k <= half) ? 1.0 : -1.0;
-                const double t    = M_PI * k / (2.0 * n);
                 const double re   = mem[2 * (j * odist + m)];
                 const double im   = sign * mem[2 * (j * odist + m) + 1];
 
-                out[j * dist + stride * k] = 2.0 * (re * cos(t) + im * sin(t));
+                double st, ct;  // sin/cos of pi*k/(2n)
+                sincospi(k / (2.0 * n), &st, &ct);
+
+                out[j * dist + stride * k] = 2.0 * (re * ct + im * st);
             };
             parallel_for(post_op, n * howmany, "DCT Type II post-processing", stream);
 
@@ -200,11 +201,14 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     im = 0.0;
                 } else {
                     const int    kc  = n - m;
-                    const double t   = M_PI * m / (2.0 * n);
                     const double Xm  = in[j * dist + stride * m];
                     const double Xkc = in[j * dist + stride * kc];
-                    re               = 0.5 * (cos(t) * Xm + sin(t) * Xkc);
-                    im               = 0.5 * (sin(t) * Xm - cos(t) * Xkc);
+
+                    double st, ct;  // sin/cos of pi*m/(2n)
+                    sincospi(m / (2.0 * n), &st, &ct);
+
+                    re = 0.5 * (ct * Xm + st * Xkc);
+                    im = 0.5 * (st * Xm - ct * Xkc);
                 }
                 mem[2 * (j * idist + m)]     = re;
                 mem[2 * (j * idist + m) + 1] = im;
@@ -237,48 +241,23 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 // combines them with the usual DCT-IV twiddle.
                 const int M      = n / 2;
                 auto      pre_op = m_backend_lambda(const int idx) {
-                    const int    m = idx % M;
-                    const int    j = idx / M;
-                    const double a = in[j * dist + stride * (2 * m)];
-                    const double b = in[j * dist + stride * (2 * m + 1)];
-                    const double t = M_PI * m / n;
+                    const int m = idx % n;
+                    const int j = idx / n;
 
-                    mem[2 * (j * idist + m)]     = a * cos(t) - b * sin(t);
-                    mem[2 * (j * idist + m) + 1] = a * sin(t) + b * cos(t);
-                };
-                parallel_for(pre_op, M * howmany, "DCT Type IV pre-processing", stream);
+                    if (m < M) {
+                        const double a = in[j * dist + stride * (2 * m)];
+                        const double b = in[j * dist + stride * (2 * m + 1)];
 
-                flups_execute_c2c(plan, (flups_complex *)mem, (flups_complex *)mem, 1, stream);
+                        double st, ct;  // sin/cos of pi*m/n
+                        sincospi(m / (double)n, &st, &ct);
 
-                auto post_op = m_backend_lambda(const int idx) {
-                    const int    k     = idx % n;
-                    const int    j     = idx / n;
-                    const double Cr    = mem[2 * (j * odist + k)];
-                    const double Ci    = mem[2 * (j * odist + k) + 1];
-                    const double C2r   = mem[2 * (j * odist + (n - 1 - k))];
-                    const double C2i   = mem[2 * (j * odist + (n - 1 - k)) + 1];
-                    const double Ca    = 0.5 * (Cr + C2r);
-                    const double Sa    = 0.5 * (Ci - C2i);
-                    const double Cb    = 0.5 * (Ci + C2i);
-                    const double Sb    = 0.5 * (C2r - Cr);
-                    const double theta = M_PI * (2 * k + 1) / (4.0 * n);
-
-                    out[j * dist + stride * k] = 2.0 * (Ca * cos(theta) - Sa * sin(theta) +
-                                                        Cb * cos(3.0 * theta) - Sb * sin(3.0 * theta));
-                };
-                parallel_for(post_op, n * howmany, "DCT Type IV post-processing", stream);
-            } else {
-                // n odd fallback: complex pre-twiddle w[i]=x[i]*exp(i*pi*i/2n), a single
-                // 2n-point complex FFT (inverse-direction kernel, sign=+1) of the
-                // n-nonzero, n-zero-padded w, then a complex post-twiddle.
-                auto pre_op = m_backend_lambda(const int idx) {
-                    const int    i  = idx % n;
-                    const int    j  = idx / n;
-                    const double t  = M_PI * i / (2.0 * n);
-                    const double xi = in[j * dist + stride * i];
-
-                    mem[2 * (j * idist + i)]     = xi * cos(t);
-                    mem[2 * (j * idist + i) + 1] = xi * sin(t);
+                        mem[2 * (j * idist + m)]     = a * ct - b * st;
+                        mem[2 * (j * idist + m) + 1] = a * st + b * ct;
+                    } else {
+                        // zero-padding of the FFT input
+                        mem[2 * (j * idist + m)]     = 0.0;
+                        mem[2 * (j * idist + m) + 1] = 0.0;
+                    }
                 };
                 parallel_for(pre_op, n * howmany, "DCT Type IV pre-processing", stream);
 
@@ -287,11 +266,58 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 auto post_op = m_backend_lambda(const int idx) {
                     const int    k   = idx % n;
                     const int    j   = idx / n;
-                    const double phi = M_PI * (2 * k + 1) / (4.0 * n);
-                    const double re  = mem[2 * (j * odist + k)];
-                    const double im  = mem[2 * (j * odist + k) + 1];
+                    const double Cr  = mem[2 * (j * odist + k)];
+                    const double Ci  = mem[2 * (j * odist + k) + 1];
+                    const double C2r = mem[2 * (j * odist + (n - 1 - k))];
+                    const double C2i = mem[2 * (j * odist + (n - 1 - k)) + 1];
+                    const double Ca  = 0.5 * (Cr + C2r);
+                    const double Sa  = 0.5 * (Ci - C2i);
+                    const double Cb  = 0.5 * (Ci + C2i);
+                    const double Sb  = 0.5 * (C2r - Cr);
 
-                    out[j * dist + stride * k] = 2.0 * (re * cos(phi) - im * sin(phi));
+                    double st, ct, s3t, c3t;  // sin/cos of theta = pi*(2k+1)/(4n) and 3*theta
+                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+                    sincospi(3.0 * (2 * k + 1) / (4.0 * n), &s3t, &c3t);
+
+                    out[j * dist + stride * k] = 2.0 * (Ca * ct - Sa * st + Cb * c3t - Sb * s3t);
+                };
+                parallel_for(post_op, n * howmany, "DCT Type IV post-processing", stream);
+            } else {
+                // n odd fallback: complex pre-twiddle w[i]=x[i]*exp(i*pi*i/2n), a single
+                // 2n-point complex FFT (inverse-direction kernel, sign=+1) of the
+                // n-nonzero, n-zero-padded w, then a complex post-twiddle.
+                auto pre_op = m_backend_lambda(const int idx) {
+                    const int i = idx % dim;
+                    const int j = idx / dim;
+
+                    if (i < n) {
+                        const double xi = in[j * dist + stride * i];
+
+                        double st, ct;  // sin/cos of pi*i/(2n)
+                        sincospi(i / (2.0 * n), &st, &ct);
+
+                        mem[2 * (j * idist + i)]     = xi * ct;
+                        mem[2 * (j * idist + i) + 1] = xi * st;
+                    } else {
+                        // zero-padding of the FFT input
+                        mem[2 * (j * idist + i)]     = 0.0;
+                        mem[2 * (j * idist + i) + 1] = 0.0;
+                    }
+                };
+                parallel_for(pre_op, dim * howmany, "DCT Type IV pre-processing", stream);
+
+                flups_execute_c2c(plan, (flups_complex *)mem, (flups_complex *)mem, 1, stream);
+
+                auto post_op = m_backend_lambda(const int idx) {
+                    const int    k  = idx % n;
+                    const int    j  = idx / n;
+                    const double re = mem[2 * (j * odist + k)];
+                    const double im = mem[2 * (j * odist + k) + 1];
+
+                    double st, ct;  // sin/cos of phi = pi*(2k+1)/(4n)
+                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+
+                    out[j * dist + stride * k] = 2.0 * (re * ct - im * st);
                 };
                 parallel_for(post_op, n * howmany, "DCT Type IV post-processing", stream);
             }
@@ -300,14 +326,15 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
         }
         // DST Type I
         case FLUPS_DST_I: {
-            // Pre-processing
+            // Pre-processing: fill the whole FFT input row (zero-padding included),
+            // so the scratch buffer content is never read before being written
             auto pre_op = m_backend_lambda(const int idx) {
-                const int i = idx % n;
-                const int j = idx / n;
+                const int i = idx % idist;
+                const int j = idx / idist;
 
-                mem[1 + j * idist + i] = in[j * dist + stride * i];
+                mem[j * idist + i] = (1 <= i && i <= n) ? in[j * dist + stride * (i - 1)] : 0.0;
             };
-            parallel_for(pre_op, n * howmany, "DST Type I pre-processing", stream);
+            parallel_for(pre_op, idist * howmany, "DST Type I pre-processing", stream);
 
             flups_execute_r2c(plan, mem, (flups_complex *)mem, stream);
 
@@ -347,11 +374,13 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 const int    half = n / 2;
                 const int    m    = (k <= half) ? k : (n - k);
                 const double sign = (k <= half) ? 1.0 : -1.0;
-                const double t    = M_PI * k / (2.0 * n);
                 const double re   = mem[2 * (j * odist + m)];
                 const double im   = sign * mem[2 * (j * odist + m) + 1];
 
-                out[j * dist + (n - 1) - stride * k] = 2.0 * (re * cos(t) + im * sin(t));
+                double st, ct;  // sin/cos of pi*k/(2n)
+                sincospi(k / (2.0 * n), &st, &ct);
+
+                out[j * dist + stride * (n - 1 - k)] = 2.0 * (re * ct + im * st);
             };
             parallel_for(post_op, n * howmany, "DST Type II post-processing", stream);
 
@@ -371,15 +400,18 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
 
                 double re, im;
                 if (m == 0) {
-                    re = 0.5 * in[j * dist + (n - 1)];
+                    re = 0.5 * in[j * dist + stride * (n - 1)];
                     im = 0.0;
                 } else {
                     const int    kc  = n - m;
-                    const double t   = M_PI * m / (2.0 * n);
-                    const double Xm  = in[j * dist + (n - 1) - stride * m];
-                    const double Xkc = in[j * dist + (n - 1) - stride * kc];
-                    re               = 0.5 * (cos(t) * Xm + sin(t) * Xkc);
-                    im               = 0.5 * (sin(t) * Xm - cos(t) * Xkc);
+                    const double Xm  = in[j * dist + stride * (n - 1 - m)];
+                    const double Xkc = in[j * dist + stride * (n - 1 - kc)];
+
+                    double st, ct;  // sin/cos of pi*m/(2n)
+                    sincospi(m / (2.0 * n), &st, &ct);
+
+                    re = 0.5 * (ct * Xm + st * Xkc);
+                    im = 0.5 * (st * Xm - ct * Xkc);
                 }
                 mem[2 * (j * idist + m)]     = re;
                 mem[2 * (j * idist + m) + 1] = im;
@@ -410,45 +442,23 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 // a[m] = x_reversed[2m] = x[n-1-2m], b[m] = x_reversed[2m+1] = x[n-2-2m]
                 const int M      = n / 2;
                 auto      pre_op = m_backend_lambda(const int idx) {
-                    const int    m = idx % M;
-                    const int    j = idx / M;
-                    const double a = in[j * dist + (n - 1) - stride * (2 * m)];
-                    const double b = in[j * dist + (n - 1) - stride * (2 * m + 1)];
-                    const double t = M_PI * m / n;
+                    const int m = idx % n;
+                    const int j = idx / n;
 
-                    mem[2 * (j * idist + m)]     = a * cos(t) - b * sin(t);
-                    mem[2 * (j * idist + m) + 1] = a * sin(t) + b * cos(t);
-                };
-                parallel_for(pre_op, M * howmany, "DST Type IV pre-processing", stream);
+                    if (m < M) {
+                        const double a = in[j * dist + stride * (n - 1 - 2 * m)];
+                        const double b = in[j * dist + stride * (n - 2 - 2 * m)];
 
-                flups_execute_c2c(plan, (flups_complex *)mem, (flups_complex *)mem, 1, stream);
+                        double st, ct;  // sin/cos of pi*m/n
+                        sincospi(m / (double)n, &st, &ct);
 
-                auto post_op = m_backend_lambda(const int idx) {
-                    const int    k     = idx % n;
-                    const int    j     = idx / n;
-                    const double Cr    = mem[2 * (j * odist + k)];
-                    const double Ci    = mem[2 * (j * odist + k) + 1];
-                    const double C2r   = mem[2 * (j * odist + (n - 1 - k))];
-                    const double C2i   = mem[2 * (j * odist + (n - 1 - k)) + 1];
-                    const double Ca    = 0.5 * (Cr + C2r);
-                    const double Sa    = 0.5 * (Ci - C2i);
-                    const double Cb    = 0.5 * (Ci + C2i);
-                    const double Sb    = 0.5 * (C2r - Cr);
-                    const double theta = M_PI * (2 * k + 1) / (4.0 * n);
-                    const double sign  = (k % 2 == 0) ? 1.0 : -1.0;
-
-                    out[j * dist + stride * k] = sign * 2.0 * (Ca * cos(theta) - Sa * sin(theta) + Cb * cos(3.0 * theta) - Sb * sin(3.0 * theta));
-                };
-                parallel_for(post_op, n * howmany, "DST Type IV post-processing", stream);
-            } else {
-                auto pre_op = m_backend_lambda(const int idx) {
-                    const int    i  = idx % n;
-                    const int    j  = idx / n;
-                    const double t  = M_PI * i / (2.0 * n);
-                    const double xi = in[j * dist + (n - 1) - stride * i];
-
-                    mem[2 * (j * idist + i)]     = xi * cos(t);
-                    mem[2 * (j * idist + i) + 1] = xi * sin(t);
+                        mem[2 * (j * idist + m)]     = a * ct - b * st;
+                        mem[2 * (j * idist + m) + 1] = a * st + b * ct;
+                    } else {
+                        // zero-padding of the FFT input
+                        mem[2 * (j * idist + m)]     = 0.0;
+                        mem[2 * (j * idist + m) + 1] = 0.0;
+                    }
                 };
                 parallel_for(pre_op, n * howmany, "DST Type IV pre-processing", stream);
 
@@ -457,12 +467,57 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 auto post_op = m_backend_lambda(const int idx) {
                     const int    k    = idx % n;
                     const int    j    = idx / n;
-                    const double phi  = M_PI * (2 * k + 1) / (4.0 * n);
+                    const double Cr   = mem[2 * (j * odist + k)];
+                    const double Ci   = mem[2 * (j * odist + k) + 1];
+                    const double C2r  = mem[2 * (j * odist + (n - 1 - k))];
+                    const double C2i  = mem[2 * (j * odist + (n - 1 - k)) + 1];
+                    const double Ca   = 0.5 * (Cr + C2r);
+                    const double Sa   = 0.5 * (Ci - C2i);
+                    const double Cb   = 0.5 * (Ci + C2i);
+                    const double Sb   = 0.5 * (C2r - Cr);
+                    const double sign = (k % 2 == 0) ? 1.0 : -1.0;
+
+                    double st, ct, s3t, c3t;  // sin/cos of theta = pi*(2k+1)/(4n) and 3*theta
+                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+                    sincospi(3.0 * (2 * k + 1) / (4.0 * n), &s3t, &c3t);
+
+                    out[j * dist + stride * k] = sign * 2.0 * (Ca * ct - Sa * st + Cb * c3t - Sb * s3t);
+                };
+                parallel_for(post_op, n * howmany, "DST Type IV post-processing", stream);
+            } else {
+                auto pre_op = m_backend_lambda(const int idx) {
+                    const int i = idx % dim;
+                    const int j = idx / dim;
+
+                    if (i < n) {
+                        const double xi = in[j * dist + stride * (n - 1 - i)];
+
+                        double st, ct;  // sin/cos of pi*i/(2n)
+                        sincospi(i / (2.0 * n), &st, &ct);
+
+                        mem[2 * (j * idist + i)]     = xi * ct;
+                        mem[2 * (j * idist + i) + 1] = xi * st;
+                    } else {
+                        // zero-padding of the FFT input
+                        mem[2 * (j * idist + i)]     = 0.0;
+                        mem[2 * (j * idist + i) + 1] = 0.0;
+                    }
+                };
+                parallel_for(pre_op, dim * howmany, "DST Type IV pre-processing", stream);
+
+                flups_execute_c2c(plan, (flups_complex *)mem, (flups_complex *)mem, 1, stream);
+
+                auto post_op = m_backend_lambda(const int idx) {
+                    const int    k    = idx % n;
+                    const int    j    = idx / n;
                     const double re   = mem[2 * (j * odist + k)];
                     const double im   = mem[2 * (j * odist + k) + 1];
                     const double sign = (k % 2 == 0) ? 1.0 : -1.0;
 
-                    out[j * dist + stride * k] = sign * 2.0 * (re * cos(phi) - im * sin(phi));
+                    double st, ct;  // sin/cos of phi = pi*(2k+1)/(4n)
+                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+
+                    out[j * dist + stride * k] = sign * 2.0 * (re * ct - im * st);
                 };
                 parallel_for(post_op, n * howmany, "DST Type IV post-processing", stream);
             }
@@ -472,9 +527,6 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
         default:
             BACKEND_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
-
-    // Reset memory
-    backend_memset(mem, 0, plan.memsize * sizeof(double), stream);
 }
 
 #endif  // M_HAVE_GPU
