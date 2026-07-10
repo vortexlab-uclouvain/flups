@@ -13,6 +13,9 @@ class SwitchTopoX_a2a : public SwitchTopoX {
     int* o2i_count_ = NULL; /**<@brief count argument of the all_to_all_v for output to input */
     int* o2i_disp_  = NULL; /**<@brief start argument of the all_to_all_v for output to input */
 
+    ChunkBatch i2o_batch_; /**<@brief batched copy descriptors of the i2o chunks (GPU only) */
+    ChunkBatch o2i_batch_; /**<@brief batched copy descriptors of the o2i chunks (GPU only) */
+
    public:
     explicit SwitchTopoX_a2a(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
     ~SwitchTopoX_a2a();
