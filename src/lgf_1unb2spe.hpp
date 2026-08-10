@@ -43,6 +43,21 @@ namespace LGFOneUnbounded {
     }
 
     /**
+     * @brief the principal cube root, with complex return type, of a real or complex argument
+     *
+     * This is mathematically equivalent to pow(z, 1./3.), but it does not go through
+     * std::pow/std::polar: polar() carries a __glibcxx_assert that expands to a
+     * host-only function, which the device compiler rejects inside device code.
+     */
+    template <typename T>
+    m_device complex_t complex_cbrt(T z) {
+        const complex_t zc  = static_cast<complex_t>(z);
+        const real_t    rho = cbrt(abs(zc));
+        const real_t    th  = arg(zc) / 3.0;
+        return complex_t(rho * cos(th), rho * sin(th));
+    }
+
+    /**
      * @brief evaluate a polynomial with real coefficients via the Horner scheme
      * 
      * @param a an array of length n containing coefficients a_{0} to a_{n-1} 
@@ -393,7 +408,7 @@ namespace LGFOneUnbounded {
      */
     m_device std::array<complex_t, 3> lgf8_roots_(real_t c) {
         const real_t tmp1 = 1968941520. + c*(-879221700. + c*(223915104. - c*44089920));
-        const complex_t xi = pow(1520225. - 273420.*c + 35.*complex_sqrt(tmp1), 1./3.);
+        const complex_t xi = complex_cbrt(1520225. - 273420.*c + 35.*complex_sqrt(tmp1));
         const real_t del = real(xi + (-4655. + 3780.*c)/xi);
         const complex_t eta = complex_sqrt(del/9. - 434./81.);
         const complex_t lambda1 = 0.5 * (32./9. + eta - complex_sqrt(-868./81. + 81088./(729.*eta) - del/9.));
