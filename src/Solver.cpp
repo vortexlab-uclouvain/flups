@@ -27,7 +27,6 @@
 
 #include "FFTW_plan_dim_cell.hpp"
 #include "FFTW_plan_dim_node.hpp"
-
 #include "backend.hpp"
 
 /**
@@ -1006,6 +1005,8 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
 
     FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
     (*data) = (double *)backend_malloc(size_tot * sizeof(double));
+    backend_memset(*data, 0, size_tot * sizeof(double), stream_);
+    backend_sync_stream(stream_);
 
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
