@@ -46,14 +46,88 @@
 Topology::Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm):alignment_(alignment) {
     BEGIN_FUNC;
 
-    comm_ = comm;
-    lda_  = lda;
+    comm_    = comm;
+    is_desc_ = false;
 
     int comm_size, rank;
     MPI_Comm_size(comm_,&comm_size);
     MPI_Comm_rank(comm_,&rank);
 
     FLUPS_CHECK(nproc[0]*nproc[1]*nproc[2] == comm_size,"the total number of procs (=%d) have to be = to the comm size (=%d)",nproc[0]*nproc[1]*nproc[2], comm_size);
+
+    //-------------------------------------------------------------------------
+    /** - get the axis, the complex and the proc information  */
+    //-------------------------------------------------------------------------
+    init_common_(axis, lda, nglob, nproc, isComplex, axproc);
+
+    //-------------------------------------------------------------------------
+    /** - split the rank and get rankd  */
+    //-------------------------------------------------------------------------
+    ranksplit(rank, axproc_, nproc_, comm_, rankd_);
+
+    //-------------------------------------------------------------------------
+    /** - Get the new sizes  */
+    //-------------------------------------------------------------------------
+    cmpt_sizes();
+
+    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2],nglob_[0],nglob_[1],nglob_[2]);
+    END_FUNC;
+}
+
+/**
+ * @brief Construct a new Topology as a descriptor, i.e. without any communicator
+ *
+ * A descriptor Topology only describes the decomposition, it has no notion of a current rank. It can
+ * therefore be built by any rank, including the ranks which are not members of the communicator on
+ * which the decomposition lives. Only the rank-explicit questions can be asked to a descriptor
+ * (@ref cmpt_rank_fromid, @ref cmpt_start_id_from_rank, @ref ranksplit, @ref rankindex and the
+ * getters of the decomposition itself): every rank-implicit accessor will fail on it.
+ *
+ * @param axis the dimension of the fastest rotating index (eg: 0, 1 or 2)
+ * @param lda leading dimension of array=the number of components (eg scalar=1, vector=3)
+ * @param nglob the global size per dim
+ * @param nproc the number of proc per dim
+ * @param isComplex indicate if the Topology uses complex indexing or not
+ * @param axproc gives the order of the rank decomposition (eg. (0,2,1) to start decomposing in X then Z then Y). If NULL is passed, use by default (0,1,2).
+ * @param alignment the number of bytes on which we want the topology to be aligned along the #axis only
+ */
+Topology::Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment):alignment_(alignment) {
+    BEGIN_FUNC;
+
+    comm_    = MPI_COMM_NULL;
+    is_desc_ = true;
+
+    //-------------------------------------------------------------------------
+    /** - get the axis, the complex and the proc information  */
+    //-------------------------------------------------------------------------
+    init_common_(axis, lda, nglob, nproc, isComplex, axproc);
+
+    //-------------------------------------------------------------------------
+    /** - no current rank and no local size: they are meaningless here  */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
+        rankd_[id] = -1;
+        nloc_[id]  = 0;
+        nmem_[id]  = 0;
+    }
+
+    FLUPS_INFO("New topo descriptor created: nf = %d, axis = %d, nproc = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nproc_[0],nproc_[1],nproc_[2],nglob_[0],nglob_[1],nglob_[2]);
+    END_FUNC;
+}
+
+/**
+ * @brief initialize the members shared by every Topology, i.e. everything but the rank information
+ *
+ * @param axis the dimension of the fastest rotating index (eg: 0, 1 or 2)
+ * @param lda leading dimension of array=the number of components (eg scalar=1, vector=3)
+ * @param nglob the global size per dim
+ * @param nproc the number of proc per dim
+ * @param isComplex indicate if the Topology uses complex indexing or not
+ * @param axproc gives the order of the rank decomposition. If NULL is passed, use by default (0,1,2).
+ */
+void Topology::init_common_(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]) {
+    BEGIN_FUNC;
+    lda_ = lda;
 
     //-------------------------------------------------------------------------
     /** - get memory axis and complex information  */
@@ -76,18 +150,6 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
         // store the proc axis, used to split the rank
         axproc_[id] = (axproc == NULL) ? id : axproc[id];
     }
-
-    //-------------------------------------------------------------------------
-    /** - split the rank and get rankd  */
-    //-------------------------------------------------------------------------
-    ranksplit(rank, axproc_, nproc_, comm_, rankd_);
-
-    //-------------------------------------------------------------------------
-    /** - Get the new sizes  */
-    //-------------------------------------------------------------------------
-    cmpt_sizes();
-
-    FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2],nglob_[0],nglob_[1],nglob_[2]);
     for (int id = 0; id < 3; id++) {
         if (nproc_[id] > nglob_[id]) {
             FLUPS_INFO("direction %d has more ranks (%d) than unknowns (%d): some ranks own nothing in this topology", id, nproc_[id], nglob_[id]);
@@ -98,25 +160,19 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
 
 /**
  * @brief compute the nloc and nmem sizes using rankd_, nglob_, nproc_, nloc_
- * 
+ *
  * This function padds the size of the domain if needed
- * 
+ *
  */
 void Topology::cmpt_sizes() {
     BEGIN_FUNC;
+    FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, its local sizes cannot be computed");
     for (int id = 0; id < 3; id++) {
         // we get the max between the nglob and
         nloc_[id] = cmpt_nbyproc(id);
-        nmem_[id] = nloc_[id];
         // if we are in the axis and the last proc, we pad to ensure that every pencil is ok with alignment
         // if (id == axis_ && rankd_[id] == (nproc_[id] - 1)) {
-        if (id == axis_) {
-            // compute by how many we are not aligned: the global size in double = nglob * nf
-            const int modulo = (nloc_[id] * nf_ * sizeof(double)) % alignment_;
-            // compute the number of points to add (in double indexing)
-            const int delta = (alignment_ - modulo) / sizeof(double);
-            nmem_[id] += (modulo == 0) ? 0 : delta / nf_;
-        }
+        nmem_[id] = (id == axis_) ? cmpt_nmem_align_(nloc_[id], nf_, alignment_) : nloc_[id];
     }
     END_FUNC;
 }
@@ -128,6 +184,7 @@ void Topology::cmpt_sizes() {
  */
 void Topology::change_comm(MPI_Comm comm) {
     BEGIN_FUNC;
+    FLUPS_CHECK(!is_desc_, "a descriptor Topology has no communicator, it cannot be changed");
     //-------------------------------------------------------------------------
     /** - Store the new communicator  */
     //-------------------------------------------------------------------------
@@ -190,9 +247,11 @@ void Topology::cmpt_intersect_id(const int shift[3], const Topology* other, int 
 void Topology::disp() const {
     BEGIN_FUNC;
 
-    int comm_size, rank;
-    MPI_Comm_size(comm_,&comm_size);
-    MPI_Comm_rank(comm_,&rank);
+    int comm_size = -1, rank = -1;
+    if (!is_desc_) {
+        MPI_Comm_size(comm_,&comm_size);
+        MPI_Comm_rank(comm_,&rank);
+    }
 
     FLUPS_INFO("------------------------------------------");
     FLUPS_INFO("## Topology created on proc %d/%d", rank, comm_size);

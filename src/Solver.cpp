@@ -601,6 +601,91 @@ void Solver::delete_topologies_(Topology *topo[3]) {
 }
 
 /**
+ * @brief compute the layout of the first (ip == 0) inner topology of a sorted set of forward plans
+ *
+ * This is the single source of truth for the geometry of that topology: it is used by
+ * @ref init_plansAndTopos_ when it creates it and by @ref pencil_layout to predict it without any
+ * communication. It is pure arithmetic: no MPI call and no communicator is needed.
+ *
+ * @param planmap the sorted plans. Only planmap[0] must have been initialized (@ref FFTW_plan_dim::init),
+ *                the 2 others are only used for their #dimID.
+ * @param size_out the global size after planmap[0], i.e. after @ref FFTW_plan_dim::get_outsize
+ * @param nproc_hint the proc decomposition of the physical (user) topology
+ * @param comm_size the size of the communicator of the solver
+ * @param layout the resulting layout, with #nglob given in the REAL state of the topology
+ */
+void Solver::pencil0_layout_(FFTW_plan_dim *const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size, PencilLayout *layout) {
+    BEGIN_FUNC;
+    //-------------------------------------------------------------------------
+    /** - the axis is the direction of the plan, the proc ordering is the plan ordering */
+    //-------------------------------------------------------------------------
+    layout->axis = planmap[0]->dimID();
+    for (int ip = 0; ip < 3; ip++) {
+        layout->axproc[ip] = planmap[ip]->dimID();
+    }
+
+    //-------------------------------------------------------------------------
+    /** - for the first switchTopo, we keep the number of proc constant in the 3rd direction */
+    //-------------------------------------------------------------------------
+    pencil_nproc_hint(layout->axis, layout->nproc, comm_size, layout->axproc[1], nproc_hint);
+
+    //-------------------------------------------------------------------------
+    /** - the topology is created in the output state of the plan; if the plan is a r2c, the
+     *    topology is switched back to real, which doubles the size along the axis */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
+        layout->nglob[id] = size_out[id];
+    }
+    if (planmap[0]->isr2c()) {
+        layout->nglob[layout->axis] *= 2;
+    }
+    END_FUNC;
+}
+
+/**
+ * @brief compute the layout of the first inner (pencil) topology, without any communication
+ *
+ * see the documentation in @ref Solver.hpp
+ */
+PencilLayout Solver::pencil_layout(const int nglob[3], const int nproc_init[3], BoundaryType *bc[3][2], const double h[3], const double L[3], const CenterType center[3], const int lda) {
+    BEGIN_FUNC;
+    FLUPS_CHECK(center[0] == center[1] && center[0] == center[2], "We handle only data located at the same place in all the direction");
+
+    const int comm_size = nproc_init[0] * nproc_init[1] * nproc_init[2];
+
+    //-------------------------------------------------------------------------
+    /** - build the forward plans exactly as the Solver constructor does and sort them */
+    //-------------------------------------------------------------------------
+    FFTW_plan_dim *planmap[3];
+    for (int id = 0; id < 3; id++) {
+        if (CELL_CENTER == center[id]) {
+            planmap[id] = new FFTW_plan_dim_cell(lda, id, h, L, bc[id], FLUPS_FORWARD, false);
+        } else if (NODE_CENTER == center[id]) {
+            planmap[id] = new FFTW_plan_dim_node(lda, id, h, L, bc[id], FLUPS_FORWARD, false);
+        } else {
+            FLUPS_CHECK(false, "The type of data you asked is not supported");
+        }
+    }
+    sort_plans(planmap);
+
+    //-------------------------------------------------------------------------
+    /** - dry run of the first plan only: init is not idempotent, so it must be done once */
+    //-------------------------------------------------------------------------
+    int size_tmp[3] = {nglob[0], nglob[1], nglob[2]};
+    planmap[0]->init(size_tmp, false);
+    planmap[0]->get_outsize(size_tmp);
+
+    PencilLayout layout;
+    pencil0_layout_(planmap, size_tmp, nproc_init, comm_size, &layout);
+
+    for (int id = 0; id < 3; id++) {
+        delete planmap[id];
+    }
+    END_FUNC;
+    return layout;
+}
+
+/**
  * @brief Initializes a set of 3 plans by doing a dry run through the plans
  *
  * @param topo the starting topology
@@ -664,9 +749,15 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                // for the first switchTopo, we keep the number of proc constant in the 3rd direction
-                const int nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
-                pencil_nproc_hint(dimID, nproc, comm_size, dimOrder[1], nproc_hint);
+                // the layout of the first topology is shared with Solver::pencil_layout
+                const int    nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
+                PencilLayout layout;
+                pencil0_layout_(planmap, size_tmp, nproc_hint, comm_size, &layout);
+                FLUPS_CHECK(layout.axis == dimID, "the shared pencil layout gives the axis %d instead of %d", layout.axis, dimID);
+                for (int id = 0; id < 3; id++) {
+                    FLUPS_CHECK(layout.axproc[id] == dimOrder[id], "the shared pencil layout gives axproc[%d] = %d instead of %d", id, layout.axproc[id], dimOrder[id]);
+                    nproc[id] = layout.nproc[id];
+                }
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 // for the other switchtopos, we keep constant the id that is not mine, neither the old topo id

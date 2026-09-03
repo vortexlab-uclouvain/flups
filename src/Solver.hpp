@@ -51,8 +51,18 @@
 #include "metis.h"
 #endif
 
-
-
+/**
+ * @brief the layout of the first inner (pencil) topology built by a @ref Solver, in its REAL state
+ *
+ * This is the description of the topology returned by @ref Solver::get_innerTopo_physical, see
+ * @ref Solver::pencil_layout.
+ */
+struct PencilLayout {
+    int axis;      /**<@brief the direction aligned with the fastest rotating index */
+    int nglob[3];  /**<@brief the global number of (real) points in each direction */
+    int nproc[3];  /**<@brief the number of procs in each direction */
+    int axproc[3]; /**<@brief the correspondance between the physical dimensions and the rank decomposition */
+};
 
 /**
  * @brief The Poisson solver
@@ -163,6 +173,8 @@ class Solver {
 #endif
     void allocate_plans_(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void delete_plans_(FFTW_plan_dim* planmap[3]);
+
+    static void pencil0_layout_(FFTW_plan_dim* const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size, PencilLayout* layout);
     /**@} */
 
     /**
@@ -224,6 +236,25 @@ class Solver {
     void      setup(const bool changeTopoComm);
     Topology* get_innerTopo_physical();
     Topology* get_innerTopo_spectral();
+
+    /**
+     * @brief compute the layout of the first inner (pencil) topology, without any communication
+     *
+     * This function is pure: it performs no MPI call and needs no communicator, so it can be called
+     * by any rank, including the ranks which are not members of the communicator on which the solver
+     * lives. It returns the layout, in its REAL state, of the topology which
+     * @ref get_innerTopo_physical returns once the solver has been setup.
+     *
+     * @param nglob the global number of points of the physical (user) topology
+     * @param nproc_init the proc decomposition of the physical (user) topology. Its product is the comm size.
+     * @param bc the boundary conditions of the domain for the right hand side (as given to the constructor)
+     * @param h the grid spacing
+     * @param L the domain size
+     * @param center the data centering in each direction (must be the same in the 3 directions)
+     * @param lda the number of components of the field
+     * @return PencilLayout the axis, global size, proc decomposition and proc ordering of the pencil topology
+     */
+    static PencilLayout pencil_layout(const int nglob[3], const int nproc_init[3], BoundaryType* bc[3][2], const double h[3], const double L[3], const CenterType center[3], const int lda);
 
     double* get_innerBuffer() { return data_; };
 

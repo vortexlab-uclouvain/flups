@@ -55,12 +55,25 @@ Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], cons
     return t;
 }
 
+Topology* flups_topo_new_desc(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment) {
+    Topology* t = new Topology(axis, lda, nglob, nproc, isComplex, axproc, alignment);
+    return t;
+}
+
 void flups_topo_free(const Topology* t) {
     delete t;
 }
 
+bool flups_topo_is_desc(const Topology* t) {
+    return t->is_desc();
+}
+
 bool flups_topo_get_isComplex(const Topology* t) {
     return t->isComplex();
+}
+
+int flups_topo_get_lda(const Topology* t) {
+    return t->lda();
 }
 
 int flups_topo_get_axis(const Topology* t) {
@@ -81,6 +94,10 @@ int flups_topo_get_nmem(const Topology* t, const int dim) {
 
 int flups_topo_get_nproc(const Topology* t, const int dim) {
     return t->nproc(dim);
+}
+
+int flups_topo_get_axproc(const Topology* t, const int dim) {
+    return t->axproc(dim);
 }
 
 void flups_topo_get_istartGlob(const Topology* t, int istart[3]) {
@@ -130,6 +147,17 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     auto    h_prof = reinterpret_cast<H3LPR::Profiler*>(prof);
     Solver* s      = new Solver(t, bc, h, L, orderDiff, center_type, h_prof);
     return s;
+}
+
+// get the layout of the first inner pencil topology, without any communication
+void flups_pencil_layout(const int nglob[3], const int nproc[3], BoundaryType* bc[3][2], const double h[3], const double L[3], const CenterType center_type[3], const int lda, int* axis, int nglob_out[3], int nproc_out[3], int axproc_out[3]) {
+    const PencilLayout layout = Solver::pencil_layout(nglob, nproc, bc, h, L, center_type, lda);
+    (*axis)                   = layout.axis;
+    for (int id = 0; id < 3; id++) {
+        nglob_out[id]  = layout.nglob[id];
+        nproc_out[id]  = layout.nproc[id];
+        axproc_out[id] = layout.axproc[id];
+    }
 }
 
 void flups_cleanup_solver(Solver* s) {

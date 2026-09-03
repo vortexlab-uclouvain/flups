@@ -35,6 +35,35 @@
 #include "defines.hpp"
 
 /**
+ * @brief split the rank into rank per dimensions
+ *
+ * axproc is not used if comm is of type MPI_CART.
+ *
+ * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
+ * @param nproc the number of procs along each direction
+ * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
+ *             If it is MPI_COMM_NULL (descriptor Topology), we always use the arithmetic decomposition.
+ * @param rankd the rank per dimension in XYZ format
+ */
+static inline void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
+    const int ax0 = axproc[0];
+    const int ax1 = axproc[1];
+    const int ax2 = axproc[2];
+
+    int mpi_topo_type = MPI_UNDEFINED;
+    if (comm != MPI_COMM_NULL) {
+        MPI_Topo_test(comm, &mpi_topo_type);
+    }
+    if (mpi_topo_type == MPI_CART) {
+        MPI_Cart_coords(comm, rank, 3, rankd);
+    } else {
+        rankd[ax0] = rank % nproc[ax0];
+        rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
+        rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
+    }
+}
+
+/**
  * @brief Class Topology
  *
  * A topology describes the layout of the data on the current processor.
@@ -59,15 +88,35 @@ class Topology {
     int lda_;       /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
     // int       nbyproc_[3]; /**<@brief mean number of unknowns per dim = nloc except for the last one (012-indexing)  */
     const int alignment_;
-    MPI_Comm  comm_; /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
+    MPI_Comm  comm_;    /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
+    bool      is_desc_; /**<@brief if true, the topo is a descriptor: it has no communicator and no local information */
 
     // double h_[3]; //**< @brief grid spacing */
     // double L_[3];//**< @brief length of the domain  */
     // -> We got rid of these, as L changes during a transform occuring in the associated topo, and the computation of h would also
     //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
 
+    void init_common_(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
+
+    /**
+     * @brief add the alignment padding to a scalar local size (only relevant along the #axis_ direction)
+     *
+     * @param nloc the number of unknowns owned by a rank in the direction considered
+     * @param nf the number of doubles inside one unknown
+     * @param alignment the number of bytes on which the topology is aligned
+     * @return int the padded size
+     */
+    static inline int cmpt_nmem_align_(const int nloc, const int nf, const int alignment) {
+        // compute by how many we are not aligned: the local size in double = nloc * nf
+        const int modulo = (nloc * nf * sizeof(double)) % alignment;
+        // compute the number of points to add (in double indexing)
+        const int delta = (alignment - modulo) / sizeof(double);
+        return nloc + ((modulo == 0) ? 0 : delta / nf);
+    }
+
    public:
     Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
+    Topology(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
     ~Topology();
 
     /**
@@ -89,12 +138,22 @@ class Topology {
     inline int isComplex() const { return nf_ == 2; }
 
     inline int nglob(const int dim) const { return nglob_[dim]; }
-    inline int nloc(const int dim) const { return nloc_[dim]; }
-    inline int nmem(const int dim) const { return nmem_[dim]; }
+    inline int nloc(const int dim) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local size");
+        return nloc_[dim];
+    }
+    inline int nmem(const int dim) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local memory size");
+        return nmem_[dim];
+    }
     inline int nproc(const int dim) const { return nproc_[dim]; }
-    inline int rankd(const int dim) const { return rankd_[dim]; }
+    inline int rankd(const int dim) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, use ranksplit instead");
+        return rankd_[dim];
+    }
     // inline int nbyproc(const int dim) const { return nbyproc_[dim]; }
     inline int      axproc(const int dim) const { return axproc_[dim]; }
+    inline bool     is_desc() const { return is_desc_; }
     inline MPI_Comm get_comm() const { return comm_; }
 
     /**
@@ -104,6 +163,7 @@ class Topology {
      * @return int
      */
     inline int cmpt_nbyproc(const int id) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local size");
 #if (FLUPS_NEW_BALANCE)
         const int start = cmpt_start_id_from_rank(rankd_[id], id);
         const int end   = cmpt_start_id_from_rank(rankd_[id] + 1, id);
@@ -119,6 +179,7 @@ class Topology {
      * @param id the id for one component
      */
     inline int cmpt_start_id(const int id) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, use cmpt_start_id_from_rank instead");
 #if (FLUPS_NEW_BALANCE)
         return cmpt_start_id_from_rank(rankd_[id], id);
 #else
@@ -216,26 +277,36 @@ class Topology {
      *
      * @return size_t
      */
-    inline size_t locsize() const { return (size_t)nloc_[0] * (size_t)nloc_[1] * (size_t)nloc_[2] * (size_t)nf_; }
+    inline size_t locsize() const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local size");
+        return (size_t)nloc_[0] * (size_t)nloc_[1] * (size_t)nloc_[2] * (size_t)nf_;
+    }
 
     /**
      * @brief returns the memory size of on this proc for one component
      *
      * @return size_t
      */
-    inline size_t memdim() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_; }
+    inline size_t memdim() const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local memory size");
+        return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_;
+    }
     /**
      * @brief returns the memory size of on this proc, i.e. the number of dimension * the memory of one dimension
      *
      * @return size_t
      */
-    inline size_t memsize() const { return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_ * (size_t)lda_; }
+    inline size_t memsize() const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, hence no local memory size");
+        return (size_t)nmem_[0] * (size_t)nmem_[1] * (size_t)nmem_[2] * (size_t)nf_ * (size_t)lda_;
+    }
 
     /**
      * @brief returns the starting global index on the current proc
      *
      */
     inline void get_istart_glob(int istart[3]) const {
+        FLUPS_CHECK(!is_desc_, "a descriptor Topology has no current rank, use cmpt_start_id_from_rank instead");
         istart[0] = cmpt_start_id(0);
         istart[1] = cmpt_start_id(1);
         istart[2] = cmpt_start_id(2);
@@ -289,32 +360,6 @@ class Topology {
 };
 
 /**
- * @brief split the rank into rank per dimensions
- *
- * axproc is not used if comm is of type MPI_CART.
- *
- * @param rank the rank of the proc (from MPI, in the current communicator of the topo)
- * @param nproc the number of procs along each direction
- * @param comm a communicator. If it is of type MPI_CART, we use that information in the returned rankd.
- * @param rankd the rank per dimension in XYZ format
- */
-static inline void ranksplit(const int rank, const int axproc[3], const int nproc[3], MPI_Comm comm, int rankd[3]) {
-    const int ax0 = axproc[0];
-    const int ax1 = axproc[1];
-    const int ax2 = axproc[2];
-
-    int mpi_topo_type;
-    MPI_Topo_test(comm, &mpi_topo_type);
-    if (mpi_topo_type == MPI_CART) {
-        MPI_Cart_coords(comm, rank, 3, rankd);
-    } else {
-        rankd[ax0] = rank % nproc[ax0];
-        rankd[ax1] = (rank % (nproc[ax0] * nproc[ax1])) / nproc[ax0];
-        rankd[ax2] = rank / (nproc[ax0] * nproc[ax1]);
-    }
-}
-
-/**
  * @brief get the rank from the rank per dimension
  *
  * @param rankd the rank in XYZ format
@@ -326,8 +371,10 @@ static inline int rankindex(const int rankd[3], const Topology *topo) {
     const int ax1 = topo->axproc(1);
     const int ax2 = topo->axproc(2);
 
-    int mpi_topo_type, rank;
-    MPI_Topo_test(topo->get_comm(), &mpi_topo_type);
+    int mpi_topo_type = MPI_UNDEFINED, rank;
+    if (topo->get_comm() != MPI_COMM_NULL) {
+        MPI_Topo_test(topo->get_comm(), &mpi_topo_type);
+    }
     if (mpi_topo_type == MPI_CART) {
         MPI_Cart_rank(topo->get_comm(), rankd, &rank);
     } else {
