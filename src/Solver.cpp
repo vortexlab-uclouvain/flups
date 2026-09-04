@@ -880,7 +880,10 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
 #endif
         }
     }
-    FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
+    // max_mem = 0 is legal: this rank owns no unknown in any of the topologies and never communicates
+    if (max_mem == 0) {
+        FLUPS_INFO("this rank has nothing to communicate in any of the switchtopos");
+    }
 
 #if (FLUPS_MPI_AGGRESSIVE)
     if (need_send) {

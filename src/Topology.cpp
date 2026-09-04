@@ -88,6 +88,11 @@ Topology::Topology(const int axis, const int lda, const int nglob[3], const int 
     cmpt_sizes();
 
     FLUPS_INFO("New topo created: nf = %d, axis = %d, local sizes = %d %d %d vs mem size = %d %d %d -- global sizes = %d %d %d",nf_,axis_,nloc_[0],nloc_[1],nloc_[2],nmem_[0],nmem_[1],nmem_[2],nglob_[0],nglob_[1],nglob_[2]);
+    for (int id = 0; id < 3; id++) {
+        if (nproc_[id] > nglob_[id]) {
+            FLUPS_INFO("direction %d has more ranks (%d) than unknowns (%d): some ranks own nothing in this topology", id, nproc_[id], nglob_[id]);
+        }
+    }
     END_FUNC;
 }
 

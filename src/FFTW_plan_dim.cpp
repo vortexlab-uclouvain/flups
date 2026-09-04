@@ -331,6 +331,17 @@ void FFTW_plan_dim::allocate_plan_real_(const Topology *topo, double* data) {
     fft_stride_ = memsize[dimID_] * topo->nf();
 
     //-------------------------------------------------------------------------
+    /** - If this rank owns no pencil in this topology, there is nothing to plan  */
+    //-------------------------------------------------------------------------
+    if (howmany_ == 0) {
+        plan_ = NULL;
+        FLUPS_INFO("------------------------------------------");
+        FLUPS_INFO("## no real to real plan created: no pencil on this rank");
+        FLUPS_INFO("------------------------------------------");
+        return;
+    }
+
+    //-------------------------------------------------------------------------
     /** - Create the plan  */
     //-------------------------------------------------------------------------
     // allocate the plan
@@ -401,6 +412,15 @@ void FFTW_plan_dim::allocate_plan_complex_(const Topology *topo, double* data) {
     
     // compute the stride
     fft_stride_ = memsize[dimID_];
+
+    // if this rank owns no pencil in this topology, there is nothing to plan
+    if (howmany_ == 0) {
+        plan_ = NULL;
+        FLUPS_INFO("------------------------------------------");
+        FLUPS_INFO("## no DFT plan created: no pencil on this rank");
+        FLUPS_INFO("------------------------------------------");
+        return;
+    }
 
     // allocate the plan
     plan_ = (flups_fft_plan*) m_calloc(sizeof(flups_fft_plan) * lda_);
@@ -517,6 +537,10 @@ void FFTW_plan_dim::check_dataAlign_(const Topology* topo, double* data) const {
  */
 void FFTW_plan_dim::postprocess_plan(const Topology* topo, double* data, stream_t stream) {
     BEGIN_FUNC;
+    // a rank without any pencil in this topology has nothing to correct
+    if (howmany_ == 0) {
+        return;
+    }
     // check the data alignment
     check_dataAlign_(topo, data);
     const int    nloc        = topo->nloc(topo->axis());
@@ -671,6 +695,12 @@ void FFTW_plan_dim::execute_plan(const Topology* topo, double* data, stream_t st
         FLUPS_INFO(">> Doing plan unbounded for dim %d", dimID_);
     } else if (type_ == EMPTY) {
         FLUPS_INFO(">> Doing no plan for dim %d", dimID_);
+        return;
+    }
+    // a rank without any pencil in this topology has no plan and nothing to transform
+    if (howmany_ == 0) {
+        FLUPS_CHECK(plan_ == NULL, "the plan must be NULL when there is no pencil on this rank");
+        FLUPS_INFO(">> no pencil on this rank, nothing to do for dim %d", dimID_);
         return;
     }
 

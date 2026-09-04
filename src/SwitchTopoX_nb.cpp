@@ -285,8 +285,10 @@ void SendRecv(const int n_send_rqst, MPI_Request *send_rqst, MemChunk *send_chun
     m_profInitLeave(prof, "copy");
     m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
-    // while we have to send msgs to others or recv msg or copy the one we have received
-    while ((send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst) || (copy_cntr < n_recv_rqst)) {
+    // while we have to send msgs to others (and wait for their completion) or recv msg or copy the one we have received.
+    // the completion of the sends is explicitly required: a rank with nothing to receive would otherwise leave
+    // with active send requests, which cannot be restarted at the next call
+    while ((finished_send < n_send_rqst) || (send_cntr < n_send_rqst) || (recv_cntr < n_recv_rqst) || (copy_cntr < n_recv_rqst)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
         //FLUPS_WARNING("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_rqst, recv_cntr, n_recv_rqst, copy_cntr, n_recv_rqst, is_mem_reset);
 

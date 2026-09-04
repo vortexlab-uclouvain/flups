@@ -231,8 +231,10 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     m_profInitLeave(prof, "copy");
     m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
-    // while we have to send msgs to others or recv msg, we keep going
-    while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
+    // while we have to send msgs to others (and wait for their completion) or recv msg, we keep going.
+    // the completion of the sends is explicitly required: a rank with nothing to receive would otherwise leave
+    // with sends still in flight from a memory that is reset and overwritten right after
+    while ((finished_send < n_send_chunk) || (send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, is_mem_reset);
         //......................................................................
         // [1] test if we have finished some send requests and start new ones
@@ -248,14 +250,14 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             const int n_to_resend        = m_min(FLUPS_MPI_MAX_NBSEND - still_ongoing_send, send_batch);
             FLUPS_CHECK(n_to_resend >= 0, " You need to send a positive number of request");
             send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
-
-            // if all the send have completed I can reset the memory to 0
-            is_mem_reset = (finished_send == n_send_chunk);
-            if (is_mem_reset) {
-                const size_t reset_size = topo_out->memsize();
-                backend_memset(mem, 0, reset_size * sizeof(double), stream);
-                FLUPS_INFO("reset mem done ");
-            }
+        }
+        // if all the send have completed I can reset the memory to 0
+        // (this is checked outside of the send test as we might have nothing to send at all)
+        if (!is_mem_reset && (finished_send == n_send_chunk)) {
+            const size_t reset_size = topo_out->memsize();
+            backend_memset(mem, 0, reset_size * sizeof(double), stream);
+            is_mem_reset = true;
+            FLUPS_INFO("reset mem done ");
         }
         //......................................................................
         // [2] test if we have finished some recv requests and shuffle them

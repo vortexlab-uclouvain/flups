@@ -56,26 +56,36 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         topoi_gend[id] += topo_in->cmpt_start_id(id);
     }
 
-    n_chunks[0] = 1;
+    // if the current rank has nothing to send (no unknowns in the input topo, or no intersection with the
+    // output topo), we have no chunk at all and the rank computations below are not defined
+    bool is_empty = false;
+    for (int id = 0; id < 3; ++id) {
+        is_empty = is_empty || (topoi_gend[id] <= topoi_gstart[id]);
+    }
+    if (is_empty) {
+        FLUPS_INFO("no intersection between the topologies on this rank -> nchunks = 0");
+        n_chunks[0] = 0;
+        *chunks     = reinterpret_cast<MemChunk*>(m_calloc(0));
+        return;
+    }
+
+    // upper bound on the number of chunks: the number of ranks spanned by the intersection.
+    // some of them might own nothing in the output topology (more ranks than unknowns in a direction),
+    // they are skipped below and the actual number of chunks is the number of non-empty ones
+    int n_chunks_max = 1;
     int srank[3], erank[3];
     for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
-        // the starting point is always properly defined
         srank[id] = topo_out->cmpt_rank_fromid(topoi_gstart[id] + shift[id], id);
         // the ending point is taken with -1 to be sure to include the end rank
-        // unless start = end, then we just use the start id
-        if (topoi_gend[id] > topoi_gstart[id]) {
-            erank[id] = topo_out->cmpt_rank_fromid(topoi_gend[id] - 1 + shift[id], id);
-        } else {
-            erank[id] = srank[id] - 1;
-        }
+        erank[id] = topo_out->cmpt_rank_fromid(topoi_gend[id] - 1 + shift[id], id);
         // accumulate the number of chunks over the dimensions
         // both ranks are included!
         const int n_ranks = (erank[id] - srank[id] + 1);
-        n_chunks[0] *= m_max(n_ranks, 0);
+        n_chunks_max *= m_max(n_ranks, 0);
     }
-    FLUPS_INFO("sranks = %d %d %d - eranks = %d %d %d -> nchunks = %d", srank[0], srank[1], srank[2], erank[0], erank[1], erank[2], n_chunks[0]);
-    *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
+    FLUPS_INFO("sranks = %d %d %d - eranks = %d %d %d -> at most nchunks = %d", srank[0], srank[1], srank[2], erank[0], erank[1], erank[2], n_chunks_max);
+    *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks_max * sizeof(MemChunk)));
 
     //--------------------------------------------------------------------------
     /** - Retrieve the id of the current process in the output topology to check
@@ -95,6 +105,16 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 const int irank[3]  = {ir0, ir1, ir2};
                 const int dest_rank = rankindex(irank, topo_out);
                 MemChunk* cchunk    = *chunks + chunk_counter;
+
+                // the destination rank might own nothing in one direction, then there is no chunk to send
+                bool is_empty_chunk = false;
+                for (int id = 0; id < 3; ++id) {
+                    is_empty_chunk = is_empty_chunk || (topo_out->cmpt_start_id_from_rank(irank[id], id) == topo_out->cmpt_start_id_from_rank(irank[id] + 1, id));
+                }
+                if (is_empty_chunk) {
+                    FLUPS_INFO("rank %d owns nothing in the output topology -> no chunk", dest_rank);
+                    continue;
+                }
 
                 for (int id = 0; id < 3; ++id) {
                     // get the start and end index of the topo OUT and the topo IN in the global reference
@@ -143,8 +163,10 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         }
     }
 
-    // FLUPS_CHECK((chunk_counter + (int) (self_comm[0]>= 0)) == n_chunks[0], "the chunk counter = %d must be = %d", (chunk_counter + (int) is_self_comm), n_chunks[0]);
-    FLUPS_CHECK(chunk_counter == n_chunks[0], "the chunk counter = %d must be = %d", chunk_counter, n_chunks[0]);
+    FLUPS_CHECK(chunk_counter <= n_chunks_max, "the chunk counter = %d must be <= %d", chunk_counter, n_chunks_max);
+    FLUPS_CHECK(chunk_counter > 0, "a non-empty intersection must lead to at least one chunk");
+    // the actual number of chunks is the number of non-empty ones
+    n_chunks[0] = chunk_counter;
     //--------------------------------------------------------------------------
     END_FUNC;
 }

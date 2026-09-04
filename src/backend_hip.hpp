@@ -102,6 +102,10 @@ __global__ void hip_kernel_(const O op, const int n) {
 
 template <typename O>
 void parallel_for(const O& op, const int n, string name, stream_t stream) {
+    // nothing to do (e.g. a rank without any unknown): a 0-block launch is a HIP error
+    if (n <= 0) {
+        return;
+    }
     BACKEND_INFO("Launching kernel: %s", name.c_str());
     const int grid = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
     // Launch kernel using HIP runtime

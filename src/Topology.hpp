@@ -161,7 +161,9 @@ class Topology {
         const int b   = nglob_[id] / nproc_[id];                     // baseline
         const int res = nglob_[id] % nproc_[id];                     // residual
         const int s   = (res > 0) ? (nproc_[id] / res) : (INT_MAX);  // stride
-        FLUPS_CHECK(b > 0, "The baseline = %d must be > 0 with nglob = %d and nproc = %d", b, nglob_[id], nproc_[id]);
+        // b = 0 happens when there are more ranks than unknowns in this direction:
+        // some ranks then own nothing, which is allowed (see cmpt_start_id_from_rank)
+        FLUPS_CHECK(b > 0 || res > 0, "nglob = %d and nproc = %d cannot both lead to an empty direction", nglob_[id], nproc_[id]);
 
         // if the res is 0, setting the stride to INT_MAX then the gsize is then INT_MAX
         // get how many groups of rank with a "+1" are to be taken into account
@@ -174,7 +176,8 @@ class Topology {
         // if the group id is smaller than the max number of group = res:
         // you cannot return a number of rank that is higher than the stride (that would happen with the last point of the group)
         // if the gid is after the last group then we don't care and let the rank be large enough
-        const int rrank = (gid < res) ? m_min(gres / b, s - 1) : (gres / b);
+        // if b = 0, every group holds exactly one unknown, owned by the last rank of the group
+        const int rrank = (b == 0) ? (s - 1) : ((gid < res) ? m_min(gres / b, s - 1) : (gres / b));
         const int grank = gid * s;
         // const int rrank = (gid < res)? (rrank) ; m_min(gres / b, s - 1);  // the rrank is bound by s-1, always
         const int rank = m_min(nproc_[id] - 1, grank + rrank);
@@ -186,8 +189,8 @@ class Topology {
         const int nbyproc   = nglob_[id] / nproc_[id];    // the number of unknowns in the integer division
         const int global_g0 = nproc_g0 * (nbyproc + 1);   // the number of unknowns in the first group of procs
         const int rank_g0   = global_id / (nbyproc + 1);  // rank id if the global index is below global_g0
-        FLUPS_CHECK((nbyproc > 0), "the case were there is less points in 1 direction than procs in the same direction is not handled by flups");
-        const int rank_g1 = (global_id - global_g0) / nbyproc + nproc_g0;  // rank id if the global index is above global_g0
+        // if nbyproc = 0, every unknown belongs to the first group and the ranks >= nproc_g0 own nothing
+        const int rank_g1 = (nbyproc > 0) ? ((global_id - global_g0) / nbyproc + nproc_g0) : (nproc_[id] - 1);  // rank id if the global index is above global_g0
         return (global_id < global_g0) ? rank_g0 : m_min(rank_g1, nproc_[id] - 1);
 #endif
     }
