@@ -28,7 +28,7 @@
 
 #include "flups.h"
 
-#include <algorithm>  // std::remove
+#include <filesystem>  // std::filesystem::path
 
 #include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
@@ -296,17 +296,20 @@ void flups_print_data(const Topology* topo, double* data) {
 //  MISC
 //**********************************************************************
 /**
- * @brief writes the file murphy.info used for tracking of the results, bookkeeping etc
+ * @brief writes the file <executable>.flups.info used for tracking of the results, bookkeeping etc
  */
 void flups_info(int argc, char** argv) {
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     if (rank == 0) {
-        std::string filename(argv[0]);
-        // remove the "./" that might be in it
-        filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end());
-        filename.erase(std::remove(filename.begin(), filename.end(), '/'), filename.end());
+        // keep the executable name only: argv[0] may be spelled "./flups_test", an absolute path
+        // (gdb, srun) or a relative one, and the info file must always be "<executable>.flups.info"
+        const std::filesystem::path exec_path((argc > 0 && NULL != argv[0]) ? argv[0] : "flups");
+        std::string                 filename = exec_path.filename().string();
+        if (filename.empty()) {
+            filename = "flups";
+        }
         filename += ".flups.info";
         FILE* file = fopen(filename.c_str(), "w+");
         fprintf(file, "FLUPS \n");
