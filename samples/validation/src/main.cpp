@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     auto arg_lda     = parser.GetValue<int>("--lda", "the leading dimension fo array, number of component  (1=scalar, 3=vector)", 1);
     auto arg_nsample = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_outputdir = parser.GetValue<std::string>("--outdir", "the output directory for the error","./");
-    auto arg_source  = parser.GetValue<int>("--source", "the test case: 0=manufactured solution (default), 1=compact source pad check", 0);
+    auto arg_source  = parser.GetValue<int>("--source", "the test case: 0=manufactured solution (default), 1=compact source pad check, 2=axially modulated (wavy) vortex tube", 0);
     auto arg_padcheck = parser.GetValue<int>("--padcheck", "with --source=1, the padding factor P of the reference solve (the two unbounded directions are solved again on a P times larger box with the same h); 0/1 = no padded solve", 0);
 
     // Retreive the vector value
@@ -153,6 +153,8 @@ int main(int argc, char *argv[]) {
         // let's gooo
         if (arg_source == 1) {
             padcheck_3d(valCase, (FLUPS_GreenType)arg_kernel, (arg_padcheck > 1) ? arg_padcheck : 1, arg_outputdir);
+        } else if (arg_source == 2) {
+            wavytube_3d(valCase, (FLUPS_GreenType)arg_kernel, arg_nsolve, arg_outputdir);
         } else {
             validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve, arg_outputdir);
         }
