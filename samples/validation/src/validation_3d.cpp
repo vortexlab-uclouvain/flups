@@ -501,3 +501,243 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
         }
     }
 }
+
+//==============================================================================
+// compact-source pad check (--source=1 --padcheck=P)
+//==============================================================================
+
+/**
+ * @brief the compact Spietz bump, support |t| < 1
+ */
+static inline double padcheck_bump_(const double t) {
+    return (fabs(t) >= 1.0) ? 0.0 : exp(c_C * (1.0 - 1.0 / (1.0 - t * t)));
+}
+
+/**
+ * @brief solve the compact source on a box padded by @p pad in the two unbounded directions
+ *
+ * The origin, the grid spacing and the physical location of the source are the same for every
+ * @p pad, so the first `nc[d]` points of each direction of the padded run coincide with the points
+ * of the reference run. The solution restricted to that common box is accumulated (globally, on
+ * every rank) into @p ucommon, in the layout `i0 + nc0 * (i1 + nc1 * i2)` with the indices given in
+ * *dimension* order.
+ */
+static void padcheck_solve_(const DomainDescr &myCase, const FLUPS_GreenType typeGreen, const int pad,
+                            const int dir_u[2], const int dir_s, const int nc[3], double *ucommon, MPI_Comm comm) {
+    const bool   is_cell = myCase.center_type[0] == CELL_CENTER;
+    const double fact    = (double)(!is_cell);
+    const double shift   = is_cell ? 0.5 : 0.0;
+
+    // the padded domain: same h, same origin, pad times larger in the two unbounded directions
+    int    ncell[3];
+    double L[3];
+    for (int d = 0; d < 3; ++d) {
+        const bool isunb = (d == dir_u[0] || d == dir_u[1]);
+        ncell[d]         = isunb ? myCase.nglob[d] * pad : myCase.nglob[d];
+        L[d]             = isunb ? myCase.L[d] * pad : myCase.L[d];
+    }
+    const int    nglob[3] = {ncell[0] + (int)fact, ncell[1] + (int)fact, ncell[2] + (int)fact};
+    const double h[3]     = {L[0] / ncell[0], L[1] / ncell[1], L[2] / ncell[2]};
+
+    // the source: a bump centred in the *reference* box, of radius 0.35 of the reference box
+    double bump_c[3], bump_r[3];
+    for (int d = 0; d < 3; ++d) {
+        bump_c[d] = 0.50 * myCase.L[d];
+        bump_r[d] = 0.35 * myCase.L[d];
+    }
+    const double Lz = myCase.L[dir_s];
+
+    FLUPS_CenterType center_type[3];
+    for (int d = 0; d < 3; ++d) {
+        center_type[d] = myCase.center_type[d];
+    }
+    FLUPS_BoundaryType *mybc[3][2];
+    for (int d = 0; d < 3; ++d) {
+        for (int s = 0; s < 2; ++s) {
+            mybc[d][s]    = (FLUPS_BoundaryType *)flups_malloc(sizeof(int));
+            mybc[d][s][0] = myCase.mybc[d][s];
+        }
+    }
+
+    FLUPS_Topology *topo     = flups_topo_new(0, 1, nglob, myCase.nproc, false, NULL, FLUPS_ALIGNMENT, comm);
+    FLUPS_Profiler *prof     = flups_profiler_new_n("padcheck");
+    FLUPS_Solver   *mysolver = flups_init_timed(topo, mybc, h, L, NOD, center_type, prof);
+    flups_set_greenType(mysolver, typeGreen);
+    flups_setup(mysolver, true);
+
+    double *rhs   = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
+    double *field = (double *)flups_malloc(sizeof(double) * flups_topo_get_memsize(topo));
+    std::memset(rhs, 0, sizeof(double) * flups_topo_get_memsize(topo));
+    std::memset(field, 0, sizeof(double) * flups_topo_get_memsize(topo));
+
+    int istart[3];
+    flups_topo_get_istartGlob(topo, istart);
+    const int ax0     = flups_topo_get_axis(topo);
+    const int ax1     = (ax0 + 1) % 3;
+    const int ax2     = (ax0 + 2) % 3;
+    const int nmem[3] = {flups_topo_get_nmem(topo, 0), flups_topo_get_nmem(topo, 1), flups_topo_get_nmem(topo, 2)};
+
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
+                const size_t id = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
+                int          g[3];
+                g[ax0]            = istart[ax0] + i0;
+                g[ax1]            = istart[ax1] + i1;
+                g[ax2]            = istart[ax2] + i2;
+                const double xu0  = (g[dir_u[0]] + shift) * h[dir_u[0]];
+                const double xu1  = (g[dir_u[1]] + shift) * h[dir_u[1]];
+                const double z    = (g[dir_s] + shift) * h[dir_s];
+                rhs[id]           = padcheck_bump_((xu0 - bump_c[dir_u[0]]) / bump_r[dir_u[0]]) *
+                          padcheck_bump_((xu1 - bump_c[dir_u[1]]) / bump_r[dir_u[1]]) *
+                          (1.0 + sin(c_2pi * z / Lz) + 0.5 * cos(2.0 * c_2pi * z / Lz));
+            }
+        }
+    }
+
+    flups_solve(mysolver, field, rhs, STD);
+
+    // gather the common box
+    for (int i2 = 0; i2 < flups_topo_get_nloc(topo, ax2); i2++) {
+        for (int i1 = 0; i1 < flups_topo_get_nloc(topo, ax1); i1++) {
+            for (int i0 = 0; i0 < flups_topo_get_nloc(topo, ax0); i0++) {
+                const size_t id = flups_locID(ax0, i0, i1, i2, 0, ax0, nmem, 1);
+                int          g[3];
+                g[ax0] = istart[ax0] + i0;
+                g[ax1] = istart[ax1] + i1;
+                g[ax2] = istart[ax2] + i2;
+                if (g[0] < nc[0] && g[1] < nc[1] && g[2] < nc[2]) {
+                    ucommon[g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2])] = field[id];
+                }
+            }
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, ucommon, nc[0] * nc[1] * nc[2], MPI_DOUBLE, MPI_SUM, comm);
+
+    flups_free(rhs);
+    flups_free(field);
+    flups_cleanup(mysolver);
+    flups_cleanup_backend();
+    flups_profiler_free(prof);
+    flups_topo_free(topo);
+    for (int d = 0; d < 3; ++d) {
+        for (int s = 0; s < 2; ++s) {
+            flups_free(mybc[d][s]);
+        }
+    }
+}
+
+void padcheck_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int pad, const std::string output_dir) {
+    int      rank, comm_size;
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &comm_size);
+
+    //-------------------------------------------------------------------------
+    /** - identify the two unbounded directions and the spectral one */
+    //-------------------------------------------------------------------------
+    int dir_u[2] = {-1, -1};
+    int dir_s    = -1;
+    int n_unb    = 0;
+    for (int d = 0; d < 3; ++d) {
+        if (myCase.mybc[d][0] == UNB && myCase.mybc[d][1] == UNB) {
+            m_assert(n_unb < 2, "the pad check needs exactly 2 unbounded directions");
+            dir_u[n_unb] = d;
+            n_unb += 1;
+        } else {
+            m_assert(dir_s < 0, "the pad check needs exactly 1 non-unbounded direction");
+            m_assert((myCase.mybc[d][0] == PER && myCase.mybc[d][1] == PER) ||
+                         ((myCase.mybc[d][0] == EVEN || myCase.mybc[d][0] == ODD) && (myCase.mybc[d][1] == EVEN || myCase.mybc[d][1] == ODD)),
+                     "the non-unbounded direction of the pad check must be PER, or EVEN/ODD on both sides (got %d %d)", myCase.mybc[d][0], myCase.mybc[d][1]);
+            dir_s = d;
+        }
+    }
+    m_assert(n_unb == 2 && dir_s >= 0, "the pad check needs 2 UNB-UNB directions and 1 spectral one");
+
+    const bool is_cell = myCase.center_type[0] == CELL_CENTER;
+    const int  fact    = (int)(!is_cell);
+    const int  nc[3]   = {myCase.nglob[0] + fact, myCase.nglob[1] + fact, myCase.nglob[2] + fact};
+    const size_t ncom  = ((size_t)nc[0]) * nc[1] * nc[2];
+
+    double *u1 = (double *)flups_malloc(sizeof(double) * ncom);
+    double *up = (double *)flups_malloc(sizeof(double) * ncom);
+    std::memset(u1, 0, sizeof(double) * ncom);
+    std::memset(up, 0, sizeof(double) * ncom);
+
+    padcheck_solve_(myCase, typeGreen, 1, dir_u, dir_s, nc, u1, comm);
+    if (pad > 1) {
+        padcheck_solve_(myCase, typeGreen, pad, dir_u, dir_s, nc, up, comm);
+    } else {
+        std::memcpy(up, u1, sizeof(double) * ncom);
+    }
+
+    //-------------------------------------------------------------------------
+    /** - the difference, and the difference of the spectral-mean-free part */
+    //-------------------------------------------------------------------------
+    // the mean along the spectral direction, at each point of the two unbounded ones
+    const int nsz  = nc[dir_s];
+    double    dmax = 0.0, dmax_nomean = 0.0, umax = 0.0;
+    {
+        // loop over the (dir_u[0], dir_u[1]) plane, the spectral direction inside
+        const int nu0 = nc[dir_u[0]];
+        const int nu1 = nc[dir_u[1]];
+        for (int j1 = 0; j1 < nu1; ++j1) {
+            for (int j0 = 0; j0 < nu0; ++j0) {
+                double m1 = 0.0, mp = 0.0;
+                for (int js = 0; js < nsz; ++js) {
+                    int g[3];
+                    g[dir_u[0]]      = j0;
+                    g[dir_u[1]]      = j1;
+                    g[dir_s]         = js;
+                    const size_t idx = g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2]);
+                    m1 += u1[idx];
+                    mp += up[idx];
+                }
+                m1 /= nsz;
+                mp /= nsz;
+                for (int js = 0; js < nsz; ++js) {
+                    int g[3];
+                    g[dir_u[0]]      = j0;
+                    g[dir_u[1]]      = j1;
+                    g[dir_s]         = js;
+                    const size_t idx = g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2]);
+                    umax             = max(umax, fabs(u1[idx]));
+                    dmax             = max(dmax, fabs(u1[idx] - up[idx]));
+                    dmax_nomean      = max(dmax_nomean, fabs((u1[idx] - m1) - (up[idx] - mp)));
+                }
+            }
+        }
+    }
+
+    const double LzoLx = myCase.L[dir_s] / myCase.L[dir_u[0]];
+    if (rank == 0) {
+        printf("padcheck: N=%d,%d,%d Lz/Lx=%g pad=%d kernel=%d max|dU|=%12.12e max|dU_nomean|=%12.12e max|U|=%12.12e\n",
+               nc[0], nc[1], nc[2], LzoLx, pad, (int)typeGreen, dmax, dmax_nomean, umax);
+
+        string folder  = output_dir + "/data";
+        string ct_name = is_cell ? "CellCenter" : "NodeCenter";
+        char   filename[PATH_MAX];
+        // NOTE: deliberately NOT the file name used by validation_3d, so that the data_ref
+        // regression of scripts/check_res.py is never confused by these lines
+        sprintf(filename, "%s/padcheck_%s_%d%d%d%d%d%d_typeGreen=%d.txt", folder.c_str(), ct_name.c_str(),
+                myCase.mybc[0][0], myCase.mybc[0][1], myCase.mybc[1][0], myCase.mybc[1][1], myCase.mybc[2][0], myCase.mybc[2][1], typeGreen);
+
+        struct stat st_output = {0};
+        struct stat st_folder = {0};
+        if (stat(output_dir.c_str(), &st_output) == -1) {
+            mkdir(output_dir.c_str(), 0770);
+        }
+        if (stat(folder.c_str(), &st_folder) == -1) {
+            mkdir(folder.c_str(), 0770);
+        }
+        FILE *myfile = fopen(filename, "a+");
+        if (myfile != NULL) {
+            fprintf(myfile, "padcheck %d %d %d %g %d %12.12e %12.12e %12.12e\n", nc[0], nc[1], nc[2], LzoLx, pad, dmax, dmax_nomean, umax);
+            fclose(myfile);
+        }
+    }
+
+    flups_free(u1);
+    flups_free(up);
+    MPI_Barrier(comm);
+}

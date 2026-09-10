@@ -27,6 +27,7 @@
 
 #include "green_kernels.hpp"
 #include "ji0.hpp"
+#include "lgf_2unb1spe.hpp"
 
 // Helper function to get the function pointer, depending on if it's on the GPU or not
 inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, stream_t stream) {
@@ -207,18 +208,26 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @param kfact the k multiplicative factor (must be 0 in the unbounded dir)
  * @param koffset the k additive factor
  * @param symstart index of the symmetry in each direction
+ * @param hgrid the grid spacing in each direction (unlike hfact, it is also set in the spectral dir)
  * @param green the Green function array
  * @param typeGreen  the type of Green function
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
  *
- * @warning For 3D kernels: According to [Spietz2018], we can obtain the **approximate** Green kernel by using the 2D unbounded kernel
-            for mode 0 in the spectral direction, and the rest of the Green kernel is the same as in full spectral.
-            We here fill with zero most part of Green data. Indeed, we are interested only in doing the FFT
-            of hej__*2unb1spe_k0_ in the 2 remaining spatial directions. We will complete the Green function with the
-            full spectral part afterwards, while going through Solver::cmptGreenFunction_.
+ * @warning For the HEJ kernels in 3D: According to [Spietz2018], we can obtain the **approximate** Green kernel
+            by using the 2D unbounded kernel for mode 0 in the spectral direction, and the rest of the Green kernel
+            is the same as in full spectral. We here fill with zero most part of Green data. Indeed, we are
+            interested only in doing the FFT of hej__*2unb1spe_k0_ in the 2 remaining spatial directions. We will
+            complete the Green function with the full spectral part afterwards, while going through
+            Solver::cmptGreenFunction_.
+ *
+ * @note For the LGF and MEHR kernels in 3D the treatment is **exact**: the k = 0 plane still gets the shipped 2D
+         lattice Green's function, but every other plane is filled here, in physical space, with the true screened
+         slice LGF of that plane (see @ref lgf_2unb1spe.hpp), so that the usual Hockney-Eastwood mirror + FFT that
+         follows produces the exact kernel. Solver::cmptGreenFunction_ must therefore *not* overwrite those planes
+         with the sampled symbol (which would periodise the slice kernel over the doubled box).
  *
  */
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], const double hgrid[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -290,7 +299,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
-            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata, stream);
@@ -300,7 +308,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &lgf_2_2unb0spe, stream);
             break;
         case LGF_4:
-            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_4, 2, &GN, &Gdata, stream);
@@ -310,7 +317,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &lgf_4_2unb0spe, stream);
             break;
         case LGF_6:
-            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_6, 2, &GN, &Gdata, stream);
@@ -320,7 +326,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &lgf_6_2unb0spe, stream);
             break;
         case LGF_8:
-            FLUPS_WARNING("LGF kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_8, 2, &GN, &Gdata, stream);
@@ -330,7 +335,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &lgf_8_2unb0spe, stream);
             break;
         case MEHR_4L:
-            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_4L, 2, &GN, &Gdata, stream);
@@ -340,7 +344,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
             break;
         case MEHR_6L:
-            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_6L, 2, &GN, &Gdata, stream);
@@ -350,7 +353,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
             break;
         case MEHR_4F:
-            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_4F, 2, &GN, &Gdata, stream);
@@ -360,7 +362,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             get_kernel_ptr(&Gr0, &mehr_4f_2unb0spe, stream);
             break;
         case MEHR_6F:
-            FLUPS_WARNING("MEHR kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_6F, 2, &GN, &Gdata, stream);
@@ -390,47 +391,212 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     const double koffset_[3]  = {koffset[0], koffset[1], koffset[2]};
     const double symstart_[3] = {symstart[0], symstart[1], symstart[2]};
 
-    auto op = m_backend_lambda(const int idx) {
-        // unroll the index
-        const int i0 = idx % nloc[ax0];
-        const int i1 = (idx / nloc[ax0]) % nloc[ax1];
-        const int i2 = idx / (nloc[ax0] * nloc[ax1]);
-
-        // local index start
-        const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-
-        int is[3];
-        cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
-
-        // (symmetrized) wave number : only one kfact is non-zero
-        const double k0 = (is[ax0] + koffset_[ax0]) * kfact_[ax0];
-        const double k1 = (is[ax1] + koffset_[ax1]) * kfact_[ax1];
-        const double k2 = (is[ax2] + koffset_[ax2]) * kfact_[ax2];
-        const double k  = k0 + k1 + k2;
-
-        //(symmetrized) position : only one hfact is zero
-        const double x0 = (is[ax0]) * hfact_[ax0];
-        const double x1 = (is[ax1]) * hfact_[ax1];
-        const double x2 = (is[ax2]) * hfact_[ax2];
-        const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
-
-        // the symmetrized indexes will be negative!!
-        const double tmp[9] = {r, k, length, r_eq2D, static_cast<double>(std::abs(is[ax0])), static_cast<double>(abs(is[ax1])), static_cast<double>(abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
-
-        // green function value
-        // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
-        // this routine with a high readability and lower efficency than the opposite.
-        if (r <= (hfact_[ax0] + hfact_[ax1] + hfact_[ax2]) * .2) {
-            // we should enter this case for 2d and 3d cases
-            green[id + i0 * nf] = Gr0(tmp, Gdata);
-        } else if (k <= (kfact_[ax0] + kfact_[ax1] + kfact_[ax2]) * 0.2) {
-            // we should always enter this routine for 2d case and sometimes for 3d cases
-            green[id + i0 * nf] = Gk0(tmp, Gdata);
-        } else {
-            green[id + i0 * nf] = G(tmp, Gdata);
+    //-------------------------------------------------------------------------
+    /** - find the spectral direction, if any
+     *
+     * It is the only one with a non-zero kfact. A pure 2D case (the third direction being EMPTY)
+     * has none: every point is then a k = 0 point and the standard loop below is used as is.
+     */
+    //-------------------------------------------------------------------------
+    int ax_spec = -1;
+    int n_spec  = 0;
+    for (int id = 0; id < 3; ++id) {
+        if (kfact[id] != 0.0) {
+            ax_spec = id;
+            n_spec += 1;
         }
-    };
-    parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green", stream);
+    }
+    FLUPS_CHECK(n_spec <= 1, "cmpt_Green_2dirunbounded got %d spectral directions", n_spec);
+
+    // the LGF and MEHR kernels get the exact screened slice LGF on every k != 0 plane
+    const bool do_exact_slice = LGFTwoUnbounded::handles(typeGreen) && (n_spec == 1);
+
+    if (!do_exact_slice) {
+        auto op = m_backend_lambda(const int idx) {
+            // unroll the index
+            const int i0 = idx % nloc[ax0];
+            const int i1 = (idx / nloc[ax0]) % nloc[ax1];
+            const int i2 = idx / (nloc[ax0] * nloc[ax1]);
+
+            // local index start
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+
+            int is[3];
+            cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
+
+            // (symmetrized) wave number : only one kfact is non-zero
+            const double k0 = (is[ax0] + koffset_[ax0]) * kfact_[ax0];
+            const double k1 = (is[ax1] + koffset_[ax1]) * kfact_[ax1];
+            const double k2 = (is[ax2] + koffset_[ax2]) * kfact_[ax2];
+            const double k  = k0 + k1 + k2;
+
+            //(symmetrized) position : only one hfact is zero
+            const double x0 = (is[ax0]) * hfact_[ax0];
+            const double x1 = (is[ax1]) * hfact_[ax1];
+            const double x2 = (is[ax2]) * hfact_[ax2];
+            const double r  = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+
+            // the symmetrized indexes will be negative!!
+            const double tmp[9] = {r, k, length, r_eq2D, static_cast<double>(std::abs(is[ax0])), static_cast<double>(abs(is[ax1])), static_cast<double>(abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
+
+            // green function value
+            // Implementation note: having a 'if' in a loop is highly discouraged... however, this is the init so we prefer having a
+            // this routine with a high readability and lower efficency than the opposite.
+            if (r <= (hfact_[ax0] + hfact_[ax1] + hfact_[ax2]) * .2) {
+                // we should enter this case for 2d and 3d cases
+                green[id + i0 * nf] = Gr0(tmp, Gdata);
+            } else if (k <= (kfact_[ax0] + kfact_[ax1] + kfact_[ax2]) * 0.2) {
+                // we should always enter this routine for 2d case and sometimes for 3d cases
+                green[id + i0 * nf] = Gk0(tmp, Gdata);
+            } else {
+                green[id + i0 * nf] = G(tmp, Gdata);
+            }
+        };
+        parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green", stream);
+    } else {
+        //---------------------------------------------------------------------
+        /** - LGF/MEHR: the k = 0 plane keeps the 2D table, every other plane is filled below with
+         *    the exact screened slice LGF, see @ref lgf_2unb1spe.hpp
+         */
+        //---------------------------------------------------------------------
+        const int    ax_s     = ax_spec;
+        const double kfact_s  = kfact[ax_s];
+        const double koff_s   = koffset[ax_s];
+        const double symsta_s = symstart[ax_s];
+
+        // ------------------------------------------------------------------ the k ~ 0 plane
+        auto op_k0 = m_backend_lambda(const int idx) {
+            const int i0 = idx % nloc[ax0];
+            const int i1 = (idx / nloc[ax0]) % nloc[ax1];
+            const int i2 = idx / (nloc[ax0] * nloc[ax1]);
+
+            const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+
+            int is[3];
+            cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
+
+            // the folded spectral index may be negative, the kernel is even in k
+            const double k = (is[ax_s] + koff_s) * kfact_s;
+
+            double value = 0.0;
+            if (fabs(k) <= kfact_s * 0.2) {
+                // the two-dimensional lattice Green's function (table + far-field expansion).
+                // Note: unlike the generic branch above we do NOT test r ~ 0 first: for these
+                // kernels the r = 0 point of a k != 0 slice is a regular point of the slice
+                // table, and the r = 0 point of the k = 0 plane is handled by Gk0 itself.
+                const double x0     = (is[ax0]) * hfact_[ax0];
+                const double x1     = (is[ax1]) * hfact_[ax1];
+                const double x2     = (is[ax2]) * hfact_[ax2];
+                const double r      = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+                const double tmp[9] = {r, k, length, r_eq2D, static_cast<double>(std::abs(is[ax0])), static_cast<double>(abs(is[ax1])), static_cast<double>(abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
+                value               = Gk0(tmp, Gdata);
+            }
+            green[id + i0 * nf] = value;
+        };
+        parallel_for(op_k0, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green k0 plane", stream);
+
+        // ------------------------------------------------------------------ the k != 0 planes
+        // the loop levels: level 0 is ax0 (the fastest one), level 2 is ax2
+        const int axl[3] = {ax0, ax1, ax2};
+        int       lvl_s  = 0;
+        for (int l = 0; l < 3; ++l) {
+            if (axl[l] == ax_s) {
+                lvl_s = l;
+            }
+        }
+        // keep the fastest remaining level first, so that the writes (and the reads in R) stay
+        // as contiguous as the slice allows
+        const int lvl_a = (lvl_s == 0) ? 1 : 0;
+        const int lvl_b = (lvl_s == 2) ? 1 : 2;
+        const int nlvl[3] = {nloc[ax0], nloc[ax1], nloc[ax2]};
+        const int na      = nlvl[lvl_a];
+        const int nb      = nlvl[lvl_b];
+
+        // the unbounded direction handled by the closed form (x) and by the quadrature (y)
+        const int ax_x = axl[lvl_a];
+        const int ax_y = axl[lvl_b];
+
+        // the largest |n| reachable in each unbounded direction: symstart when the direction is
+        // folded (UNB-UNB), the full extent otherwise (UNB-EVEN/ODD, which is not folded)
+        const int nglob[3] = {topo->nglob(0), topo->nglob(1), topo->nglob(2)};
+        const int nx_max   = (symstart[ax_x] > 0.0) ? (int)symstart[ax_x] : (nglob[ax_x] - 1);
+        const int ny_max   = (symstart[ax_y] > 0.0) ? (int)symstart[ax_y] : (nglob[ax_y] - 1);
+
+        // the closed forms assume an isotropic lattice in the three directions
+        FLUPS_CHECK(hgrid[0] == hgrid[1] && hgrid[1] == hgrid[2],
+                    "the grid has to be isotropic to use the LGF/MEHR kernels in 2 unbounded + 1 spectral directions (h = %e %e %e)", hgrid[0], hgrid[1], hgrid[2]);
+        const double h_spec = hgrid[ax_s];
+
+        //---------------------------------------------------------------------
+        /** - stage 1: the Gauss-Legendre rule and the Cw table, built once */
+        //---------------------------------------------------------------------
+        // the smallest non-zero |k| of the grid: |is + koffset| is at least 1 (koffset = 0) or
+        // koffset itself (koffset = 0.5), and the quadrature must resolve that slice too
+        const double kzmin_h = kfact_s * ((koff_s == 0.0) ? 1.0 : koff_s) * h_spec;
+        const int    nq      = LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
+        const int nnx = nx_max + 1;
+        const int nny = ny_max + 1;
+
+        double *kq_host = (double *)m_calloc(sizeof(double) * nq);
+        double *wq_host = (double *)m_calloc(sizeof(double) * nq);
+        LGFTwoUnbounded::gauss_legendre_0pi(nq, kq_host, wq_host);
+
+        double *kq = (double *)backend_malloc(sizeof(double) * nq);
+        double *wq = (double *)backend_malloc(sizeof(double) * nq);
+        backend_memcpy(kq, kq_host, sizeof(double) * nq, memcpyH2D, stream);
+        backend_memcpy(wq, wq_host, sizeof(double) * nq, memcpyH2D, stream);
+        backend_sync_stream(stream);
+        m_free(kq_host);
+        m_free(wq_host);
+
+        double *cw = (double *)backend_malloc(sizeof(double) * nny * nq);
+        double *rr = (double *)backend_malloc(sizeof(double) * nnx * nq);
+        LGFTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, stream);
+
+        //---------------------------------------------------------------------
+        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R and fill the plane */
+        //---------------------------------------------------------------------
+        for (int isl = 0; isl < nlvl[lvl_s]; ++isl) {
+            // the global, folded, index of that plane in the spectral direction
+            const int ie = istart[ax_s] + isl;
+            const int is_s = (symsta_s == 0.0 || ie <= symsta_s) ? ie : -std::max((int)fabs(2.0 * symsta_s - ie), 1);
+            const double k = (is_s + koff_s) * kfact_s;
+            if (fabs(k) <= kfact_s * 0.2) {
+                continue;  // the k = 0 plane has already been filled with the 2D table
+            }
+            // the closed form is even in every wavenumber, so only |k| h matters
+            LGFTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k) * h_spec, stream);
+
+            const int isl_ = isl;
+            auto op_slice  = m_backend_lambda(const int idx) {
+                int ii[3];
+                ii[lvl_s] = isl_;
+                ii[lvl_a] = idx % na;
+                ii[lvl_b] = idx / na;
+                const int i0 = ii[0];
+                const int i1 = ii[1];
+                const int i2 = ii[2];
+
+                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+
+                int is[3];
+                cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
+                const int nx = abs(is[ax_x]);
+                const int ny = abs(is[ax_y]);
+                assert(nx <= nx_max && ny <= ny_max);
+
+                // FLUPS stores -G, like the 2D tables of the k = 0 plane
+                green[id + i0 * nf] = -LGFTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq);
+            };
+            parallel_for(op_slice, na * nb, "2unb1spe green slice", stream);
+        }
+
+        backend_sync_stream(stream);
+        backend_free(kq);
+        backend_free(wq);
+        backend_free(cw);
+        backend_free(rr);
+    }
 
     // reset the value in x=y=0.0 and k=0 for singular expressions
     if ((typeGreen == CHAT_2) && istart[ax0] == 0 && istart[ax1] == 0 && istart[ax2] == 0) {
