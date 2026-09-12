@@ -517,7 +517,7 @@ m_device double hej_2_1unb2spe_(const void* params, const double* data) {
     const double rho = r / sig;
     const double s   = k * sig;
 
-    const double subfun = s * rho > 100. ? 0.0 : ((1.0 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1.0 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    const double subfun = s * rho > 100. ? 0.0 : (erfc(c_1osqrt2 * (s - rho)) * exp(-s * rho) + erfc(c_1osqrt2 * (s + rho)) * exp(s * rho));
     return -.25 * sig / s * subfun;
 }
 m_device GreenKernel hej_2_1unb2spe = hej_2_1unb2spe_;
@@ -538,7 +538,7 @@ m_device double      hej_4_1unb2spe_(const void* params, const double* data) {
 
     const double rho    = r / sig;
     const double s      = k * sig;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    const double subfun = s * rho > 100. ? 0 : (erfc(c_1osqrt2 * (s - rho)) * exp(-s * rho) + erfc(c_1osqrt2 * (s + rho)) * exp(s * rho));
     return -0.25 * sig / s * subfun - sig * M_SQRT2 * c_1osqrtpi * .25 * exp(-.5 * (s * s + rho * rho));
 }
 m_device GreenKernel hej_4_1unb2spe = hej_4_1unb2spe_;
@@ -558,7 +558,7 @@ m_device double      hej_6_1unb2spe_(const void* params, const double* data) {
 
     const double rho    = r / sig;
     const double s      = k * sig;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    const double subfun = s * rho > 100. ? 0 : (erfc(c_1osqrt2 * (s - rho)) * exp(-s * rho) + erfc(c_1osqrt2 * (s + rho)) * exp(s * rho));
     return -0.25 * sig / s * subfun - sig * M_SQRT2 * c_1osqrtpi * (c_5o16 + c_1o16 * (s * s - rho * rho)) * exp(-.5 * (s * s + rho * rho));
 }
 m_device GreenKernel hej_6_1unb2spe = hej_6_1unb2spe_;
@@ -580,7 +580,7 @@ m_device double      hej_8_1unb2spe_(const void* params, const double* data) {
     const double s      = k * sig;
     const double s2     = s * s;
     const double rho2   = rho * rho;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    const double subfun = s * rho > 100. ? 0 : (erfc(c_1osqrt2 * (s - rho)) * exp(-s * rho) + erfc(c_1osqrt2 * (s + rho)) * exp(s * rho));
     return -0.25 * sig / s * subfun - sig * M_SQRT2 * c_1osqrtpi * (c_11o32 + c_1o12 * s2 - 0.125 * rho2 - c_1o48 * s2 * rho2 + c_1o96 * (s2 * s2 + rho2 * rho2)) * exp(-.5 * (s * s + rho2));
 }
 m_device GreenKernel hej_8_1unb2spe = hej_8_1unb2spe_;
@@ -603,7 +603,7 @@ m_device double      hej_10_1unb2spe_(const void* params, const double* data) {
     const double s      = k * sig;
     const double s2     = s * s;
     const double rho2   = rho * rho;
-    const double subfun = s * rho > 100. ? 0 : ((1 - erf(c_1osqrt2 * (s - rho))) * exp(-s * rho) + (1 - erf(c_1osqrt2 * (s + rho))) * exp(s * rho));
+    const double subfun = s * rho > 100. ? 0 : (erfc(c_1osqrt2 * (s - rho)) * exp(-s * rho) + erfc(c_1osqrt2 * (s + rho)) * exp(s * rho));
     return -0.25 * sig / s * subfun - sig * M_SQRT2 * c_1osqrtpi * (c_93o256 + c_73o768 * s2 - c_47o256 * rho2 - c_17o384 * s2 * rho2 + c_11o768 * s2 * s2 + c_23o768 * rho2 * rho2 + c_1o256 * (s2 * rho2 * rho2 - s2 * s2 * rho2) + c_1o768 * (s2 * s2 * s2 - rho2 * rho2 * rho2)) * exp(-.5 * (s * s + rho2));
 }
 m_device GreenKernel hej_10_1unb2spe = hej_10_1unb2spe_;

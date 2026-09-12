@@ -111,8 +111,13 @@ namespace LGFOneUnbounded {
      * For a_1 < 0 (always for meh6, small wavenumbers for meh4) lambda >= 1 and r -> 1 as k -> 0. Forming
      * lambda first loses ~ eps / (lambda - 1) in relative precision, amplified by n in r^n (1e-10 at k h ~ 1e-3),
      * so delta = lambda - 1 = -(a_0 + 2 a_1) / (2 a_1) is formed from the y's directly: for both stencils
-     * a_0 + 2 a_1 = 4 (y_0 + y_1) - 8/3 y_0 y_1 identically. Then r - 1 = delta - sqrt(delta (delta + 2)) is
-     * evaluated as -2 delta / (delta + sqrt(delta (delta + 2))), exact for every delta >= 0.
+     * a_0 + 2 a_1 = 4 (y_0 + y_1) - 8/3 y_0 y_1 identically. With s = delta + sqrt(delta (delta + 2)),
+     * r - 1 = delta - sqrt(delta (delta + 2)) is evaluated as -2 delta / s and r = 1 / (1 + s), both
+     * exact for every delta >= 0. Recovering r as 1 + (r - 1) instead would cancel in the opposite
+     * limit: meh4 has a_1 -> 0^- on the curve cos k_1 + cos k_2 = -1 (an endpoint of the quadrature
+     * interval at k_z = pi/2), where delta -> +inf and r -> 0, and 1 + (r - 1) then leaves only
+     * eps / r relative digits in r (1e-9 at the closest Q = 64 Gauss-Legendre node, which is what
+     * put the MEHR_4L / MEHR_4F N = 16 table at 6e-13 on the k_z = pi/2 slice).
      * For a_1 >= 0 (meh4 at large wavenumbers) lambda <= -3 and r = lambda + sqrt(lambda^2 - 1) in (-1/3, 0],
      * with r = 0 for a_1 = 0 (infinite lambda); no cancellation there.
      * Use @ref meh_rpow for r^p and (r - 1) (r + 1) for r^2 - 1.
@@ -120,8 +125,9 @@ namespace LGFOneUnbounded {
     m_device void meh_root(const real_t a[2], const real_t y[2], real_t* r, real_t* rm1) {
         if (a[1] < 0.0) {
             const real_t delta = -(2.0 * (y[0] + y[1]) - 4. / 3. * y[0] * y[1]) / a[1];
-            *rm1               = -2.0 * delta / (delta + sqrt(delta * (delta + 2.0)));
-            *r                 = 1.0 + *rm1;
+            const real_t sdel  = delta + sqrt(delta * (delta + 2.0));
+            *rm1               = -2.0 * delta / sdel;
+            *r                 = 1.0 / (1.0 + sdel);
         } else {
             const real_t lambda = -a[0] / (2.0 * a[1]);
             *r                  = -1.0 / (fabs(lambda) + sqrt(lambda * lambda - 1.0));
