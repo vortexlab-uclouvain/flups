@@ -25,6 +25,8 @@
  * limitations under the License.
  *
  */
+#ifndef GREEN_KERNELS_HPP_
+#define GREEN_KERNELS_HPP_
 
 #include "defines.hpp"
 #include "expint.hpp"
@@ -844,3 +846,5 @@ m_device double      mehr_6f_0unb3spe_(const void* params, const double* data) {
 }
 m_device GreenKernel mehr_6f_0unb3spe = mehr_6f_0unb3spe_;
 /**@} */
+
+#endif  // GREEN_KERNELS_HPP_

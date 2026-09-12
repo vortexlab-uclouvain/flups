@@ -28,6 +28,7 @@
 #include "green_kernels.hpp"
 #include "ji0.hpp"
 #include "lgf_2unb1spe.hpp"
+#include "hej_2unb1spe.hpp"
 
 // Helper function to get the function pointer, depending on if it's on the GPU or not
 inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, stream_t stream) {
@@ -256,31 +257,26 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             get_kernel_ptr(&G, &zero, stream);
             get_kernel_ptr(&Gk0, &hej_2_2unb1spe_k0, stream);
             get_kernel_ptr(&Gr0, &hej_2_2unb1spe_r0, stream);
             break;
         case HEJ_4:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             get_kernel_ptr(&G, &zero, stream);
             get_kernel_ptr(&Gk0, &hej_4_2unb1spe_k0, stream);
             get_kernel_ptr(&Gr0, &hej_4_2unb1spe_r0, stream);
             break;
         case HEJ_6:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             get_kernel_ptr(&G, &zero, stream);
             get_kernel_ptr(&Gk0, &hej_6_2unb1spe_k0, stream);
             get_kernel_ptr(&Gr0, &hej_6_2unb1spe_r0, stream);
             break;
         case HEJ_8:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             get_kernel_ptr(&G, &zero, stream);
             get_kernel_ptr(&Gk0, &hej_8_2unb1spe_k0, stream);
             get_kernel_ptr(&Gr0, &hej_8_2unb1spe_r0, stream);
             break;
         case HEJ_10:
-            FLUPS_WARNING("HEJ kernels in 2dirunbounded 1dirspectral entail an approximation in 3D.");
             get_kernel_ptr(&G, &zero, stream);
             get_kernel_ptr(&Gk0, &hej_10_2unb1spe_k0, stream);
             get_kernel_ptr(&Gr0, &hej_10_2unb1spe_r0, stream);
@@ -408,8 +404,11 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
     }
     FLUPS_CHECK(n_spec <= 1, "cmpt_Green_2dirunbounded got %d spectral directions", n_spec);
 
-    // the LGF and MEHR kernels get the exact screened slice LGF on every k != 0 plane
-    const bool do_exact_slice = LGFTwoUnbounded::handles(typeGreen) && (n_spec == 1);
+    // the LGF/MEHR kernels get the exact screened slice LGF on every k != 0 plane, the HEJ ones the
+    // exact screened slice of their regularised kernel; both are filled in physical space below
+    const bool is_lgf_slice   = LGFTwoUnbounded::handles(typeGreen);
+    const bool is_hej_slice   = HEJTwoUnbounded::handles(typeGreen);
+    const bool do_exact_slice = (is_lgf_slice || is_hej_slice) && (n_spec == 1);
 
     if (!do_exact_slice) {
         auto op = m_backend_lambda(const int idx) {
@@ -465,6 +464,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         const double symsta_s = symstart[ax_s];
 
         // ------------------------------------------------------------------ the k ~ 0 plane
+        const bool hej_k0 = is_hej_slice;
         auto op_k0 = m_backend_lambda(const int idx) {
             const int i0 = idx % nloc[ax0];
             const int i1 = (idx / nloc[ax0]) % nloc[ax1];
@@ -480,16 +480,18 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
             double value = 0.0;
             if (fabs(k) <= kfact_s * 0.2) {
-                // the two-dimensional lattice Green's function (table + far-field expansion).
-                // Note: unlike the generic branch above we do NOT test r ~ 0 first: for these
-                // kernels the r = 0 point of a k != 0 slice is a regular point of the slice
-                // table, and the r = 0 point of the k = 0 plane is handled by Gk0 itself.
+                // the two-dimensional Green's function of that plane.
+                // Note: for the LGF/MEHR kernels we do NOT test r ~ 0 first, because the r = 0
+                // point of a k != 0 slice is a regular point of the slice table and the r = 0
+                // point of the k = 0 plane is handled by Gk0 itself. The regularised k = 0
+                // kernels carry a log(r) and do need their r ~ 0 companion.
                 const double x0     = (is[ax0]) * hfact_[ax0];
                 const double x1     = (is[ax1]) * hfact_[ax1];
                 const double x2     = (is[ax2]) * hfact_[ax2];
                 const double r      = sqrt(x0 * x0 + x1 * x1 + x2 * x2);
                 const double tmp[9] = {r, k, length, r_eq2D, static_cast<double>(std::abs(is[ax0])), static_cast<double>(abs(is[ax1])), static_cast<double>(abs(is[ax2])), static_cast<double>(GN), hfact_[ax0]};
-                value               = Gk0(tmp, Gdata);
+                const bool   at_r0  = (r <= (hfact_[ax0] + hfact_[ax1] + hfact_[ax2]) * 0.2);
+                value               = (hej_k0 && at_r0) ? Gr0(tmp, Gdata) : Gk0(tmp, Gdata);
             }
             green[id + i0 * nf] = value;
         };
@@ -522,24 +524,36 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         const int nx_max   = (symstart[ax_x] > 0.0) ? (int)symstart[ax_x] : (nglob[ax_x] - 1);
         const int ny_max   = (symstart[ax_y] > 0.0) ? (int)symstart[ax_y] : (nglob[ax_y] - 1);
 
-        // the closed forms assume an isotropic lattice in the three directions
-        FLUPS_CHECK(hgrid[0] == hgrid[1] && hgrid[1] == hgrid[2],
+        // the lattice closed forms assume an isotropic lattice in the three directions; the HEJ ones
+        // are continuum kernels and take the physical position and wavenumber, so they do not
+        FLUPS_CHECK(!is_lgf_slice || (hgrid[0] == hgrid[1] && hgrid[1] == hgrid[2]),
                     "the grid has to be isotropic to use the LGF/MEHR kernels in 2 unbounded + 1 spectral directions (h = %e %e %e)", hgrid[0], hgrid[1], hgrid[2]);
         const double h_spec = hgrid[ax_s];
+        const double h_x    = hgrid[ax_x];
+        const double h_y    = hgrid[ax_y];
 
         //---------------------------------------------------------------------
         /** - stage 1: the Gauss-Legendre rule and the Cw table, built once */
         //---------------------------------------------------------------------
         // the smallest non-zero |k| of the grid: |is + koffset| is at least 1 (koffset = 0) or
         // koffset itself (koffset = 0.5), and the quadrature must resolve that slice too
-        const double kzmin_h = kfact_s * ((koff_s == 0.0) ? 1.0 : koff_s) * h_spec;
-        const int    nq      = LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
+        const double kzmin   = kfact_s * ((koff_s == 0.0) ? 1.0 : koff_s);
+        const double kzmin_h = kzmin * h_spec;
+        // the lattice rule integrates over the Brillouin zone [0, pi] in lattice units, the
+        // regularised one over [0, kmax] in physical units
+        const double hej_kmax = is_hej_slice ? HEJTwoUnbounded::quad_kmax(length) : 0.0;
+        const int    nq       = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kzmin)
+                                             : LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
         const int nnx = nx_max + 1;
         const int nny = ny_max + 1;
 
         double *kq_host = (double *)m_calloc(sizeof(double) * nq);
         double *wq_host = (double *)m_calloc(sizeof(double) * nq);
-        LGFTwoUnbounded::gauss_legendre_0pi(nq, kq_host, wq_host);
+        if (is_hej_slice) {
+            HEJTwoUnbounded::gauss_legendre_0kmax(nq, hej_kmax, kq_host, wq_host);
+        } else {
+            LGFTwoUnbounded::gauss_legendre_0pi(nq, kq_host, wq_host);
+        }
 
         double *kq = (double *)backend_malloc(sizeof(double) * nq);
         double *wq = (double *)backend_malloc(sizeof(double) * nq);
@@ -551,7 +565,11 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
         double *cw = (double *)backend_malloc(sizeof(double) * nny * nq);
         double *rr = (double *)backend_malloc(sizeof(double) * nnx * nq);
-        LGFTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, stream);
+        if (is_hej_slice) {
+            HEJTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, h_y, stream);
+        } else {
+            LGFTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, stream);
+        }
 
         //---------------------------------------------------------------------
         /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R and fill the plane */
@@ -564,10 +582,15 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             if (fabs(k) <= kfact_s * 0.2) {
                 continue;  // the k = 0 plane has already been filled with the 2D table
             }
-            // the closed form is even in every wavenumber, so only |k| h matters
-            LGFTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k) * h_spec, stream);
+            // the closed form is even in every wavenumber, so only |k| matters
+            if (is_hej_slice) {
+                HEJTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k), h_x, length, stream);
+            } else {
+                LGFTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k) * h_spec, stream);
+            }
 
-            const int isl_ = isl;
+            const int  isl_      = isl;
+            const bool hej_slice = is_hej_slice;
             auto op_slice  = m_backend_lambda(const int idx) {
                 int ii[3];
                 ii[lvl_s] = isl_;
@@ -585,8 +608,10 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const int ny = abs(is[ax_y]);
                 assert(nx <= nx_max && ny <= ny_max);
 
-                // FLUPS stores -G, like the 2D tables of the k = 0 plane
-                green[id + i0 * nf] = -LGFTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq);
+                // the lattice tables are in the positive-operator convention and FLUPS stores -G;
+                // the regularised ones already carry the stored sign
+                green[id + i0 * nf] = hej_slice ? HEJTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq)
+                                                : -LGFTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq);
             };
             parallel_for(op_slice, na * nb, "2unb1spe green slice", stream);
         }

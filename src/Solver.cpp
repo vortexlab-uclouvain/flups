@@ -1230,23 +1230,13 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     scaleGreenFunction_(topo[ndim_ - 1], green, false);
 
     //-------------------------------------------------------------------------
-    /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
-     *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
-    // No need to scale this as that part of the Green function has a volfact = 1
-    const bool is_hej = (typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10);
-    // the LGF/MEHR kernels do NOT need (and must not get) this overwrite anymore: cmpt_Green_2dirunbounded
-    // already filled every k != 0 plane with the exact screened slice LGF, and the sampled symbol used here
-    // would replace it by its periodisation over the doubled box.
-    if (ndim_ == 3 && nbr_spectral == 1 && is_hej) {
-        int istart_cstm[3] = {0, 0, 0};  // global
-
-        for (int ip = 0; ip < 3; ip++) {
-            const int dimID = planmap[ip]->dimID();
-            istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  // avoid rewriting on the part of Green already computed
-            kfact[dimID]    = planmap[ip]->kfact();
-        }
-        cmpt_Green_0dirunbounded(topo[ndim_ - 1], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, istart_cstm, NULL, stream_);
-    }
+    /** - In 2 unbounded + 1 spectral directions the k != 0 planes used to be overwritten here by the
+     *      sampled symbol. They no longer are: @ref cmpt_Green_2dirunbounded fills every plane in
+     *      physical space (CHAT_2 through its own closed form, LGF/MEHR with the exact screened slice
+     *      LGF, HEJ with the exact screened slice of their regularised kernel). Sampling the symbol on
+     *      the doubled grid yields the DFT of the *periodised* kernel, so restoring that overwrite
+     *      would bring back the field of the periodic images of the source. */
+    //-------------------------------------------------------------------------
 #ifdef DUMP_DBG
     hdf5_dump(topo[ndim_ - 1], "green_h", green);
 #endif
