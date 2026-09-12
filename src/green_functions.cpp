@@ -25,6 +25,9 @@
 
 #include "green_functions.hpp"
 
+#include <algorithm>
+#include <climits>
+
 #include "green_kernels.hpp"
 #include "ji0.hpp"
 #include "lgf_2unb1spe.hpp"
@@ -39,6 +42,40 @@ inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, strea
 #else
     *host_ptr = *device_ptr;
 #endif
+}
+
+/**
+ * @brief the interval of @f$ |i_s| @f$ reached by the local indexes of one direction
+ *
+ * @ref cmpt_symID folds a global index @p ie onto a signed one; the values of @f$ |i_s| @f$ taken
+ * over a local range `[istart, istart + nloc)` form a **contiguous** interval, also when the range
+ * straddles @p symstart (the folded branch decreases while the direct one increases). A table
+ * indexed by `|i_s| - n_lo` therefore covers the rank exactly, with at most `nloc + 1` entries.
+ *
+ * @param istart the first global index owned by this rank
+ * @param nloc the number of indexes owned by this rank
+ * @param symstart the symmetry index of the direction, 0 if the direction is not folded
+ * @param[out] n_lo the smallest @f$ |i_s| @f$ reached
+ * @param[out] n_cnt the number of values of @f$ |i_s| @f$ reached, i.e. the table size
+ */
+static inline void cmpt_local_absID_(const int istart, const int nloc, const double symstart, int *n_lo, int *n_cnt) {
+    int lo = INT_MAX;
+    int hi = -1;
+    for (int i = 0; i < nloc; ++i) {
+        const int ie = istart + i;
+        const int is = (symstart == 0.0 || ie <= symstart) ? ie : -std::max((int)fabs(2.0 * symstart - ie), 1);
+        const int n  = std::abs(is);
+        lo           = std::min(lo, n);
+        hi           = std::max(hi, n);
+    }
+    if (hi < lo) {
+        // no local point at all: keep a one-entry table so that the allocation stays valid
+        lo = 0;
+        hi = 0;
+    }
+    FLUPS_CHECK(hi - lo + 1 <= nloc + 1, "the local |i_s| interval [%d,%d] is not contiguous over %d indexes", lo, hi, nloc);
+    *n_lo  = lo;
+    *n_cnt = hi - lo + 1;
 }
 
 /**
@@ -514,15 +551,32 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         const int na      = nlvl[lvl_a];
         const int nb      = nlvl[lvl_b];
 
-        // the unbounded direction handled by the closed form (x) and by the quadrature (y)
-        const int ax_x = axl[lvl_a];
-        const int ax_y = axl[lvl_b];
-
         // the largest |n| reachable in each unbounded direction: symstart when the direction is
         // folded (UNB-UNB), the full extent otherwise (UNB-EVEN/ODD, which is not folded)
         const int nglob[3] = {topo->nglob(0), topo->nglob(1), topo->nglob(2)};
-        const int nx_max   = (symstart[ax_x] > 0.0) ? (int)symstart[ax_x] : (nglob[ax_x] - 1);
-        const int ny_max   = (symstart[ax_y] > 0.0) ? (int)symstart[ax_y] : (nglob[ax_y] - 1);
+        const int nmax_a   = (symstart[axl[lvl_a]] > 0.0) ? (int)symstart[axl[lvl_a]] : (nglob[axl[lvl_a]] - 1);
+        const int nmax_b   = (symstart[axl[lvl_b]] > 0.0) ? (int)symstart[axl[lvl_b]] : (nglob[axl[lvl_b]] - 1);
+
+        // the unbounded direction handled by the closed form (x) and by the quadrature (y). The
+        // number of closed-form evaluations is proportional to the extent of the former, so the
+        // narrower direction goes to the closed form. The choice is made on the *global* extents
+        // (and so is the size of the quadrature rule below): the Green's function then stays a
+        // function of the grid only, not of the decomposition.
+        const bool x_is_a = (nmax_a <= nmax_b);
+        const int  ax_x   = x_is_a ? axl[lvl_a] : axl[lvl_b];
+        const int  ax_y   = x_is_a ? axl[lvl_b] : axl[lvl_a];
+        const int  nx_max = x_is_a ? nmax_a : nmax_b;
+        const int  ny_max = x_is_a ? nmax_b : nmax_a;
+
+        // the interval of |n| this rank actually reads in each of them: the two tables are built
+        // on that interval only, which divides their size -- and the number of closed-form
+        // evaluations -- by the number of ranks in the corresponding direction
+        int nx_lo = 0, nnx = 0, ny_lo = 0, nny = 0;
+        cmpt_local_absID_(istart[ax_x], nloc[ax_x], symstart[ax_x], &nx_lo, &nnx);
+        cmpt_local_absID_(istart[ax_y], nloc[ax_y], symstart[ax_y], &ny_lo, &nny);
+        FLUPS_CHECK(nx_lo + nnx - 1 <= nx_max && ny_lo + nny - 1 <= ny_max,
+                    "the local tables (%d:%d, %d:%d) exceed the global half-widths (%d, %d)",
+                    nx_lo, nx_lo + nnx - 1, ny_lo, ny_lo + nny - 1, nx_max, ny_max);
 
         // the lattice closed forms assume an isotropic lattice in the three directions; the HEJ ones
         // are continuum kernels and take the physical position and wavenumber, so they do not
@@ -542,51 +596,80 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         // the lattice rule integrates over the Brillouin zone [0, pi] in lattice units, the
         // regularised one over [0, kmax] in physical units
         const double hej_kmax = is_hej_slice ? HEJTwoUnbounded::quad_kmax(length) : 0.0;
-        const int    nq       = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kzmin)
-                                             : LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
-        const int nnx = nx_max + 1;
-        const int nny = ny_max + 1;
+        // the rule is sized per slice below; `kzmin` gives the largest of them, i.e. the size of
+        // the buffers. `quad_size` is non-increasing in its wavenumber argument, so no slice can
+        // ask for more than that.
+        const int nq_max = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kzmin)
+                                        : LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
 
-        double *kq_host = (double *)m_calloc(sizeof(double) * nq);
-        double *wq_host = (double *)m_calloc(sizeof(double) * nq);
-        if (is_hej_slice) {
-            HEJTwoUnbounded::gauss_legendre_0kmax(nq, hej_kmax, kq_host, wq_host);
-        } else {
-            LGFTwoUnbounded::gauss_legendre_0pi(nq, kq_host, wq_host);
-        }
-
-        double *kq = (double *)backend_malloc(sizeof(double) * nq);
-        double *wq = (double *)backend_malloc(sizeof(double) * nq);
-        backend_memcpy(kq, kq_host, sizeof(double) * nq, memcpyH2D, stream);
-        backend_memcpy(wq, wq_host, sizeof(double) * nq, memcpyH2D, stream);
-        backend_sync_stream(stream);
-        m_free(kq_host);
-        m_free(wq_host);
-
-        double *cw = (double *)backend_malloc(sizeof(double) * nny * nq);
-        double *rr = (double *)backend_malloc(sizeof(double) * nnx * nq);
-        if (is_hej_slice) {
-            HEJTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, h_y, stream);
-        } else {
-            LGFTwoUnbounded::build_cw(cw, kq, wq, ny_max, nq, stream);
-        }
+        double *kq_host = (double *)m_calloc(sizeof(double) * nq_max);
+        double *wq_host = (double *)m_calloc(sizeof(double) * nq_max);
+        double *kq      = (double *)backend_malloc(sizeof(double) * nq_max);
+        double *wq      = (double *)backend_malloc(sizeof(double) * nq_max);
+        double *cw      = (double *)backend_malloc(sizeof(double) * nny * nq_max);
+        double *rr      = (double *)backend_malloc(sizeof(double) * nnx * nq_max);
+        // the lattice closed forms are split in a per-node part (the roots and the prefactors,
+        // which only depend on the two wavenumbers) and a per-index part; the former lives in
+        // this table, one entry per quadrature node, see @ref LGFTwoUnbounded::build_params
+        void *qp = is_hej_slice ? NULL : backend_malloc(LGFTwoUnbounded::params_bytes() * nq_max);
 
         //---------------------------------------------------------------------
-        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R and fill the plane */
+        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R and fill the plane
+         *
+         * The local index `isl` already visits the slices by increasing @f$ |k| @f$: the spectral
+         * direction of the Green's function is always *unfolded* here (see the check below), so
+         * @f$ k = (i_e + k_{off})\, k_{fact} @f$ grows with `isl`. That ordering is what makes the
+         * per-slice sizing of the quadrature rule cheap: the endpoint near-singularity that sets
+         * the floor of @ref LGFTwoUnbounded::quad_size has the width of the slice's own
+         * wavenumber, so only the lowest modes need the largest rule; the rule size is then
+         * non-increasing along the loop and the rule -- and the Cw table with it -- is rebuilt
+         * only when it actually drops.
+         */
         //---------------------------------------------------------------------
+        // The plans are sorted by type (@ref FFTW_plan_dim::operator< ) and the spectral ones come
+        // first (PERPER = 6 and SYMSYM = 2, both < UNBUNB = 8): the spectral direction of the
+        // Green's function is therefore executed on real data, i.e. by an r2c/r2r plan, whose
+        // output is never folded. Every local slice then carries its own, distinct, |k|.
+        FLUPS_CHECK(symsta_s == 0.0,
+                    "the spectral direction of the Green's function is expected unfolded (r2c/r2r plan), got symstart = %e", symsta_s);
+
+        int nq = 0;  // the size of the rule currently held by kq, wq and cw
         for (int isl = 0; isl < nlvl[lvl_s]; ++isl) {
-            // the global, folded, index of that plane in the spectral direction
-            const int ie = istart[ax_s] + isl;
-            const int is_s = (symsta_s == 0.0 || ie <= symsta_s) ? ie : -std::max((int)fabs(2.0 * symsta_s - ie), 1);
-            const double k = (is_s + koff_s) * kfact_s;
-            if (fabs(k) <= kfact_s * 0.2) {
+            // the global index of that plane in the spectral direction, and its wavenumber
+            const int    ie   = istart[ax_s] + isl;
+            const double k    = (ie + koff_s) * kfact_s;
+            const double kabs = fabs(k);
+            if (kabs <= kfact_s * 0.2) {
                 continue;  // the k = 0 plane has already been filled with the 2D table
             }
+
+            // the rule this slice needs, and the tables that go with it
+            const int nq_j = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kabs)
+                                          : LGFTwoUnbounded::quad_size(ny_max, kabs * h_spec);
+            FLUPS_CHECK(nq_j <= nq_max, "the rule of the slice |k| = %e (%d nodes) exceeds the allocated one (%d nodes)", kabs, nq_j, nq_max);
+            if (nq_j != nq) {
+                if (is_hej_slice) {
+                    HEJTwoUnbounded::gauss_legendre_0kmax(nq_j, hej_kmax, kq_host, wq_host);
+                } else {
+                    LGFTwoUnbounded::gauss_legendre_0pi(nq_j, kq_host, wq_host);
+                }
+                backend_memcpy(kq, kq_host, sizeof(double) * nq_j, memcpyH2D, stream);
+                backend_memcpy(wq, wq_host, sizeof(double) * nq_j, memcpyH2D, stream);
+                backend_sync_stream(stream);
+                if (is_hej_slice) {
+                    HEJTwoUnbounded::build_cw(cw, kq, wq, ny_lo, nny, nq_j, h_y, stream);
+                } else {
+                    LGFTwoUnbounded::build_cw(cw, kq, wq, ny_lo, nny, nq_j, stream);
+                }
+                nq = nq_j;
+            }
+
             // the closed form is even in every wavenumber, so only |k| matters
             if (is_hej_slice) {
-                HEJTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k), h_x, length, stream);
+                HEJTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_lo, nnx, nq, kabs, h_x, length, stream);
             } else {
-                LGFTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_max, nq, fabs(k) * h_spec, stream);
+                LGFTwoUnbounded::build_params(qp, kq, (int)typeGreen, nq, kabs * h_spec, stream);
+                LGFTwoUnbounded::build_r(rr, qp, (int)typeGreen, nx_lo, nnx, nq, stream);
             }
 
             const int  isl_      = isl;
@@ -604,9 +687,10 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
                 int is[3];
                 cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
-                const int nx = abs(is[ax_x]);
-                const int ny = abs(is[ax_y]);
-                assert(nx <= nx_max && ny <= ny_max);
+                // the tables only span the local interval of |n|
+                const int nx = abs(is[ax_x]) - nx_lo;
+                const int ny = abs(is[ax_y]) - ny_lo;
+                assert(0 <= nx && nx < nnx && 0 <= ny && ny < nny);
 
                 // the lattice tables are in the positive-operator convention and FLUPS stores -G;
                 // the regularised ones already carry the stored sign
@@ -617,9 +701,14 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         }
 
         backend_sync_stream(stream);
+        m_free(kq_host);
+        m_free(wq_host);
         backend_free(kq);
         backend_free(wq);
         backend_free(cw);
+        if (qp != NULL) {
+            backend_free(qp);
+        }
         backend_free(rr);
     }
 

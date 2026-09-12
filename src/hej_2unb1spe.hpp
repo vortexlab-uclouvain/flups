@@ -32,6 +32,10 @@
  *   -# @f$ R[q, n_x] = G_1(n_x h_x; \sqrt{k_q^2 + k_z^2}, \sigma) @f$, rebuilt for each slice,
  * and each point of a slice is a length-@f$Q@f$ dot product, see @ref slice_point.
  *
+ * As in the lattice case both tables only span the interval of @f$ |n| @f$ the calling rank
+ * actually reads: they are built from a first index @f$ n_{lo} @f$ and a count, and the entry
+ * @f$ n @f$ lives at @f$ n - n_{lo} @f$. The quadrature rule stays a global property of the grid.
+ *
  * Unlike @ref lgf_2unb1spe.hpp the values here are already in the sign convention FLUPS stores
  * (@f$ G < 0 @f$), because the @f$ *\_1unb2spe\_ @f$ kernels are. No sign flip is applied by the
  * caller. The @f$ r = 0 @f$ point needs no special case: a regularised kernel is finite there.
@@ -110,12 +114,12 @@ m_device double slice_inner(const int typeGreen, const double r, const double k,
 /**
  * @brief assemble one point of a slice from the two cached tables, FLUPS sign convention
  *
- * @param R the (Q x (Nx+1)) table, `R[q * (Nx+1) + nx]`
- * @param Cw the (Q x (Ny+1)) table, `Cw[q * (Ny+1) + ny]`
- * @param nx the non-negative index along the closed-form direction, <= Nx
- * @param ny the non-negative index along the quadrature direction, <= Ny
- * @param nnx the leading dimension of R, i.e. Nx + 1
- * @param nny the leading dimension of Cw, i.e. Ny + 1
+ * @param R the (Q x nnx) table, `R[q * nnx + nx]`
+ * @param Cw the (Q x nny) table, `Cw[q * nny + ny]`
+ * @param nx the table index along the closed-form direction, i.e. `|n_x| - nx_lo`, in [0, nnx)
+ * @param ny the table index along the quadrature direction, i.e. `|n_y| - ny_lo`, in [0, nny)
+ * @param nnx the leading dimension of R, i.e. the local count of the closed-form direction
+ * @param nny the leading dimension of Cw, i.e. the local count of the quadrature direction
  * @param nq the number of quadrature nodes
  */
 m_device double slice_point(const double* R, const double* Cw, const int nx, const int ny,
@@ -199,37 +203,94 @@ inline void gauss_legendre_0kmax(const int nq, const double kmax, double* k, dou
 // the cached tables (device buffers, filled by parallel_for)
 //==============================================================================
 /**
- * @brief fill `Cw[q * (ny_max + 1) + ny] = w_q cos(ny hy k_q)` on the device
+ * @brief the value of @f$ k r @f$ beyond which a table entry is not worth evaluating
+ *
+ * @f$ e^{-40} \simeq 4\cdot 10^{-18} @f$ relative to the @f$ r = 0 @f$ value of the same slice.
+ * The `s * rho > 100` cut the `hej_*_1unb2spe_` kernels already carry stays, this one only skips
+ * the call altogether.
  */
-inline void build_cw(double* cw, const double* kq, const double* wq, const int ny_max, const int nq,
-                     const double hy, stream_t stream) {
-    const int nny = ny_max + 1;
-    auto      op  = m_backend_lambda(const int idx) {
-        const int ny = idx % nny;
-        const int q  = idx / nny;
-        cw[idx]      = wq[q] * cos(((double)ny) * hy * kq[q]);
+m_constant constexpr double far_cut_ = 40.0;
+
+/**
+ * @brief fill `Cw[q * nny + j] = w_q cos((ny_lo + j) hy k_q)` on the device
+ *
+ * @param ny_lo the first (non-negative) index of the quadrature direction held by this rank
+ * @param nny the number of indexes held by this rank, i.e. the leading dimension of Cw
+ */
+inline void build_cw(double* cw, const double* kq, const double* wq, const int ny_lo, const int nny,
+                     const int nq, const double hy, stream_t stream) {
+    auto op = m_backend_lambda(const int idx) {
+        const int j = idx % nny;
+        const int q = idx / nny;
+        cw[idx]     = wq[q] * cos(((double)(ny_lo + j)) * hy * kq[q]);
     };
     parallel_for(op, nny * nq, "2unb1spe hej green Cw", stream);
 }
 
 /**
- * @brief fill `R[q * (nx_max + 1) + nx] = G1(nx hx; sqrt(k_q^2 + kz^2), sig)` on the device
+ * @brief fill `R[q * nnx + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device,
+ *        for one kernel
  *
+ * The kernel is a template parameter so that the `switch` of @ref slice_inner is resolved at
+ * compile time and a single closed form is inlined in the device code, see @ref build_r.
+ *
+ * Entries with @f$ k r > @f$ @ref far_cut_ are written as a plain zero instead of going through
+ * the erf/exp calls: the screened kernel decays like @f$ e^{-k r} @f$, so they are below
+ * @f$ 4 \cdot 10^{-18} @f$ of the maximum of the very same table (reached at @f$ r = 0 @f$), i.e.
+ * under the round-off the length-Q dot product of @ref slice_point commits anyway. The table
+ * therefore carries an absolute floor of ~1e-17, deliberately -- the same choice as the lattice
+ * side, see @ref LGFTwoUnbounded::build_r_.
+ *
+ * @tparam TYPE the kernel, must satisfy @ref handles
+ * @param nx_lo the first (non-negative) index of the closed-form direction held by this rank
+ * @param nnx the number of indexes held by this rank, i.e. the leading dimension of R
  * @param kz the (non-negative) wavenumber of the spectral direction
  * @param hx the grid spacing of the closed-form direction
  * @param sig the regularisation length
  */
-inline void build_r(double* r, const double* kq, const int typeGreen, const int nx_max, const int nq,
-                    const double kz, const double hx, const double sig, stream_t stream) {
-    const int nnx = nx_max + 1;
-    auto      op  = m_backend_lambda(const int idx) {
-        const int    nx = idx % nnx;
-        const int    q  = idx / nnx;
+template <int TYPE>
+inline void build_r_(double* r, const double* kq, const int nx_lo, const int nnx, const int nq,
+                     const double kz, const double hx, const double sig, stream_t stream) {
+    auto op = m_backend_lambda(const int idx) {
+        const int    nx  = nx_lo + (idx % nnx);
+        const int    q   = idx / nnx;
         const double kq_ = kq[q];
         const double k   = sqrt(kq_ * kq_ + kz * kz);
-        r[idx]           = slice_inner(typeGreen, ((double)nx) * hx, k, sig);
+        const double rx  = ((double)nx) * hx;
+        r[idx]           = (k * rx > far_cut_) ? 0.0 : slice_inner(TYPE, rx, k, sig);
     };
     parallel_for(op, nnx * nq, "2unb1spe hej green R", stream);
+}
+
+/**
+ * @brief fill `R[q * nnx + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device
+ *
+ * The dispatch on the kernel happens here, on the host, once per slice: @ref build_r_ is then
+ * instantiated for a single closed form.
+ *
+ * @param typeGreen the kernel, must satisfy @ref handles
+ */
+inline void build_r(double* r, const double* kq, const int typeGreen, const int nx_lo, const int nnx,
+                    const int nq, const double kz, const double hx, const double sig, stream_t stream) {
+    switch (typeGreen) {
+        case HEJ_2:
+            build_r_<HEJ_2>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            break;
+        case HEJ_4:
+            build_r_<HEJ_4>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            break;
+        case HEJ_6:
+            build_r_<HEJ_6>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            break;
+        case HEJ_8:
+            build_r_<HEJ_8>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            break;
+        case HEJ_10:
+            build_r_<HEJ_10>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            break;
+        default:
+            FLUPS_CHECK(false, "[HEJTwoUnbounded] unsupported Green kernel %d", typeGreen);
+    }
 }
 
 };  // namespace HEJTwoUnbounded

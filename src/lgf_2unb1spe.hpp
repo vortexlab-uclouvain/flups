@@ -22,6 +22,17 @@
  *   -# @f$ R[q, n_x] = I(n_x; k_q, |k_z| h) @f$, rebuilt for each spectral slice,
  * and each point of a slice is then a length-@f$Q@f$ dot product, see @ref slice_point.
  *
+ * Both tables only span the interval of @f$ |n| @f$ the calling rank actually reads: they are
+ * built from a first index @f$ n_{lo} @f$ and a count, and the entry @f$ n @f$ lives at
+ * @f$ n - n_{lo} @f$. The quadrature rule itself is a global property of the grid (it is sized
+ * from the *global* half-width of the quadrature direction), so every rank gets the same values.
+ *
+ * The inner closed form is itself split in two (see @ref lgf_1unb2spe.hpp): its roots, prefactors
+ * and branch selection depend on @f$ (k_q, k_z) @f$ only and are evaluated once per quadrature
+ * node into a third, tiny, table (@ref build_params), leaving @f$ r^n @f$ as the only per-entry
+ * work of @ref build_r. That table also carries the index beyond which the entry is below
+ * @f$ 10^{-17} @f$ and is simply written as zero.
+ *
  * All wavenumbers handled here are **dimensionless** (i.e. @f$ k h @f$) and all values are given
  * in the POSITIVE-operator convention (@f$ G > 0 @f$, decaying). FLUPS stores @f$ -G @f$, exactly
  * like the @f$ k_z = 0 @f$ two-dimensional tables of `lgf_*_2unb0spe_`.
@@ -71,7 +82,8 @@ inline bool handles(const GreenType typeGreen) {
  *
  * This is exactly the kernel used by the `*_1unb2spe_` Green's functions, with the two spectral
  * wavenumbers being here the Gauss-Legendre node @p ky and the (dimensionless, positive) spectral
- * wavenumber @p kz.
+ * wavenumber @p kz. It is the reference form of what @ref build_params and @ref build_r do in two
+ * steps; the tables are not built through it.
  *
  * @param typeGreen the kernel, must satisfy @ref handles
  * @param n the (non-negative) index along the closed-form direction
@@ -107,12 +119,12 @@ m_device double slice_inner(const int typeGreen, const int n, const double ky, c
 /**
  * @brief assemble one point of a slice from the two cached tables, POSITIVE operator convention
  *
- * @param R the (Q x (Nx+1)) table, `R[q * (Nx+1) + nx]`
- * @param Cw the (Q x (Ny+1)) table, `Cw[q * (Ny+1) + ny]`
- * @param nx the non-negative index along the closed-form direction, <= Nx
- * @param ny the non-negative index along the quadrature direction, <= Ny
- * @param nnx the leading dimension of R, i.e. Nx + 1
- * @param nny the leading dimension of Cw, i.e. Ny + 1
+ * @param R the (Q x nnx) table, `R[q * nnx + nx]`
+ * @param Cw the (Q x nny) table, `Cw[q * nny + ny]`
+ * @param nx the table index along the closed-form direction, i.e. `|n_x| - nx_lo`, in [0, nnx)
+ * @param ny the table index along the quadrature direction, i.e. `|n_y| - ny_lo`, in [0, nny)
+ * @param nnx the leading dimension of R, i.e. the local count of the closed-form direction
+ * @param nny the leading dimension of Cw, i.e. the local count of the quadrature direction
  * @param nq the number of quadrature nodes
  */
 m_device double slice_point(const double* R, const double* Cw, const int nx, const int ny,
@@ -224,32 +236,249 @@ inline void gauss_legendre_0pi(const int nq, double* k, double* w) {
 // the cached tables (device buffers, filled by parallel_for)
 //==============================================================================
 /**
- * @brief fill `Cw[q * (ny_max + 1) + ny] = w_q cos(ny k_q)` on the device
+ * @brief fill `Cw[q * nny + j] = w_q cos((ny_lo + j) k_q)` on the device
+ *
+ * @param ny_lo the first (non-negative) index of the quadrature direction held by this rank
+ * @param nny the number of indexes held by this rank, i.e. the leading dimension of Cw
  */
-inline void build_cw(double* cw, const double* kq, const double* wq, const int ny_max, const int nq, stream_t stream) {
-    const int nny = ny_max + 1;
-    auto      op  = m_backend_lambda(const int idx) {
-        const int ny = idx % nny;
-        const int q  = idx / nny;
-        cw[idx]      = wq[q] * cos(((double)ny) * kq[q]);
+inline void build_cw(double* cw, const double* kq, const double* wq, const int ny_lo, const int nny,
+                     const int nq, stream_t stream) {
+    auto op = m_backend_lambda(const int idx) {
+        const int j = idx % nny;
+        const int q = idx / nny;
+        cw[idx]     = wq[q] * cos(((double)(ny_lo + j)) * kq[q]);
     };
     parallel_for(op, nny * nq, "2unb1spe green Cw", stream);
 }
 
+//==============================================================================
+// the closed form, split in a per-wavenumber part and a per-index part
+//==============================================================================
 /**
- * @brief fill `R[q * (nx_max + 1) + nx] = I(nx; k_q, kzh)` on the device
+ * @brief the params/eval pair of one kernel, see the split in @ref lgf_1unb2spe.hpp
  *
+ * The roots, the prefactors and the branch selection of a closed form depend on the two
+ * wavenumbers only: they are evaluated once per quadrature node (@ref build_params) and stored in
+ * a small device table, so that the `(Nx + 1) x Q` entries of R cost nothing but @f$ r^n @f$.
+ *
+ * @tparam TYPE the kernel, must satisfy @ref handles
+ */
+template <int TYPE>
+struct kernel_traits_;
+
+template <>
+struct kernel_traits_<LGF_2> {
+    using params_t = LGFOneUnbounded::Lgf2Params;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::lgf2_params(LGFOneUnbounded::lgf2_symbol(ky) + LGFOneUnbounded::lgf2_symbol(kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::lgf2_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<LGF_4> {
+    using params_t = LGFOneUnbounded::Lgf4Params;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::lgf4_params(LGFOneUnbounded::lgf4_symbol(ky) + LGFOneUnbounded::lgf4_symbol(kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::lgf4_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<LGF_6> {
+    using params_t = LGFOneUnbounded::Lgf6Params;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::lgf6_params(LGFOneUnbounded::lgf6_symbol(ky) + LGFOneUnbounded::lgf6_symbol(kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::lgf6_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<LGF_8> {
+    using params_t = LGFOneUnbounded::Lgf8Params;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::lgf8_params(LGFOneUnbounded::lgf8_symbol(ky) + LGFOneUnbounded::lgf8_symbol(kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::lgf8_eval(p, n); }
+};
+
+// the Mehrstellen closed forms take the two transverse wavenumbers ordered |k1| >= |k2|, exactly
+// as the mehr_*_1unb2spe_ kernels do (the expressions are symmetric in the two)
+template <>
+struct kernel_traits_<MEHR_4L> {
+    using params_t = LGFOneUnbounded::MehParams;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::meh4_left_params(fmax(ky, kz), fmin(ky, kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::meh4_left_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<MEHR_6L> {
+    using params_t = LGFOneUnbounded::MehParams;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::meh6_left_params(fmax(ky, kz), fmin(ky, kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::meh6_left_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<MEHR_4F> {
+    using params_t = LGFOneUnbounded::MehParams;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::meh4_full_params(fmax(ky, kz), fmin(ky, kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::meh4_full_eval(p, n); }
+};
+
+template <>
+struct kernel_traits_<MEHR_6F> {
+    using params_t = LGFOneUnbounded::MehParams;
+    static m_device params_t params(const double ky, const double kz) {
+        return LGFOneUnbounded::meh6_full_params(fmax(ky, kz), fmin(ky, kz));
+    }
+    static m_device double eval(const params_t& p, const int n) { return LGFOneUnbounded::meh6_full_eval(p, n); }
+};
+
+/**
+ * @brief the size of one entry of the params table, i.e. the largest of the kernels
+ *
+ * The table is allocated once, for the largest kernel, and cast to the right type by
+ * @ref build_params_ and @ref build_r_.
+ */
+inline constexpr size_t params_bytes() {
+    return std::max({sizeof(LGFOneUnbounded::Lgf2Params), sizeof(LGFOneUnbounded::Lgf4Params),
+                     sizeof(LGFOneUnbounded::Lgf6Params), sizeof(LGFOneUnbounded::Lgf8Params),
+                     sizeof(LGFOneUnbounded::MehParams)});
+}
+
+/**
+ * @brief fill the params table `P[q]` of one slice on the device, for one kernel
+ *
+ * @tparam TYPE the kernel, must satisfy @ref handles
+ * @param pbuf the params table, of `nq * params_bytes()` bytes
  * @param kzh the dimensionless (and non-negative) wavenumber of the spectral direction
  */
-inline void build_r(double* r, const double* kq, const int typeGreen, const int nx_max, const int nq,
-                    const double kzh, stream_t stream) {
-    const int nnx = nx_max + 1;
-    auto      op  = m_backend_lambda(const int idx) {
-        const int nx = idx % nnx;
-        const int q  = idx / nnx;
-        r[idx]       = slice_inner(typeGreen, nx, kq[q], kzh);
+template <int TYPE>
+inline void build_params_(void* pbuf, const double* kq, const int nq, const double kzh, stream_t stream) {
+    using params_t  = typename kernel_traits_<TYPE>::params_t;
+    params_t* const P = (params_t*)pbuf;
+    auto op = m_backend_lambda(const int q) {
+        P[q] = kernel_traits_<TYPE>::params(kq[q], kzh);
+    };
+    parallel_for(op, nq, "2unb1spe green params", stream);
+}
+
+/**
+ * @brief fill `R[q * nnx + i] = I(nx_lo + i; k_q, kzh)` on the device, for one kernel
+ *
+ * The kernel is a template parameter so that the dispatch is resolved at compile time and a
+ * single closed form is inlined in the device code, see @ref build_r. Everything that does not
+ * depend on the index has already been evaluated into @p pbuf by @ref build_params.
+ *
+ * Entries beyond `P[q].n_cut` are written as a plain zero instead of being evaluated: the closed
+ * form decays like @f$ \rho^n @f$ there and is below @ref LGFOneUnbounded::lgf_trunc_, i.e. under
+ * the round-off the length-Q dot product of @ref slice_point commits anyway. The table therefore
+ * carries an absolute floor of ~1e-17, deliberately.
+ *
+ * @tparam TYPE the kernel, must satisfy @ref handles
+ * @param pbuf the params table filled by @ref build_params for this slice
+ * @param nx_lo the first (non-negative) index of the closed-form direction held by this rank
+ * @param nnx the number of indexes held by this rank, i.e. the leading dimension of R
+ */
+template <int TYPE>
+inline void build_r_(double* r, const void* pbuf, const int nx_lo, const int nnx, const int nq,
+                     stream_t stream) {
+    using params_t          = typename kernel_traits_<TYPE>::params_t;
+    const params_t* const P = (const params_t*)pbuf;
+    auto op = m_backend_lambda(const int idx) {
+        const int i = idx % nnx;
+        const int q = idx / nnx;
+        const int n = nx_lo + i;
+        r[idx]      = (n > P[q].n_cut) ? 0.0 : kernel_traits_<TYPE>::eval(P[q], n);
     };
     parallel_for(op, nnx * nq, "2unb1spe green R", stream);
+}
+
+/**
+ * @brief fill the params table `P[q]` of one slice on the device
+ *
+ * The dispatch on the kernel happens here, on the host, once per slice.
+ *
+ * @param typeGreen the kernel, must satisfy @ref handles
+ * @param kzh the dimensionless (and non-negative) wavenumber of the spectral direction
+ */
+inline void build_params(void* pbuf, const double* kq, const int typeGreen, const int nq,
+                         const double kzh, stream_t stream) {
+    switch (typeGreen) {
+        case LGF_2:
+            build_params_<LGF_2>(pbuf, kq, nq, kzh, stream);
+            break;
+        case LGF_4:
+            build_params_<LGF_4>(pbuf, kq, nq, kzh, stream);
+            break;
+        case LGF_6:
+            build_params_<LGF_6>(pbuf, kq, nq, kzh, stream);
+            break;
+        case LGF_8:
+            build_params_<LGF_8>(pbuf, kq, nq, kzh, stream);
+            break;
+        case MEHR_4L:
+            build_params_<MEHR_4L>(pbuf, kq, nq, kzh, stream);
+            break;
+        case MEHR_6L:
+            build_params_<MEHR_6L>(pbuf, kq, nq, kzh, stream);
+            break;
+        case MEHR_4F:
+            build_params_<MEHR_4F>(pbuf, kq, nq, kzh, stream);
+            break;
+        case MEHR_6F:
+            build_params_<MEHR_6F>(pbuf, kq, nq, kzh, stream);
+            break;
+        default:
+            FLUPS_CHECK(false, "[LGFTwoUnbounded] unsupported Green kernel %d", typeGreen);
+    }
+}
+
+/**
+ * @brief fill `R[q * nnx + i] = I(nx_lo + i; k_q, kzh)` on the device
+ *
+ * The dispatch on the kernel happens here, on the host, once per slice: @ref build_r_ is then
+ * instantiated for a single closed form.
+ *
+ * @param typeGreen the kernel, must satisfy @ref handles
+ * @param pbuf the params table filled by @ref build_params for this slice
+ */
+inline void build_r(double* r, const void* pbuf, const int typeGreen, const int nx_lo, const int nnx,
+                    const int nq, stream_t stream) {
+    switch (typeGreen) {
+        case LGF_2:
+            build_r_<LGF_2>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case LGF_4:
+            build_r_<LGF_4>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case LGF_6:
+            build_r_<LGF_6>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case LGF_8:
+            build_r_<LGF_8>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case MEHR_4L:
+            build_r_<MEHR_4L>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case MEHR_6L:
+            build_r_<MEHR_6L>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case MEHR_4F:
+            build_r_<MEHR_4F>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        case MEHR_6F:
+            build_r_<MEHR_6F>(r, pbuf, nx_lo, nnx, nq, stream);
+            break;
+        default:
+            FLUPS_CHECK(false, "[LGFTwoUnbounded] unsupported Green kernel %d", typeGreen);
+    }
 }
 
 };  // namespace LGFTwoUnbounded
