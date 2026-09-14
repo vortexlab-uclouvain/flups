@@ -250,6 +250,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
  * @param green the Green function array
  * @param typeGreen  the type of Green function
  * @param length the characteristic length (only used for HEJ kernels = epsilon)
+ * @param prof the profiler (may be NULL): the construction of the exact slices is timed as `green_kernel`
  *
  * @warning For the HEJ kernels in 3D: According to [Spietz2018], we can obtain the **approximate** Green kernel
             by using the 2D unbounded kernel for mode 0 in the spectral direction, and the rest of the Green kernel
@@ -265,7 +266,7 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
          with the sampled symbol (which would periodise the slice kernel over the doubled box).
  *
  */
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], const double hgrid[3], double *green, GreenType typeGreen, const double length, stream_t stream) {
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], const double hgrid[3], double *green, GreenType typeGreen, const double length, stream_t stream, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
 
     // assert that the green spacing and dk is not 0.0 - this is also a way to check that ax0 will be spectral, and the others are still to be transformed
@@ -490,6 +491,10 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         };
         parallel_for(op, nloc[ax0] * nloc[ax1] * nloc[ax2], "2unb green", stream);
     } else {
+        // the construction of the slices is timed on its own: it is the cost of the kernel itself,
+        // without the plans and the transforms that surround it
+        backend_sync_stream(stream);
+        m_profStarti(prof, "green_kernel");
         //---------------------------------------------------------------------
         /** - LGF/MEHR: the k = 0 plane keeps the 2D table, every other plane is filled below with
          *    the exact screened slice LGF, see @ref lgf_2unb1spe.hpp
@@ -602,27 +607,50 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         const int nq_max = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kzmin)
                                         : LGFTwoUnbounded::quad_size(ny_max, kzmin_h);
 
+        // the slices are not assembled one by one but by blocks of at most `nblk` contiguous
+        // planes sharing the same rule: a per-slice product is far too skinny for the vendor BLAS
+        // (see the stage 2 & 3 comment below). The block is capped both by a fixed number of
+        // slices and by a memory budget on the two tall tables R and T.
+        const int    nb_max       = 64;
+        const size_t bytes_budget = (size_t)256 << 20;
+        int          nblk         = (int)std::min<size_t>((size_t)nb_max, std::max<size_t>((size_t)1, bytes_budget / ((size_t)nnx * ((size_t)nq_max + (size_t)nny) * sizeof(double))));
+        nblk                      = std::max(1, std::min(nblk, nlvl[lvl_s]));
+
         double *kq_host = (double *)m_calloc(sizeof(double) * nq_max);
         double *wq_host = (double *)m_calloc(sizeof(double) * nq_max);
         double *kq      = (double *)backend_malloc(sizeof(double) * nq_max);
         double *wq      = (double *)backend_malloc(sizeof(double) * nq_max);
         double *cw      = (double *)backend_malloc(sizeof(double) * nny * nq_max);
-        double *rr      = (double *)backend_malloc(sizeof(double) * nnx * nq_max);
-        // the assembled slice T = alpha * R Cw^T, column-major (nnx x nny), see the dgemm below
-        double *tt      = (double *)backend_malloc(sizeof(double) * nnx * nny);
+        // the tall tables of one block: R is column-major ((nblk * nnx) x Q), slice `b` occupying
+        // the rows [b * nnx, (b+1) * nnx), and T = alpha * R Cw^T is column-major
+        // ((nblk * nnx) x nny). Both keep the leading dimension of a *full* block, whatever the
+        // number of slices the block ends up holding.
+        double *rr      = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nq_max);
+        double *tt      = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nny);
         // the lattice closed forms are split in a per-node part (the roots and the prefactors,
         // which only depend on the two wavenumbers) and a per-index part; the former lives in
         // this table, one entry per quadrature node, see @ref LGFTwoUnbounded::build_params
         void *qp = is_hej_slice ? NULL : backend_malloc(LGFTwoUnbounded::params_bytes() * nq_max);
 
         //---------------------------------------------------------------------
-        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R, assemble the slice as
-         *    one dgemm and scatter it
+        /** - stage 2 & 3: rebuild R for every locally owned k != 0 plane, assemble the planes by
+         *    blocks as one tall dgemm each and scatter them
          *
-         * With R stored column-major as (nnx x Q) and Cw column-major as (nny x Q), the whole
-         * slice is the single rank-Q product @f$ T = \alpha\, R\, Cw^T @f$ (`alpha = 1/pi`, with
-         * the sign convention of the kernel family folded in), i.e. one `backend_dgemm_nt`. The
-         * kernel that follows is then a pure scatter of T through the folded indexes.
+         * With R stored column-major as (nnx x Q) and Cw column-major as (nny x Q), one slice is
+         * the single rank-Q product @f$ T = \alpha\, R\, Cw^T @f$ (`alpha = 1/pi`, with the sign
+         * convention of the kernel family folded in), i.e. one `backend_dgemm_nt`, and the kernel
+         * that follows is a pure scatter of T through the folded indexes.
+         *
+         * Such a per-slice product is however far too skinny to be of any use to the vendor BLAS:
+         * with a few tens of rows and a few hundreds of columns it selects poor kernels and runs
+         * at a couple of percent of peak. The slices are therefore accumulated into *blocks* of
+         * contiguous planes sharing the same quadrature rule (hence the same Cw): slice `b` of
+         * the block writes its R into the rows `[b * nnx, (b+1) * nnx)` of a tall table of leading
+         * dimension `nblk * nnx`, and the whole block is assembled by a *single* product of
+         * `blk_cnt * nnx` rows and scattered by a *single* kernel. The block size is the smallest
+         * of a 64-slice cap, a memory budget on the two tall tables, and the number of local
+         * planes. A block is flushed as soon as a slice cannot join it -- a rule change, a gap in
+         * the plane indexes (the k = 0 plane), or a full block.
          *
          * The local index `isl` already visits the slices by increasing @f$ |k| @f$: the spectral
          * direction of the Green's function is always *unfolded* here (see the check below), so
@@ -641,20 +669,83 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         FLUPS_CHECK(symsta_s == 0.0,
                     "the spectral direction of the Green's function is expected unfolded (r2c/r2r plan), got symstart = %e", symsta_s);
 
-        int nq = 0;  // the size of the rule currently held by kq, wq and cw
-        for (int isl = 0; isl < nlvl[lvl_s]; ++isl) {
+        int nq       = 0;   // the size of the rule currently held by kq, wq and cw
+        int blk_isl0 = -1;  // the first plane index of the block currently open
+        int blk_cnt  = 0;   // the number of slices it holds
+        // the lattice tables are in the positive-operator convention and FLUPS stores -G;
+        // the regularised ones already carry the stored sign
+        const double alpha = is_hej_slice ? c_1opi : -c_1opi;
+        // the leading dimension of the two tall tables, that of a *full* block
+        const int ldt = nblk * nnx;
+        // one extra iteration, with no slice, to flush the last block
+        for (int isl = 0; isl <= nlvl[lvl_s]; ++isl) {
             // the global index of that plane in the spectral direction, and its wavenumber
-            const int    ie   = istart[ax_s] + isl;
-            const double k    = (ie + koff_s) * kfact_s;
-            const double kabs = fabs(k);
-            if (kabs <= kfact_s * 0.2) {
-                continue;  // the k = 0 plane has already been filled with the 2D table
+            bool   active = false;
+            double kabs   = 0.0;
+            int    nq_j   = 0;
+            if (isl < nlvl[lvl_s]) {
+                const int    ie = istart[ax_s] + isl;
+                const double k  = (ie + koff_s) * kfact_s;
+                kabs            = fabs(k);
+                // the k = 0 plane has already been filled with the 2D table
+                active = (kabs > kfact_s * 0.2);
+                if (active) {
+                    // the rule this slice needs, and the tables that go with it
+                    nq_j = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kabs)
+                                        : LGFTwoUnbounded::quad_size(ny_max, kabs * h_spec);
+                    FLUPS_CHECK(nq_j <= nq_max, "the rule of the slice |k| = %e (%d nodes) exceeds the allocated one (%d nodes)", kabs, nq_j, nq_max);
+                }
             }
 
-            // the rule this slice needs, and the tables that go with it
-            const int nq_j = is_hej_slice ? HEJTwoUnbounded::quad_size(ny_max, h_y, hej_kmax, length, kabs)
-                                          : LGFTwoUnbounded::quad_size(ny_max, kabs * h_spec);
-            FLUPS_CHECK(nq_j <= nq_max, "the rule of the slice |k| = %e (%d nodes) exceeds the allocated one (%d nodes)", kabs, nq_j, nq_max);
+            // a slice joins the open block only if it shares its rule, follows it without a gap
+            // and the block is not full yet
+            const bool joins = active && (blk_cnt > 0) && (nq_j == nq) && (isl == blk_isl0 + blk_cnt) && (blk_cnt < nblk);
+
+            //----------------------------------------------------------------- flush the block
+            if (blk_cnt > 0 && !joins) {
+                const int    m             = blk_cnt * nnx;
+                backend_dgemm_nt(m, nny, nq, alpha, rr, ldt, cw, nny, tt, ldt, stream);
+
+                const int isl0_ = blk_isl0;
+                const int cnt_  = blk_cnt;
+                auto op_slice   = m_backend_lambda(const int idx) {
+                    const int per = na * nb;
+                    const int bb  = idx / per;
+                    const int rem = idx % per;
+
+                    int ii[3];
+                    ii[lvl_s] = isl0_ + bb;
+                    ii[lvl_a] = rem % na;
+                    ii[lvl_b] = rem / na;
+                    const int i0 = ii[0];
+                    const int i1 = ii[1];
+                    const int i2 = ii[2];
+
+                    const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
+
+                    int is[3];
+                    cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
+                    // the tables only span the local interval of |n|
+                    const int nx = abs(is[ax_x]) - nx_lo;
+                    const int ny = abs(is[ax_y]) - ny_lo;
+                    assert(0 <= nx && nx < nnx && 0 <= ny && ny < nny);
+
+                    // the block has been assembled by the dgemm above, this is a pure scatter
+                    green[id + i0 * nf] = tt[(bb * nnx + nx) + ldt * ny];
+                };
+                parallel_for(op_slice, cnt_ * na * nb, "2unb1spe green slice", stream);
+
+                blk_isl0 = -1;
+                blk_cnt  = 0;
+            }
+
+            // the trailing iteration and the k = 0 plane stop here, the block is flushed
+            if (!active) {
+                continue;
+            }
+
+            //----------------------------------------------------------------- the rule
+            // the block is empty here, so rebuilding Cw cannot invalidate a pending product
             if (nq_j != nq) {
                 if (is_hej_slice) {
                     HEJTwoUnbounded::gauss_legendre_0kmax(nq_j, hej_kmax, kq_host, wq_host);
@@ -672,45 +763,23 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 nq = nq_j;
             }
 
+            //----------------------------------------------------------------- R of that slice
+            if (blk_cnt == 0) {
+                blk_isl0 = isl;
+            }
+            const int b = blk_cnt;
             // the closed form is even in every wavenumber, so only |k| matters
             if (is_hej_slice) {
-                HEJTwoUnbounded::build_r(rr, kq, (int)typeGreen, nx_lo, nnx, nq, kabs, h_x, length, stream);
+                HEJTwoUnbounded::build_r(rr + (size_t)b * nnx, kq, (int)typeGreen, nx_lo, nnx, ldt, nq, kabs, h_x, length, stream);
             } else {
                 LGFTwoUnbounded::build_params(qp, kq, (int)typeGreen, nq, kabs * h_spec, stream);
-                LGFTwoUnbounded::build_r(rr, qp, (int)typeGreen, nx_lo, nnx, nq, stream);
+                LGFTwoUnbounded::build_r(rr + (size_t)b * nnx, qp, (int)typeGreen, nx_lo, nnx, ldt, nq, stream);
             }
-
-            // the lattice tables are in the positive-operator convention and FLUPS stores -G;
-            // the regularised ones already carry the stored sign
-            const double alpha = is_hej_slice ? c_1opi : -c_1opi;
-            backend_dgemm_nt(nnx, nny, nq, alpha, rr, nnx, cw, nny, tt, nnx, stream);
-
-            const int isl_ = isl;
-            auto op_slice  = m_backend_lambda(const int idx) {
-                int ii[3];
-                ii[lvl_s] = isl_;
-                ii[lvl_a] = idx % na;
-                ii[lvl_b] = idx / na;
-                const int i0 = ii[0];
-                const int i1 = ii[1];
-                const int i2 = ii[2];
-
-                const size_t id = localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-
-                int is[3];
-                cmpt_symID(ax0, i0, i1, i2, istart, symstart_, 0, is);
-                // the tables only span the local interval of |n|
-                const int nx = abs(is[ax_x]) - nx_lo;
-                const int ny = abs(is[ax_y]) - ny_lo;
-                assert(0 <= nx && nx < nnx && 0 <= ny && ny < nny);
-
-                // the slice has been assembled by the dgemm above, this is a pure scatter
-                green[id + i0 * nf] = tt[nx + nnx * ny];
-            };
-            parallel_for(op_slice, na * nb, "2unb1spe green slice", stream);
+            blk_cnt += 1;
         }
 
         backend_sync_stream(stream);
+        m_profStopi(prof, "green_kernel");
 
 
         m_free(kq_host);

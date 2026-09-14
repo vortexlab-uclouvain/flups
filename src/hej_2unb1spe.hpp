@@ -214,7 +214,7 @@ inline void build_cw(double* cw, const double* kq, const double* wq, const int n
 }
 
 /**
- * @brief fill `R[q * nnx + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device,
+ * @brief fill `R[q * ldr + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device,
  *        for one kernel
  *
  * The kernel is a template parameter so that the `switch` of @ref slice_inner is resolved at
@@ -229,52 +229,55 @@ inline void build_cw(double* cw, const double* kq, const double* wq, const int n
  *
  * @tparam TYPE the kernel, must satisfy @ref handles
  * @param nx_lo the first (non-negative) index of the closed-form direction held by this rank
- * @param nnx the number of indexes held by this rank, i.e. the leading dimension of R
+ * @param nnx the number of indexes held by this rank, i.e. the row count written by this call
+ * @param ldr the leading dimension of R, i.e. the row count of the tall table the slice is part of
  * @param kz the (non-negative) wavenumber of the spectral direction
  * @param hx the grid spacing of the closed-form direction
  * @param sig the regularisation length
  */
 template <int TYPE>
-inline void build_r_(double* r, const double* kq, const int nx_lo, const int nnx, const int nq,
-                     const double kz, const double hx, const double sig, stream_t stream) {
+inline void build_r_(double* r, const double* kq, const int nx_lo, const int nnx, const int ldr,
+                     const int nq, const double kz, const double hx, const double sig, stream_t stream) {
     auto op = m_backend_lambda(const int idx) {
-        const int    nx  = nx_lo + (idx % nnx);
+        const int    i   = idx % nnx;
+        const int    nx  = nx_lo + i;
         const int    q   = idx / nnx;
         const double kq_ = kq[q];
         const double k   = sqrt(kq_ * kq_ + kz * kz);
         const double rx  = ((double)nx) * hx;
-        r[idx]           = (k * rx > far_cut_) ? 0.0 : slice_inner(TYPE, rx, k, sig);
+        r[q * ldr + i]   = (k * rx > far_cut_) ? 0.0 : slice_inner(TYPE, rx, k, sig);
     };
     parallel_for(op, nnx * nq, "2unb1spe hej green R", stream);
 }
 
 /**
- * @brief fill `R[q * nnx + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device
+ * @brief fill `R[q * ldr + i] = G1((nx_lo + i) hx; sqrt(k_q^2 + kz^2), sig)` on the device
  *
  * The dispatch on the kernel happens here, on the host, once per slice: @ref build_r_ is then
- * instantiated for a single closed form. The layout is that of a column-major
- * @f$ (n_{nx} \times Q) @f$ matrix of leading dimension @p nnx, i.e. the first operand of the
- * slice `dgemm` (@ref backend_dgemm_nt).
+ * instantiated for a single closed form. The slice is the column-major
+ * @f$ (n_{nx} \times Q) @f$ block that starts at @p r inside a tall table of leading dimension
+ * @p ldr, i.e. (a row block of) the first operand of the `dgemm` (@ref backend_dgemm_nt).
  *
  * @param typeGreen the kernel, must satisfy @ref handles
+ * @param ldr the leading dimension of R, i.e. the row count of the tall table the slice is part of
  */
 inline void build_r(double* r, const double* kq, const int typeGreen, const int nx_lo, const int nnx,
-                    const int nq, const double kz, const double hx, const double sig, stream_t stream) {
+                    const int ldr, const int nq, const double kz, const double hx, const double sig, stream_t stream) {
     switch (typeGreen) {
         case HEJ_2:
-            build_r_<HEJ_2>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            build_r_<HEJ_2>(r, kq, nx_lo, nnx, ldr, nq, kz, hx, sig, stream);
             break;
         case HEJ_4:
-            build_r_<HEJ_4>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            build_r_<HEJ_4>(r, kq, nx_lo, nnx, ldr, nq, kz, hx, sig, stream);
             break;
         case HEJ_6:
-            build_r_<HEJ_6>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            build_r_<HEJ_6>(r, kq, nx_lo, nnx, ldr, nq, kz, hx, sig, stream);
             break;
         case HEJ_8:
-            build_r_<HEJ_8>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            build_r_<HEJ_8>(r, kq, nx_lo, nnx, ldr, nq, kz, hx, sig, stream);
             break;
         case HEJ_10:
-            build_r_<HEJ_10>(r, kq, nx_lo, nnx, nq, kz, hx, sig, stream);
+            build_r_<HEJ_10>(r, kq, nx_lo, nnx, ldr, nq, kz, hx, sig, stream);
             break;
         default:
             FLUPS_CHECK(false, "[HEJTwoUnbounded] unsupported Green kernel %d", typeGreen);

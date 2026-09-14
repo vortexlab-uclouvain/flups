@@ -1182,7 +1182,7 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
         cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 2) {
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", typeGreen_);
-        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, hgrid_, green, typeGreen_, kernelLength, stream_);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, hgrid_, green, typeGreen_, kernelLength, stream_, prof_);
     } else if ((n_unbounded) == 1) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", typeGreen_);
         cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);

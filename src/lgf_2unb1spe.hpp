@@ -356,7 +356,7 @@ inline void build_params_(void* pbuf, const double* kq, const int nq, const doub
 }
 
 /**
- * @brief fill `R[q * nnx + i] = I(nx_lo + i; k_q, kzh)` on the device, for one kernel
+ * @brief fill `R[q * ldr + i] = I(nx_lo + i; k_q, kzh)` on the device, for one kernel
  *
  * The kernel is a template parameter so that the dispatch is resolved at compile time and a
  * single closed form is inlined in the device code, see @ref build_r. Everything that does not
@@ -370,18 +370,19 @@ inline void build_params_(void* pbuf, const double* kq, const int nq, const doub
  * @tparam TYPE the kernel, must satisfy @ref handles
  * @param pbuf the params table filled by @ref build_params for this slice
  * @param nx_lo the first (non-negative) index of the closed-form direction held by this rank
- * @param nnx the number of indexes held by this rank, i.e. the leading dimension of R
+ * @param nnx the number of indexes held by this rank, i.e. the row count written by this call
+ * @param ldr the leading dimension of R, i.e. the row count of the tall table the slice is part of
  */
 template <int TYPE>
-inline void build_r_(double* r, const void* pbuf, const int nx_lo, const int nnx, const int nq,
-                     stream_t stream) {
+inline void build_r_(double* r, const void* pbuf, const int nx_lo, const int nnx, const int ldr,
+                     const int nq, stream_t stream) {
     using params_t          = typename kernel_traits_<TYPE>::params_t;
     const params_t* const P = (const params_t*)pbuf;
     auto op = m_backend_lambda(const int idx) {
         const int i = idx % nnx;
         const int q = idx / nnx;
         const int n = nx_lo + i;
-        r[idx]      = (n > P[q].n_cut) ? 0.0 : kernel_traits_<TYPE>::eval(P[q], n);
+        r[q * ldr + i] = (n > P[q].n_cut) ? 0.0 : kernel_traits_<TYPE>::eval(P[q], n);
     };
     parallel_for(op, nnx * nq, "2unb1spe green R", stream);
 }
@@ -427,42 +428,43 @@ inline void build_params(void* pbuf, const double* kq, const int typeGreen, cons
 }
 
 /**
- * @brief fill `R[q * nnx + i] = I(nx_lo + i; k_q, kzh)` on the device
+ * @brief fill `R[q * ldr + i] = I(nx_lo + i; k_q, kzh)` on the device
  *
  * The dispatch on the kernel happens here, on the host, once per slice: @ref build_r_ is then
- * instantiated for a single closed form. The layout is that of a column-major
- * @f$ (n_{nx} \times Q) @f$ matrix of leading dimension @p nnx, i.e. the first operand of the
- * slice `dgemm` (@ref backend_dgemm_nt).
+ * instantiated for a single closed form. The slice is the column-major
+ * @f$ (n_{nx} \times Q) @f$ block that starts at @p r inside a tall table of leading dimension
+ * @p ldr, i.e. (a row block of) the first operand of the `dgemm` (@ref backend_dgemm_nt).
  *
  * @param typeGreen the kernel, must satisfy @ref handles
  * @param pbuf the params table filled by @ref build_params for this slice
+ * @param ldr the leading dimension of R, i.e. the row count of the tall table the slice is part of
  */
 inline void build_r(double* r, const void* pbuf, const int typeGreen, const int nx_lo, const int nnx,
-                    const int nq, stream_t stream) {
+                    const int ldr, const int nq, stream_t stream) {
     switch (typeGreen) {
         case LGF_2:
-            build_r_<LGF_2>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<LGF_2>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case LGF_4:
-            build_r_<LGF_4>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<LGF_4>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case LGF_6:
-            build_r_<LGF_6>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<LGF_6>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case LGF_8:
-            build_r_<LGF_8>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<LGF_8>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case MEHR_4L:
-            build_r_<MEHR_4L>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<MEHR_4L>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case MEHR_6L:
-            build_r_<MEHR_6L>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<MEHR_6L>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case MEHR_4F:
-            build_r_<MEHR_4F>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<MEHR_4F>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         case MEHR_6F:
-            build_r_<MEHR_6F>(r, pbuf, nx_lo, nnx, nq, stream);
+            build_r_<MEHR_6F>(r, pbuf, nx_lo, nnx, ldr, nq, stream);
             break;
         default:
             FLUPS_CHECK(false, "[LGFTwoUnbounded] unsupported Green kernel %d", typeGreen);
