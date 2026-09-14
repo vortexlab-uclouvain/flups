@@ -45,6 +45,28 @@ void *backend_malloc(size_t size) {
     return m_fftw_calloc(size);
 }
 
+// Dense linear algebra: C = alpha * A * B^T, column-major
+void backend_dgemm_nt(const int m, const int n, const int k, const double alpha, const double *A, const int lda, const double *B, const int ldb, double *C, const int ldc, stream_t) {
+    if (m <= 0 || n <= 0 || k <= 0) {
+        return;
+    }
+    // C = 0
+    for (int j = 0; j < n; ++j) {
+        for (int i = 0; i < m; ++i) {
+            C[i + (size_t)j * ldc] = 0.0;
+        }
+    }
+    // C += alpha * A * B^T, one rank-1 update per contraction index
+    for (int q = 0; q < k; ++q) {
+        for (int j = 0; j < n; ++j) {
+            const double b = alpha * B[j + (size_t)q * ldb];
+            for (int i = 0; i < m; ++i) {
+                C[i + (size_t)j * ldc] += A[i + (size_t)q * lda] * b;
+            }
+        }
+    }
+}
+
 // Return alignment of pointer
 size_t backend_alignment_of(double *ptr) {
     return (size_t)fftw_alignment_of(ptr);

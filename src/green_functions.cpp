@@ -608,13 +608,21 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         double *wq      = (double *)backend_malloc(sizeof(double) * nq_max);
         double *cw      = (double *)backend_malloc(sizeof(double) * nny * nq_max);
         double *rr      = (double *)backend_malloc(sizeof(double) * nnx * nq_max);
+        // the assembled slice T = alpha * R Cw^T, column-major (nnx x nny), see the dgemm below
+        double *tt      = (double *)backend_malloc(sizeof(double) * nnx * nny);
         // the lattice closed forms are split in a per-node part (the roots and the prefactors,
         // which only depend on the two wavenumbers) and a per-index part; the former lives in
         // this table, one entry per quadrature node, see @ref LGFTwoUnbounded::build_params
         void *qp = is_hej_slice ? NULL : backend_malloc(LGFTwoUnbounded::params_bytes() * nq_max);
 
         //---------------------------------------------------------------------
-        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R and fill the plane
+        /** - stage 2 & 3: for each locally owned k != 0 plane, rebuild R, assemble the slice as
+         *    one dgemm and scatter it
+         *
+         * With R stored column-major as (nnx x Q) and Cw column-major as (nny x Q), the whole
+         * slice is the single rank-Q product @f$ T = \alpha\, R\, Cw^T @f$ (`alpha = 1/pi`, with
+         * the sign convention of the kernel family folded in), i.e. one `backend_dgemm_nt`. The
+         * kernel that follows is then a pure scatter of T through the folded indexes.
          *
          * The local index `isl` already visits the slices by increasing @f$ |k| @f$: the spectral
          * direction of the Green's function is always *unfolded* here (see the check below), so
@@ -672,8 +680,12 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 LGFTwoUnbounded::build_r(rr, qp, (int)typeGreen, nx_lo, nnx, nq, stream);
             }
 
-            const int  isl_      = isl;
-            const bool hej_slice = is_hej_slice;
+            // the lattice tables are in the positive-operator convention and FLUPS stores -G;
+            // the regularised ones already carry the stored sign
+            const double alpha = is_hej_slice ? c_1opi : -c_1opi;
+            backend_dgemm_nt(nnx, nny, nq, alpha, rr, nnx, cw, nny, tt, nnx, stream);
+
+            const int isl_ = isl;
             auto op_slice  = m_backend_lambda(const int idx) {
                 int ii[3];
                 ii[lvl_s] = isl_;
@@ -692,15 +704,15 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
                 const int ny = abs(is[ax_y]) - ny_lo;
                 assert(0 <= nx && nx < nnx && 0 <= ny && ny < nny);
 
-                // the lattice tables are in the positive-operator convention and FLUPS stores -G;
-                // the regularised ones already carry the stored sign
-                green[id + i0 * nf] = hej_slice ? HEJTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq)
-                                                : -LGFTwoUnbounded::slice_point(rr, cw, nx, ny, nnx, nny, nq);
+                // the slice has been assembled by the dgemm above, this is a pure scatter
+                green[id + i0 * nf] = tt[nx + nnx * ny];
             };
             parallel_for(op_slice, na * nb, "2unb1spe green slice", stream);
         }
 
         backend_sync_stream(stream);
+
+
         m_free(kq_host);
         m_free(wq_host);
         backend_free(kq);
@@ -710,6 +722,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             backend_free(qp);
         }
         backend_free(rr);
+        backend_free(tt);
     }
 
     // reset the value in x=y=0.0 and k=0 for singular expressions

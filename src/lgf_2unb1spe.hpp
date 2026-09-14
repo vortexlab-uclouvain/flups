@@ -20,7 +20,10 @@
  * The evaluation is cached in two stages (both tables are tiny):
  *   -# @f$ Cw[q, n_y] = w_q \cos(n_y k_q) @f$, built once for the whole Green's function,
  *   -# @f$ R[q, n_x] = I(n_x; k_q, |k_z| h) @f$, rebuilt for each spectral slice,
- * and each point of a slice is then a length-@f$Q@f$ dot product, see @ref slice_point.
+ * and the whole slice is then assembled at once as the rank-@f$Q@f$ product
+ * @f$ T = R\, Cw^T / \pi @f$ -- a single `dgemm` (@ref backend_dgemm_nt), R and Cw being
+ * column-major @f$ (n_{nx} \times Q) @f$ and @f$ (n_{ny} \times Q) @f$ matrices -- followed by a
+ * scatter of @f$ T[n_x + n_{nx} n_y] @f$ through the folded indexes of the Green's function.
  *
  * Both tables only span the interval of @f$ |n| @f$ the calling rank actually reads: they are
  * built from a first index @f$ n_{lo} @f$ and a count, and the entry @f$ n @f$ lives at
@@ -114,26 +117,6 @@ m_device double slice_inner(const int typeGreen, const int n, const double ky, c
             assert(false && "[LGFTwoUnbounded] unsupported Green kernel");
             return 0.0;
     }
-}
-
-/**
- * @brief assemble one point of a slice from the two cached tables, POSITIVE operator convention
- *
- * @param R the (Q x nnx) table, `R[q * nnx + nx]`
- * @param Cw the (Q x nny) table, `Cw[q * nny + ny]`
- * @param nx the table index along the closed-form direction, i.e. `|n_x| - nx_lo`, in [0, nnx)
- * @param ny the table index along the quadrature direction, i.e. `|n_y| - ny_lo`, in [0, nny)
- * @param nnx the leading dimension of R, i.e. the local count of the closed-form direction
- * @param nny the leading dimension of Cw, i.e. the local count of the quadrature direction
- * @param nq the number of quadrature nodes
- */
-m_device double slice_point(const double* R, const double* Cw, const int nx, const int ny,
-                            const int nnx, const int nny, const int nq) {
-    double sum = 0.0;
-    for (int q = 0; q < nq; ++q) {
-        sum += R[q * nnx + nx] * Cw[q * nny + ny];
-    }
-    return c_1opi * sum;
 }
 
 //==============================================================================
@@ -237,6 +220,9 @@ inline void gauss_legendre_0pi(const int nq, double* k, double* w) {
 //==============================================================================
 /**
  * @brief fill `Cw[q * nny + j] = w_q cos((ny_lo + j) k_q)` on the device
+ *
+ * The layout is that of a column-major @f$ (n_{ny} \times Q) @f$ matrix of leading dimension
+ * @p nny, i.e. the second operand of the slice `dgemm` (@ref backend_dgemm_nt).
  *
  * @param ny_lo the first (non-negative) index of the quadrature direction held by this rank
  * @param nny the number of indexes held by this rank, i.e. the leading dimension of Cw
@@ -378,7 +364,7 @@ inline void build_params_(void* pbuf, const double* kq, const int nq, const doub
  *
  * Entries beyond `P[q].n_cut` are written as a plain zero instead of being evaluated: the closed
  * form decays like @f$ \rho^n @f$ there and is below @ref LGFOneUnbounded::lgf_trunc_, i.e. under
- * the round-off the length-Q dot product of @ref slice_point commits anyway. The table therefore
+ * the round-off the length-Q contraction of the slice `dgemm` commits anyway. The table therefore
  * carries an absolute floor of ~1e-17, deliberately.
  *
  * @tparam TYPE the kernel, must satisfy @ref handles
@@ -444,7 +430,9 @@ inline void build_params(void* pbuf, const double* kq, const int typeGreen, cons
  * @brief fill `R[q * nnx + i] = I(nx_lo + i; k_q, kzh)` on the device
  *
  * The dispatch on the kernel happens here, on the host, once per slice: @ref build_r_ is then
- * instantiated for a single closed form.
+ * instantiated for a single closed form. The layout is that of a column-major
+ * @f$ (n_{nx} \times Q) @f$ matrix of leading dimension @p nnx, i.e. the first operand of the
+ * slice `dgemm` (@ref backend_dgemm_nt).
  *
  * @param typeGreen the kernel, must satisfy @ref handles
  * @param pbuf the params table filled by @ref build_params for this slice

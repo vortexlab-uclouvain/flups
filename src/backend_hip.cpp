@@ -48,6 +48,21 @@ void backend_free(void *ptr) {
     m_hiprt_check_errors(hipFree(ptr));
 }
 
+// Dense linear algebra: C = alpha * A * B^T, column-major
+void backend_dgemm_nt(const int m, const int n, const int k, const double alpha, const double *A, const int lda, const double *B, const int ldb, double *C, const int ldc, stream_t stream) {
+    if (m <= 0 || n <= 0 || k <= 0) {
+        return;
+    }
+    const double beta = 0.0;
+    m_rocblas_check_errors(rocblas_set_stream(rocHandle, stream));
+    m_rocblas_check_errors(rocblas_dgemm(rocHandle,
+                                         rocblas_operation_none, rocblas_operation_transpose,
+                                         m, n, k,
+                                         &alpha, A, lda,
+                                         B, ldb,
+                                         &beta, C, ldc));
+}
+
 // Return alignment of pointer
 size_t backend_alignment_of(double *ptr) {
     BACKEND_CHECK(memTypeDevice == backend_get_memtype(ptr), "Pointer is not on device");

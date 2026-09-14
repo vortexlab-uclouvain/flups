@@ -48,6 +48,21 @@ void backend_free(void *ptr) {
     m_cudart_check_errors(cudaFree(ptr));
 }
 
+// Dense linear algebra: C = alpha * A * B^T, column-major
+void backend_dgemm_nt(const int m, const int n, const int k, const double alpha, const double *A, const int lda, const double *B, const int ldb, double *C, const int ldc, stream_t stream) {
+    if (m <= 0 || n <= 0 || k <= 0) {
+        return;
+    }
+    const double beta = 0.0;
+    m_cublas_check_errors(cublasSetStream(cuHandle, stream));
+    m_cublas_check_errors(cublasDgemm(cuHandle,
+                                      CUBLAS_OP_N, CUBLAS_OP_T,
+                                      m, n, k,
+                                      &alpha, A, lda,
+                                      B, ldb,
+                                      &beta, C, ldc));
+}
+
 // Return alignment of pointer
 // TODO: what is the proper alignment on GPUs, and how to implement it ?
 size_t backend_alignment_of(double *ptr) {

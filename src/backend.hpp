@@ -27,6 +27,28 @@ void  backend_memset(void *ptr, int val, size_t size, stream_t stream);
 void *backend_malloc(size_t size);
 void  backend_free(void *ptr);
 
+// Dense linear algebra
+/**
+ * @brief C = alpha * A * B^T (beta = 0), column-major, on the given stream
+ *
+ * A is (m x k) with leading dimension @p lda, B is (n x k) with leading dimension @p ldb and
+ * C is (m x n) with leading dimension @p ldc, all column-major. The call is a no-op if any of
+ * @p m, @p n or @p k is <= 0.
+ *
+ * @param m the number of rows of A and C
+ * @param n the number of rows of B, i.e. the number of columns of C
+ * @param k the number of columns of A and B, i.e. the contraction length
+ * @param alpha the scaling of the product
+ * @param A the (m x k) column-major matrix, `A[i + q * lda]`
+ * @param lda the leading dimension of A, >= m
+ * @param B the (n x k) column-major matrix, `B[j + q * ldb]`
+ * @param ldb the leading dimension of B, >= n
+ * @param C the (m x n) column-major result, `C[i + j * ldc]`, overwritten
+ * @param ldc the leading dimension of C, >= m
+ * @param stream the stream the operation is issued on
+ */
+void backend_dgemm_nt(const int m, const int n, const int k, const double alpha, const double *A, const int lda, const double *B, const int ldb, double *C, const int ldc, stream_t stream);
+
 // Memory management functions
 size_t    backend_alignment_of(double *ptr);
 void      backend_memcpy(double *dst, double *src, size_t size, memcpyKind_t kind, stream_t stream);
