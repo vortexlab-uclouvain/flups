@@ -30,17 +30,29 @@
 
 #include "green_kernels.hpp"
 #include "ji0.hpp"
-#include "lgf_2unb1spe.hpp"
 #include "hej_2unb1spe.hpp"
+#include "lgf_2unb1spe.hpp"
 
-// Helper function to get the function pointer, depending on if it's on the GPU or not
-inline void get_kernel_ptr(GreenKernel *host_ptr, GreenKernel *device_ptr, stream_t stream) {
+/**
+ * @brief reads the value of a kernel symbol into host memory
+ *
+ * On the GPU backends the kernels are `__device__` function pointers, whose value is known to the
+ * device only: it has to be fetched through the symbol.
+ *
+ * @param symbol the address of the kernel symbol, as declared in @ref green_kernels.hpp
+ * @return the kernel, usable from the host to build a device lambda
+ */
+static inline GreenKernel kernel_from_symbol(GreenKernel *symbol) {
 #if defined(BACKEND_CUDA)
-    m_cudart_check_errors(cudaMemcpyFromSymbolAsync(host_ptr, *device_ptr, sizeof(GreenKernel), 0, cudaMemcpyDeviceToHost, stream));
+    GreenKernel kernel;
+    m_cudart_check_errors(cudaMemcpyFromSymbol(&kernel, *symbol, sizeof(GreenKernel)));
+    return kernel;
 #elif defined(BACKEND_HIP)
-    m_hiprt_check_errors(hipMemcpyFromSymbolAsync(host_ptr, *device_ptr, sizeof(GreenKernel), 0, hipMemcpyDeviceToHost, stream));
+    GreenKernel kernel;
+    m_hiprt_check_errors(hipMemcpyFromSymbol(&kernel, *symbol, sizeof(GreenKernel)));
+    return kernel;
 #else
-    *host_ptr = *device_ptr;
+    return *symbol;
 #endif
 }
 
@@ -104,72 +116,72 @@ void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const
     //==========================    3D  =================================
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_2_3unb0spe);
             G0 = -M_SQRT2 / (4.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_4_3unb0spe);
             G0 = -3.0 * M_SQRT2 / (8.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_6_3unb0spe);
             G0 = -15.0 * M_SQRT2 / (32.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_8_3unb0spe);
             G0 = -35.0 * M_SQRT2 / (64.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_10_3unb0spe);
             G0 = -315.0 * M_SQRT2 / (512.0 * length * sqrt(M_PI * M_PI * M_PI));
             break;
         case HEJ_0:
-            get_kernel_ptr(&G, &hej_0_3unb0spe, stream);
+            G  = kernel_from_symbol(&hej_0_3unb0spe);
             G0 = -1.0 / (2.0 * M_PI * M_PI * length);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_3unb0spe, stream);
+            G  = kernel_from_symbol(&chat_2_3unb0spe);
             G0 = -0.5 * pow(1.5 * c_1o2pi * hfact[0] * hfact[1] * hfact[2], 2. / 3.) / (hfact[0] * hfact[1] * hfact[2]);
             break;
         case LGF_2:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_2, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_2_3unb0spe, stream);
+            G = kernel_from_symbol(&lgf_2_3unb0spe);
             break;
         case LGF_4:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_4, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_4_3unb0spe, stream);
+            G = kernel_from_symbol(&lgf_4_3unb0spe);
             break;
         case LGF_6:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_6, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_6_3unb0spe, stream);
+            G = kernel_from_symbol(&lgf_6_3unb0spe);
             break;
         case LGF_8:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(LGF_8, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &lgf_8_3unb0spe, stream);
+            G = kernel_from_symbol(&lgf_8_3unb0spe);
             break;
         case MEHR_4L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_4L, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_4l_3unb0spe, stream);
+            G = kernel_from_symbol(&mehr_4l_3unb0spe);
             break;
         case MEHR_6L:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_6L, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_6l_3unb0spe, stream);
+            G = kernel_from_symbol(&mehr_6l_3unb0spe);
             break;
         case MEHR_4F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_4F, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_4f_3unb0spe, stream);
+            G = kernel_from_symbol(&mehr_4f_3unb0spe);
             break;
         case MEHR_6F:
             FLUPS_CHECK((hfact[0] == hfact[1]) && (hfact[1] == hfact[2]), "the grid has to be isotropic to use the LGFs");
             lgf_readfile_(MEHR_6F, 3, &GN, &Gdata, stream);
-            get_kernel_ptr(&G, &mehr_6f_3unb0spe, stream);
+            G = kernel_from_symbol(&mehr_6f_3unb0spe);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -295,41 +307,41 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_2_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_2_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_2_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_2_2unb1spe_r0);
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_4_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_4_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_4_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_4_2unb1spe_r0);
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_6_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_6_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_6_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_6_2unb1spe_r0);
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_8_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_8_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_8_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_8_2unb1spe_r0);
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_10_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_10_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_10_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_10_2unb1spe_r0);
             break;
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
             parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0", stream);
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &hej_0_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &hej_0_2unb1spe_k0, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&hej_0_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&hej_0_2unb1spe_k0);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_2unb1spe, stream);
-            get_kernel_ptr(&Gk0, &chat_2_2unb1spe_k0, stream);
-            get_kernel_ptr(&Gr0, &chat_2_2unb1spe_r0, stream);
+            G   = kernel_from_symbol(&chat_2_2unb1spe);
+            Gk0 = kernel_from_symbol(&chat_2_2unb1spe_k0);
+            Gr0 = kernel_from_symbol(&chat_2_2unb1spe_r0);
             // caution: the value of G in k=r=0 is specified at the end of this routine
             break;
         case LGF_2:
@@ -337,72 +349,72 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // read the LGF data and store it
             lgf_readfile_(LGF_2, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &lgf_2_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &lgf_2_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&lgf_2_2unb0spe);
+            Gr0 = kernel_from_symbol(&lgf_2_2unb0spe);
             break;
         case LGF_4:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_4, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &lgf_4_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &lgf_4_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&lgf_4_2unb0spe);
+            Gr0 = kernel_from_symbol(&lgf_4_2unb0spe);
             break;
         case LGF_6:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_6, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &lgf_6_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &lgf_6_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&lgf_6_2unb0spe);
+            Gr0 = kernel_from_symbol(&lgf_6_2unb0spe);
             break;
         case LGF_8:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the LGFs");
             // read the LGF data and store it
             lgf_readfile_(LGF_8, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &lgf_8_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &lgf_8_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&lgf_8_2unb0spe);
+            Gr0 = kernel_from_symbol(&lgf_8_2unb0spe);
             break;
         case MEHR_4L:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_4L, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&mehr_4l6l_2unb0spe);
+            Gr0 = kernel_from_symbol(&mehr_4l6l_2unb0spe);
             break;
         case MEHR_6L:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_6L, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &mehr_4l6l_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &mehr_4l6l_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&mehr_4l6l_2unb0spe);
+            Gr0 = kernel_from_symbol(&mehr_4l6l_2unb0spe);
             break;
         case MEHR_4F:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_4F, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &mehr_4f_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &mehr_4f_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&mehr_4f_2unb0spe);
+            Gr0 = kernel_from_symbol(&mehr_4f_2unb0spe);
             break;
         case MEHR_6F:
             FLUPS_CHECK(unb_dirs_are_isotropic, "the grid has to be isotropic to use the MEHR kernels");
             // read the LGF data and store it
             lgf_readfile_(MEHR_6F, 2, &GN, &Gdata, stream);
             // associate the Green's function
-            get_kernel_ptr(&G, &zero, stream);
-            get_kernel_ptr(&Gk0, &mehr_6f_2unb0spe, stream);
-            get_kernel_ptr(&Gr0, &mehr_6f_2unb0spe, stream);
+            G   = kernel_from_symbol(&zero);
+            Gk0 = kernel_from_symbol(&mehr_6f_2unb0spe);
+            Gr0 = kernel_from_symbol(&mehr_6f_2unb0spe);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -507,7 +519,7 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
         // ------------------------------------------------------------------ the k ~ 0 plane
         const bool hej_k0 = is_hej_slice;
-        auto op_k0 = m_backend_lambda(const int idx) {
+        auto       op_k0  = m_backend_lambda(const int idx) {
             const int i0 = idx % nloc[ax0];
             const int i1 = (idx / nloc[ax0]) % nloc[ax1];
             const int i2 = idx / (nloc[ax0] * nloc[ax1]);
@@ -550,8 +562,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         }
         // keep the fastest remaining level first, so that the writes (and the reads in R) stay
         // as contiguous as the slice allows
-        const int lvl_a = (lvl_s == 0) ? 1 : 0;
-        const int lvl_b = (lvl_s == 2) ? 1 : 2;
+        const int lvl_a   = (lvl_s == 0) ? 1 : 0;
+        const int lvl_b   = (lvl_s == 2) ? 1 : 2;
         const int nlvl[3] = {nloc[ax0], nloc[ax1], nloc[ax2]};
         const int na      = nlvl[lvl_a];
         const int nb      = nlvl[lvl_b];
@@ -625,8 +637,8 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         // the rows [b * nnx, (b+1) * nnx), and T = alpha * R Cw^T is column-major
         // ((nblk * nnx) x nny). Both keep the leading dimension of a *full* block, whatever the
         // number of slices the block ends up holding.
-        double *rr      = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nq_max);
-        double *tt      = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nny);
+        double *rr = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nq_max);
+        double *tt = (double *)backend_malloc(sizeof(double) * (size_t)nblk * nnx * nny);
         // the lattice closed forms are split in a per-node part (the roots and the prefactors,
         // which only depend on the two wavenumbers) and a per-index part; the former lives in
         // this table, one entry per quadrature node, see @ref LGFTwoUnbounded::build_params
@@ -703,20 +715,20 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
 
             //----------------------------------------------------------------- flush the block
             if (blk_cnt > 0 && !joins) {
-                const int    m             = blk_cnt * nnx;
+                const int m = blk_cnt * nnx;
                 backend_dgemm_nt(m, nny, nq, alpha, rr, ldt, cw, nny, tt, ldt, stream);
 
-                const int isl0_ = blk_isl0;
-                const int cnt_  = blk_cnt;
-                auto op_slice   = m_backend_lambda(const int idx) {
+                const int isl0_    = blk_isl0;
+                const int cnt_     = blk_cnt;
+                auto      op_slice = m_backend_lambda(const int idx) {
                     const int per = na * nb;
                     const int bb  = idx / per;
                     const int rem = idx % per;
 
                     int ii[3];
-                    ii[lvl_s] = isl0_ + bb;
-                    ii[lvl_a] = rem % na;
-                    ii[lvl_b] = rem / na;
+                    ii[lvl_s]    = isl0_ + bb;
+                    ii[lvl_a]    = rem % na;
+                    ii[lvl_b]    = rem / na;
                     const int i0 = ii[0];
                     const int i1 = ii[1];
                     const int i2 = ii[2];
@@ -781,7 +793,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         backend_sync_stream(stream);
         m_profStopi(prof, "green_kernel");
 
-
         m_free(kq_host);
         m_free(wq_host);
         backend_free(kq);
@@ -843,63 +854,63 @@ void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const
 
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_1unb2spe, stream);
-            get_kernel_ptr(&G0, &hej_2_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&hej_2_1unb2spe);
+            G0 = kernel_from_symbol(&hej_2_1unb2spe_k0);
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_1unb2spe, stream);
-            get_kernel_ptr(&G0, &hej_4_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&hej_4_1unb2spe);
+            G0 = kernel_from_symbol(&hej_4_1unb2spe_k0);
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_1unb2spe, stream);
-            get_kernel_ptr(&G0, &hej_6_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&hej_6_1unb2spe);
+            G0 = kernel_from_symbol(&hej_6_1unb2spe_k0);
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_1unb2spe, stream);
-            get_kernel_ptr(&G0, &hej_8_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&hej_8_1unb2spe);
+            G0 = kernel_from_symbol(&hej_8_1unb2spe_k0);
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_1unb2spe, stream);
-            get_kernel_ptr(&G0, &hej_10_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&hej_10_1unb2spe);
+            G0 = kernel_from_symbol(&hej_10_1unb2spe_k0);
             break;
         case HEJ_0:
             FLUPS_CHECK(false, "HEJ0 kernel not available for 1D unbounded problems.");
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_1unb2spe, stream);
-            get_kernel_ptr(&G0, &chat_2_1unb2spe_k0, stream);
+            G  = kernel_from_symbol(&chat_2_1unb2spe);
+            G0 = kernel_from_symbol(&chat_2_1unb2spe_k0);
             break;
         case LGF_2:
-            get_kernel_ptr(&G, &lgf_2_1unb2spe, stream);
-            get_kernel_ptr(&G0, &lgf_2_1unb2spe, stream);
+            G  = kernel_from_symbol(&lgf_2_1unb2spe);
+            G0 = kernel_from_symbol(&lgf_2_1unb2spe);
             break;
         case LGF_4:
-            get_kernel_ptr(&G, &lgf_4_1unb2spe, stream);
-            get_kernel_ptr(&G0, &lgf_4_1unb2spe, stream);
+            G  = kernel_from_symbol(&lgf_4_1unb2spe);
+            G0 = kernel_from_symbol(&lgf_4_1unb2spe);
             break;
         case LGF_6:
-            get_kernel_ptr(&G, &lgf_6_1unb2spe, stream);
-            get_kernel_ptr(&G0, &lgf_6_1unb2spe, stream);
+            G  = kernel_from_symbol(&lgf_6_1unb2spe);
+            G0 = kernel_from_symbol(&lgf_6_1unb2spe);
             break;
         case LGF_8:
-            get_kernel_ptr(&G, &lgf_8_1unb2spe, stream);
-            get_kernel_ptr(&G0, &lgf_8_1unb2spe, stream);
+            G  = kernel_from_symbol(&lgf_8_1unb2spe);
+            G0 = kernel_from_symbol(&lgf_8_1unb2spe);
             break;
         case MEHR_4L:
-            get_kernel_ptr(&G, &mehr_4l_1unb2spe, stream);
-            get_kernel_ptr(&G0, &mehr_4l_1unb2spe, stream);
+            G  = kernel_from_symbol(&mehr_4l_1unb2spe);
+            G0 = kernel_from_symbol(&mehr_4l_1unb2spe);
             break;
         case MEHR_6L:
-            get_kernel_ptr(&G, &mehr_6l_1unb2spe, stream);
-            get_kernel_ptr(&G0, &mehr_6l_1unb2spe, stream);
+            G  = kernel_from_symbol(&mehr_6l_1unb2spe);
+            G0 = kernel_from_symbol(&mehr_6l_1unb2spe);
             break;
         case MEHR_4F:
-            get_kernel_ptr(&G, &mehr_4f_1unb2spe, stream);
-            get_kernel_ptr(&G0, &mehr_4f_1unb2spe, stream);
+            G  = kernel_from_symbol(&mehr_4f_1unb2spe);
+            G0 = kernel_from_symbol(&mehr_4f_1unb2spe);
             break;
         case MEHR_6F:
-            get_kernel_ptr(&G, &mehr_6f_1unb2spe, stream);
-            get_kernel_ptr(&G0, &mehr_6f_1unb2spe, stream);
+            G  = kernel_from_symbol(&mehr_6f_1unb2spe);
+            G0 = kernel_from_symbol(&mehr_6f_1unb2spe);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
@@ -1016,50 +1027,50 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     GreenKernel G;
     switch (typeGreen) {
         case HEJ_2:
-            get_kernel_ptr(&G, &hej_2_0unb3spe, stream);
+            G = kernel_from_symbol(&hej_2_0unb3spe);
             break;
         case HEJ_4:
-            get_kernel_ptr(&G, &hej_4_0unb3spe, stream);
+            G = kernel_from_symbol(&hej_4_0unb3spe);
             break;
         case HEJ_6:
-            get_kernel_ptr(&G, &hej_6_0unb3spe, stream);
+            G = kernel_from_symbol(&hej_6_0unb3spe);
             break;
         case HEJ_8:
-            get_kernel_ptr(&G, &hej_8_0unb3spe, stream);
+            G = kernel_from_symbol(&hej_8_0unb3spe);
             break;
         case HEJ_10:
-            get_kernel_ptr(&G, &hej_10_0unb3spe, stream);
+            G = kernel_from_symbol(&hej_10_0unb3spe);
             break;
         case HEJ_0:
             // spectral solution is here given by 1/k^2, i.e. same as the CHAT_2 kernel
-            get_kernel_ptr(&G, &chat_2_0unb3spe, stream);
+            G = kernel_from_symbol(&chat_2_0unb3spe);
             break;
         case CHAT_2:
-            get_kernel_ptr(&G, &chat_2_0unb3spe, stream);
+            G = kernel_from_symbol(&chat_2_0unb3spe);
             break;
         case LGF_2:
-            get_kernel_ptr(&G, &lgf_2_0unb3spe, stream);
+            G = kernel_from_symbol(&lgf_2_0unb3spe);
             break;
         case LGF_4:
-            get_kernel_ptr(&G, &lgf_4_0unb3spe, stream);
+            G = kernel_from_symbol(&lgf_4_0unb3spe);
             break;
         case LGF_6:
-            get_kernel_ptr(&G, &lgf_6_0unb3spe, stream);
+            G = kernel_from_symbol(&lgf_6_0unb3spe);
             break;
         case LGF_8:
-            get_kernel_ptr(&G, &lgf_8_0unb3spe, stream);
+            G = kernel_from_symbol(&lgf_8_0unb3spe);
             break;
         case MEHR_4L:
-            get_kernel_ptr(&G, &mehr_4l_0unb3spe, stream);
+            G = kernel_from_symbol(&mehr_4l_0unb3spe);
             break;
         case MEHR_6L:
-            get_kernel_ptr(&G, &mehr_6l_0unb3spe, stream);
+            G = kernel_from_symbol(&mehr_6l_0unb3spe);
             break;
         case MEHR_4F:
-            get_kernel_ptr(&G, &mehr_4f_0unb3spe, stream);
+            G = kernel_from_symbol(&mehr_4f_0unb3spe);
             break;
         case MEHR_6F:
-            get_kernel_ptr(&G, &mehr_6f_0unb3spe, stream);
+            G = kernel_from_symbol(&mehr_6f_0unb3spe);
             break;
         default:
             FLUPS_CHECK(false, "Green Function type unknown.");
