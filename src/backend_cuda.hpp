@@ -29,6 +29,7 @@ typedef int*           opt_int_ptr;
 typedef double*        opt_double_ptr;
 typedef flups_complex* opt_complex_ptr;
 typedef cudaStream_t   stream_t;
+typedef cudaEvent_t    event_t;
 
 struct flups_fft_plan {
     // memory pointer (used only for r2r plans)

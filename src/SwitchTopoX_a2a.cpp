@@ -7,7 +7,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
               MemChunk *recv_chunks, const int *count_recv, const int *disp_recv,
               const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request *all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof);
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof);
 #else
 
 #include <mpi-ext.h>
@@ -16,7 +16,7 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
               MemChunk *recv_chunks, const int *count_recv,
               const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
               MPI_Request *all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof);
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof);
 #endif
 
 void PrintCountArr(const std::string filename, const int *count_arr, int array_size, MPI_Comm incomm);
@@ -158,13 +158,13 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign, stream_t stream)
                  o2i_chunks_, o2i_count_, o2i_disp_,
                  &i2o_batch_, &o2i_batch_,
                  send_buf_, recv_buf_, i2o_rqst_, subcomm_,
-                 topo_in_, topo_out_, v, stream, prof_);
+                 topo_in_, topo_out_, v, stream, buf_event_, prof_);
     } else {
         All2Allv(o2i_chunks_, o2i_count_, o2i_disp_,
                  i2o_chunks_, i2o_count_, i2o_disp_,
                  &o2i_batch_, &i2o_batch_,
                  recv_buf_, send_buf_, o2i_rqst_, subcomm_,
-                 topo_out_, topo_in_, v, stream, prof_);
+                 topo_out_, topo_in_, v, stream, buf_event_, prof_);
     }
 #else
 
@@ -173,13 +173,13 @@ void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign, stream_t stream)
                  o2i_chunks_, o2i_count_,
                  &i2o_batch_, &o2i_batch_,
                  i2o_rqst_, subcomm_,
-                 topo_in_, topo_out_, v, stream, prof_);
+                 topo_in_, topo_out_, v, stream, buf_event_, prof_);
     } else {
         All2Allv(o2i_chunks_, o2i_count_,
                  i2o_chunks_, i2o_count_,
                  &o2i_batch_, &i2o_batch_,
                  o2i_rqst_, subcomm_,
-                 topo_out_, topo_in_, v, stream, prof_);
+                 topo_out_, topo_in_, v, stream, buf_event_, prof_);
     }
 #endif
 
@@ -226,13 +226,13 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
               MemChunk *recv_chunks, const int *count_recv, const int *disp_recv,
               const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
               opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request *all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof) {
 #else
 void All2Allv(MemChunk *send_chunks, const int *count_send,
               MemChunk *recv_chunks, const int *count_recv,
               const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
               MPI_Request *all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, H3LPR::Profiler *prof) {
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof) {
 #endif
 
     BEGIN_FUNC;
@@ -320,6 +320,9 @@ void All2Allv(MemChunk *send_chunks, const int *count_send,
 #endif
         m_profStopi(prof, "shuffle and copy chunk 2 data");
     }
+    // mark the end of the unpack kernels: a following nb/isr SwitchTopoX waits on this event before it
+    // posts its receives into the shared buffers (a2a itself drains the stream before MPI_Start)
+    backend_event_record(*buf_event, stream);
 
     //--------------------------------------------------------------------------
     END_FUNC;

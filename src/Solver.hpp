@@ -115,6 +115,7 @@ class Solver {
 #if (FLUPS_MPI_AGGRESSIVE)
     m_ptr_t sendBuf_;
     m_ptr_t recvBuf_;
+    event_t bufEvent_ = 0; /**<@brief stream event guarding sendBuf_/recvBuf_ against the asynchronous unpack kernels, see SwitchTopoX::buf_event_ */
 #else
     opt_double_ptr sendBuf_             = NULL;               /**<@brief The send buffer for switchtopo_ */
     opt_double_ptr recvBuf_             = NULL;               /**<@brief The recv buffer for switchtopo_ */

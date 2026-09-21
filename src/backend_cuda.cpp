@@ -30,6 +30,22 @@ void backend_sync_stream(stream_t stream) {
     m_cudart_check_errors(cudaStreamSynchronize(stream));
 }
 
+// Events (no timing: cheaper, and we only use them for ordering)
+event_t backend_event_create() {
+    event_t event;
+    m_cudart_check_errors(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    return event;
+}
+void backend_event_destroy(event_t event) {
+    m_cudart_check_errors(cudaEventDestroy(event));
+}
+void backend_event_record(event_t event, stream_t stream) {
+    m_cudart_check_errors(cudaEventRecord(event, stream));
+}
+void backend_event_sync(event_t event) {
+    m_cudart_check_errors(cudaEventSynchronize(event));
+}
+
 // Allocation functions
 void backend_memset(void *ptr, int val, size_t size, stream_t stream) {
     m_cudart_check_errors(cudaMemsetAsync(ptr, val, size, stream));

@@ -1057,12 +1057,17 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
     *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
 #endif
 
+#if (FLUPS_MPI_AGGRESSIVE)
+    // the event guarding the shared buffers (recorded by every switchtopo after its last unpack kernel)
+    bufEvent_ = backend_event_create();
+#endif
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
 #if (FLUPS_MPI_AGGRESSIVE)
             switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
                                           need_recv ? (*recv_buff)() : nullptr);
+            switchtopo[id]->set_buffer_event(&bufEvent_);
 #else
             switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
 #endif
@@ -1078,6 +1083,12 @@ void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, m_ptr_t *send_buff
 void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
 #endif
 #if (FLUPS_MPI_AGGRESSIVE)
+    // no kernel may still read the buffers when they are released
+    if (bufEvent_ != (event_t)0) {
+        backend_event_sync(bufEvent_);
+        backend_event_destroy(bufEvent_);
+        bufEvent_ = (event_t)0;
+    }
     send_buff->free();
     recv_buff->free();
 #else

@@ -49,6 +49,7 @@ typedef int* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))           opt_
 typedef double* __restrict __attribute__((aligned(FLUPS_ALIGNMENT)))        opt_double_ptr;
 typedef flups_complex* __restrict __attribute__((aligned(FLUPS_ALIGNMENT))) opt_complex_ptr;
 typedef int                                                                 stream_t;
+typedef int                                                                 event_t;
 
 typedef enum {
     FLUPS_DCT_I   = FFTW_REDFT00,

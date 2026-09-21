@@ -30,6 +30,22 @@ void backend_sync_stream(stream_t stream) {
     m_hiprt_check_errors(hipStreamSynchronize(stream));
 }
 
+// Events (no timing: cheaper, and we only use them for ordering)
+event_t backend_event_create() {
+    event_t event;
+    m_hiprt_check_errors(hipEventCreateWithFlags(&event, hipEventDisableTiming));
+    return event;
+}
+void backend_event_destroy(event_t event) {
+    m_hiprt_check_errors(hipEventDestroy(event));
+}
+void backend_event_record(event_t event, stream_t stream) {
+    m_hiprt_check_errors(hipEventRecord(event, stream));
+}
+void backend_event_sync(event_t event) {
+    m_hiprt_check_errors(hipEventSynchronize(event));
+}
+
 // Allocation functions
 void backend_memset(void *ptr, int val, size_t size, stream_t stream) {
     m_hiprt_check_errors(hipMemsetAsync(ptr, val, size, stream));

@@ -36,6 +36,12 @@ void backend_finalize() {
 void backend_sync() { ((void)0); }
 void backend_sync_stream(stream_t stream) { ((void)0); }
 
+// Events -- everything is synchronous on the CPU, nothing to do
+event_t backend_event_create() { return 0; }
+void    backend_event_destroy(event_t event) { ((void)0); }
+void    backend_event_record(event_t event, stream_t stream) { ((void)0); }
+void    backend_event_sync(event_t event) { ((void)0); }
+
 // Allocation functions
 void backend_memset(void *ptr, int val, size_t size, stream_t) {
     std::memset(ptr, val, size);

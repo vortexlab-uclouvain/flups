@@ -22,6 +22,13 @@ void backend_finalize();
 void backend_sync();
 void backend_sync_stream(stream_t stream);
 
+// Stream events: record marks the position in the stream, sync blocks the HOST until every operation
+// enqueued before the record has completed (a no-op on the FFTW backend)
+event_t backend_event_create();
+void    backend_event_destroy(event_t event);
+void    backend_event_record(event_t event, stream_t stream);
+void    backend_event_sync(event_t event);
+
 // Allocation functions
 void  backend_memset(void *ptr, int val, size_t size, stream_t stream);
 void *backend_malloc(size_t size);

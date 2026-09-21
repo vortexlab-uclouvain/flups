@@ -29,6 +29,14 @@ class SwitchTopoX {
 
     opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
+    /**
+     * @brief event recorded on the stream after the last kernel reading the (shared) send/recv buffers.
+     *
+     * The buffers are shared by every SwitchTopoX of a Solver and the unpack kernels are asynchronous:
+     * before MPI is allowed to write into the buffers again (posting the receives), the host waits on
+     * this event. Owned by the Solver, see set_buffer_event().
+     */
+    event_t* buf_event_ = NULL;
 
     H3LPR::Profiler *prof_         = NULL;
     int              idswitchtopo_ = -1;
@@ -46,6 +54,7 @@ class SwitchTopoX {
     void         setup();
     virtual void print_info() const;
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
+    void         set_buffer_event(event_t* event) { buf_event_ = event; };
     virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const = 0;
     virtual void disp() const                                                        = 0;
 
