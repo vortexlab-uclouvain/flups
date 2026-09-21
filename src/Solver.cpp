@@ -640,11 +640,7 @@ void Solver::assign_plan_buffers_() {
  *
  * @param switchtopo
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::delete_switchtopos_(SwitchTopoX *switchtopo[3]) {
-#else
-void Solver::delete_switchtopos_(SwitchTopo *switchtopo[3]) {
-#endif
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -763,11 +759,7 @@ PencilLayout Solver::pencil_layout(const int nglob[3], const int nproc_init[3], 
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopoX *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
-#else
-void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
-#endif
     BEGIN_FUNC;
 
     // @Todo: check that plan_forward_ exists before doing plan_green_ !
@@ -844,7 +836,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
@@ -855,20 +846,10 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
-#else  // deprecated - still there for comparison purpose
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
-#endif
-
-#endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
@@ -878,15 +859,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
-#else  // deprecated - still there for comparison purpose
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip] = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
-                switchtopo[ip] = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
-#endif
-
-#endif
             }
             // #ifdef PERF_VERBOSE
             // switchtopo[ip]->disp_rankgraph(ip - 1, ip);
@@ -937,7 +909,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 // it shouldn't be different from 0 for this case since we are doing green, but safety first
                 planmap[ip + 1]->get_fieldstart(fieldstart);
                 // we do the link between topomap[ip] and the current_topo
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
@@ -947,14 +918,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 switchtopo[ip + 1] = new SwitchTopoX_a2a(topomap[ip], current_topo, fieldstart, NULL);
 #endif
 
-#else
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
-#else
-                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
-#endif
-#endif
                 switchtopo[ip + 1]->disp();
             }
 
@@ -1002,11 +965,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
  * @param send_buff
  * @param recv_buff
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopoX **switchtopo, m_ptr_t *send_buff, m_ptr_t *recv_buff) {
-#else
-void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-#endif
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     size_t max_mem = 0;
@@ -1027,17 +986,9 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
 
             need_send = need_send ||
-#if (FLUPS_MPI_AGGRESSIVE)
                         switchtopo[id]->need_send_buf();
-#else
-                        true;
-#endif
             need_recv = need_recv ||
-#if (FLUPS_MPI_AGGRESSIVE)
                         switchtopo[id]->need_recv_buf();
-#else
-                        true;
-#endif
         }
     }
     // max_mem = 0 is legal: this rank owns no unknown in any of the topologies and never communicates
@@ -1045,44 +996,28 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
         FLUPS_INFO("this rank has nothing to communicate in any of the switchtopos");
     }
 
-#if (FLUPS_MPI_AGGRESSIVE)
     if (need_send) {
         send_buff->calloc(max_mem * sizeof(double));
     }
     if (need_recv) {
         recv_buff->calloc(max_mem * sizeof(double));
     }
-#else
-    *send_buff = need_send ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
-    *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
-#endif
 
-#if (FLUPS_MPI_AGGRESSIVE)
     // the event guarding the shared buffers (recorded by every switchtopo after its last unpack kernel)
     bufEvent_ = backend_event_create();
-#endif
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
-#if (FLUPS_MPI_AGGRESSIVE)
             switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
                                           need_recv ? (*recv_buff)() : nullptr);
             switchtopo[id]->set_buffer_event(&bufEvent_);
-#else
-            switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
-#endif
         }
     }
     //-------------------------------------------------------------------------
     END_FUNC;
 }
 
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, m_ptr_t *send_buff, m_ptr_t *recv_buff) {
-#else
-void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-#endif
-#if (FLUPS_MPI_AGGRESSIVE)
     // no kernel may still read the buffers when they are released
     if (bufEvent_ != (event_t)0) {
         backend_event_sync(bufEvent_);
@@ -1091,16 +1026,6 @@ void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *sen
     }
     send_buff->free();
     recv_buff->free();
-#else
-    if (*send_buff != NULL) {
-        backend_free(*send_buff);
-        (*send_buff) = NULL;
-    }
-    if (*recv_buff != NULL) {
-        backend_free(*recv_buff);
-        (*recv_buff) = NULL;
-    }
-#endif
 }
 
 /**

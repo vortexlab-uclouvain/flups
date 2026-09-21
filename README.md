@@ -132,7 +132,6 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
 - `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
-- `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.

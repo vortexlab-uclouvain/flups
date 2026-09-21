@@ -320,11 +320,6 @@ void flups_info(int argc, char** argv) {
         fprintf(file, "\tFLUPS_FFTW_FLAG = %d (estimate: %d, measure: %d, patient: %d)\n", FLUPS_FFTW_FLAG, FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT);
 #endif
         fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
-#if (FLUPS_MPI_AGGRESSIVE)
-        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
-#else
-        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? no\n");
-#endif
 #ifndef NDEBUG
         fprintf(file, "\tNDEBUG ? no\n");
 #else

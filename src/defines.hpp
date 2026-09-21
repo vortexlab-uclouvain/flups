@@ -42,14 +42,6 @@
 //==============================================================================
 //                      Compilation flags
 //==============================================================================
-/**
- * @brief MPI flag to use deprecated version of the communications 
-*/
-#ifndef COMM_DPREC
-#define FLUPS_MPI_AGGRESSIVE 1
-#else
-#define FLUPS_MPI_AGGRESSIVE 0
-#endif
 
 
 
@@ -314,7 +306,6 @@ static inline int FLUPS_CMPT_ALIGNMENT(T a) {
 }
 
 // Alias for the pointer type used by MPI send/recv buffers
-#if (FLUPS_MPI_AGGRESSIVE)
 // H3LPR doesn't support GPU backends yet, so we define our own class.
 #if defined(BACKEND_CUDA) || defined(BACKEND_HIP)
 // Forward declare those functions to avoid circular include mess
@@ -342,7 +333,6 @@ using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_MPI, double*, FLUPS_ALIGNMENT>;
 using m_ptr_t = H3LPR::m_ptr<H3LPR::H3LPR_ALLOC_POSIX, double*, FLUPS_ALIGNMENT>;
 #endif  // FLUPS_MPI_ALLOC
 #endif  // BACKEND_*
-#endif  // FLUPS_MPI_AGGRESSIVE
 
 #define m_profStarti(prof, name, ...)                                    \
     ({                                                                   \

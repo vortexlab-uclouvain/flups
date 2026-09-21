@@ -47,9 +47,6 @@ TARGET_LIB_ISR := build/lib$(NAME)_isr
 TARGET_LIB_A2A := build/lib$(NAME)_a2a
 TARGET_LIB_NB  := build/lib$(NAME)_nb
 
-TARGET_LIB_DPREC_A2A := build/lib$(NAME)_dprec_a2a
-TARGET_LIB_DPREC_NB  := build/lib$(NAME)_dprec_nb
-
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
 SRC_DIR := ./src
@@ -141,8 +138,6 @@ DEP := $(SRC:%.cpp=$(OBJ_DIR)/%.d)
 OBJ_ISR := $(SRC:%.cpp=$(OBJ_DIR)/isr_%.o)
 OBJ_A2A := $(SRC:%.cpp=$(OBJ_DIR)/a2a_%.o)
 OBJ_NB := $(SRC:%.cpp=$(OBJ_DIR)/nb_%.o)
-OBJ_DPREC_A2A := $(SRC:%.cpp=$(OBJ_DIR)/dprec_a2a_%.o)
-OBJ_DPREC_NB := $(SRC:%.cpp=$(OBJ_DIR)/dprec_nb_%.o)
 IN := $(SRC:%.cpp=$(OBJ_DIR)/%.in)
 
 ################################################################################
@@ -158,12 +153,6 @@ $(OBJ_DIR)/nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 
 $(OBJ_DIR)/a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
-
-$(OBJ_DIR)/dprec_nb_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC -DCOMM_NONBLOCK $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
-
-$(OBJ_DIR)/dprec_a2a_%.o : $(SRC_DIR)/%.cpp $(HEAD) $(API)
-	$(CXX) $(CXXFLAGS) $(OPTS) -DCOMM_DPREC $(INC) $(DEF) $(M_FLAGS) -MMD -c $< -o $@
 
 $(OBJ_DIR)/%.in : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(OPTS) $(INC) $(DEF) $(M_FLAGS) -MMD -E $< -o $@
@@ -184,19 +173,11 @@ all: lib_static lib_dynamic
 
 all2all: $(TARGET_LIB_A2A).a $(TARGET_LIB_A2A).so
 
-all2all_dprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_A2A).so
-
 nonblocking: $(TARGET_LIB_NB).a $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
-
-nonblocking_dprec: $(TARGET_LIB_DPREC_NB).a $(TARGET_LIB_DPREC_NB).so
 
 lib_static: $(TARGET_LIB_A2A).a $(TARGET_LIB_NB).a $(TARGET_LIB_ISR).a
 
 lib_dynamic: $(TARGET_LIB_A2A).so $(TARGET_LIB_NB).so $(TARGET_LIB_ISR).so
-
-lib_static_deprec: $(TARGET_LIB_DPREC_A2A).a $(TARGET_LIB_DPREC_NB).a
-
-lib_dynamic_deprec: $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_NB).so
 
 lib: lib_static
 
@@ -209,12 +190,6 @@ $(TARGET_LIB_A2A).so: $(OBJ_A2A)
 $(TARGET_LIB_NB).so: $(OBJ_NB)
 	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
 
-$(TARGET_LIB_DPREC_A2A).so: $(OBJ_DPREC_A2A)
-	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
-
-$(TARGET_LIB_DPREC_NB).so: $(OBJ_DPREC_NB)
-	$(CXX) -shared $(LDFLAGS) $(M_LFLAGS) $^ -o $@ $(LIB)
-
 $(TARGET_LIB_ISR).a: $(OBJ_ISR)
 	$(AR) rvs $(M_LFLAGS) $@  $^
 
@@ -222,12 +197,6 @@ $(TARGET_LIB_A2A).a: $(OBJ_A2A)
 	$(AR) rvs $(M_LFLAGS) $@  $^
 
 $(TARGET_LIB_NB).a: $(OBJ_NB)
-	$(AR) rvs $(M_LFLAGS) $@  $^
-
-$(TARGET_LIB_DPREC_A2A).a: $(OBJ_DPREC_A2A)
-	$(AR) rvs $(M_LFLAGS) $@  $^
-
-$(TARGET_LIB_DPREC_NB).a: $(OBJ_DPREC_NB)
 	$(AR) rvs $(M_LFLAGS) $@  $^
 
 preproc: $(IN)
@@ -250,22 +219,6 @@ install_static: lib_static
 	@cp $(API) $(PREFIX)/include
 	@cp $(LGF_DATA) $(PREFIX)/include
 
-
-install_dprec_static: lib_static_deprec
-	@mkdir -p $(PREFIX)/lib
-	@mkdir -p $(PREFIX)/include
-	@cp $(TARGET_LIB_DPREC_A2A).a $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_NB).a $(PREFIX)/lib
-	@cp $(API) $(PREFIX)/include
-	@cp $(LGF_DATA) $(PREFIX)/include
-
-install_dprec_dynamic: lib_dynamic_deprec
-	@mkdir -p $(PREFIX)/lib
-	@mkdir -p $(PREFIX)/include
-	@cp $(TARGET_LIB_DPREC_A2A).so $(PREFIX)/lib
-	@cp $(TARGET_LIB_DPREC_NB).so $(PREFIX)/lib
-	@cp $(API) $(PREFIX)/include
-	@cp $(LGF_DATA) $(PREFIX)/include
 # for a standard installation, do the dynamic link
 install:
 	@$(MAKE) info
@@ -279,8 +232,6 @@ clean:
 	@rm -f $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
 	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
-	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
-	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
 
 destroy:
 	@rm -rf $(OBJ_DIR)/*.o
@@ -288,11 +239,6 @@ destroy:
 	@rm -f $(TARGET_LIB_ISR).so $(TARGET_LIB_ISR).a
 	@rm -f $(TARGET_LIB_A2A).so $(TARGET_LIB_A2A).a
 	@rm -f $(TARGET_LIB_NB).so $(TARGET_LIB_NB).a
-	@rm -f $(TARGET_LIB_DPREC_A2A).so $(TARGET_LIB_DPREC_A2A).a
-	@rm -f $(TARGET_LIB_DPREC_NB).so $(TARGET_LIB_DPREC_NB).a
-	@rm -rf $(OBJ_DIR)/*
-	@rm -rf include
-	@rm -rf lib
 
 #-------------------------------------------------------------------------------
 # mentioning this target will export all the current variables to child-make processes

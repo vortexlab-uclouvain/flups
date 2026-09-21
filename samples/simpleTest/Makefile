@@ -33,8 +33,6 @@ NAME := simple_test
 # executable naming
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
-TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
-TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -116,7 +114,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HEAD)
 ################################################################################
 default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
-all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
+all: $(TARGET_EXE_A2A) $(TARGET_EXE_NB)
 
 $(TARGET_EXE_A2A): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
@@ -124,19 +122,10 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
 
-$(TARGET_EXE_DPREC_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB)
-
-$(TARGET_EXE_DPREC_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB)
-
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_EXE_DPREC_A2A)
-	rm -f $(TARGET_EXE_DPREC_NB)
-	
 destroy: clean 
 	rm -f $(OBJ_DIR)/*
 	rm -rf include

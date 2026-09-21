@@ -34,8 +34,6 @@ NAME := flups
 TARGET_EXE_ISR := $(NAME)_test_isr
 TARGET_EXE_A2A := $(NAME)_test_a2a
 TARGET_EXE_NB := $(NAME)_test_nb
-TARGET_EXE_DPREC_A2A := $(NAME)_test_dprec_a2a
-TARGET_EXE_DPREC_NB := $(NAME)_test_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -136,12 +134,6 @@ nonblocking: $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 ################################################################################
 ## Dprec version 
 
-dprec: $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB)
-
-all2all_dprec: $(TARGET_EXE_DPREC_A2A)
-
-nonblocking_dprec: $(TARGET_EXE_DPREC_NB)
-
 $(TARGET_EXE_ISR): $(OBJ)
 	$(CXX) $(LDFLAGS)  $^ -o $@ -L$(FLUPS_LIB) -lflups_isr -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
@@ -151,19 +143,11 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
 
-$(TARGET_EXE_DPREC_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_nb -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
-
-$(TARGET_EXE_DPREC_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ -L$(FLUPS_LIB) -lflups_dprec_a2a -Wl,-rpath,$(FLUPS_LIB) $(LIB) 
-
 clean:
 	rm -f $(OBJ_DIR)/*.o
 	rm -f $(TARGET_EXE_ISR)
 	rm -f $(TARGET_EXE_A2A)
 	rm -f $(TARGET_EXE_NB)
-	rm -f $(TARGET_EXE_DPREC_A2A)
-	rm -f $(TARGET_EXE_DPREC_NB)
 
 destroy: clean
 	rm -f $(OBJ_DIR)/*

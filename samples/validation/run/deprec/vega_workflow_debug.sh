@@ -5,8 +5,8 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-#CODE_VERSION='a2a dprec_a2a nb dprec_nb'
-CODE_VERSION='a2a dprec_a2a nb'
+#CODE_VERSION='a2a nb'
+CODE_VERSION='a2a nb'
 
 ##-------------------------------------------------------------------------------------------------------------
 ## BUILD EVERYTHING AND COMPILE

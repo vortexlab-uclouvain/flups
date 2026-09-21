@@ -44,8 +44,6 @@ NAME := flups_vs_accfft
 TARGET_EXE_ISR := $(NAME)_isr
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
-TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
-TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -58,8 +56,6 @@ INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src
 LIB_ISR = -L$(FLUPSDIR)/lib -lflups_isr
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
-LIB_DPREC_A2A = -L$(FLUPSDIR)/lib -lflups_dprec_a2a
-LIB_DPREC_NB  = -L$(FLUPSDIR)/lib -lflups_dprec_nb 
 
 #---- ACCFFT
 ACCFFT_DIR ?= /usr/
@@ -115,7 +111,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB) $(TARGET_EXE_ISR)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 all: default
 
@@ -128,11 +124,6 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
 	
-$(TARGET_EXE_DPREC_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_A2A)
-
-$(TARGET_EXE_DPREC_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_NB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 	mkdir -p $(PREFIX)/bin

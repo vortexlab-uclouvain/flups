@@ -6,9 +6,7 @@
 # All to all                 = a2a 
 # Non blocking               = nb 
 # MPI_datatypes              = isr
-# First version all to all   = dprec_a2a 
-# First version non blocking = dprec_nb
-export CODE_VERSION='a2a nb isr dprec_nb dprec_a2a'
+export CODE_VERSION='a2a nb isr'
 
 ## Compile the librairies  
 export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'

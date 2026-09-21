@@ -6,10 +6,8 @@
 # All to all                 = a2a 
 # Non blocking               = nb 
 # MPI_datatypes              = isr
-# First version all to all   = dprec_a2a 
-# First version non blocking = dprec_nb
-#export CODE_VERSION='nb isr a2a dprec_a2a dprec_nb'
-#export CODE_VERSION='dprec_nb'
+#export CODE_VERSION='nb isr a2a'
+#export CODE_VERSION=''
 #export CODE_VERSION='a2a'
 export CODE_VERSION='nb isr'
 
