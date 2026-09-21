@@ -34,6 +34,8 @@ typedef cudaEvent_t    event_t;
 struct flups_fft_plan {
     // memory pointer (used only for r2r plans)
     double* mem = NULL;
+    // twiddle tables of the r2r pre/post-processing (NULL for the types that need none), see flups_plan_r2r
+    double* twiddle = NULL;
     // cuFFT plan handle
     cufftHandle fft;
     // parameters for the r2r transform
@@ -124,8 +126,8 @@ void parallel_for(const O& op, const int n, string name, stream_t stream) {
  */
 template <typename O>
 struct backend_flat2d_ {
-    O   op;
-    int n_inner;
+    O             op;
+    int           n_inner;
     m_device void operator()(const int idx) const { op(idx / n_inner, idx % n_inner); }
 };
 

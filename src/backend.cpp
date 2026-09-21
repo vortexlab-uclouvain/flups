@@ -42,9 +42,9 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
         case FLUPS_DCT_II:
         case FLUPS_DST_II:
             plan.dim     = plan.n;
-            plan.idist   = plan.n + 2;      // padded for in-place r2c (real units)
             plan.odist   = plan.n / 2 + 1;  // complex units
-            plan.memsize = (plan.n + 2) * plan.howmany;
+            plan.idist   = 2 * plan.odist;  // real units, the in-place r2c layout (= n+2 for n even, n+1 for n odd)
+            plan.memsize = plan.idist * plan.howmany;
             break;
         // DCT/DST Type III: adjoint of Type II, a single n-point real IFFT
         // (complex pre-twiddle + de-reordering) instead of a 2n-point one.
@@ -52,8 +52,8 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
         case FLUPS_DST_III:
             plan.dim     = plan.n;
             plan.idist   = plan.n / 2 + 1;  // complex units
-            plan.odist   = plan.n + 2;      // padded for in-place c2r (real units)
-            plan.memsize = (plan.n + 2) * plan.howmany;
+            plan.odist   = 2 * plan.idist;  // real units, the in-place c2r layout (= n+2 for n even, n+1 for n odd)
+            plan.memsize = plan.odist * plan.howmany;
             // this is a c2r transform
             xform = XFORM_C2R;
             break;
@@ -84,10 +84,28 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
             BACKEND_CHECK(false, "r2r transform of kind %d are not yet implemented with CUDA backend !", plan.kind);
     }
 
-        // Note: some plans (typically involved in the computation of the Green function
-        //       for mixed BC's) require a non-unit stride of 2. Here, we handle that
-        //       directly during the pre- and post-processing (thus the plan has unit stride).
-        // the plan gets no work area of its own, the Solver provides one shared buffer (see backend_*.cpp)
+    // Note: some plans (typically involved in the computation of the Green function
+    //       for mixed BC's) require a non-unit stride of 2. Here, we handle that
+    //       directly during the pre- and post-processing (thus the plan has unit stride).
+    // Twiddle tables of the pre/post-processing kernels, evaluated once here instead of one sincospi per
+    // element per transform: tw1[k] = (cos, sin)(pi k / 2n), tw2[k] = (cos, sin)(pi (2k+1) / 4n) and
+    // tw3[k] = (cos, sin)(3 pi (2k+1) / 4n), k = 0..n-1, stored as interleaved (cos, sin) pairs.
+    // Types I need none; the others read them with a coalesced (broadcast within a row) access.
+    plan.twiddle = NULL;
+    if (kind != FLUPS_DCT_I && kind != FLUPS_DST_I) {
+        const int n  = plan.n;
+        double   *tw = (double *)backend_malloc(6 * n * sizeof(double));
+        auto      op = m_backend_lambda(const int k) {
+            sincospi(k / (2.0 * n), tw + 2 * k + 1, tw + 2 * k);
+            sincospi((2 * k + 1) / (4.0 * n), tw + 2 * n + 2 * k + 1, tw + 2 * n + 2 * k);
+            sincospi(3.0 * (2 * k + 1) / (4.0 * n), tw + 4 * n + 2 * k + 1, tw + 4 * n + 2 * k);
+        };
+        parallel_for(op, n, "r2r twiddle tables", (stream_t)0);
+        backend_sync();
+        plan.twiddle = tw;
+    }
+
+    // the plan gets no work area of its own, the Solver provides one shared buffer (see backend_*.cpp)
 #if defined(BACKEND_CUDA)
     cufftType cuda_type = (xform == XFORM_R2C) ? CUFFT_D2Z : (xform == XFORM_C2R) ? CUFFT_Z2D
                                                                                   : CUFFT_Z2Z;
@@ -114,6 +132,10 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
     // Working memory
     // the scratch never aliases in/out
     double *__restrict__ mem = plan.mem;
+    // twiddle tables, see flups_plan_r2r
+    const double *__restrict__ tw1 = plan.twiddle;
+    const double *__restrict__ tw2 = (tw1 != NULL) ? (tw1 + 2 * n) : NULL;
+    const double *__restrict__ tw3 = (tw1 != NULL) ? (tw1 + 4 * n) : NULL;
 
     switch (plan.kind) {
         // DCT Type I
@@ -170,8 +192,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 const double re   = mem[2 * (j * odist + m)];
                 const double im   = sign * mem[2 * (j * odist + m) + 1];
 
-                double st, ct;  // sin/cos of pi*k/(2n)
-                sincospi(k / (2.0 * n), &st, &ct);
+                const double ct = tw1[2 * k];  // cos/sin of pi*k/(2n)
+                const double st = tw1[2 * k + 1];
 
                 out[j * dist + stride * k] = 2.0 * (re * ct + im * st);
             };
@@ -200,8 +222,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double Xm  = in[j * dist + stride * m];
                     const double Xkc = in[j * dist + stride * kc];
 
-                    double st, ct;  // sin/cos of pi*m/(2n)
-                    sincospi(m / (2.0 * n), &st, &ct);
+                    const double ct = tw1[2 * m];  // cos/sin of pi*m/(2n)
+                    const double st = tw1[2 * m + 1];
 
                     re = 0.5 * (ct * Xm + st * Xkc);
                     im = 0.5 * (st * Xm - ct * Xkc);
@@ -244,8 +266,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                         const double a = in[j * dist + stride * (2 * m)];
                         const double b = in[j * dist + stride * (2 * m + 1)];
 
-                        double st, ct;  // sin/cos of pi*m/n
-                        sincospi(m / (double)n, &st, &ct);
+                        const double ct = tw1[4 * m];  // cos/sin of pi*m/n = pi*(2m)/(2n)
+                        const double st = tw1[4 * m + 1];
 
                         mem[2 * (j * idist + m)]     = a * ct - b * st;
                         mem[2 * (j * idist + m) + 1] = a * st + b * ct;
@@ -271,9 +293,10 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double Cb  = 0.5 * (Ci + C2i);
                     const double Sb  = 0.5 * (C2r - Cr);
 
-                    double st, ct, s3t, c3t;  // sin/cos of theta = pi*(2k+1)/(4n) and 3*theta
-                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
-                    sincospi(3.0 * (2 * k + 1) / (4.0 * n), &s3t, &c3t);
+                    const double ct  = tw2[2 * k];  // cos/sin of theta = pi*(2k+1)/(4n) and of 3*theta
+                    const double st  = tw2[2 * k + 1];
+                    const double c3t = tw3[2 * k];
+                    const double s3t = tw3[2 * k + 1];
 
                     out[j * dist + stride * k] = 2.0 * (Ca * ct - Sa * st + Cb * c3t - Sb * s3t);
                 };
@@ -289,8 +312,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     if (i < n) {
                         const double xi = in[j * dist + stride * i];
 
-                        double st, ct;  // sin/cos of pi*i/(2n)
-                        sincospi(i / (2.0 * n), &st, &ct);
+                        const double ct = tw1[2 * i];  // cos/sin of pi*i/(2n)
+                        const double st = tw1[2 * i + 1];
 
                         mem[2 * (j * idist + i)]     = xi * ct;
                         mem[2 * (j * idist + i) + 1] = xi * st;
@@ -310,8 +333,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double re = mem[2 * (j * odist + k)];
                     const double im = mem[2 * (j * odist + k) + 1];
 
-                    double st, ct;  // sin/cos of phi = pi*(2k+1)/(4n)
-                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+                    const double ct = tw2[2 * k];  // cos/sin of phi = pi*(2k+1)/(4n)
+                    const double st = tw2[2 * k + 1];
 
                     out[j * dist + stride * k] = 2.0 * (re * ct - im * st);
                 };
@@ -373,8 +396,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                 const double re   = mem[2 * (j * odist + m)];
                 const double im   = sign * mem[2 * (j * odist + m) + 1];
 
-                double st, ct;  // sin/cos of pi*k/(2n)
-                sincospi(k / (2.0 * n), &st, &ct);
+                const double ct = tw1[2 * k];  // cos/sin of pi*k/(2n)
+                const double st = tw1[2 * k + 1];
 
                 out[j * dist + stride * (n - 1 - k)] = 2.0 * (re * ct + im * st);
             };
@@ -403,8 +426,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double Xm  = in[j * dist + stride * (n - 1 - m)];
                     const double Xkc = in[j * dist + stride * (n - 1 - kc)];
 
-                    double st, ct;  // sin/cos of pi*m/(2n)
-                    sincospi(m / (2.0 * n), &st, &ct);
+                    const double ct = tw1[2 * m];  // cos/sin of pi*m/(2n)
+                    const double st = tw1[2 * m + 1];
 
                     re = 0.5 * (ct * Xm + st * Xkc);
                     im = 0.5 * (st * Xm - ct * Xkc);
@@ -445,8 +468,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                         const double a = in[j * dist + stride * (n - 1 - 2 * m)];
                         const double b = in[j * dist + stride * (n - 2 - 2 * m)];
 
-                        double st, ct;  // sin/cos of pi*m/n
-                        sincospi(m / (double)n, &st, &ct);
+                        const double ct = tw1[4 * m];  // cos/sin of pi*m/n = pi*(2m)/(2n)
+                        const double st = tw1[4 * m + 1];
 
                         mem[2 * (j * idist + m)]     = a * ct - b * st;
                         mem[2 * (j * idist + m) + 1] = a * st + b * ct;
@@ -473,9 +496,10 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double Sb   = 0.5 * (C2r - Cr);
                     const double sign = (k % 2 == 0) ? 1.0 : -1.0;
 
-                    double st, ct, s3t, c3t;  // sin/cos of theta = pi*(2k+1)/(4n) and 3*theta
-                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
-                    sincospi(3.0 * (2 * k + 1) / (4.0 * n), &s3t, &c3t);
+                    const double ct  = tw2[2 * k];  // cos/sin of theta = pi*(2k+1)/(4n) and of 3*theta
+                    const double st  = tw2[2 * k + 1];
+                    const double c3t = tw3[2 * k];
+                    const double s3t = tw3[2 * k + 1];
 
                     out[j * dist + stride * k] = sign * 2.0 * (Ca * ct - Sa * st + Cb * c3t - Sb * s3t);
                 };
@@ -488,8 +512,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     if (i < n) {
                         const double xi = in[j * dist + stride * (n - 1 - i)];
 
-                        double st, ct;  // sin/cos of pi*i/(2n)
-                        sincospi(i / (2.0 * n), &st, &ct);
+                        const double ct = tw1[2 * i];  // cos/sin of pi*i/(2n)
+                        const double st = tw1[2 * i + 1];
 
                         mem[2 * (j * idist + i)]     = xi * ct;
                         mem[2 * (j * idist + i) + 1] = xi * st;
@@ -510,8 +534,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
                     const double im   = mem[2 * (j * odist + k) + 1];
                     const double sign = (k % 2 == 0) ? 1.0 : -1.0;
 
-                    double st, ct;  // sin/cos of phi = pi*(2k+1)/(4n)
-                    sincospi((2 * k + 1) / (4.0 * n), &st, &ct);
+                    const double ct = tw2[2 * k];  // cos/sin of phi = pi*(2k+1)/(4n)
+                    const double st = tw2[2 * k + 1];
 
                     out[j * dist + stride * k] = sign * 2.0 * (re * ct - im * st);
                 };

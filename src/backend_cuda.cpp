@@ -171,21 +171,24 @@ void flups_execute_c2r(flups_fft_plan plan, flups_complex *in, double *out, stre
 void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, bool iscomplex, stream_t stream) {
     m_cublas_check_errors(cublasSetStream(cuHandle, stream));
 
+    // out = alpha * in^T + beta * B with beta = 0: B is not read (NULL), but the scalar must be a valid pointer
     if (!iscomplex) {
-        double alpha = 1.0;
+        const double alpha = 1.0;
+        const double beta  = 0.0;
         m_cublas_check_errors(cublasDgeam(cuHandle,
                                           CUBLAS_OP_T, CUBLAS_OP_N,
                                           plan.n0, plan.n1,
                                           &alpha, in, plan.n1,
-                                          NULL, NULL, plan.n0,
+                                          &beta, NULL, plan.n0,
                                           out, plan.n0));
     } else {
-        flups_complex alpha = {1.0, 0.0};
+        const flups_complex alpha = {1.0, 0.0};
+        const flups_complex beta  = {0.0, 0.0};
         m_cublas_check_errors(cublasZgeam(cuHandle,
                                           CUBLAS_OP_T, CUBLAS_OP_N,
                                           plan.n0, plan.n1,
                                           &alpha, (flups_complex *)in, plan.n1,
-                                          NULL, NULL, plan.n0,
+                                          &beta, NULL, plan.n0,
                                           (flups_complex *)out, plan.n0));
     }
 }
@@ -193,6 +196,7 @@ void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, boo
 // Cleanup functions
 void flups_destroy_plan(flups_fft_plan plan) {
     m_cufft_check_errors(cufftDestroy(plan.fft));
+    if (plan.twiddle != NULL) backend_free(plan.twiddle);
 }
 
 void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {

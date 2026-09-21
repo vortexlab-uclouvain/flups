@@ -197,6 +197,7 @@ void flups_execute_shuffle(flups_shuffle_plan plan, double *in, double *out, boo
 // Cleanup functions
 void flups_destroy_plan(flups_fft_plan plan) {
     m_hipfft_check_errors(hipfftDestroy(plan.fft));
+    if (plan.twiddle != NULL) backend_free(plan.twiddle);
 }
 
 void flups_destroy_shuffle_plan(flups_shuffle_plan plan) {
