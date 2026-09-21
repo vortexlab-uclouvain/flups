@@ -1407,9 +1407,15 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
     m_profStarti(prof_, "solve");
     //-------------------------------------------------------------------------
-    /** - clean the data memory */
+    /** - clean the data memory, only needed without the first SwitchTopo */
     //-------------------------------------------------------------------------
-    backend_memset(mydata, 0, sizeof(double) * get_allocSize(), stream_);
+    // In the normal path do_copy() fills the physical part and the first SwitchTopo resets the whole
+    // buffer before unpacking into it, so zeroing it here is a dead full pass over the largest buffer.
+    // With skip_firstSwitchtopo() the FFT of the first direction runs directly on the copied data, and
+    // the padding of an unbounded direction must already be zero: only then do we reset it.
+    if (skip_st0_) {
+        backend_memset(mydata, 0, sizeof(double) * get_allocSize(), stream_);
+    }
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
