@@ -365,6 +365,7 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
 void DoShuffleChunk(MemChunk* chunk, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
+    FLUPS_CHECK(chunk->has_shuffle, "this chunk has no out-of-place shuffle plan/buffer (axis %d -> %d), see SwitchTopoX::need_shuffle_plan", chunk->axis, chunk->dest_axis);
     for (int ida = 0; ida < chunk->nda; ++ida) {
         opt_double_ptr data_in  = chunk->data + ida * chunk->size_padded;
         opt_double_ptr data_out = chunk->shuffle_buff + ida * chunk->size_padded;

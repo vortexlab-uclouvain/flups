@@ -47,6 +47,9 @@ struct flups_fft_plan {
     int idist;    // input  distance between two successive fft's
     int odist;    // output distance between two successive fft's
     int memsize;  // size of the needed memory space
+    // size in bytes of the FFT library work area needed by fft (auto-allocation is disabled,
+    // the Solver provides one shared buffer to every plan through flups_plan_set_workarea)
+    size_t worksize = 0;
 };
 
 typedef enum {
@@ -61,6 +64,9 @@ typedef enum {
     memTypeDevice       = cudaMemoryTypeDevice,
     memTypeUnregistered = cudaMemoryTypeUnregistered,
 } memType_t;
+
+// Create a batched 1D plan without auto-allocated work area (see backend_cuda.cpp)
+void backend_make_plan(cufftHandle* fft, size_t* worksize, const int dim, const int idist, const int odist, const cufftType type, const int howmany);
 
 // Check CUDA API errors
 #define m_cudart_check_errors(res)                                                                 \

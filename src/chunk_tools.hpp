@@ -19,7 +19,8 @@ struct MemChunk {
     MPI_Comm comm;       //!< the communicator to be used for the communication, also dictates the dest_rank id
 
     flups_shuffle_plan shuffle;       //!< the shuffle plan used by FFTW to reorder data
-    opt_double_ptr     shuffle_buff;  //!< the array for the out-of-place shuffle
+    opt_double_ptr     shuffle_buff;  //!< the array for the out-of-place shuffle (NULL if the chunk is never shuffled out-of-place)
+    bool               has_shuffle;   //!< true if shuffle/shuffle_buff have been created for this chunk
 
     size_t       offset;  //!< offset in memory in the "input" topology
     MPI_Datatype dtype;   //!< datatype in the "input" topology

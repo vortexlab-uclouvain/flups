@@ -39,6 +39,8 @@ class SwitchTopoX {
 
     virtual bool need_send_buf() const = 0;
     virtual bool need_recv_buf() const = 0;
+    /** @brief true if the received chunks are shuffled out-of-place (needs a shuffle plan + buffer per chunk) */
+    virtual bool need_shuffle_plan() const { return true; };
 
     // abstract functions
     void         setup();

@@ -47,6 +47,9 @@ struct flups_fft_plan {
     int idist;    // input  distance between two successive fft's
     int odist;    // output distance between two successive fft's
     int memsize;  // size of the needed memory space
+    // size in bytes of the FFT library work area needed by fft (auto-allocation is disabled,
+    // the Solver provides one shared buffer to every plan through flups_plan_set_workarea)
+    size_t worksize = 0;
 };
 
 // Memcopy kinds map to HIP's memcpy kinds
@@ -63,6 +66,9 @@ typedef enum {
     memTypeDevice       = hipMemoryTypeDevice,
     memTypeUnregistered = hipMemoryTypeUnregistered,
 } memType_t;
+
+// Create a batched 1D plan without auto-allocated work area (see backend_hip.cpp)
+void backend_make_plan(hipfftHandle* fft, size_t* worksize, const int dim, const int idist, const int odist, const hipfftType type, const int howmany);
 
 // Check HIP / rocBLAS / hipFFT API errors
 #define m_hiprt_check_errors(res)                                                               \

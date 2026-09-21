@@ -122,6 +122,10 @@ flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *o
     }
 }
 
+// Work area: FFTW manages its own buffers, nothing to share
+size_t flups_plan_worksize(const flups_fft_plan plan) { return 0; }
+void   flups_plan_set_workarea(flups_fft_plan plan, void *work) { ((void)0); }
+
 // Execute functions
 void flups_execute_c2c(flups_fft_plan plan, flups_complex *in, flups_complex *out, int sign, stream_t) {
     fftw_execute_dft(plan, in, out);

@@ -515,6 +515,9 @@ Solver::~Solver() {
     delete_topologies_(topo_hat_);
 
     if (data_ != NULL) backend_free(data_);
+#if M_HAVE_GPU
+    free_plan_buffers_();
+#endif
     //-------------------------------------------------------------------------
     END_FUNC;
 }
@@ -542,27 +545,93 @@ Topology *Solver::get_innerTopo_spectral() {
  */
 void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
     BEGIN_FUNC;
-#if M_HAVE_GPU
-    // deallocate working mem buffer
-    for (int ip = 0; ip < ndim_; ip++) {
-        int lda = planmap[ip]->lda();
-        for (int ida = 0; ida < lda; ida++) {
-            flups_fft_plan *plan = planmap[ip]->get_plan();
-            // if we have a r2r plan, take the memsize
-            if (plan != NULL && plan[ida].mem != NULL) {
-                backend_free(plan[ida].mem);
-                goto end_loop;
-            }
-        }
-    }
-end_loop:;
-#endif
-
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
         delete planmap[ip];
         planmap[ip] = NULL;
     }
+#if M_HAVE_GPU
+    // the shared buffers are sized for the plan sets alive at the time; once none is left (e.g. after
+    // the Green plans, before the field plans are created) release them so the field sets start afresh
+    bool            any_alive = false;
+    FFTW_plan_dim **sets[4]   = {plan_forward_, plan_backward_, (odiff_ != NOD) ? plan_backward_diff_ : NULL, plan_green_};
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            any_alive = any_alive || (sets[is][ip] != NULL && sets[is][ip]->get_plan() != NULL);
+        }
+    }
+    if (!any_alive) {
+        free_plan_buffers_();
+    }
+#endif
+    END_FUNC;
+}
+
+/**
+ * @brief release the buffers shared by the FFT plans (GPU backends), see assign_plan_buffers_
+ */
+void Solver::free_plan_buffers_() {
+    if (r2r_mem_ != NULL) backend_free(r2r_mem_);
+    if (fft_work_ != NULL) backend_free(fft_work_);
+    r2r_mem_       = NULL;
+    r2r_mem_size_  = 0;
+    fft_work_      = NULL;
+    fft_work_size_ = 0;
+}
+
+/**
+ * @brief size and hand out the two buffers shared by every FFT plan of the solver (GPU backends)
+ *
+ * All the plans of a solver execute serialized on stream_, so one r2r scratch and one FFT library
+ * work area, each sized to the max over the plans alive, are enough. The buffers grow when a new plan
+ * set needs more and are then re-assigned to every alive plan (the pointer changed).
+ */
+void Solver::assign_plan_buffers_() {
+    BEGIN_FUNC;
+#if M_HAVE_GPU
+    FFTW_plan_dim **sets[4] = {plan_forward_, plan_backward_, (odiff_ != NOD) ? plan_backward_diff_ : NULL, plan_green_};
+    // get the sizes needed by every alive plan
+    size_t need_mem  = 0;
+    size_t need_work = 0;
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            FFTW_plan_dim *pd = sets[is][ip];
+            if (pd == NULL || pd->get_plan() == NULL) continue;
+            flups_fft_plan *plan = pd->get_plan();
+            for (int ida = 0; ida < pd->lda(); ida++) {
+                need_work = std::max(need_work, flups_plan_worksize(plan[ida]));
+                if (plan[ida].is_r2r) need_mem = std::max(need_mem, (size_t)plan[ida].memsize);
+            }
+        }
+    }
+    // (re)allocate if needed
+    if (need_mem > r2r_mem_size_) {
+        if (r2r_mem_ != NULL) backend_free(r2r_mem_);
+        r2r_mem_      = (double *)backend_malloc(need_mem * sizeof(double));
+        r2r_mem_size_ = need_mem;
+    }
+    if (need_work > fft_work_size_) {
+        if (fft_work_ != NULL) backend_free(fft_work_);
+        fft_work_      = backend_malloc(need_work);
+        fft_work_size_ = need_work;
+    }
+    FLUPS_INFO("shared plan buffers: r2r scratch = %zu doubles, FFT work area = %zu bytes", r2r_mem_size_, fft_work_size_);
+    // every alive plan gets the (possibly new) buffers
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            FFTW_plan_dim *pd = sets[is][ip];
+            if (pd == NULL || pd->get_plan() == NULL) continue;
+            flups_fft_plan *plan = pd->get_plan();
+            for (int ida = 0; ida < pd->lda(); ida++) {
+                if (plan[ida].is_r2r) plan[ida].mem = r2r_mem_;
+                if (flups_plan_worksize(plan[ida]) > 0) flups_plan_set_workarea(plan[ida], fft_work_);
+            }
+        }
+    }
+#endif
     END_FUNC;
 }
 
@@ -1038,34 +1107,8 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     }
 
 #if M_HAVE_GPU
-    // get the biggest mem size
-    int size_tot = -1;
-    for (int ip = 0; ip < ndim_; ip++) {
-        int lda = planmap[ip]->lda();
-        for (int ida = 0; ida < lda; ida++) {
-            flups_fft_plan *plan = planmap[ip]->get_plan();
-            // if we have a r2r plan, take the memsize
-            if (plan != NULL && plan[ida].is_r2r) {
-                size_tot = std::max(plan[ida].memsize, size_tot);
-            }
-        }
-    }
-
-    if (size_tot > 0) {
-        // allocate memory
-        double *mem = (double *)backend_malloc(size_tot * sizeof(double));
-        // every plan get the same memory location
-        for (int ip = 0; ip < ndim_; ip++) {
-            int lda = planmap[ip]->lda();
-            for (int ida = 0; ida < lda; ida++) {
-                flups_fft_plan *plan = planmap[ip]->get_plan();
-                // if we have a r2r plan
-                if (plan != NULL && plan[ida].is_r2r) {
-                    plan[ida].mem = mem;
-                }
-            }
-        }
-    }
+    // the r2r scratch and the FFT work area are shared by every plan of the solver
+    assign_plan_buffers_();
 #endif
     END_FUNC;
 }

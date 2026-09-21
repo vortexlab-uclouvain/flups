@@ -28,15 +28,19 @@ SwitchTopoX::~SwitchTopoX() {
     // deallocate the plans
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
         // the shuffle happens in the "out" topology
-        flups_destroy_shuffle_plan(i2o_chunks_[ic].shuffle);
-        backend_free(i2o_chunks_[ic].shuffle_buff);
+        if (i2o_chunks_[ic].has_shuffle) {
+            flups_destroy_shuffle_plan(i2o_chunks_[ic].shuffle);
+            backend_free(i2o_chunks_[ic].shuffle_buff);
+        }
         MPI_Type_free(&i2o_chunks_[ic].dtype);
         MPI_Type_free(&i2o_chunks_[ic].dest_dtype);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
         // the shuffle happens in the "in" topology
-        flups_destroy_shuffle_plan(o2i_chunks_[ic].shuffle);
-        backend_free(o2i_chunks_[ic].shuffle_buff);
+        if (o2i_chunks_[ic].has_shuffle) {
+            flups_destroy_shuffle_plan(o2i_chunks_[ic].shuffle);
+            backend_free(o2i_chunks_[ic].shuffle_buff);
+        }
         MPI_Type_free(&o2i_chunks_[ic].dtype);
         MPI_Type_free(&o2i_chunks_[ic].dest_dtype);
     }
@@ -131,14 +135,23 @@ void SwitchTopoX::setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData
     FLUPS_INFO("memory addresses have been assigned");
 
     //..........................................................................
-    // init the shuffle, this might take some time
+    // init the shuffle, this might take some time.
+    // A chunk needs an out-of-place shuffle (plan + buffer of the chunk size) only if its axis
+    // changes AND the implementation shuffles out-of-place (see need_shuffle_plan()).
+    const bool need_shuffle = this->need_shuffle_plan();
     for (int ic = 0; ic < i2o_nchunks_; ic++) {
+        MemChunk* chunk    = i2o_chunks_ + ic;
+        chunk->has_shuffle = need_shuffle && (chunk->axis != chunk->dest_axis);
+        chunk->shuffle_buff = NULL;
         // the shuffle happens in the "out" topology
-        PlanShuffleChunk(topo_out_->nf() == 2, i2o_chunks_ + ic);
+        if (chunk->has_shuffle) PlanShuffleChunk(topo_out_->nf() == 2, chunk);
     }
     for (int ic = 0; ic < o2i_nchunks_; ic++) {
+        MemChunk* chunk    = o2i_chunks_ + ic;
+        chunk->has_shuffle = need_shuffle && (chunk->axis != chunk->dest_axis);
+        chunk->shuffle_buff = NULL;
         // the shuffle happens in the "in" topology
-        PlanShuffleChunk(topo_out_->nf() == 2, o2i_chunks_ + ic);
+        if (chunk->has_shuffle) PlanShuffleChunk(topo_out_->nf() == 2, chunk);
     }
 
     //..........................................................................

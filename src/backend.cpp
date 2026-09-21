@@ -87,20 +87,15 @@ flups_fft_plan flups_plan_r2r(flups_fft_arch arch, double *in, double *out, flup
         // Note: some plans (typically involved in the computation of the Green function
         //       for mixed BC's) require a non-unit stride of 2. Here, we handle that
         //       directly during the pre- and post-processing (thus the plan has unit stride).
+        // the plan gets no work area of its own, the Solver provides one shared buffer (see backend_*.cpp)
 #if defined(BACKEND_CUDA)
     cufftType cuda_type = (xform == XFORM_R2C) ? CUFFT_D2Z : (xform == XFORM_C2R) ? CUFFT_Z2D
                                                                                   : CUFFT_Z2Z;
-    m_cufft_check_errors(cufftPlanMany(&plan.fft, 1, &plan.dim,
-                                       &plan.dim, 1, plan.idist,
-                                       &plan.dim, 1, plan.odist,
-                                       cuda_type, plan.howmany));
+    backend_make_plan(&plan.fft, &plan.worksize, plan.dim, plan.idist, plan.odist, cuda_type, plan.howmany);
 #elif defined(BACKEND_HIP)
     hipfftType hip_type = (xform == XFORM_R2C) ? HIPFFT_D2Z : (xform == XFORM_C2R) ? HIPFFT_Z2D
                                                                                    : HIPFFT_Z2Z;
-    m_hipfft_check_errors(hipfftPlanMany(&plan.fft, 1, &plan.dim,
-                                         &plan.dim, 1, plan.idist,
-                                         &plan.dim, 1, plan.odist,
-                                         hip_type, plan.howmany));
+    backend_make_plan(&plan.fft, &plan.worksize, plan.dim, plan.idist, plan.odist, hip_type, plan.howmany);
 #else
 #error "Unsupported backend, something went wrong"
 #endif

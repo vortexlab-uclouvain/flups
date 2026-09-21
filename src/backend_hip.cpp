@@ -86,32 +86,48 @@ memType_t backend_get_memtype(const void *ptr) {
     return (memTypeUnregistered == memtype && NULL != ptr) ? memTypeHost : memtype;
 }
 
+/**
+ * @brief create a batched 1D hipFFT plan WITHOUT its own work area
+ *
+ * The work area is provided later by the Solver (one buffer shared by every plan, they all
+ * execute serialized on the same stream), see flups_plan_set_workarea. The size needed by this
+ * plan is returned in worksize.
+ */
+void backend_make_plan(hipfftHandle *fft, size_t *worksize, const int dim, const int idist, const int odist, const hipfftType type, const int howmany) {
+    long long int n = dim, id = idist, od = odist;
+    m_hipfft_check_errors(hipfftCreate(fft));
+    m_hipfft_check_errors(hipfftSetAutoAllocation(*fft, 0));
+    m_hipfft_check_errors(hipfftMakePlanMany64(*fft, 1, &n,
+                                               &n, 1, id,
+                                               &n, 1, od,
+                                               type, howmany, worksize));
+}
+
+size_t flups_plan_worksize(const flups_fft_plan plan) {
+    return plan.worksize;
+}
+
+void flups_plan_set_workarea(flups_fft_plan plan, void *work) {
+    m_hipfft_check_errors(hipfftSetWorkArea(plan.fft, work));
+}
+
 flups_fft_plan flups_plan_r2c(flups_fft_arch arch, double *in, flups_complex *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_fft_plan plan;
-    m_hipfft_check_errors(hipfftPlanMany(&plan.fft, 1, &arch.dim,
-                                         &arch.dim, 1, arch.dist,
-                                         &arch.dim, 1, arch.dist / 2,
-                                         HIPFFT_D2Z, arch.howmany));
+    backend_make_plan(&plan.fft, &plan.worksize, arch.dim, arch.dist, arch.dist / 2, HIPFFT_D2Z, arch.howmany);
     return plan;
 }
 
 flups_fft_plan flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double *out) {
     FLUPS_CHECK(arch.dist % 2 == 0, "the fft stride (or rather 'dist') should be even");
     flups_fft_plan plan;
-    m_hipfft_check_errors(hipfftPlanMany(&plan.fft, 1, &arch.dim,
-                                         &arch.dim, 1, arch.dist / 2,
-                                         &arch.dim, 1, arch.dist,
-                                         HIPFFT_Z2D, arch.howmany));
+    backend_make_plan(&plan.fft, &plan.worksize, arch.dim, arch.dist / 2, arch.dist, HIPFFT_Z2D, arch.howmany);
     return plan;
 }
 
 flups_fft_plan flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign) {
     flups_fft_plan plan;
-    m_hipfft_check_errors(hipfftPlanMany(&plan.fft, 1, &arch.dim,
-                                         &arch.dim, 1, arch.dist,
-                                         &arch.dim, 1, arch.dist,
-                                         HIPFFT_Z2Z, arch.howmany));
+    backend_make_plan(&plan.fft, &plan.worksize, arch.dim, arch.dist, arch.dist, HIPFFT_Z2Z, arch.howmany);
     return plan;
 }
 

@@ -143,6 +143,12 @@ class Solver {
     // stream
     stream_t stream_ = 0;   // use default stream
 
+    // GPU backends: buffers shared by every FFT plan of this solver (the plans run serialized on stream_)
+    double* r2r_mem_       = NULL;  //!< scratch of the r2r transforms (max plan.memsize over all plans)
+    size_t  r2r_mem_size_  = 0;     //!< size of r2r_mem_, in doubles
+    void*   fft_work_      = NULL;  //!< work area of the cuFFT/hipFFT plans (max worksize over all plans)
+    size_t  fft_work_size_ = 0;     //!< size of fft_work_, in bytes
+
     // time the solve
     H3LPR::Profiler* prof_ = NULL;
 
@@ -173,6 +179,8 @@ class Solver {
 #endif
     void allocate_plans_(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void delete_plans_(FFTW_plan_dim* planmap[3]);
+    void assign_plan_buffers_();
+    void free_plan_buffers_();
 
     static void pencil0_layout_(FFTW_plan_dim* const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size, PencilLayout* layout);
     /**@} */

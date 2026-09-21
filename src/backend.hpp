@@ -61,6 +61,9 @@ flups_fft_plan     flups_plan_c2r(flups_fft_arch arch, flups_complex *in, double
 flups_fft_plan     flups_plan_c2c(flups_fft_arch arch, flups_complex *in, flups_complex *out, int sign);
 flups_shuffle_plan flups_plan_shuffle(flups_iodim dims[2], double *in, double *out, bool iscomplex);
 
+size_t flups_plan_worksize(const flups_fft_plan plan);
+void   flups_plan_set_workarea(flups_fft_plan plan, void *work);
+
 // Execute functions
 void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t stream);
 void flups_execute_r2c(flups_fft_plan plan, double *in, flups_complex *out, stream_t stream);
