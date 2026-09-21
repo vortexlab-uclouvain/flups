@@ -145,7 +145,7 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp ftp://ftp.fftw.org/pub/fftw/fftw-3.3.10.tar.gz && \
     mkdir -p /var/tmp && tar -x -f /var/tmp/fftw-3.3.10.tar.gz -C /var/tmp -z && \
-    cd /var/tmp/fftw-3.3.10 &&  CC=mpicc CXX=mpicxx F77=mpif77 F90=mpif90 FC=mpifort ./configure --prefix=/usr/local/fftw --disable-fortran --enable-avx --enable-openmp --enable-sse2 && \
+    cd /var/tmp/fftw-3.3.10 &&  CC=mpicc CXX=mpicxx F77=mpif77 F90=mpif90 FC=mpifort ./configure --prefix=/usr/local/fftw --disable-fortran --enable-avx --enable-sse2 && \
     make -j$(nproc) && \
     make -j$(nproc) install && \
     rm -rf /var/tmp/fftw-3.3.10 /var/tmp/fftw-3.3.10.tar.gz
@@ -297,9 +297,9 @@ RUN cd /h3lpr &&\
     git checkout origin/develop &&\
     echo "CXX = mpic++" > make_arch/make.temp &&\
     echo "CC  = mpicc" >> make_arch/make.temp &&\
-    echo "CXXFLAGS := -O3 -std=c++17 -fopenmp -DCOLOR_PROF " >> make_arch/make.temp  &&\
-    echo "CCFLAGS := -O3 -std=c99 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp &&\
-    echo "LDFLAGS += -fopenmp -lstdc++ -lm" >> make_arch/make.temp &&\
+    echo "CXXFLAGS := -O3 -std=c++17 -DCOLOR_PROF " >> make_arch/make.temp  &&\
+    echo "CCFLAGS := -O3 -std=c99 -DCOLOR_PROF" >> make_arch/make.temp &&\
+    echo "LDFLAGS += -lstdc++ -lm" >> make_arch/make.temp &&\
     echo "GTEST_INC = /soft/googletest/include" >> make_arch/make.temp &&\
     echo "GTEST_LIB = /soft/googletest/lib" >> make_arch/make.temp &&\
     ARCH_FILE=make_arch/make.temp PREFIX=/soft/h3lpr make install -j4 &&\

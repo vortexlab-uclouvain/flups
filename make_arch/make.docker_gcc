@@ -17,7 +17,7 @@ OPTS = -DHAVE_HDF5
 ## For production:
 CXXFLAGS := -g -O0 -std=c++17
 CCFLAGS := -O3 -std=c99
-LDFLAGS := -fopenmp
+LDFLAGS :=
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

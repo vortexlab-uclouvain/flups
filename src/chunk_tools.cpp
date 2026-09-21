@@ -423,7 +423,7 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         FLUPS_CHECK(m_isaligned(src_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
         // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
-        auto op = m_backend_lambda(const int io, const int ii) {
+        const auto op = m_backend_lambda(const int io, const int ii) {
             // get the line indexes
             const int i1 = io % n1;
             const int i2 = io / n1;
@@ -475,7 +475,7 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
         // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
-        auto op = m_backend_lambda(const int io, const int ii) {
+        const auto op = m_backend_lambda(const int io, const int ii) {
             // get the line indexes
             const int i1 = io % n1;
             const int i2 = io / n1;

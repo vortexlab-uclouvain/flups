@@ -64,7 +64,7 @@ LIB += -L$(P3DFFTDIR++)/lib -lp3dfft.3
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3f 
+FFTW_LIBNAME ?= -lfftw3 -lfftw3f 
 INC += -I$(FFTW_INC)
 LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 

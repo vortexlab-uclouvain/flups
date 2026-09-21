@@ -14,8 +14,8 @@ cd ${H3LPR_DIR}
 touch make_arch/make.meluxina
 echo "CC = mpicc " > make_arch/make.meluxina
 echo "CXX = mpic++ " >> make_arch/make.meluxina 
-echo "CXXFLAGS := -g -O3 -march=native -fopenmp -DNDEBUG " >> make_arch/make.meluxina
-echo "LDFLAGS := -fopenmp -ldl " >> make_arch/make.meluxina
+echo "CXXFLAGS := -g -O3 -march=native -DNDEBUG " >> make_arch/make.meluxina
+echo "LDFLAGS := -ldl " >> make_arch/make.meluxina
 ARCH_FILE=make_arch/make.meluxina make install -j 
 cd - 
 
@@ -38,7 +38,7 @@ echo "CCFLAGS :=  -g -O3 -std=c99   -DMPI_BATCH_SEND=1 -DNDEBUG -march=native " 
 # echo "CXXFLAGS := -g -Wall -O0 --debug -std=c++11" >> make_arch/make.meluxina
 # echo "CCFLAGS := -g -Wall -O0 --debug -std=c99" >> make_arch/make.meluxina
 
-echo "LDFLAGS = -fopenmp  #-lstc++ " >> make_arch/make.meluxina
+echo "LDFLAGS =  #-lstc++ " >> make_arch/make.meluxina
 echo "#---------------------------------------------------------   " >> make_arch/make.meluxina
 echo "# DEPENDENCES DIRECTORIES  " >> make_arch/make.meluxina
 echo "#---------------------------------------------------------  " >> make_arch/make.meluxina

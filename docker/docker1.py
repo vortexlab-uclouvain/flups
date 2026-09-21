@@ -10,7 +10,7 @@ apt = apt_get(ospackages=['git', 'wget', 'apt-transport-https', 'ca-certificates
                           'm4',
                           'python'])
 # clang
-cc = llvm(version='12', openmp=True, extra_tools=True, toolset=True,
+cc = llvm(version='12', openmp=False, extra_tools=True, toolset=True,
           environment=True)
 
 # fotran compiler from gnu !only fortran and no c/c++!
@@ -35,7 +35,7 @@ Stage0 += hdf5(version='1.12.1', toolchain=omp.toolchain,
 
 #fftw
 Stage0 += fftw(version='3.3.10', toolchain=omp.toolchain,
-               configure_opts=['--disable-fortran', '--enable-openmp', '--enable-sse2', '--enable-avx'])
+               configure_opts=['--disable-fortran', '--enable-sse2', '--enable-avx'])
 
 # build stage 1
 Stage1 += baseimage(image='ubuntu:20.04')

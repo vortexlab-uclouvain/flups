@@ -18,7 +18,7 @@ CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-variadic-macros
 
 CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-variadic-macros
 
-LDFLAGS = -fopenmp -lstc++
+LDFLAGS = -lstc++
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

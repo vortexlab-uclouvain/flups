@@ -19,7 +19,7 @@ CC = mpicc
 #CCFLAGS := -O3 -std=c99 -DNDEBUG -march=native
 CXXFLAGS := -g -O3 -std=c++17  -march=native
 CCFLAGS := -g -O3 -std=c99 -march=native
-LDFLAGS := -fopenmp 
+LDFLAGS := 
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

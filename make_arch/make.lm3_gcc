@@ -6,10 +6,10 @@ CXX = mpicxx
 CC = mpicc
 
 # set the flag (optimisation or not)
-CXXFLAGS := -fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
-CCFLAGS := -fopenmp -O3 -g -DNDEBUG -stdc99
+CXXFLAGS := -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF
+CCFLAGS := -O3 -g -DNDEBUG -stdc99
 
-LDFLAGS := -fopenmp -lstdc++
+LDFLAGS := -lstdc++
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

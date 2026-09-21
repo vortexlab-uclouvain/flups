@@ -90,7 +90,7 @@ endif
 ifneq (,$(findstring -DBACKEND_FFTW,$(OPTS)))
     FFTW_INC ?= /usr/include
     FFTW_LIB ?= /usr/lib
-    FFTW_LIBNAME ?= -lfftw3_omp -lfftw3
+    FFTW_LIBNAME ?= -lfftw3
     INC += -I$(FFTW_INC)
     LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 endif

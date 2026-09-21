@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     const int       nprocOut[3] = {1, 2, 1};
     const int       nglobOut[3] = {17, 32, 64};
 
-    std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
+    std::string FLUPSprof = "compare_FLUPS_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size);
     Profiler   *FLUprof   = new Profiler(FLUPSprof);
 
     FLUPS_Solver *mysolver = new FLUPS_Solver(topoIn, mybc, h, L, NOD, center_type, FLUprof);
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
     if (rank == 0)
         printf("Using processor grid %d x %d with pencils in x\n", dims[0], dims[1]);
 
-    std::string P3DFFTprof = "compare_P3DFFT_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(1);
+    std::string P3DFFTprof = "compare_P3DFFT_res" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size);
     Profiler   *P3Dprof    = new Profiler(P3DFFTprof);
 
     P3Dprof->create("init", "root");

@@ -41,7 +41,7 @@ ARCH_FILE=... make install -j
 
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
 ```shell
-CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-openmp --enable-avx2 --enable-shared
+CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-avx2 --enable-shared
 ```
 
 - For debugging purpose - HDF5 (> v1.10) in the `hdf5_prefix` dir:
@@ -62,7 +62,7 @@ CXX = mpiicpc
 
 # set the flag (optimisation or not)
 CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
-LDFLAGS := -fopenmp 
+LDFLAGS := -lstdc++ -lm
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
@@ -80,10 +80,10 @@ HDF5_DIR  := hdf5_prefix
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
 ```
-By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
+By default, the Makefile is looking for `-lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
 For example:
 ```makefile
-FFTW_LIBNAME := -lfftw3_omp -lfftw3
+FFTW_LIBNAME := -lfftw3
 HDF5_LIBNAME := -lhdf5_openmpi
 ```
 
@@ -121,7 +121,7 @@ By default, the Makefile use the open-source utility tool `ar`.
 
 The documentation is built using Doxygen.
 To build the documentation, go to the `./doc` subfolder and type `doxygen`.
-LDFLAGS := -fopenmp -fsanitize=undefined -fsanitize=address
+LDFLAGS := -fsanitize=undefined -fsanitize=address
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library. /!\ When using this option, you should also use the flag  `HAVE-HDF5` and provide the path to your `HDF5` include and libs in your `make_arch`
@@ -244,20 +244,17 @@ This includes:
 
 ### Make the most of the parallel implementation
 
-FLUPS features hybrid distributed/shared memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. 
+FLUPS is a pure MPI library: one rank per core (or per GPU). Three communication schemes are available for the topology switches: all-to-all (`a2a`), non-blocking with persistent requests (`nb`) and non-blocking with derived datatypes (`isr`), each built as a separate library (`libflups_a2a`, `libflups_nb`, `libflups_isr`).
 
-The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per CPU, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
-- We highly recommend the use of distributed memory when possible, even if FLUPS can run in a pure OpenMP mode.
-- Should you use shared memory (`OMP_NUM_THREADS>1`), each thread must be handled by a distinct core (no hyper threading). Computer nodes providing non-uniform memory accesses 
+The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per rank, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
 - The all-to-all implementation should be considered as the default robust option. However, acceleration is possible using the non-blocking version, in particular when:
-    - the number of unknowns per core is high (~128^3)
-    - the total number of core is not too high (~< 10k)
-- The mixed use of OpenMP and MPI is supported, and should only be considered in combination with the non-blocking implementation. However, the related performance is highly dependent on the computer architecture. 
+    - the number of unknowns per rank is high (~128^3)
+    - the total number of ranks is not too high (~< 10k)
+- On GPUs, prefer `a2a` or `nb`: `isr` sends non-contiguous derived datatypes straight from device memory, which the MPI library packs very slowly.
 
 We encourage the user seeking for optimal performance to run short dedicated tests on the targeted architecture. The `validation` executable, when compiled with the `PROF` option, can be used to time the execution. A basic comparison of performance on a typical-size problem should involve at least:
-1. the all-to-all implementation without thread
-2. the non-blocking implementation without thread
-3. the non-blocking implementation with 2 to 4 threads
+1. the all-to-all implementation
+2. the non-blocking implementation
 
 
 ### Memory footprint

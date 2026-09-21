@@ -9,13 +9,13 @@
 export CODE_VERSION='a2a nb isr'
 
 ## Compile the librairies  
-export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'
-export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl -flto'
+export H3LPR_CXXFLAGS='-g -O3 -march=native -DNDEBUG -flto'
+export H3LPR_LDFLAGS=' -rdynamic -ldl -flto'
 
 export FLUPS_AR='gcc-ar'
 export FLUPS_CCFLAGS='-g -O3 -std=c99   -DMPI_BATCH_SEND=1 -march=native -flto'
 export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -DMPI_BATCH_SEND=1  -march=native -flto'
-export FLUPS_LDFLAGS='-fopenmp -flto'
+export FLUPS_LDFLAGS=' -flto'
 export FLUPS_OPTS='-DNDEBUG -DFFTW_FLAG=FFTW_MEASURE'
 
 # ..................................................................

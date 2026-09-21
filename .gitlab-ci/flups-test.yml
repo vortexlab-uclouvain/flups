@@ -172,24 +172,6 @@ run MPI a2a 6:1:
     - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   
 
-#checks that the code runs without error in MPI-OMP dbg
-run MPI-OMP a2a 1:1:
-  stage: test
-  rules:
-    - if: ($TEST_MERGE_REQUEST == "yes") && ($CI_OPEN_MERGE_REQUESTS)
-    - if: ($TEST_PUSH_MAIN == "yes") && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: ($TEST_FAILEDJOB == "yes") && ($CI_COMMIT_BRANCH =~ /^[0-9]-job-failed.*$/i)
-    - if: ($TEST_BRANCH == "yes") && $CI_COMMIT_BRANCH
-  needs: [compil dbg]
-  dependencies: 
-    - compil dbg
-  script:
-    - cd ./samples/validation/
-    - export OMP_NUM_THREADS=2
-    - echo $OMP_NUM_THREADS
-    - mpirun -np 2 ./flups_validation_a2a --np=1,2,1 --res=32,32,32  --bc=4,1,4,4,3,3
-    - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_414433_typeGreen=0.txt'))"
-
 run comm a2a 1:1:
   stage: test
   rules:
@@ -469,24 +451,6 @@ run MPI nb 6:1:
     - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   
 
-#checks that the code runs without error in MPI-OMP dbg
-run MPI-OMP nb 1:1:
-  stage: test
-  rules:
-    - if: ($TEST_MERGE_REQUEST == "yes") && ($CI_OPEN_MERGE_REQUESTS)
-    - if: ($TEST_PUSH_MAIN == "yes") && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: ($TEST_FAILEDJOB == "yes") && ($CI_COMMIT_BRANCH =~ /^[0-9]-job-failed.*$/i)
-    - if: ($TEST_BRANCH == "yes") && $CI_COMMIT_BRANCH
-  needs: [compil dbg]
-  dependencies: 
-    - compil dbg  
-  script:
-    - cd ./samples/validation/
-    - export OMP_NUM_THREADS=2
-    - echo $OMP_NUM_THREADS
-    - mpirun -np 2 ./flups_validation_nb --np=1,2,1 --res=32,32,32 --bc=4,1,4,4,3,3
-    - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_414433_typeGreen=0.txt'))"
-
 run comm nb 1:1:
   stage: test
   rules:
@@ -704,24 +668,6 @@ run MPI isr 6:1:
     - mpirun -np 3 ./flups_validation_isr --np=1,3,1 --res=17,17,17 --bc=1,1,4,1,1,1 
     - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_114111_typeGreen=0.txt'))"
   
-
-#checks that the code runs without error in MPI-OMP dbg
-run MPI-OMP isr 1:1:
-  stage: test
-  rules:
-    - if: ($TEST_MERGE_REQUEST == "yes") && ($CI_OPEN_MERGE_REQUESTS)
-    - if: ($TEST_PUSH_MAIN == "yes") && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: ($TEST_FAILEDJOB == "yes") && ($CI_COMMIT_BRANCH =~ /^[0-9]-job-failed.*$/i)
-    - if: ($TEST_BRANCH == "yes") && $CI_COMMIT_BRANCH
-  needs: [compil dbg]
-  dependencies: 
-    - compil dbg  
-  script:
-    - cd ./samples/validation/
-    - export OMP_NUM_THREADS=2
-    - echo $OMP_NUM_THREADS
-    - mpirun -np 2 ./flups_validation_isr --np=1,2,1 --res=32,32,32 --bc=4,1,4,4,3,3
-    - python3.8 -c "from scripts import check_res; exit(check_res.check_res(1,'validation_3d_CellCenter_414433_typeGreen=0.txt'))"
 
 run comm isr 1:1:
   stage: test

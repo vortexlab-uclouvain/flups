@@ -103,15 +103,6 @@
 #endif
 
 /**
- * @brief Enable the use of OpenMP
-*/
-#ifdef WITHOUT_OPENMP
-#define FLUPS_OPENMP 0
-#else
-#define FLUPS_OPENMP 1
-#endif
-
-/**
  * @brief register the current git commit for tracking purpose
 */ 
 #ifdef GIT_COMMIT

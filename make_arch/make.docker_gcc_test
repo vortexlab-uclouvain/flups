@@ -4,9 +4,9 @@ CC = mpicc
 
 OPTS = -DHAVE_HDF5
 
-CXXFLAGS := -O3 -std=c++17 -fopenmp 
-CCFLAGS := -O3 -std=c99 -fopenmp 
-LDFLAGS += -fopenmp -lstdc++ -lm 
+CXXFLAGS := -O3 -std=c++17 
+CCFLAGS := -O3 -std=c99 
+LDFLAGS += -lstdc++ -lm 
 
 ## FFTW3
 FFTW_DIR  :=  /usr/local/fftw

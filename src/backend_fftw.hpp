@@ -4,9 +4,6 @@
 #include <fftw3.h>
 
 #include <string>
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 #include "flups_interface.h"
 #include "h3lpr/macros.hpp"
@@ -85,14 +82,11 @@ typedef enum {
 #define m_backend_lambda [=]
 
 /**
- * @brief apply op(i) for i in [0, n): one OpenMP thread per chunk of indexes
+ * @brief apply op(i) for i in [0, n)
  */
 template <typename O>
 void parallel_for(const O& op, const int n, string name, stream_t) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
     for (int i = 0; i < n; i++) {
         op(i);
     }
@@ -102,16 +96,10 @@ void parallel_for(const O& op, const int n, string name, stream_t) {
 /**
  * @brief apply op(io, ii) for io in [0, n_outer) and ii in [0, n_inner), ii being the contiguous index
  *
- * The outer loop is distributed over the OpenMP threads, the inner one is a plain contiguous loop the
- * compiler can vectorize (typically one line of a pencil). On the GPU backends the two indexes are
- * flattened into a single 1D launch, see the GPU headers.
  */
 template <typename O>
 void parallel_for_2d(const O& op, const int n_outer, const int n_inner, string name, stream_t) {
     BACKEND_INFO("Launching kernel: %s", name.c_str());
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
     for (int io = 0; io < n_outer; io++) {
         for (int ii = 0; ii < n_inner; ii++) {
             op(io, ii);

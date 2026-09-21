@@ -1246,7 +1246,7 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
     // do the loop, one pencil per outer index
     const size_t stride_o = (size_t)nmem[ax0] * (size_t)nf;  // = collapsedIndex(ax0, 0, 1, nmem, nf)
-    auto         op       = m_backend_lambda(const int io, const int ii) {
+    const auto   op       = m_backend_lambda(const int io, const int ii) {
         opt_double_ptr dataloc = data + stride_o * io;
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         dataloc[ii] *= volfact;

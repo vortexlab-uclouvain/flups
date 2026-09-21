@@ -6,8 +6,8 @@ source $1/scripts/flups_loadmodule_lm3.sh
 ## Download and compile h3lpr
 export H3LPR_MPICXX=mpic++
 export H3LPR_MPICC=mpicc
-export H3LPR_CXXFLAGS="-O3 -g -ggdb -fopenmp -DCOLOR_PROF"
-export H3LPR_LDFLAGS="-fopenmp -lstdc++ -rdynamic -ldl -lm"
+export H3LPR_CXXFLAGS="-O3 -g -ggdb -DCOLOR_PROF"
+export H3LPR_LDFLAGS=" -lstdc++ -rdynamic -ldl -lm"
 export H3LPR_PREFIX="${2}"
 
 cd h3lpr
@@ -22,9 +22,9 @@ rm -rf h3lpr
 ## Compile flups
 export FLUPS_MPICXX=mpic++
 export FLUPS_MPICC=mpicc
-export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF -DHAVE_WISDOM=\\\"$1/fftw-wisdom/wisdom/vortexbot.wsdm\\\""
-export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
-export FLUPS_LDFLAGS="-fopenmp -lstdc++"
+export FLUPS_CXXFLAGS=" -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF -DHAVE_WISDOM=\\\"$1/fftw-wisdom/wisdom/vortexbot.wsdm\\\""
+export FLUPS_CCFLAGS=" -O3 -g -DNDEBUG -std=c99"
+export FLUPS_LDFLAGS=" -lstdc++"
 
 ARCH_FILE=make_arch/make.default \
     CC=${FLUPS_MPICC} CXX=${FLUPS_MPICXX} \

@@ -28,13 +28,13 @@ export CODE_CENTER='0'
 export NPCPUS=96
 
 ## Compile the librairies  
-export H3LPR_CXXFLAGS='-g -O3 -march=native -fopenmp -DNDEBUG -flto'
-export H3LPR_LDFLAGS='-fopenmp -rdynamic -ldl -flto'
+export H3LPR_CXXFLAGS='-g -O3 -march=native -DNDEBUG -flto'
+export H3LPR_LDFLAGS=' -rdynamic -ldl -flto'
 
 export FLUPS_AR='gcc-ar'
 export FLUPS_CCFLAGS='-g -O3 -std=c99 -march=native -DNDEBUG -flto'
 export FLUPS_CXXFLAGS='-g -O3 -std=c++17 -march=native -DNDEBUG -flto'
-export FLUPS_LDFLAGS='-fopenmp -flto'
+export FLUPS_LDFLAGS=' -flto'
 export FLUPS_OPTS=''
 
 # ..................................................................
