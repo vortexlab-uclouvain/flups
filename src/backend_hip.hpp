@@ -127,4 +127,23 @@ void parallel_for(const O& op, const int n, string name, stream_t stream) {
     BACKEND_INFO("Kernel %s done", name.c_str());
 }
 
+/**
+ * @brief functor flattening a two-level op(io, ii) into the 1D index of parallel_for (ii is the fast index)
+ */
+template <typename O>
+struct backend_flat2d_ {
+    O   op;
+    int n_inner;
+    m_device void operator()(const int idx) const { op(idx / n_inner, idx % n_inner); }
+};
+
+/**
+ * @brief apply op(io, ii) for io in [0, n_outer) and ii in [0, n_inner): same launch as parallel_for over n_outer * n_inner
+ */
+template <typename O>
+void parallel_for_2d(const O& op, const int n_outer, const int n_inner, string name, stream_t stream) {
+    backend_flat2d_<O> flat{op, n_inner};
+    parallel_for(flat, n_outer * n_inner, name, stream);
+}
+
 #endif  // BACKEND_HIP_HPP

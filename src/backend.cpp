@@ -112,7 +112,8 @@ void flups_execute_r2r(flups_fft_plan plan, double *in, double *out, stream_t st
     int howmany = plan.howmany;
 
     // Working memory
-    double *mem = plan.mem;
+    // the scratch never aliases in/out
+    double *__restrict__ mem = plan.mem;
 
     switch (plan.kind) {
         // DCT Type I

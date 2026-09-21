@@ -1319,16 +1319,14 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
 
-    // do the loop
-    auto op = m_backend_lambda(const int idx) {
-        const int io = idx / inmax;
-        const int ii = idx % inmax;
-
-        opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
+    // do the loop, one pencil per outer index
+    const size_t stride_o = (size_t)nmem[ax0] * (size_t)nf;  // = collapsedIndex(ax0, 0, 1, nmem, nf)
+    auto         op       = m_backend_lambda(const int io, const int ii) {
+        opt_double_ptr dataloc = data + stride_o * io;
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
         dataloc[ii] *= volfact;
     };
-    parallel_for(op, onmax * inmax, "scale green", stream_);
+    parallel_for_2d(op, (int)onmax, (int)inmax, "scale green", stream_);
 
     if (killModeZero) {
         int istart[3];

@@ -395,19 +395,20 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
     const int ax0        = chunk->axis;
-    const int ax1        = (ax0 + 1) % 3;
-    const int isize[3]   = {chunk->isize[0], chunk->isize[1], chunk->isize[2]};
-    const int ax[3]      = {ax0, ax1, (ax0 + 2) % 3};
+    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
-    // get the indexes to copy
-    const size_t n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
-    const size_t nmax   = chunk->isize[ax[0]] * nf;
+    // get the indexes to copy: n_loop lines of nmax contiguous doubles
+    const int n1     = chunk->isize[ax[1]];
+    const int n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const int nmax   = chunk->isize[ax[0]] * nf;
+    // strides (in doubles) of the lines and of the planes, in the chunk and in the data (= localIndex(ax0, 0, 1, 0, ...))
+    const size_t s1_chunk = (size_t)nmax;
+    const size_t s2_chunk = (size_t)nmax * (size_t)n1;
+    const size_t s1_data  = (size_t)nmem[ax[0]] * (size_t)nf;
+    const size_t s2_data  = s1_data * (size_t)nmem[ax[1]];
 
     FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
-
-    // local definition of nmem for the capture by value
-    const int nmem_[3] = {nmem[0], nmem[1], nmem[2]};
 
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
@@ -421,19 +422,18 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
         // the chunk must be aligned all the time
         FLUPS_CHECK(m_isaligned(src_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
-        // define the operator
-        auto op = m_backend_lambda(const int idx) {
-            // get the local indexes
-            const int i0 = idx % nmax;
-            const int i1 = (idx / nmax) % isize[ax1];
-            const int i2 = idx / (nmax * isize[ax1]);
-            // get the starting address
-            const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
-            double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
+        // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
+        auto op = m_backend_lambda(const int io, const int ii) {
+            // get the line indexes
+            const int i1 = io % n1;
+            const int i2 = io / n1;
+            // get the starting address of the line
+            const double* vsrc = src_data + i1 * s1_chunk + i2 * s2_chunk;
+            double*       vtrg = trg_data + i1 * s1_data + i2 * s2_data;
             // copy the data
-            vtrg[i0] = vsrc[i0];
+            vtrg[ii] = vsrc[ii];
         };
-        parallel_for(op, n_loop * nmax, "CopyChunk2Data", stream);
+        parallel_for_2d(op, n_loop, nmax, "CopyChunk2Data", stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -445,21 +445,22 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
     const int nf         = chunk->nf;
     const int ax0        = chunk->axis;
-    const int ax1        = (ax0 + 1) % 3;
-    const int isize[3]   = {chunk->isize[0], chunk->isize[1], chunk->isize[2]};
-    const int ax[3]      = {ax0, ax1, (ax0 + 2) % 3};
+    const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
-    // get the indexes to copy
-    const size_t n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
-    const size_t nmax   = chunk->isize[ax[0]] * nf;
+    // get the indexes to copy: n_loop lines of nmax contiguous doubles
+    const int n1     = chunk->isize[ax[1]];
+    const int n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const int nmax   = chunk->isize[ax[0]] * nf;
+    // strides (in doubles) of the lines and of the planes, in the chunk and in the data (= localIndex(ax0, 0, 1, 0, ...))
+    const size_t s1_chunk = (size_t)nmax;
+    const size_t s2_chunk = (size_t)nmax * (size_t)n1;
+    const size_t s1_data  = (size_t)nmem[ax[0]] * (size_t)nf;
+    const size_t s2_data  = s1_data * (size_t)nmem[ax[1]];
 
     FLUPS_CHECK((chunk->istart[0] + chunk->isize[0]) <= nmem[0], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[0], chunk->isize[0], nmem[0]);
     FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[1], chunk->isize[1], nmem[1]);
     FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[2], chunk->isize[2], nmem[2]);
-
-    // local definition of nmem for the capture by value
-    const int nmem_[3] = {nmem[0], nmem[1], nmem[2]};
 
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
@@ -470,22 +471,21 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
         FLUPS_CHECK(m_isaligned(trg_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
         FLUPS_INFO("pointers are %p and %p", trg_data, src_data);
         FLUPS_INFO("copy %d %d %d from data to chunk", chunk->isize[0], chunk->isize[1], chunk->isize[2]);
-        FLUPS_INFO("copy %zu bytes in %zu loops", nmax * sizeof(double), n_loop);
+        FLUPS_INFO("copy %d bytes in %d loops", nmax * (int)sizeof(double), n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-        // define the operator
-        auto op = m_backend_lambda(const int idx) {
-            // get the local indexes
-            const int i0 = idx % nmax;
-            const int i1 = (idx / nmax) % isize[ax1];
-            const int i2 = idx / (nmax * isize[ax1]);
-            // get the starting adddress for the memcpy
-            const double* vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem_, nf, 0);
-            double*       vtrg = trg_data + localIndex(ax0, 0, i1, i2, ax0, isize, nf, 0);
+        // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
+        auto op = m_backend_lambda(const int io, const int ii) {
+            // get the line indexes
+            const int i1 = io % n1;
+            const int i2 = io / n1;
+            // get the starting address of the line
+            const double* vsrc = src_data + i1 * s1_data + i2 * s2_data;
+            double*       vtrg = trg_data + i1 * s1_chunk + i2 * s2_chunk;
             // copy the data
-            vtrg[i0] = vsrc[i0];
+            vtrg[ii] = vsrc[ii];
         };
-        parallel_for(op, n_loop * nmax, "CopyData2chunk", stream);
+        parallel_for_2d(op, n_loop, nmax, "CopyData2chunk", stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -679,7 +679,7 @@ void CopyData2Chunk_batch(const ChunkBatch* batch, const int nmem[3], const opt_
  * templated on NF so a complex (nf=2) unit moves as two adjacent doubles of the same tile row
  */
 template <int NF>
-__global__ void ChunkTransposeKernel(const ChunkCopyDesc* descs, const int ndesc, double* data,
+__global__ void ChunkTransposeKernel(const ChunkCopyDesc* __restrict__ descs, const int ndesc, double* __restrict__ data,
                                      const size_t s1, const size_t s2, const size_t sa) {
     const int         tile = CHUNK_TRANSPOSE_TILE;
     __shared__ double smem[CHUNK_TRANSPOSE_TILE][CHUNK_TRANSPOSE_TILE * NF + 1];

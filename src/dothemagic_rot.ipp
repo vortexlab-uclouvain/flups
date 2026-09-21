@@ -107,6 +107,8 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
     const size_t memdim   = topo_hat_[cdim]->memdim();
     const int    nmem[3]  = {topo_hat_[cdim]->nmem(0), topo_hat_[cdim]->nmem(1), topo_hat_[cdim]->nmem(2)};
     const size_t nloc_ax1 = topo_hat_[cdim]->nloc(ax1);
+    // stride between two successive pencils (in doubles) = collapsedIndex(ax0, 0, 1, nmem, nf)
+    const size_t stride_o = (size_t)nmem[ax0] * (size_t)nf;
 
     // check the alignment
     FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
@@ -125,16 +127,13 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
 #endif
 
     // do the loop
-    auto op = m_backend_lambda(const int idx) {
-        // unroll the index
-        const int ii = idx % inmax;
-        const int io = (idx / inmax) % ondim;
-
+    // one pencil per outer index, the point in the pencil is the inner (contiguous) index
+    auto op = m_backend_lambda(const int io, const int ii) {
         // get the starting pointer
-        opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);  // lda of Green is only 1
-        opt_double_ptr dataloc0 = mydata + 0 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
-        opt_double_ptr dataloc1 = mydata + 1 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
-        opt_double_ptr dataloc2 = mydata + 2 * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+        opt_double_ptr greenloc = mygreen + stride_o * io;  // lda of Green is only 1
+        opt_double_ptr dataloc0 = mydata + 0 * memdim + stride_o * io;
+        opt_double_ptr dataloc1 = mydata + 1 * memdim + stride_o * io;
+        opt_double_ptr dataloc2 = mydata + 2 * memdim + stride_o * io;
 
         FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
         FLUPS_ASSUME_ALIGNED(dataloc0, FLUPS_ALIGNMENT);
@@ -375,7 +374,7 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
         dataloc2[ii * 2 + 1] = normfact * (rot2r * gc + rot2c * gr);
 #endif
     };
-    parallel_for(op, ondim * inmax, "dothemagic_rot", stream);
+    parallel_for_2d(op, (int)ondim, (int)inmax, "dothemagic_rot", stream);
 
     END_FUNC;
 }

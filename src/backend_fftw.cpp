@@ -22,6 +22,11 @@
 
 // Init & cleanup backend
 void backend_init() {
+#ifdef _OPENMP
+    // FFTW distributes the batch of 1D transforms of a plan over the OpenMP threads
+    fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_max_threads());
+#endif
 #ifdef FLUPS_WISDOM_PATH
     FLUPS_WARNING("Importing wisdom from %s", FLUPS_WISDOM_PATH);
     fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
@@ -29,6 +34,9 @@ void backend_init() {
 }
 
 void backend_finalize() {
+#ifdef _OPENMP
+    fftw_cleanup_threads();
+#endif
     fftw_cleanup();
 }
 

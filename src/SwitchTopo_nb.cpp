@@ -28,6 +28,9 @@
 
 
 #include "SwitchTopo_nb.hpp"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #if (FLUPS_MPI_AGGRESSIVE == 0)
 

@@ -29,6 +29,9 @@
 #include "SwitchTopo.hpp"
 #include "Topology.hpp"
 #include "h3lpr/macros.hpp"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #if (FLUPS_MPI_AGGRESSIVE == 0)
 

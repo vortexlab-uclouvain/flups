@@ -66,6 +66,9 @@ void Solver::dothemagic_std_complex(double *data, stream_t stream) {
     // get the memory details
     const size_t memdim  = topo_hat_[cdim]->memdim();
     const int    nmem[3] = {topo_hat_[cdim]->nmem(0), topo_hat_[cdim]->nmem(1), topo_hat_[cdim]->nmem(2)};
+    // stride between two successive pencils (in doubles) = collapsedIndex(ax0, 0, 1, nmem, nf)
+    const size_t stride_o = (size_t)nmem[ax0] * (size_t)nf;
+    const int    ondim_i  = (int)ondim;
 
     // check the alignment
     FLUPS_CHECK(FLUPS_ISALIGNED(mygreen) && (nmem[ax0] * topo_hat_[cdim]->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
@@ -74,15 +77,15 @@ void Solver::dothemagic_std_complex(double *data, stream_t stream) {
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
     
     // do the loop
-    auto op = m_backend_lambda(const int idx) {
-        // unroll the index
-        const int ii = idx % inmax;
-        const int io = (idx / inmax) % ondim;
-        const int lia = idx / (inmax * ondim);
+    // one (component, pencil) per outer index, the point in the pencil is the inner (contiguous) index
+    auto op = m_backend_lambda(const int iop, const int ii) {
+        // unroll the outer index
+        const int io  = iop % ondim_i;
+        const int lia = iop / ondim_i;
 
         // get the starting pointer
-        opt_double_ptr greenloc = mygreen + collapsedIndex(ax0, 0, io, nmem, nf);  //lda of Green is only 1
-        opt_double_ptr dataloc  = mydata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, nf);
+        opt_double_ptr greenloc = mygreen + stride_o * io;  // lda of Green is only 1
+        opt_double_ptr dataloc  = mydata + lia * memdim + stride_o * io;
         FLUPS_ASSUME_ALIGNED(greenloc, FLUPS_ALIGNMENT);
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
 
@@ -99,7 +102,7 @@ void Solver::dothemagic_std_complex(double *data, stream_t stream) {
         dataloc[ii * 2 + 1] = normfact * (a * d + b * c);
 #endif
     };
-    parallel_for(op, onmax * inmax, "dothemaigc_std", stream);
+    parallel_for_2d(op, (int)onmax, (int)inmax, "dothemagic_std", stream);
 
     END_FUNC;
 }
