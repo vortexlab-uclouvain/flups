@@ -333,7 +333,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             break;
         case HEJ_0:
             FLUPS_WARNING("HEJ0 (theoretically spectral) kernel for 2D unbounded entails an approximation greatly affecting accuracy.");
-            parallel_for(m_backend_lambda(int i) { init_Ji0(); }, 1, "init Ji0", stream);
             G   = kernel_from_symbol(&zero);
             Gk0 = kernel_from_symbol(&hej_0_2unb1spe_k0);
             Gr0 = kernel_from_symbol(&hej_0_2unb1spe_k0);

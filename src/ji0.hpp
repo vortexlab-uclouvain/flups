@@ -43,39 +43,40 @@ using ldouble_t = double;
 using ldouble_t = long double;
 #endif
 
-m_constant ldouble_t inv_f_sqr[N_KEPT + 1];
-
 /**
- * @brief static precomputation of required coefficients.
+ * @brief the coefficients 1/(n!)^2 for n = 0..N_KEPT, computed at compile time
  *
+ * A constant expression is the only way to fill a constant-memory table on the GPU backends
+ * (device code cannot write constant memory, and a kernel doing so is silently ignored).
  */
-m_device void init_Ji0() {
-    inv_f_sqr[0] = (ldouble_t)1;
-    for (int i = 1; i <= N_KEPT; i++) {
-        inv_f_sqr[i]     = inv_f_sqr[i - 1] * (ldouble_t)i;
-        inv_f_sqr[i - 1] = 1 / (inv_f_sqr[i - 1] * inv_f_sqr[i - 1]);  // square the previous value
+struct Ji0Table {
+    ldouble_t inv_f_sqr[N_KEPT + 1];
+    constexpr Ji0Table() : inv_f_sqr() {
+        ldouble_t fact = 1;
+        inv_f_sqr[0]   = 1;
+        for (int i = 1; i <= N_KEPT; i++) {
+            fact *= (ldouble_t)i;
+            inv_f_sqr[i] = 1 / (fact * fact);
+        }
     }
-    inv_f_sqr[N_KEPT] = 1 / (inv_f_sqr[N_KEPT] * inv_f_sqr[N_KEPT]);
-}
+};
+m_constant constexpr Ji0Table ji0_table_ = Ji0Table();
 
 /**
  * @brief Numerical approximation of the \f$ \int_0^x  \frac{(1-J0(u))}{u}  du \f$ (for 0 <= x <= ~30).
  *
- * @ref init_Ji0 must be called before.
  */
 m_device double Ji0c(double x) {
     ldouble_t val = 0.0;
 
     for (int n = N_KEPT; n > 0; n--) {
-        val -= pow((ldouble_t)-(.25 * x * x), n) * inv_f_sqr[n] / n * .5;
+        val -= pow((ldouble_t)-(.25 * x * x), n) * ji0_table_.inv_f_sqr[n] / n * .5;
     }
     return (double)val;
 }
 
 /**
  * @brief Numerical approximation of the Bessel-integral function of order zero (for 0 <= x <= ~30).
- *
- * @ref init_Ji0 must be called before.
  *
  * Meaningful documentation:
  * - [1] P. Humbert, "Bessel-integral function", Philosophical Magazine, 8 (1929), pp.861-898, (887)
