@@ -139,10 +139,9 @@ inline double quad_kmax(const double sig) {
  *   - the outer oscillation @f$ \cos(n_y h_y k) @f$, whose fastest period over the range needs
  *     about @f$ 2 k_{max} n_{y,max} h_y / \pi @f$ nodes;
  *   - the near-singularity of width @f$ \sim k_z @f$ that @f$ G_1 \sim -1/(2k) @f$ develops at
- *     @f$ k \to 0 @f$; the smallest spectral wavenumber of the grid therefore sets a floor of
- *     about @f$ 2 k_{max} / k_{z,min} @f$ nodes.
+ *     @f$ k \to 0 @f$, which sets the endpoint term of @ref LGFTwoUnbounded::quad_size.
  *
- * The result is rounded up so that it splits evenly over the panels.
+ * The endpoint term is rounded up to a multiple of 64, as in @ref LGFTwoUnbounded::quad_size.
  *
  * @param ny_max the half-width of the table in the quadrature direction
  * @param hy the grid spacing of the quadrature direction
@@ -156,30 +155,25 @@ inline int quad_size(const int ny_max, const double hy, const double kmax, const
     // the integrand itself varies on the scale of the regularisation, i.e. over k_max sig units of
     // the dimensionless k sig; four nodes per unit is ample for an analytic integrand
     const int q_reg = (int)ceil(4.0 * kmax * sig);
-    int       q0    = q_osc + q_reg + 64;
+    int       q     = q_osc + q_reg + 64;
     if (kzmin > 0.0) {
-        q0 = std::max(q0, (int)ceil(2.0 * kmax / kzmin) + q_reg + 64);
+        // the endpoint term of the lattice rule, in the variable k pi / k_max of [0, pi]
+        const int qe = (int)ceil(LGFTwoUnbounded::c_quad_endpoint / sqrt(kzmin * M_PI / kmax)) + q_reg + 64;
+        q            = std::max(q, ((qe + 63) / 64) * 64);
     }
-    const int np = LGFTwoUnbounded::quad_npanel(q0);
-    return ((q0 + np - 1) / np) * np;
+    return q;
 }
 
 /**
- * @brief the composite Gauss-Legendre rule of @p nq nodes on [0, kmax]
+ * @brief the single-panel Gauss-Legendre rule of @p nq nodes on [0, kmax], on the device
  *
- * @param nq the total number of nodes, must be a multiple of the panel count
+ * @param nq the number of nodes
  * @param kmax the upper end of the range
- * @param[out] k the nodes, of size nq
- * @param[out] w the weights, of size nq (they sum to kmax)
+ * @param[out] k the nodes, a device buffer of size nq
+ * @param[out] w the weights, a device buffer of size nq (they sum to kmax)
  */
-inline void gauss_legendre_0kmax(const int nq, const double kmax, double* k, double* w) {
-    // the [0, pi] rule of the lattice construction, rescaled to [0, kmax]
-    LGFTwoUnbounded::gauss_legendre_0pi(nq, k, w);
-    const double fact = kmax * c_1opi;
-    for (int i = 0; i < nq; ++i) {
-        k[i] *= fact;
-        w[i] *= fact;
-    }
+inline void gauss_legendre_0kmax(const int nq, const double kmax, double* k, double* w, stream_t stream) {
+    LGFTwoUnbounded::gauss_legendre_0pi(nq, kmax * c_1opi, k, w, stream);
 }
 
 //==============================================================================

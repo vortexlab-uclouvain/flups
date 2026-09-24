@@ -120,99 +120,95 @@ m_device double slice_inner(const int typeGreen, const int n, const double ky, c
 }
 
 //==============================================================================
-// the Gauss-Legendre rule on [0, pi] (host)
+// the Gauss-Legendre rule on [0, pi] (device)
 //==============================================================================
 /**
- * @brief the number of equal panels used for a composite rule of @p nq nodes
- *
- * The integrand is analytic on [0, pi] so panels are only there to keep the per-panel order (and
- * hence the Newton solve for the nodes) moderate.
+ * @brief the constant of the endpoint term of @ref quad_size
  */
-inline int quad_npanel(const int nq) { return (nq + 511) / 512; }
+constexpr double c_quad_endpoint = 40.0;
 
 /**
- * @brief the number of Gauss-Legendre nodes used for a table of half-width @p n
+ * @brief the number of nodes of the Gauss-Legendre rule of a slice of dimensionless wavenumber @p kz_h
  *
- * The baseline is `Q = 2 n + 32`, which resolves the `cos(n_y k)` oscillation of the outer
- * integrand. On top of that, the inner integral `I(n_x; k, k_z)` has a near-singularity of width
- * `~ k_z h` sitting at the endpoint `k = 0` (the operator becomes singular at `k = k_z = 0`), so
- * the smallest spectral wavenumber of the grid also sets a floor: measured on LGF_2 with n = 16,
- * `Q ~ 2 pi / (k_z h)` (i.e. `Q ~ N_z`) is needed to stay at 1e-14, and `Q = 64` already gives
- * 2.8e-11 at `k_z h = 2 pi / 128`. Pass @p kzmin_h to take that into account (it only bites when
- * the spectral direction is much longer than the unbounded ones, which is exactly where the old
- * sampled-symbol treatment was worst).
+ * The rule is a single Gauss-Legendre panel on [0, pi] (@ref gauss_legendre_0pi). Two features are
+ * resolved:
+ *   - the `cos(n_y k)` oscillation of the outer integrand, `Q = 2 n + 32`;
+ *   - the branch point of the inner integral `I(n_x; k, k_z)` at `k ~ +-i k_z h`, next to the
+ *     endpoint `k = 0`. The nodes of a single panel cluster at its endpoints, and its error decays
+ *     like `exp(-c Q sqrt(k_z h))`, so that `Q ~ C / sqrt(k_z h)` nodes are enough.
  *
- * The result is rounded up so that it splits evenly over the panels.
+ * The endpoint term is rounded up to a multiple of 64 so that neighbouring slices share their rule.
  *
  * @param n the half-width of the table in the quadrature direction
- * @param kzmin_h the smallest non-zero dimensionless spectral wavenumber of the grid, 0 to ignore
+ * @param kz_h the dimensionless wavenumber of the slice, 0 to ignore
  */
-inline int quad_size(const int n, const double kzmin_h = 0.0) {
-    int q0 = 2 * n + 32;
-    if (kzmin_h > 0.0) {
-        q0 = std::max(q0, (int)ceil(2.0 * M_PI / kzmin_h) + 32);
+inline int quad_size(const int n, const double kz_h = 0.0) {
+    int q = 2 * n + 32;
+    if (kz_h > 0.0) {
+        const int qe = (int)ceil(c_quad_endpoint / sqrt(kz_h)) + 32;
+        q            = std::max(q, ((qe + 63) / 64) * 64);
     }
-    const int np = quad_npanel(q0);
-    return ((q0 + np - 1) / np) * np;
+    return q;
 }
 
 /**
- * @brief the Gauss-Legendre nodes and weights of order @p n on [-1, 1] (Newton on P_n)
+ * @brief the Legendre polynomial of order @p n and its last increment, in the variable `y = 1 - x`
+ *
+ * Reinsch form of the three-term recurrence: with `u_j = P_j - P_{j-1}`,
+ * `u_{j+1} = (j u_j - (2j + 1) y P_j) / (j + 1)` and `P_{j+1} = P_j + u_{j+1}`. The variable `x`
+ * never appears, so that `P_n` keeps its full relative accuracy next to the endpoints, where
+ * `1 - x` would cancel.
  */
-inline void gauss_legendre_ref_(const int n, double* x, double* w) {
-    const int nhalf = (n + 1) / 2;
-    for (int i = 0; i < nhalf; ++i) {
-        // Chebyshev-like initial guess, accurate to O(1/n^2)
-        double z  = cos(M_PI * (i + 0.75) / (n + 0.5));
-        double pp = 0.0;
-        for (int it = 0; it < 200; ++it) {
-            // Legendre recurrence: p1 = P_n(z), p2 = P_{n-1}(z)
-            double p1 = 1.0, p2 = 0.0;
-            for (int j = 0; j < n; ++j) {
-                const double p3 = p2;
-                p2              = p1;
-                p1              = ((2.0 * j + 1.0) * z * p2 - j * p3) / (j + 1.0);
-            }
-            pp              = n * (z * p1 - p2) / (z * z - 1.0);
-            const double dz = p1 / pp;
-            z -= dz;
-            if (fabs(dz) <= 2.0e-16 * (fabs(z) + 1.0)) {
+m_device inline void legendre_reinsch_(const int n, const double y, double* pn, double* un) {
+    double p = 1.0, u = 0.0;
+    for (int j = 0; j < n; ++j) {
+        u = (((double)j) * u - ((double)(2 * j + 1)) * y * p) / ((double)(j + 1));
+        p += u;
+    }
+    *pn = p;
+    *un = u;
+}
+
+/**
+ * @brief the Gauss-Legendre rule of @p nq nodes on [0, scale pi], on the device
+ *
+ * One thread per pair of symmetric nodes. Newton on `P_n(cos theta)` in the variable theta, with
+ * @ref legendre_reinsch_: the nodes are `scale pi sin^2(theta/2)` and the weights
+ * `scale pi / (sin(theta) P_n'(cos theta))^2`, both accurate to a few ulps at any order, including
+ * the nodes that cluster at `k = 0`.
+ *
+ * @param nq the number of nodes
+ * @param scale the length of the range divided by pi (1 for the lattice rule)
+ * @param[out] k the nodes, a device buffer of size nq
+ * @param[out] w the weights, a device buffer of size nq (they sum to scale pi)
+ */
+inline void gauss_legendre_0pi(const int nq, const double scale, double* k, double* w, stream_t stream) {
+    auto op = m_backend_lambda(const int i) {
+        double th = M_PI * (((double)i) + 0.75) / (((double)nq) + 0.5);
+        double pn, un;
+        for (int it = 0; it < 50; ++it) {
+            const double sh  = sin(0.5 * th);
+            const double y   = 2.0 * sh * sh;
+            legendre_reinsch_(nq, y, &pn, &un);
+            const double dth = pn * sin(th) / (((double)nq) * (y * pn - un));
+            th += dth;
+            if (fabs(dth) <= 1.0e-15 * th) {
                 break;
             }
         }
-        x[i]         = -z;
-        x[n - 1 - i] = z;
-        w[i]         = 2.0 / ((1.0 - z * z) * pp * pp);
-        w[n - 1 - i] = w[i];
-    }
-}
-
-/**
- * @brief the composite Gauss-Legendre rule of @p nq nodes on [0, pi]
- *
- * @param nq the total number of nodes, must be a multiple of @ref quad_npanel(nq)
- * @param[out] k the nodes, of size nq
- * @param[out] w the weights, of size nq (they sum to pi)
- */
-inline void gauss_legendre_0pi(const int nq, double* k, double* w) {
-    const int np = quad_npanel(nq);
-    FLUPS_CHECK(nq % np == 0, "the number of quadrature nodes (%d) must split evenly over %d panels", nq, np);
-    const int nper = nq / np;
-
-    double* xr = (double*)m_calloc(sizeof(double) * nper);
-    double* wr = (double*)m_calloc(sizeof(double) * nper);
-    gauss_legendre_ref_(nper, xr, wr);
-
-    for (int p = 0; p < np; ++p) {
-        const double a = M_PI * ((double)p) / ((double)np);
-        const double b = M_PI * ((double)(p + 1)) / ((double)np);
-        for (int i = 0; i < nper; ++i) {
-            k[p * nper + i] = 0.5 * (xr[i] + 1.0) * (b - a) + a;
-            w[p * nper + i] = 0.5 * wr[i] * (b - a);
-        }
-    }
-    m_free(xr);
-    m_free(wr);
+        const double sh = sin(0.5 * th);
+        const double ch = cos(0.5 * th);
+        const double y  = 2.0 * sh * sh;
+        legendre_reinsch_(nq, y, &pn, &un);
+        // sin(theta) P_n'(cos theta) = n (y P_n - u_n) / sin(theta)
+        const double d  = ((double)nq) * (y * pn - un) / sin(th);
+        const double wi = scale * M_PI / (d * d);
+        k[i]          = scale * M_PI * sh * sh;
+        k[nq - 1 - i] = scale * M_PI * ch * ch;
+        w[i]          = wi;
+        w[nq - 1 - i] = wi;
+    };
+    parallel_for(op, (nq + 1) / 2, "2unb1spe green rule", stream);
 }
 
 //==============================================================================

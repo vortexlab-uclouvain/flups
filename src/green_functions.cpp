@@ -627,8 +627,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         int          nblk         = (int)std::min<size_t>((size_t)nb_max, std::max<size_t>((size_t)1, bytes_budget / ((size_t)nnx * ((size_t)nq_max + (size_t)nny) * sizeof(double))));
         nblk                      = std::max(1, std::min(nblk, nlvl[lvl_s]));
 
-        double *kq_host = (double *)m_calloc(sizeof(double) * nq_max);
-        double *wq_host = (double *)m_calloc(sizeof(double) * nq_max);
         double *kq      = (double *)backend_malloc(sizeof(double) * nq_max);
         double *wq      = (double *)backend_malloc(sizeof(double) * nq_max);
         double *cw      = (double *)backend_malloc(sizeof(double) * nny * nq_max);
@@ -759,13 +757,10 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
             // the block is empty here, so rebuilding Cw cannot invalidate a pending product
             if (nq_j != nq) {
                 if (is_hej_slice) {
-                    HEJTwoUnbounded::gauss_legendre_0kmax(nq_j, hej_kmax, kq_host, wq_host);
+                    HEJTwoUnbounded::gauss_legendre_0kmax(nq_j, hej_kmax, kq, wq, stream);
                 } else {
-                    LGFTwoUnbounded::gauss_legendre_0pi(nq_j, kq_host, wq_host);
+                    LGFTwoUnbounded::gauss_legendre_0pi(nq_j, 1.0, kq, wq, stream);
                 }
-                backend_memcpy(kq, kq_host, sizeof(double) * nq_j, memcpyH2D, stream);
-                backend_memcpy(wq, wq_host, sizeof(double) * nq_j, memcpyH2D, stream);
-                backend_sync_stream(stream);
                 if (is_hej_slice) {
                     HEJTwoUnbounded::build_cw(cw, kq, wq, ny_lo, nny, nq_j, h_y, stream);
                 } else {
@@ -792,8 +787,6 @@ void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const
         backend_sync_stream(stream);
         m_profStopi(prof, "green_kernel");
 
-        m_free(kq_host);
-        m_free(wq_host);
         backend_free(kq);
         backend_free(wq);
         backend_free(cw);
