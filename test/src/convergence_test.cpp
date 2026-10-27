@@ -283,7 +283,7 @@ TEST_P(ConvergenceTest, AllBoundaryConditions){
         flups_free(sol);
         flups_free(field);
         
-        flups_cleanup(mysolver);
+        flups_cleanup_solver(mysolver);
         flups_cleanup_backend();
         flups_topo_free(mytopo);
     }

@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
     flups_free(rhs);
     flups_free(field);
     flups_topo_free(topo);
-    flups_cleanup(mysolver);
+    flups_cleanup_solver(mysolver);
     flups_cleanup_backend();
     flups_profiler_free(prof);
 

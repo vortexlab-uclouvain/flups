@@ -163,14 +163,15 @@ void flups_pencil_layout(const int nglob[3], const int nproc[3], BoundaryType* b
 void flups_cleanup_solver(Solver* s) {
     delete s;
 }
-// destroy the solver
+
+// destroy the solver and cleanup the backend (kept for backward compatibility)
 void flups_cleanup(Solver* s) {
-    delete s;
+    flups_cleanup_all(s);
 }
 
 // Destroy the solver and cleanup the backend
 void flups_cleanup_all(Solver* s) {
-    flups_cleanup(s);
+    flups_cleanup_solver(s);
     flups_cleanup_backend();
 }
 

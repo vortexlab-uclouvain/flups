@@ -501,11 +501,12 @@ FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], 
 void flups_pencil_layout(const int nglob[3], const int nproc[3], FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_CenterType center_type[3], const int lda, int* axis, int nglob_out[3], int nproc_out[3], int axproc_out[3]);
 
 /**
- * @brief must be called before execution terminates as it frees the memory used by the solver
+ * @brief must be called before execution terminates as it frees the memory used by the solver and the data of the backend
  *
  * @param s
- * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function
- * @warning this function is kept for backward compatibility
+ * @warning this function free all the data of the backend (fftw, cufft,...). If you use multiple solver, you should **not** call this function,
+ *          use @ref flups_cleanup_solver and @ref flups_cleanup_backend instead
+ * @warning this function is kept for backward compatibility, it is equivalent to @ref flups_cleanup_all
  */
 void flups_cleanup(FLUPS_Solver* s);
 
@@ -513,25 +514,24 @@ void flups_cleanup(FLUPS_Solver* s);
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
- * @warning this function free all the data of fftw. If you use multiple solver, you should not call this function
- * @warning this function is kept for backward compatibility
+ * @warning this function does not free the data of the backend. If you use multiple solver, you should call this function
+ *          for each solver before cleaning up the backend with @ref flups_cleanup_backend
  * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
  * see @ref flups_comm_usage.
  */
 void flups_cleanup_solver(FLUPS_Solver* s);
 
 /**
- * @brief Free the memomry of the solver and the data employed by fftw
+ * @brief Free the memory of the solver and the data employed by the backend (fftw, cufft,...).
  *
- * @warning this function free all the data of the backend. If you use multiple solver
- *        you should not call this function
- *
+ * @warning this function free all the data of the backend (fftw, cufft,...).
+ *          If you use multiple solver, you should call this function only for the last solver
  * @param s
  */
 void flups_cleanup_all(FLUPS_Solver* s);
 
 /**
- * @brief Free data employed by the backend
+ * @brief Free data employed by the backend (fftw, cufft,...)
  *
  * @warning this function free all the data of the backend. If you use multiple solver, this function
  * should be called after all the solver have freed
@@ -550,12 +550,12 @@ void flups_cleanup_backend();
 void flups_set_greenType(FLUPS_Solver* s, const FLUPS_GreenType type);
 
 /**
- * @brief sets the stream to be used by FLUPS for GPU backends
+ * @brief sets the stream to be used by FLUPS **only for GPU backends**
  *
  * @param s
  * @param stream
  */
-void flups_set_stream(Solver* s, void* stream);
+void flups_set_stream(FLUPS_Solver* s, void* stream);
 
 /**
  * @brief setup the solver and do the memory allocation

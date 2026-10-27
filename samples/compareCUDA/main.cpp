@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
         //--------------------------------------------------------------------------
         /** - cleanup */
         //-------------------------------------------------------------------------
-        flups_cleanup(mysolver);
+        flups_cleanup_solver(mysolver);
         flups_topo_free(topoTmp);
         for (int id = 0; id < 3; id++) {
             for (int is = 0; is < 2; is++) {

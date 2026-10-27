@@ -23,7 +23,7 @@
 
 ################################################################################
 # ARCH DEPENDENT VARIABLES
-ARCH_FILE ?= make_arch/make.docker_clang
+ARCH_FILE ?= make_arch/make.docker_cuda
 include ../../$(ARCH_FILE)
 
 ################################################################################
