@@ -140,9 +140,24 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones whan allocating data. 
 - `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
 - `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename
-- `BACKEND_FFTW|CUDA` indicates which backend to choose. The default is FFTW. Note that CUDA backend requires Nvidia GPUs.
+- `BACKEND_FFTW|CUDA|HIP` selects the backend: FFTW on CPUs (the default when no `BACKEND_*` flag is given), CUDA (cuFFT and cuBLAS) on Nvidia GPUs, HIP (hipFFT and rocBLAS) on AMD GPUs, see [GPU backends](#gpu-backends).
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
+
+### GPU backends
+Add the backend flag to `OPTS` in your `make_arch`, together with the target architecture of your GPU compiler, for instance `OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86` (nvcc) or `OPTS += -DBACKEND_HIP --offload-arch=gfx90a` (hipcc/amdclang). All the sources are then compiled as CUDA (`-x cu`) or HIP (`-x hip`) code, and the vendor libraries are found through the following variables, which you may overwrite in your `make_arch`:
+
+| backend | include and library directories (default) | libraries (default) |
+|---------|-------------------------------------------|---------------------|
+| FFTW | `FFTW_INC`, `FFTW_LIB` (`/usr/include`, `/usr/lib`) | `FFTW_LIBNAME` (`-lfftw3`) |
+| CUDA | `CUDA_INC`, `CUDA_LIB` (`/usr/local/cuda/include`, `/usr/local/cuda/lib64`) | `CUDA_LIBNAME` (`-lcudart -lcufft -lcublas`) |
+| HIP | `HIP_INC`, `HIP_LIB` (`/opt/rocm/include`, `/opt/rocm/lib`) | `HIP_LIBNAME` (`-lrocblas -lhipfft -lamdhip64`) |
+
+On GPUs, the solver works on device memory:
+- the MPI library must be GPU-aware, the communication buffers live on the device;
+- `flups_malloc` allocates host memory; the `field` and `rhs` arrays given to `flups_solve` may live on the host or on the device, device arrays avoid the host-device copies;
+- `flups_set_stream` sets the stream on which FLUPS runs (the default stream otherwise), call it before `flups_setup`;
+- prefer the `a2a` or `nb` communication schemes, see [below](#make-the-most-of-the-parallel-implementation).
 
 ## How to use a solver?
 
@@ -334,4 +349,3 @@ The _daily test_ is a smaller, in-house, test suite, that can be executed on a d
 
 - [CI testing](doc/CI.md)
 - [real to real FFT](doc/Mode_Correction.md)
-- [GPU support](doc/GPU.md)

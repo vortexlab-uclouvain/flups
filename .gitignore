@@ -4,6 +4,10 @@ include
 lib
 prof
 .vscode
+.envrc
+.direnv
+__pycache__
+*.pyc
 doc/html
 doc/latex
 *.d
@@ -22,4 +26,4 @@ samples/compareP3DFFT++/flups_vs_p3dfft++_*
 samples/compareP3DFFT/flups_vs_p3dfft_*
 samples/simpleTest/simple_test_*
 samples/compareCUDA/flups_gpu_vs_the_world_*
-
+test/flups_test_*
