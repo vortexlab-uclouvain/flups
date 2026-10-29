@@ -19,7 +19,7 @@ FLUPS is described in [this paper](https://arxiv.org/abs/2006.09300). If you use
 - You can solve the Poisson on rectangular and uniform distributed 2D/3D grids;
 - You can use any boundary conditions, including truly unbounded boundary conditions and semi-unbounded conditions;
 - You can solve may times the same Poisson problem at low cost using precomputed Green's function and communication patterns;
-- You can use threads and/or MPI to fasten the execution;
+- You can use MPI, on CPUs or GPUs, to fasten the execution;
 - You can use the build-in profiler to optimize the execution speed;
 - You can use any part of the library on its own, especially the pre-computed communications and the FFTs;
 - You can apply filters or do any computation you want while in the Fourier space.
