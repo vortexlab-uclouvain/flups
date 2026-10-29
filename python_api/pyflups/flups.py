@@ -12,7 +12,7 @@ from mpi4py import MPI
 
 from . import flups_wrapper as fw
 from .enums import (
-    BoundaryType, GreenType, SolverType, DiffType, CenterType,
+    BoundaryType, GreenType, SolverType, DiffType, CenterType, StencilType,
     FLUPS_FORWARD, FLUPS_BACKWARD, FLUPS_ALIGNMENT
 )
 
@@ -435,6 +435,39 @@ class Solver:
         return (np.array([kfact[0], kfact[1], kfact[2]]),
                 np.array([koffset[0], koffset[1], koffset[2]]),
                 np.array([symstart[0], symstart[1], symstart[2]]))
+
+    def get_stencil(self, stencil_type: StencilType = StencilType.LHS) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get the finite-difference stencil that the lattice Green's function inverts exactly
+
+        The LGF_* and MEHR_* kernels solve L_h u = M_h f on an isotropic grid of spacing h, with
+        L_h u(x) = 1/h^2 sum_i w_i u(x + o_i h) and M_h f(x) = sum_i w_i f(x + o_i h).
+        M_h is the identity for LGF_*, applied by FLUPS for MEHR_*F and by the user for MEHR_*L.
+        The Green's function type must be set first (see set_green_type).
+
+        Parameters
+        ----------
+        stencil_type : StencilType, optional
+            LHS (L_h, weights in units of 1/h^2) or RHS (M_h) (default: LHS)
+
+        Returns
+        -------
+        offsets : np.ndarray
+            Integer offsets of the n points, shape (n, 3)
+        weights : np.ndarray
+            Weights of the n points, shape (n,). n = 0 if the kernel is not the inverse of a stencil
+            (CHAT_2, HEJ_*)
+        """
+        null_int = cast(None, POINTER(c_int))
+        null_dbl = cast(None, POINTER(c_double))
+        n = fw._lib.flups_get_stencil(self._solver, int(stencil_type), null_int, null_dbl)
+        offsets = np.zeros((n, 3), dtype=np.intc)
+        weights = np.zeros(n, dtype=np.float64)
+        if n > 0:
+            fw._lib.flups_get_stencil(self._solver, int(stencil_type),
+                                      offsets.ctypes.data_as(POINTER(c_int)),
+                                      weights.ctypes.data_as(POINTER(c_double)))
+        return offsets, weights
 
     def get_inner_buffer(self) -> np.ndarray:
         """Get the inner buffer used by FLUPS"""

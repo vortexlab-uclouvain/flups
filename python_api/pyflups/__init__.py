@@ -16,6 +16,7 @@ from .enums import (
     SolverType,
     DiffType,
     CenterType,
+    StencilType,
     FLUPS_FORWARD,
     FLUPS_BACKWARD,
     FLUPS_BACKWARD_DIFF,
@@ -43,6 +44,7 @@ __all__ = [
     'SolverType',
     'DiffType',
     'CenterType',
+    'StencilType',
 
     # Constants
     'FLUPS_FORWARD',

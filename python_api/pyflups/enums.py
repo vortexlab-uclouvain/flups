@@ -63,3 +63,9 @@ class CenterType(IntEnum):
     """List of supported data center"""
     NODE_CENTER = 0  # NODE centered data
     CELL_CENTER = 1  # CELL centered data
+
+
+class StencilType(IntEnum):
+    """Finite-difference operators of a lattice Green's function: the solution solves L_h u = M_h f"""
+    LHS = 0  # left-hand side stencil L_h, the discrete Laplacian
+    RHS = 1  # right-hand side stencil M_h, the identity for the LGF kernels

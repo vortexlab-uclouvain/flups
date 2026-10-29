@@ -231,6 +231,7 @@ Solver(topology, boundary_conditions, h, L,
 - `set_alpha(alpha)`: Set alpha for Hejlesen kernels
 - `setup(change_comm=False)`: Setup and allocate memory
 - `solve(field, rhs, solver_type=STD)`: Solve the equation
+- `get_stencil(stencil_type=StencilType.LHS)`: Stencil inverted exactly by the lattice kernels, as `(offsets, weights)`
 
 #### `Profiler`
 Timing measurements for performance analysis.
@@ -247,6 +248,7 @@ Profiler(name="default")
 - `SolverType`: STD (standard), ROT (rotational/Biot-Savart)
 - `DiffType`: NOD, SPE, FD2, FD4, FD6
 - `CenterType`: NODE_CENTER, CELL_CENTER
+- `StencilType`: LHS ($L_h$), RHS ($M_h$)
 
 ### Utility Functions
 
@@ -293,6 +295,32 @@ solver.do_fft(data, pf.FLUPS_BACKWARD)
 solver.do_copy(topology, data, pf.FLUPS_BACKWARD)
 ```
 
+### Non-homogeneous Dirichlet / Neumann Walls
+
+FLUPS solves homogeneous symmetric problems (ODD: $u = 0$, EVEN: $\partial_n u = 0$). The lattice kernels
+(`LGF_*`, `MEHR_*`) invert a known stencil exactly, so a wall with data ($u = g$ or $\partial_n u = q$) is imposed by
+correcting the right-hand side (derivation in `doc/symmetric_conditions.md`). `pyflups.bc` provides the steps for
+node-centred global arrays indexed `[x, y, z]`:
+
+```python
+from pyflups import bc as pbc
+
+solver.set_green_type(pf.GreenType.LGF_4)
+lhs = solver.get_stencil(pf.StencilType.LHS)        # L_h (weights in units of 1/h^2)
+rhs_op = solver.get_stencil(pf.StencilType.RHS)     # M_h (identity for LGF_*, apply it yourself for MEHR_*L)
+r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
+
+# D = u - R(u) on the grid extended by r ghost layers, from the wall data: ghost(d, side, m) returns
+# g (m = 0, ODD walls) or the ghost data of layer m, e.g. pbc.taylor_ghost(a, m, h, wall_type)
+D = pbc.ghost_remainder(bc, n, r, ghost)
+rhs = pbc.corrected_rhs(*lhs, pbc.apply_stencil(*rhs_op, f_ext, r), D, h, bc)
+
+# ... scatter rhs to the FLUPS layout, solve (ODD for Dirichlet, EVEN for Neumann walls), gather v ...
+u = pbc.recover(v, D, bc)                           # sets the Dirichlet wall nodes to g
+```
+
+See `examples/nonhomogeneous_bc.py` for a complete, validated example.
+
 ## Examples
 
 Complete examples are provided in the `examples/` directory:
@@ -300,6 +328,7 @@ Complete examples are provided in the `examples/` directory:
 - `simple_poisson.py`: Basic Poisson solver
 - `vector_field.py`: Solving for vector fields
 - `advanced_usage.py`: Using advanced features
+- `nonhomogeneous_bc.py`: Non-homogeneous Dirichlet/Neumann walls through a right-hand-side correction (`--suite` runs the validation)
 
 Run examples with MPI:
 ```bash
