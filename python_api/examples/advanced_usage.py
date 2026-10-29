@@ -110,15 +110,11 @@ def main():
         print(f"Internal buffer size: {alloc_size} doubles")
         print(f"Memory: {alloc_size * 8 / 1024**2:.2f} MB")
 
-    # Access internal buffer (advanced - be careful!)
-    try:
-        buffer = solver.get_inner_buffer()
-        if rank == 0:
-            print(f"Buffer shape: {buffer.shape}")
-            print(f"Buffer first 5 elements: {buffer[:5]}")
-    except Exception as e:
-        # if rank == 0:
-        print(f"Note: Buffer access may not work in all contexts: {e}")
+    # solver.get_inner_buffer() wraps this buffer in a numpy array without copy, on FFTW builds only:
+    # on a GPU build it lives on the device. solver.do_copy reads/writes it on every build, see
+    # manual_solve.py.
+    if rank == 0:
+        print()
 
     # =========================================================================
     # EXAMPLE 4: Manual FFT Operations
@@ -127,47 +123,23 @@ def main():
         print("EXAMPLE 4: Manual FFT Operations")
         print("-" * 40)
 
-    # Create new solver for manual operations
-    solver2 = pf.Solver(
-        topology=topo,
-        boundary_conditions=bc,
-        h=h, L=L
-    )
-    solver2.set_green_type(pf.GreenType.CHAT_2)
-    solver2.setup()
-
-    # Prepare test data
-    test_data = np.sin(2 * np.pi * np.arange(size) / size)
+    # solve() is exactly these five steps, on the inner buffer of FLUPS (see manual_solve.py for
+    # spectral-space operations between them)
+    rhs = np.random.random(size)
     result = np.zeros(size, dtype=np.float64)
+    reference = np.zeros(size, dtype=np.float64)
+    solver.solve(reference, rhs)
 
+    solver.do_copy(topo, rhs, pf.FLUPS_FORWARD)          # 1. rhs -> inner buffer
+    solver.do_fft(sign=pf.FLUPS_FORWARD)                 # 2. forward FFT, in place
+    solver.do_mult(solver_type=pf.SolverType.STD)        # 3. Green's function and normalisation
+    solver.do_fft(sign=pf.FLUPS_BACKWARD)                # 4. backward FFT, in place
+    solver.do_copy(topo, result, pf.FLUPS_BACKWARD)      # 5. inner buffer -> result
+
+    diff = comm.allreduce(np.max(np.abs(result - reference)), op=MPI.MAX)
     if rank == 0:
-        print("Performing manual solve operations:")
-        print("  1. Copy to internal buffers")
-        print("  2. Forward FFT")
-        print("  3. Multiply with Green function")
-        print("  4. Backward FFT")
-        print("  5. Copy back to output")
-
-    # Note: This is an illustration - actual usage requires careful buffer management
-    try:
-        # Get physical topology
-        topo_phys = solver2.get_inner_topo_physical()
-
-        if rank == 0:
-            print(f"Physical topology axis: {topo_phys.axis}")
-
-        # Manual operations (simplified - actual implementation needs buffer)
-        solver2.solve(result, test_data)
-
-        if rank == 0:
-            print("Manual operations completed")
-            print(f"Result range: [{np.min(result):.4e}, {np.max(result):.4e}]")
-    except Exception as e:
-        if rank == 0:
-            print(f"Note: Manual operations demonstration: {e}")
-
-    # Delete solver2 after use
-    del solver2
+        print(f"max |steps - solve()| = {diff:.1e}")
+        print()
 
     # =========================================================================
     # EXAMPLE 5: Different Green Functions Comparison

@@ -239,6 +239,7 @@ Solver(topology, boundary_conditions, h, L,
 - `setup(change_comm=False)`: Setup and allocate memory
 - `solve(field, rhs, solver_type=STD)`: Solve the equation
 - `get_stencil(stencil_type=StencilType.LHS)`: Stencil inverted exactly by the lattice kernels, as `(offsets, weights)`
+- `do_copy`, `do_fft`, `do_mult`, `get_wavenumbers`, `get_inner_topo_spectral`: the steps of `solve`, see [Advanced Usage](#advanced-usage)
 
 #### `Profiler`
 Timing measurements for performance analysis.
@@ -262,18 +263,9 @@ Profiler(name="default")
 - `hdf5_dump(topology, filename, data)`: Export data to HDF5
 - `print_data(topology, data)`: Print data to console
 - `locID(axsrc, i0, i1, i2, lia, axtrg, size, nf)`: Compute memory index
+- `field_view(topology, data)`: View of `data` in the layout of `topology`, indexed `[component, i0, i1, i2]` (x, y, z order, padding dropped, complex if the topology is)
 
 ## Advanced Usage
-
-### Using Inner Buffers
-
-```python
-# Get FLUPS internal buffer
-buffer = solver.get_inner_buffer()
-
-# Get physical topology
-topo_phys = solver.get_inner_topo_physical()
-```
 
 ### Profiling
 
@@ -288,19 +280,43 @@ solver = pf.Solver(..., profiler=prof)
 prof.display()
 ```
 
-### Spectral Operations
+### Step by Step Solve and Spectral Operations
+
+`solve(field, rhs)` is a sequence of five steps on the inner buffer of FLUPS, which can be called one by one:
 
 ```python
-# Get spectral information
-kfact, koffset, symstart = solver.get_spectral_info()
-
-# Manual FFT operations
-solver.do_copy(topology, data, pf.FLUPS_FORWARD)
-solver.do_fft(data, pf.FLUPS_FORWARD)
-solver.do_mult(data, pf.SolverType.STD)
-solver.do_fft(data, pf.FLUPS_BACKWARD)
-solver.do_copy(topology, data, pf.FLUPS_BACKWARD)
+solver.do_copy(topo, rhs, pf.FLUPS_FORWARD)        # rhs -> inner buffer (host -> device on a GPU build)
+solver.do_fft(sign=pf.FLUPS_FORWARD)               # physical -> spectral, in place
+solver.do_mult(solver_type=pf.SolverType.STD)      # Green's function and FFT normalisation
+solver.do_fft(sign=pf.FLUPS_BACKWARD)              # spectral -> physical, in place
+solver.do_copy(topo, field, pf.FLUPS_BACKWARD)     # inner buffer -> field
 ```
+
+`do_fft` and `do_mult` work on the inner buffer by default. Between the two FFTs, the inner buffer holds the spectrum
+in the layout of `solver.get_inner_topo_spectral()`: real if every direction is symmetric, complex as soon as one is
+periodic. To modify it (filter, other Green's function, ...):
+
+```python
+topo_spec = solver.get_inner_topo_spectral()
+spec = np.zeros(topo_spec.memsize)
+solver.do_copy(topo_spec, spec, pf.FLUPS_BACKWARD)            # inner buffer -> spec
+kx, ky, kz = solver.get_wavenumbers()                          # broadcastable to the local spectral grid
+pf.field_view(topo_spec, spec)[...] *= np.exp(-0.5 * sigma**2 * (kx**2 + ky**2 + kz**2))
+solver.do_copy(topo_spec, spec, pf.FLUPS_FORWARD)             # spec -> inner buffer
+```
+
+- The topology of the spectral data, `field_view` and `get_wavenumbers` are only valid between
+  `do_fft(sign=FLUPS_FORWARD)` and `do_fft(sign=FLUPS_BACKWARD)` (`get_wavenumbers` raises otherwise).
+- `get_wavenumbers` returns the magnitudes $|k_d|$ used by the Green's functions: fine for isotropic multipliers, not
+  for derivatives (use `SolverType.ROT`).
+- The FFTs are unnormalised. A multiplier applied after `do_mult` needs nothing more; a multiplier that replaces
+  `do_mult` must include the normalisation factor (measured once by a forward + backward FFT of a constant field in
+  `examples/manual_solve.py`).
+- On an FFTW build, `pf.field_view(topo_spec, solver.get_inner_buffer())` is a view of the inner buffer itself and
+  avoids the two copies. On a GPU build the inner buffer lives on the device: use `do_copy`.
+
+See `examples/manual_solve.py` for a complete, validated example (step by step solve, spectral filter, screened Poisson
+equation).
 
 ### Non-homogeneous Dirichlet / Neumann Walls
 
@@ -336,6 +352,7 @@ Complete examples are provided in the `examples/` directory:
 - `simple_poisson.py`: Basic Poisson solver
 - `vector_field.py`: Solving for vector fields
 - `advanced_usage.py`: Using advanced features
+- `manual_solve.py`: The steps of `solve` one by one, with a spectral filter and a user Green's function in between (validated against analytic solutions)
 - `nonhomogeneous_bc.py`: Non-homogeneous Dirichlet/Neumann walls through a right-hand-side correction (`--suite` runs the validation)
 
 Run examples with MPI:
