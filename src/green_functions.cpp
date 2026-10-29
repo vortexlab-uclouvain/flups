@@ -1135,3 +1135,140 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
     }
     END_FUNC;
 }
+
+/**
+ * @brief returns the stencil that a lattice Green's function inverts exactly
+ *
+ * The weights are those of the symbols used by the kernels (see green_kernels.hpp and lgf_1unb2spe.hpp):
+ * with \f$ \delta^2_{d,m} u = u(x + m h e_d) - 2 u(x) + u(x - m h e_d) \f$ (and \f$ \delta^2_d = \delta^2_{d,1} \f$),
+ * - LGF_p: \f$ h^2 L_h = \sum_d \sum_m c_m \delta^2_{d,m} \f$ and \f$ M_h = 1 \f$;
+ * - MEHR_4L/4F: \f$ h^2 L_h = \sum_d \delta^2_d + 1/6 \sum_{i<j} \delta^2_i \delta^2_j \f$ and
+ *   \f$ M_h = 1 + 1/12 \sum_d \delta^2_d \f$;
+ * - MEHR_6L/6F: \f$ h^2 L_h \f$ of MEHR_4L \f$ + 1/30\, \delta^2_0 \delta^2_1 \delta^2_2 \f$ and
+ *   \f$ M_h = 1 + 1/12 \sum_d \delta^2_d + 1/90 \sum_{i<j} \delta^2_i \delta^2_j - 1/240 \sum_d \delta^4_d \f$.
+ *
+ * @param typeGreen the Green's function
+ * @param type the left- or right-hand side stencil
+ * @param offsets if not NULL, the offsets of the n points, offsets[3*i + d] (size 3*n)
+ * @param weights if not NULL, the weights of the n points, the left-hand side ones are in units of 1/h^2 (size n)
+ * @return int the number of points n, 0 if the Green's function is not the inverse of a stencil
+ */
+int cmpt_Green_stencil(const GreenType typeGreen, const StencilType type, int *offsets, double *weights) {
+    BEGIN_FUNC;
+    //-------------------------------------------------------------------------
+    // dense cube of weights, the widest stencil (LGF_8) reaches 4 points
+    constexpr int r               = 4;
+    constexpr int w               = 2 * r + 1;
+    double        cube[w * w * w] = {0.0};
+
+    const double c_d2[3] = {1.0, -2.0, 1.0};
+    // add c times the product of unit second differences along the directions dirs[0 .. ndir-1]
+    // (a repeated direction gives the fourth difference)
+    auto add_d2_product = [&](const int ndir, const int dirs[], const double c) {
+        int ncomb = 1;
+        for (int id = 0; id < ndir; ++id) ncomb *= 3;
+        for (int ic = 0; ic < ncomb; ++ic) {
+            int    o[3] = {0, 0, 0};
+            double wgt  = c;
+            for (int id = 0, rest = ic; id < ndir; ++id, rest /= 3) {
+                o[dirs[id]] += rest % 3 - 1;
+                wgt *= c_d2[rest % 3];
+            }
+            cube[(o[0] + r) + w * ((o[1] + r) + w * (o[2] + r))] += wgt;
+        }
+    };
+    // add c times the second difference of step m along d
+    auto add_d2_step = [&](const int d, const int m, const double c) {
+        for (int s = -1; s <= 1; ++s) {
+            int o[3] = {0, 0, 0};
+            o[d]     = s * m;
+            cube[(o[0] + r) + w * ((o[1] + r) + w * (o[2] + r))] += c * c_d2[s + 1];
+        }
+    };
+    auto add_pairs = [&](const double c) {
+        for (int i = 0; i < 3; ++i) {
+            for (int j = i + 1; j < 3; ++j) {
+                const int dirs[2] = {i, j};
+                add_d2_product(2, dirs, c);
+            }
+        }
+    };
+
+    const double  c_lgf2[1] = {1.0};
+    const double  c_lgf4[2] = {4.0 / 3.0, -1.0 / 12.0};
+    const double  c_lgf6[3] = {3.0 / 2.0, -3.0 / 20.0, 1.0 / 90.0};
+    const double  c_lgf8[4] = {8.0 / 5.0, -1.0 / 5.0, 8.0 / 315.0, -1.0 / 560.0};
+    const double *c_lgf     = NULL;
+    int           n_lgf     = 0;
+    switch (typeGreen) {
+        case LGF_2:
+            c_lgf = c_lgf2;
+            n_lgf = 1;
+            break;
+        case LGF_4:
+            c_lgf = c_lgf4;
+            n_lgf = 2;
+            break;
+        case LGF_6:
+            c_lgf = c_lgf6;
+            n_lgf = 3;
+            break;
+        case LGF_8:
+            c_lgf = c_lgf8;
+            n_lgf = 4;
+            break;
+        default:
+            break;
+    }
+    const bool is_mehr4 = (typeGreen == MEHR_4L || typeGreen == MEHR_4F);
+    const bool is_mehr6 = (typeGreen == MEHR_6L || typeGreen == MEHR_6F);
+
+    if (c_lgf != NULL) {
+        if (STENCIL_LHS == type) {
+            for (int d = 0; d < 3; ++d) {
+                for (int m = 0; m < n_lgf; ++m) add_d2_step(d, m + 1, c_lgf[m]);
+            }
+        } else {
+            cube[r + w * (r + w * r)] = 1.0;
+        }
+    } else if (is_mehr4 || is_mehr6) {
+        if (STENCIL_LHS == type) {
+            for (int d = 0; d < 3; ++d) add_d2_step(d, 1, 1.0);
+            add_pairs(c_1o6);
+            if (is_mehr6) {
+                const int dirs[3] = {0, 1, 2};
+                add_d2_product(3, dirs, c_1o30);
+            }
+        } else {
+            cube[r + w * (r + w * r)] = 1.0;
+            for (int d = 0; d < 3; ++d) add_d2_step(d, 1, c_1o12);
+            if (is_mehr6) {
+                add_pairs(1.0 / 90.0);
+                for (int d = 0; d < 3; ++d) {
+                    const int dirs[2] = {d, d};
+                    add_d2_product(2, dirs, -1.0 / 240.0);
+                }
+            }
+        }
+    }
+
+    int n = 0;
+    for (int i2 = -r; i2 <= r; ++i2) {
+        for (int i1 = -r; i1 <= r; ++i1) {
+            for (int i0 = -r; i0 <= r; ++i0) {
+                const double wgt = cube[(i0 + r) + w * ((i1 + r) + w * (i2 + r))];
+                if (wgt == 0.0) continue;
+                if (offsets != NULL) {
+                    offsets[3 * n + 0] = i0;
+                    offsets[3 * n + 1] = i1;
+                    offsets[3 * n + 2] = i2;
+                }
+                if (weights != NULL) weights[n] = wgt;
+                ++n;
+            }
+        }
+    }
+    //-------------------------------------------------------------------------
+    END_FUNC;
+    return n;
+}

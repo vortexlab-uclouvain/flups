@@ -69,6 +69,17 @@ enum GreenType {
 };
 
 /**
+ * @brief The finite-difference operators of a lattice Green's function, see @ref flups_get_stencil
+ *
+ * The lattice kernels (LGF_*, MEHR_*) are the exact inverse of a finite-difference stencil: the discrete problem is
+ * \f$ L_h u = M_h f \f$, with \f$ L_h \f$ the left-hand side stencil and \f$ M_h \f$ the right-hand side one.
+ */
+enum StencilType {
+    STENCIL_LHS = 0, /**< @brief the left-hand side stencil \f$ L_h \f$, the discrete Laplacian */
+    STENCIL_RHS = 1  /**< @brief the right-hand side stencil \f$ M_h \f$, the identity for the LGF_* kernels */
+};
+
+/**
  * @brief The type of possible solvers
  *
  * When solving for Biot-Savart, the Green's kernel \f$ G \f$ in Fourier space is adapted so that the Fourier

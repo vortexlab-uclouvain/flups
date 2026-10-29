@@ -289,7 +289,8 @@ class Solver {
      *
      * @{
      */
-    void set_GreenType(const GreenType type) { typeGreen_ = type; }
+    void      set_GreenType(const GreenType type) { typeGreen_ = type; }
+    GreenType get_GreenType() const { return typeGreen_; }
     void set_alpha(const double alpha) { alphaGreen_ = alpha; }
     /**@} */
 
