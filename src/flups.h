@@ -367,9 +367,9 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 
 /**
- * @brief returns the memory size of on this proc, i.e. the number of bytes in this proc, including padded memory and all the vector components
+ * @brief returns the memory size on this proc, i.e. the number of doubles (not bytes) on this proc, including padded memory and all the vector components
  *
- * @return long
+ * @return size_t
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
@@ -598,7 +598,7 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  */
 
 /**
- * @brief get the maximun amount of memory required by FLUPS
+ * @brief get the maximum amount of memory required by FLUPS, in number of doubles (not bytes)
  *
  * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
  * see @ref flups_comm_usage.

@@ -20,6 +20,23 @@ from .enums import (
 _active_solvers_count = 0
 
 
+def _double_ptr(data: np.ndarray, name: str, size: int, writeable: bool = False):
+    """
+    Pointer to the data of an array handed to FLUPS, which reads/writes it as `size` contiguous doubles:
+    the array must be a C-contiguous float64 numpy array of at least `size` values (writeable if
+    FLUPS writes in it). Copying it instead would silently corrupt or drop the data.
+    """
+    if not isinstance(data, np.ndarray) or data.dtype != np.float64:
+        raise TypeError(f"{name} must be a numpy array of float64, got {getattr(data, 'dtype', type(data).__name__)}")
+    if not data.flags['C_CONTIGUOUS']:
+        raise TypeError(f"{name} must be C-contiguous (FLUPS accesses it in place), use np.ascontiguousarray")
+    if writeable and not data.flags['WRITEABLE']:
+        raise ValueError(f"{name} is read-only, FLUPS writes in it")
+    if data.size < size:
+        raise ValueError(f"{name} holds {data.size} values, FLUPS accesses {size} of them")
+    return data.ctypes.data_as(POINTER(c_double))
+
+
 class Topology:
     """
     FLUPS Topology class
@@ -79,7 +96,7 @@ class Topology:
         # Convert MPI communicator
         if comm is None:
             comm = MPI.COMM_WORLD
-        mpi_comm = fw.mpi_comm_to_int(comm)
+        mpi_comm = fw.mpi_comm_handle(comm)
 
         # Create topology - with error handling for MPI incompatibilities
         try:
@@ -149,7 +166,7 @@ class Topology:
 
     @property
     def memsize(self) -> int:
-        """Get memory size on this rank (in bytes)"""
+        """Get memory size on this rank, in number of doubles (padding and all the components included)"""
         return fw._lib.flups_topo_get_memsize(self._topo)
 
     def cmpt_rank_from_id(self, global_id: int, direction: int) -> int:
@@ -162,8 +179,7 @@ class Topology:
 
     def get_comm(self) -> MPI.Comm:
         """Get the MPI communicator"""
-        comm_int = fw._lib.flups_topo_get_comm(self._topo)
-        return MPI.Comm.f2py(comm_int)
+        return fw.mpi_comm_from_handle(fw._lib.flups_topo_get_comm(self._topo))
 
     def ranksplit(self, rank: int) -> np.ndarray:
         """Split rank into rank per dimensions"""
@@ -382,10 +398,13 @@ class Solver:
         """
         Solve the Poisson equation
 
+        Both arrays follow the layout of the topology given to the solver: C-contiguous float64
+        numpy arrays of at least topology.memsize values (TypeError/ValueError otherwise).
+
         Parameters
         ----------
         field : np.ndarray
-            Output array for the solution (will be modified in-place if same as rhs)
+            Output array, overwritten in place with the solution (may be the same array as rhs)
         rhs : np.ndarray
             Right-hand side of the equation
         solver_type : SolverType, optional
@@ -394,23 +413,18 @@ class Solver:
         Returns
         -------
         np.ndarray
-            Solution field (same as input field array)
+            Solution field (the field array itself)
         """
-        # Ensure arrays are contiguous and double precision
-        if not field.flags['C_CONTIGUOUS']:
-            field = np.ascontiguousarray(field, dtype=np.float64)
-        if not rhs.flags['C_CONTIGUOUS']:
-            rhs = np.ascontiguousarray(rhs, dtype=np.float64)
-
-        field_ptr = field.ctypes.data_as(POINTER(c_double))
-        rhs_ptr = rhs.ctypes.data_as(POINTER(c_double))
+        size = self._topology.memsize
+        field_ptr = _double_ptr(field, "field", size, writeable=True)
+        rhs_ptr = _double_ptr(rhs, "rhs", size)
 
         fw._lib.flups_solve(self._solver, field_ptr, rhs_ptr, int(solver_type))
 
         return field
 
     def get_alloc_size(self) -> int:
-        """Get maximum amount of memory required by FLUPS"""
+        """Get the maximum amount of memory required by FLUPS, in number of doubles"""
         return fw._lib.flups_get_allocSize(self._solver)
 
     def get_spectral_info(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -508,18 +522,18 @@ class Solver:
         fw._lib.flups_skip_firstSwitchtopo(self._solver)
 
     def do_copy(self, topology: Topology, data: np.ndarray, sign: int):
-        """Copy data from user to FLUPS arrays"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
+        """Copy data from user to FLUPS arrays (sign FLUPS_FORWARD) or back (FLUPS_BACKWARD)"""
+        data_ptr = _double_ptr(data, "data", topology.memsize, writeable=(sign != FLUPS_FORWARD))
         fw._lib.flups_do_copy(self._solver, topology._ptr, data_ptr, sign)
 
     def do_fft(self, data: np.ndarray, sign: int):
         """Compute FFT (physical to spectral space)"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
+        data_ptr = _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
         fw._lib.flups_do_FFT(self._solver, data_ptr, sign)
 
     def do_mult(self, data: np.ndarray, solver_type: SolverType):
         """Multiply with Green's function"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
+        data_ptr = _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
         fw._lib.flups_do_mult(self._solver, data_ptr, int(solver_type))
 
     def switchtopo_info(self):
@@ -543,9 +557,9 @@ def hdf5_dump(topology: Topology, filename: str, data: np.ndarray):
     filename : str
         Output filename (without extension)
     data : np.ndarray
-        Data to dump
+        Data to dump (C-contiguous float64, at least topology.memsize values)
     """
-    data_ptr = data.ctypes.data_as(POINTER(c_double))
+    data_ptr = _double_ptr(data, "data", topology.memsize)
     fw._lib.flups_hdf5_dump(topology._ptr, filename.encode('utf-8'), data_ptr)
 
 
@@ -558,9 +572,9 @@ def print_data(topology: Topology, data: np.ndarray):
     topology : Topology
         Topology describing the data layout
     data : np.ndarray
-        Data to print
+        Data to print (C-contiguous float64, at least topology.memsize values)
     """
-    data_ptr = data.ctypes.data_as(POINTER(c_double))
+    data_ptr = _double_ptr(data, "data", topology.memsize)
     fw._lib.flups_print_data(topology._ptr, data_ptr)
 
 

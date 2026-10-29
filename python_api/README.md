@@ -72,6 +72,11 @@ Or set it temporarily:
 export FLUPS_LIB_PATH=/path/to/flups/lib
 ```
 
+`make python` builds one library per SwitchTopo communication backend (`libflups_a2a`, `libflups_nb`,
+`libflups_isr`). PyFLUPS loads `libflups` if present, then `libflups_nb`, `libflups_a2a` and `libflups_isr`,
+searching `FLUPS_LIB_PATH` first, then the `lib` folder of the FLUPS checkout it belongs to. Set `FLUPS_LIB` to
+choose: either a backend name (`export FLUPS_LIB=a2a`) or the full path of a library.
+
 ## Testing the Installation
 
 ### Quick Test
@@ -100,12 +105,14 @@ mpirun -np 4 python simple_poisson.py
 
 ### Library not found
 
-**Error:** `Could not find FLUPS library`
+**Error:** `ImportError: Could not find the FLUPS library ...` when importing pyflups. The message lists the
+library names and the folders that were searched.
 
-**Solution:** 
-- Verify library exists: `ls $FLUPS_LIB_PATH`
-- Check for `libflups.so` (Linux) or `libflups.dylib` (macOS)
-- Ensure FLUPS is compiled: `make ARCH_FILE=make_arch/make.osx_gcc` (for macOS)
+**Solution:**
+- Verify the library exists: `ls $FLUPS_LIB_PATH` should show `libflups_a2a.so`, `libflups_nb.so`, `libflups_isr.so`
+  (`.dylib` on macOS)
+- Ensure FLUPS is compiled with `make python`, e.g. `ARCH_FILE=make_arch/make.osx_gcc make python` (for macOS)
+- Point `FLUPS_LIB_PATH` to the folder, or `FLUPS_LIB` to the library itself
 
 ### MPI errors
 
@@ -347,11 +354,30 @@ Licensed under the Apache License, Version 2.0. See LICENSE file for details.
 If you use FLUPS in your research, please cite:
 
 ```
-@article{gillis2019,
-  title={A parallel multigrid-based preconditioner for the 3D heterogeneous Helmholtz equation},
-  author={Gillis, Thomas and others},
-  journal={Journal of Computational Physics},
-  year={2019}
+@article{caprace2021,
+  title={{FLUPS}: A {F}ourier-Based Library of Unbounded {P}oisson Solvers},
+  author={Caprace, Denis-Gabriel and Gillis, Thomas and Chatelain, Philippe},
+  journal={SIAM Journal on Scientific Computing},
+  volume={43},
+  number={1},
+  pages={C31--C60},
+  year={2021},
+  doi={10.1137/19M1303848}
+}
+```
+
+and, for the parallel FFT library and its communication backends:
+
+```
+@article{balty2023,
+  title={{FLUPS}: A Flexible and Performant Massively Parallel {F}ourier Transform Library},
+  author={Balty, Pierre and Chatelain, Philippe and Gillis, Thomas},
+  journal={IEEE Transactions on Parallel and Distributed Systems},
+  volume={34},
+  number={7},
+  pages={2011--2024},
+  year={2023},
+  doi={10.1109/TPDS.2023.3254302}
 }
 ```
 
