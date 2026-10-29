@@ -81,7 +81,7 @@ class Solver {
     bool     skip_st0_      = false;  //!< dictates the solver to skip the first Switchtopo and that the "physical info" are given according to topo_hat_[0]
     int      lda_           = 1;      //!< the number of components of the problem, i.e. 2D or 3D */
     int      ndim_          = 3;      //!< the dimension of the problem, i.e. 2D or 3D */
-    int      flupsalignment_ = 0;      //!< alignement assumed by the FFTW Solver  */
+    int      flupsalignment_ = 0;      //!< alignment of the backend, only reported: the topologies use FLUPS_ALIGNMENT */
     DiffType odiff_         = NOD;    //!< the order of derivative (spectral = SPE, 2nd order FD = FD2) */
     double   normfact_      = 1.0;    //!< normalization factor so that the forward/backward FFT gives output = input */
     double   volfact_       = 1.0;    //!< volume factor due to the convolution computation */
@@ -296,7 +296,7 @@ class Solver {
 
     /**
      * @brief GPU stream used by the solver
-     * 
+     *
      */
     void set_stream(stream_t stream) { stream_ = stream; }
 

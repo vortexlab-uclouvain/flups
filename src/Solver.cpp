@@ -72,11 +72,11 @@ Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], con
         flupsalignment_ += sizeof(double);
     }
     if (flupsalignment_ != FLUPS_ALIGNMENT) {
-        FLUPS_WARNING("Backend alignement is OK, yet not optimal: backend = %d vs FLUPS = %d", flupsalignment_, FLUPS_ALIGNMENT);
-        FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
+        FLUPS_WARNING("Backend alignement is OK, yet not optimal: backend = %d vs FLUPS = %d (8 = FFTW built without SIMD)", flupsalignment_, FLUPS_ALIGNMENT);
+        FLUPS_WARNING("Consider using an alignment of 32 for AVX/AVX2 (256bit registers) and 64 for AVX-512 (512bit registers)");
     } else {
         FLUPS_INFO("Backend alignement is OK: backend = %d vs FLUPS = %d", flupsalignment_, FLUPS_ALIGNMENT);
-        FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
+        FLUPS_INFO("Consider using an alignment of 32 for AVX/AVX2 (256bit registers) and 64 for AVX-512 (512bit registers)");
     }
 
     m_free(data);
@@ -827,7 +827,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             // the rank distribution is computed using the dimOrder array, where every topology
             // const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
-            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, flupsalignment_, topo_phys_->get_comm());
+            // padded to FLUPS_ALIGNMENT, a multiple of the backend one, which the solver kernels assume
+            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, FLUPS_ALIGNMENT, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -901,7 +902,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // create the new topology in the output layout (size and isComplex). lda of Green is always 1.
-            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, flupsalignment_, topo_phys_->get_comm());
+            // padded to FLUPS_ALIGNMENT, a multiple of the backend one, which the solver kernels assume
+            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, FLUPS_ALIGNMENT, topo_phys_->get_comm());
             // switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < ndim_ - 1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
