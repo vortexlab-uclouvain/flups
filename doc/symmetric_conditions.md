@@ -53,14 +53,19 @@ $$ L_h R(u) = M_h f - L_h D \quad \text{on the unknown nodes}, \qquad u = R(u) +
 FLUPS solves the first equation with the corrected right-hand side $M_h f - L_h D$ (ODD for Dirichlet, EVEN for
 Neumann walls), and the solution is recovered by adding $D$ back, i.e. by setting the Dirichlet wall nodes to $g$.
 
-### Building D from the data (node-centred data)
+### Building D from the data
 
-On a wall, with $m \geq 1$ the ghost layer at distance $mh$ outside:
+The ghost layer $m \geq 1$ lies at the distance $s_m$ outside the wall and mirrors the node at $s_m$ inside:
+
+- node-centred data: $N+1$ nodes at $x_i = i h$, $s_m = m h$, the ghost $-m$ mirrors the node $m$. The wall nodes are
+  data on ODD walls (FLUPS ignores them on input and returns 0) and unknowns on EVEN walls;
+- cell-centred data: $N$ nodes at $x_i = (i + 1/2) h$, $s_m = (m - 1/2) h$, the ghost $-m$ mirrors the node $m - 1$.
+  There is no wall node and every node is an unknown.
 
 | wall           | on the wall | ghost layer $m$ |
 | ------         | ------      | ------          |
-| ODD, $u = g$   | $D_0 = g$   | $D_{-m} = u(-mh) + u(mh) = 2 \sum_{k\ \mathrm{even}} \frac{(mh)^k}{k!} a_k$ |
-| EVEN, $\partial_n u = q$ | (unknown) | $D_{-m} = u(-mh) - u(mh) = -2 \sum_{k\ \mathrm{odd}} \frac{(mh)^k}{k!} a_k$ |
+| ODD, $u = g$   | $D_0 = g$ (node-centred only) | $D_{-m} = u(-s_m) + u(s_m) = 2 \sum_{k\ \mathrm{even}} \frac{s_m^k}{k!} a_k$ |
+| EVEN, $\partial_n u = q$ | (unknown) | $D_{-m} = u(-s_m) - u(s_m) = -2 \sum_{k\ \mathrm{odd}} \frac{s_m^k}{k!} a_k$ |
 
 The wall Taylor coefficients $a_k = \partial_n^k u$ follow from the data and the PDE ($\Delta_t$ is the Laplacian
 along the wall):
@@ -70,28 +75,32 @@ $$ a_0 = g \ \text{(Dirichlet)}, \qquad a_1 = q \ \text{(Neumann)}, \qquad a_{k+
 They only involve $g$ or $q$ and their tangential derivatives, and $f$ and its derivatives on the wall.
 
 - **Accuracy.** Order $p$ needs the terms $k < p$: a Dirichlet ghost $O(h^p)$, a Neumann ghost $O(h^{p+1})$. With one
-  term fewer the order drops by two. For Dirichlet walls, `LGF_2` and `MEHR_*L` only read the wall node, so
-  $D_0 = g$ is enough and the correction is exact.
+  term fewer the order drops by two. With node-centred data and Dirichlet walls, `LGF_2` and `MEHR_*L` only read
+  the wall node, so $D_0 = g$ is enough and the correction is exact. With cell-centred data a Dirichlet wall always
+  needs Taylor ghosts ($a_0$ for order 2, up to $a_2$ for order 4, $a_4$ for order 6); the first terms are the
+  classical ghosts $u_{-1} = 2g - u_0$ (Dirichlet) and $u_{-1} = u_0 - h q$ (Neumann).
 - **Edges and corners.** Build $D$ one direction at a time, each pass reading the values written by the previous one:
   $D_{-m} = -D_{+m} + (\text{ghost data})$ on ODD walls and $D_{-m} = D_{+m} + (\text{ghost data})$ on EVEN walls. Near an
   edge, the diagonal terms of the Mehrstellen stencils read ghosts outside two walls at once, which use the boundary
-  data slightly beyond the face; the cross-shaped `LGF_*` stencils never read them.
+  data slightly beyond the face; the cross-shaped `LGF_*` stencils never read them. The rule is the same for
+  both centrings, the mirror of the ghost $-m$ being the node $m$ (node-centred) or $m-1$ (cell-centred).
 - **Mehrstellen.** Use `MEHR_*L` and apply $M_h$ to $f$ yourself: $M_h f$ reads $f$ one (order 4) or two (order 6)
   layers beyond the wall. With `MEHR_*F`, FLUPS applies $M_h$ to the whole right-hand side, including $-L_h D$, and
   undoing it would need the non-local $M_h^{-1}$.
 - **No Dirichlet wall.** With only EVEN and PER directions, $u$ is known up to a constant and FLUPS drops the $k=0$
-  mode, i.e. it projects out the (trapezoidal) mean of the right-hand side. The corrected right-hand side satisfies
-  the compatibility condition up to the discretisation error.
-- **Cell-centred data.** The same principle holds, but the wall lies half-way between nodes: the ghosts sit at
-  $(m - 1/2) h$ and a Dirichlet wall always needs Taylor ghosts. This case has not been validated.
+  mode, i.e. it projects out the mean of the right-hand side (trapezoidal for node-centred data, plain for
+  cell-centred data). The corrected right-hand side satisfies the compatibility condition up to the discretisation
+  error.
 
 ### Python helpers and validation
 
-`pyflups.bc` implements these steps for node-centred data (`ghost_remainder`, `taylor_ghost`, `corrected_rhs`,
-`recover`, `apply_stencil`), and `python_api/examples/nonhomogeneous_bc.py` validates them on a manufactured solution
-with values and slopes that vary along every wall. With ghost data taken from the exact solution the error is at
-round-off level ($\leq 10^{-13}$) for every lattice kernel and for Dirichlet, Neumann and mixed walls, which also
-checks `flups_get_stencil` against the kernels. Solving from the samples only ($f$ on the nodes, $g$ or $q$ on the wall
-nodes), with every $a_k$ computed by finite differences of accuracy $O(h^{P-k})$ ($P = p$ for Dirichlet, $p+1$ for
-Neumann walls) and the values `MEHR_*L` needs beyond the walls and face edges extrapolated, the observed order is the
-design order of the kernel (2, 4, 6, 8 for `LGF_*`, 4 and 6 for `MEHR_*L`).
+`pyflups.bc` implements these steps for node- and cell-centred data (`ghost_remainder`, `taylor_ghost`,
+`corrected_rhs`, `recover`, `apply_stencil`, all with a `center` argument), and
+`python_api/examples/nonhomogeneous_bc.py` validates them on a manufactured solution with values and slopes that vary
+along every wall (`--suite`, with `--center=node` or `--center=cell`). For both centrings, with ghost data taken from
+the exact solution the error is at round-off level ($\leq 10^{-13}$) for every lattice kernel and for Dirichlet,
+Neumann and mixed walls, which also checks `flups_get_stencil` against the kernels. Solving from the samples only
+($f$ on the nodes, $g$ or $q$ on the wall nodes), with every $a_k$ computed by finite differences of accuracy
+$O(h^{P-k})$ ($P = p$ for Dirichlet, $p+1$ for Neumann walls) and the values `MEHR_*L` needs beyond the walls and face
+edges extrapolated, the observed order is the design order of the kernel (2, 4, 6, 8 for `LGF_*`, 4 and 6 for
+`MEHR_*L`).

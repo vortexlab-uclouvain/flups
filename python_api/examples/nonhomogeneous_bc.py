@@ -30,7 +30,9 @@ measurement, nothing else. Two modes:
       manufactured solution itself, so the error must be at round-off level for every kernel and BC
       set (stencil returned by FLUPS == kernel symbol, node layout, reflections).
 
-The data are node-centred: N + 1 nodes per direction, both wall nodes included.
+Node-centred data (--center=node, default) has N + 1 nodes per direction, both wall nodes included;
+cell-centred data (--center=cell) has N nodes at (i + 1/2) h, the walls lying half-way between the
+first node and the first ghost.
 
 The BC string lists the 6 faces x-, x+, y-, y+, z-, z+ with D (Dirichlet), N (Neumann),
 P (periodic, both sides of a direction). Without any Dirichlet face the solution is known up to a
@@ -41,7 +43,7 @@ Examples (the FLUPS shared library is found through FLUPS_LIB_PATH):
     export FLUPS_LIB_PATH=/path/to/flups/lib
     mpirun -n 1 python nonhomogeneous_bc.py --kernel=LGF_2 --bc=DDNNPP --res=16,32,64
     mpirun -n 2 python nonhomogeneous_bc.py --kernel=MEHR_4L --bc=DNDDND --mode=exact --nproc=1,1,2
-    mpirun -n 1 python nonhomogeneous_bc.py --suite
+    mpirun -n 1 python nonhomogeneous_bc.py --suite --center=cell
 """
 
 import argparse
@@ -171,9 +173,9 @@ class DataGhosts:
     """Taylor ghosts from the samples only: a_0 = g or a_1 = q, a_{k+2} = d_n^k f - Lap_t a_k, each
     finite difference taken with the accuracy O(h^(P-k-2)) that a_{k+2} needs"""
 
-    def __init__(self, f, walls, bc, x, L, h, r, order, ghost_order, period):
+    def __init__(self, f, walls, bc, x, L, h, r, order, ghost_order, center, period):
         self.f, self.walls, self.bc, self.x, self.L, self.h, self.r = f, walls, bc, x, L, h, r
-        self.order, self.K, self.period = order, ghost_order or order, period
+        self.order, self.K, self.center, self.period = order, ghost_order or order, center, period
         self.coefs = {}
 
     def _coefs(self, d, side):
@@ -199,14 +201,15 @@ class DataGhosts:
     def __call__(self, d, side, m):
         if (d, side) not in self.coefs:
             self.coefs[(d, side)] = self._coefs(d, side)
-        return pbc.taylor_ghost(self.coefs[(d, side)], m, self.h, BCTYPE[self.bc[d][side]])
+        return pbc.taylor_ghost(self.coefs[(d, side)], m, self.h, BCTYPE[self.bc[d][side]], self.center)
 
 
 class ExactData:
     """algebra check only: the ghost data of the manufactured solution itself"""
 
-    def __init__(self, sol, bc, xs, L, h):
+    def __init__(self, sol, bc, xs, L, h, center):
         self.sol, self.bc, self.xs, self.L, self.h = sol, bc, xs, L, h
+        self.shift = 0.5 if center == pf.CenterType.CELL_CENTER else 0.0
 
     def _u(self, d, s):
         xs = list(self.xs)
@@ -217,7 +220,8 @@ class ExactData:
         sw, sg = (0.0, 1.0) if side == 0 else (self.L, -1.0)
         if m == 0:
             return self._u(d, sw)
-        uin, uout = self._u(d, sw + sg * m * self.h), self._u(d, sw - sg * m * self.h)
+        s = (m - self.shift) * self.h
+        uin, uout = self._u(d, sw + sg * s), self._u(d, sw - sg * s)
         return uout + uin if self.bc[d][side] == "D" else uout - uin
 
 
@@ -228,9 +232,12 @@ def bcs(bc):
     return "".join(a + b for a, b in bc)
 
 
-def weights_1d(bc_d, n):
-    """quadrature of the k = 0 mode: trapezoidal for EVEN-EVEN (DCT-I), duplicate excluded if PER"""
+def weights_1d(bc_d, n, center):
+    """quadrature of the k = 0 mode: plain sum for cell-centred data (DCT-II), trapezoidal for
+    node-centred EVEN-EVEN (DCT-I), duplicate excluded if PER"""
     w = np.ones(n)
+    if center == pf.CenterType.CELL_CENTER:
+        return w
     if bc_d[0] == "P":
         w[-1] = 0.0
     else:
@@ -239,14 +246,15 @@ def weights_1d(bc_d, n):
     return w
 
 
-def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, L=1.0):
+def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, center, L=1.0):
     green, order = KERNELS[kernel]
+    cell = center == pf.CenterType.CELL_CENTER
     h = L / N
-    n = N + 1
+    n = N if cell else N + 1
     fbc = [[BCTYPE[bc[d][s]] for s in range(2)] for d in range(3)]
 
     topo = pf.Topology(axis=0, lda=1, nglob=[n] * 3, nproc=nproc, is_complex=False, comm=comm)
-    solver = pf.Solver(topo, fbc, [h] * 3, [L] * 3, center_type=[pf.CenterType.NODE_CENTER] * 3)
+    solver = pf.Solver(topo, fbc, [h] * 3, [L] * 3, center_type=[center] * 3)
     solver.set_green_type(green)
     solver.setup()
     lhs = solver.get_stencil(pf.StencilType.LHS)
@@ -254,22 +262,22 @@ def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, L=1.0):
     r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
 
     # corrected rhs on the global grid
-    x = [np.arange(n) * h for _ in range(3)]
+    x = [(np.arange(n) + 0.5 * cell) * h for _ in range(3)]
     sol = Manufactured(bc, L)
     if mode == "exact":
-        xext = [np.arange(-r, n + r) * h for _ in range(3)]
-        D = pbc.ghost_remainder(fbc, n, r, ExactData(sol, bc, xext, L, h))
+        xext = [(np.arange(-r, n + r) + 0.5 * cell) * h for _ in range(3)]
+        D = pbc.ghost_remainder(fbc, n, r, ExactData(sol, bc, xext, L, h, center), center)
         rhs = pbc.apply_stencil(*lhs, sol.du((0, 0, 0), xext), r) / h**2
     else:
         f, walls = sample_data(sol, bc, x, L)
         period = [None if bc[d][0] != "P" else N for d in range(3)]
-        ghosts = DataGhosts(f, walls, bc, x, L, h, r, order, ghost_order, period)
-        D = pbc.ghost_remainder(fbc, n, r, ghosts)
+        ghosts = DataGhosts(f, walls, bc, x, L, h, r, order, ghost_order, center, period)
+        D = pbc.ghost_remainder(fbc, n, r, ghosts, center)
         fext = f
         for d in range(3):
             fext = extend(fext, d, x[d], r, h, order + 1, period[d])
         rhs = pbc.apply_stencil(*rhs_op, fext, r)
-    rhs = pbc.corrected_rhs(*lhs, rhs, D, h, fbc)
+    rhs = pbc.corrected_rhs(*lhs, rhs, D, h, fbc, center)
 
     # FLUPS solve on the local pencil, gathered back on every rank
     nloc = [topo.get_nloc(d) for d in range(3)]
@@ -286,9 +294,9 @@ def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, L=1.0):
     del solver, topo
 
     # error against the manufactured solution
-    uh = pbc.recover(v, D, fbc)
+    uh = pbc.recover(v, D, fbc, center)
     uex = sol.du((0, 0, 0), x)
-    w = np.multiply.outer(np.multiply.outer(weights_1d(bc[0], n), weights_1d(bc[1], n)), weights_1d(bc[2], n))
+    w = np.multiply.outer(np.multiply.outer(*[weights_1d(bc[d], n, center) for d in range(2)]), weights_1d(bc[2], n, center))
     has_dirichlet = "D" in bcs(bc)
     shift = 0.0 if has_dirichlet else np.sum(w * (uh - uex)) / np.sum(w)
     compat = 0.0 if has_dirichlet else np.sum(w * rhs) / np.sum(w)
@@ -296,15 +304,15 @@ def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, L=1.0):
     return np.max(np.abs(err)) / np.max(np.abs(uex)), math.sqrt(np.mean(err**2)) / np.max(np.abs(uex)), compat
 
 
-def run(kernel, bc, res, mode, ghost_order, nproc, comm, out=print):
+def run(kernel, bc, res, mode, ghost_order, nproc, comm, center, out=print):
     order = KERNELS[kernel][1]
-    out(f"# {kernel:8s} bc={bcs(bc)} mode={mode}"
+    out(f"# {kernel:8s} bc={bcs(bc)} {center.name.split('_')[0].lower()} mode={mode}"
         + (f" ghost_order={ghost_order or order}" if mode == "data" else "")
         + f"  (expected order {order})")
     out(f"#   {'N':>4s} {'err_inf':>11s} {'err_2':>11s} {'ord_inf':>7s} {'ord_2':>7s} {'compat':>10s}")
     prev, rows = None, []
     for N in res:
-        einf, e2, compat = solve_case(kernel, bc, N, mode, ghost_order, nproc, comm)
+        einf, e2, compat = solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, center)
         oi = o2 = float("nan")
         if prev is not None:
             q = math.log(N / prev[0])
@@ -332,6 +340,7 @@ def main():
     ap.add_argument("--res", default="16,32,64", help="comma-separated N (cells per direction)")
     ap.add_argument("--mode", default="data", choices=["data", "exact"],
                     help="data: solve from the samples of f, g, q; exact: algebra check with the exact ghosts")
+    ap.add_argument("--center", default="node", choices=["node", "cell"], help="node- or cell-centred data")
     ap.add_argument("--ghost-order", type=int, default=0, help="keep the Taylor ghost terms a_k with k < q, default q = order")
     ap.add_argument("--nproc", default="", help="ranks per direction, e.g. 1,1,2 (default 1,1,size)")
     ap.add_argument("--suite", action="store_true", help="every kernel on 3 BC sets, exact + data")
@@ -344,9 +353,10 @@ def main():
         raise SystemExit(f"--nproc={nproc} does not match {size} ranks")
     out = print if rank == 0 else (lambda *a, **k: None)
     res = [int(v) for v in args.res.split(",")]
+    center = pf.CenterType.CELL_CENTER if args.center == "cell" else pf.CenterType.NODE_CENTER
 
     if not args.suite:
-        run(args.kernel, args.bc, res, args.mode, args.ghost_order, nproc, comm, out)
+        run(args.kernel, args.bc, res, args.mode, args.ghost_order, nproc, comm, center, out)
         return
 
     bcsets = ["DDDDDD", "NNNNNN", "DNPPND"]
@@ -354,9 +364,9 @@ def main():
     for kernel in KERNELS:
         for b in bcsets:
             bc = parse_bc(b)
-            (_, einf, _, _, _), = run(kernel, bc, [32], "exact", 0, nproc, comm, out)
+            (_, einf, _, _, _), = run(kernel, bc, [32], "exact", 0, nproc, comm, center, out)
             worst_exact = max(worst_exact, einf)
-            rows = run(kernel, bc, res, "data", 0, nproc, comm, out)
+            rows = run(kernel, bc, res, "data", 0, nproc, comm, center, out)
             ordr = rows[-1][3]
             if not ordr > KERNELS[kernel][1] - 0.5:
                 fails.append(f"{kernel} {b}: order {ordr:.2f}")

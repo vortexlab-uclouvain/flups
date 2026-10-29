@@ -300,7 +300,8 @@ solver.do_copy(topology, data, pf.FLUPS_BACKWARD)
 FLUPS solves homogeneous symmetric problems (ODD: $u = 0$, EVEN: $\partial_n u = 0$). The lattice kernels
 (`LGF_*`, `MEHR_*`) invert a known stencil exactly, so a wall with data ($u = g$ or $\partial_n u = q$) is imposed by
 correcting the right-hand side (derivation in `doc/symmetric_conditions.md`). `pyflups.bc` provides the steps for
-node-centred global arrays indexed `[x, y, z]`:
+global arrays indexed `[x, y, z]`, node-centred by default (pass `center=pf.CenterType.CELL_CENTER` to every call
+for cell-centred data):
 
 ```python
 from pyflups import bc as pbc
@@ -311,7 +312,7 @@ rhs_op = solver.get_stencil(pf.StencilType.RHS)     # M_h (identity for LGF_*, a
 r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
 
 # D = u - R(u) on the grid extended by r ghost layers, from the wall data: ghost(d, side, m) returns
-# g (m = 0, ODD walls) or the ghost data of layer m, e.g. pbc.taylor_ghost(a, m, h, wall_type)
+# g (m = 0, ODD walls of node-centred data) or the ghost data of layer m, e.g. pbc.taylor_ghost(a, m, h, wall_type)
 D = pbc.ghost_remainder(bc, n, r, ghost)
 rhs = pbc.corrected_rhs(*lhs, pbc.apply_stencil(*rhs_op, f_ext, r), D, h, bc)
 
