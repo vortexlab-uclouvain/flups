@@ -147,11 +147,13 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 ### GPU backends
 Add the backend flag to `OPTS` in your `make_arch`, together with the target architecture of your GPU compiler, for instance `OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86` (nvcc) or `OPTS += -DBACKEND_HIP --offload-arch=gfx90a` (hipcc/amdclang). All the sources are then compiled as CUDA (`-x cu`) or HIP (`-x hip`) code, and the vendor libraries are found through the following variables, which you may overwrite in your `make_arch`:
 
-| backend | include and library directories (default) | libraries (default) |
-|---------|-------------------------------------------|---------------------|
-| FFTW | `FFTW_INC`, `FFTW_LIB` (`/usr/include`, `/usr/lib`) | `FFTW_LIBNAME` (`-lfftw3`) |
-| CUDA | `CUDA_INC`, `CUDA_LIB` (`/usr/local/cuda/include`, `/usr/local/cuda/lib64`) | `CUDA_LIBNAME` (`-lcudart -lcufft -lcublas`) |
-| HIP | `HIP_INC`, `HIP_LIB` (`/opt/rocm/include`, `/opt/rocm/lib`) | `HIP_LIBNAME` (`-lrocblas -lhipfft -lamdhip64`) |
+| backend | install directory (default) | include and library directories | libraries (default) |
+|---------|-----------------------------|--------------------------------|---------------------|
+| FFTW | `FFTW_DIR` (`/usr`) | `FFTW_INC`, `FFTW_LIB` | `FFTW_LIBNAME` (`-lfftw3`) |
+| CUDA | `CUDA_DIR` (`/usr/local/cuda`) | `CUDA_INC`, `CUDA_LIB` (`lib64`) | `CUDA_LIBNAME` (`-lcudart -lcufft -lcublas`) |
+| HIP | `HIP_DIR` (`/opt/rocm`) | `HIP_INC`, `HIP_LIB` | `HIP_LIBNAME` (`-lrocblas -lhipfft -lamdhip64`) |
+
+`XXX_INC` and `XXX_LIB` default to `$(XXX_DIR)/include` and `$(XXX_DIR)/lib`; the same holds for `HDF5_DIR` and `H3LPR_DIR`. Every library directory is added to the rpath, with the syntax of `nvcc` when it is the compiler (also behind an MPI wrapper).
 
 On GPUs, the solver works on device memory:
 - the MPI library must be GPU-aware, the communication buffers live on the device;
