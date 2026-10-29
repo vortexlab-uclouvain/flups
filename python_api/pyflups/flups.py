@@ -272,6 +272,7 @@ class Solver:
         """
         self._solver = None
         self._topology = topology
+        self._spectral = False  # the inner buffer holds spectral data (between do_fft FORWARD and BACKWARD)
 
         # Prepare boundary conditions array
         # bc is BoundaryType* [3][2], which is a 3x2 array of pointers
@@ -420,6 +421,7 @@ class Solver:
         rhs_ptr = _double_ptr(rhs, "rhs", size)
 
         fw._lib.flups_solve(self._solver, field_ptr, rhs_ptr, int(solver_type))
+        self._spectral = False
 
         return field
 
@@ -484,7 +486,13 @@ class Solver:
         return offsets, weights
 
     def get_inner_buffer(self) -> np.ndarray:
-        """Get the inner buffer used by FLUPS"""
+        """
+        Get the inner buffer used by FLUPS, as a numpy array of get_alloc_size() doubles (no copy)
+
+        Host (FFTW) builds only: on a CUDA/HIP build the buffer lives on the device and reading this
+        array crashes. The portable way to read or write the inner buffer is do_copy with the topology
+        describing its content (see examples/manual_solve.py).
+        """
         ptr = fw._lib.flups_get_innerBuffer(self._solver)
         size = self.get_alloc_size()
         # Create numpy array from pointer
@@ -522,19 +530,73 @@ class Solver:
         fw._lib.flups_skip_firstSwitchtopo(self._solver)
 
     def do_copy(self, topology: Topology, data: np.ndarray, sign: int):
-        """Copy data from user to FLUPS arrays (sign FLUPS_FORWARD) or back (FLUPS_BACKWARD)"""
+        """
+        Copy topology.memsize doubles between a user array and the inner buffer of FLUPS
+
+        FLUPS_FORWARD copies data into the inner buffer, FLUPS_BACKWARD copies the inner buffer into
+        data. The copy starts at the beginning of both arrays, the topology only gives its size: use the
+        user topology for the physical data (rhs and solution) and get_inner_topo_spectral() for the
+        spectral data. On a CUDA/HIP build the inner buffer lives on the device and the copy is a
+        host <-> device transfer.
+        """
         data_ptr = _double_ptr(data, "data", topology.memsize, writeable=(sign != FLUPS_FORWARD))
         fw._lib.flups_do_copy(self._solver, topology._ptr, data_ptr, sign)
 
-    def do_fft(self, data: np.ndarray, sign: int):
-        """Compute FFT (physical to spectral space)"""
-        data_ptr = _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
-        fw._lib.flups_do_FFT(self._solver, data_ptr, sign)
+    def _buffer_ptr(self, data: Optional[np.ndarray]):
+        if data is None:
+            return fw._lib.flups_get_innerBuffer(self._solver)
+        return _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
 
-    def do_mult(self, data: np.ndarray, solver_type: SolverType):
-        """Multiply with Green's function"""
-        data_ptr = _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
-        fw._lib.flups_do_mult(self._solver, data_ptr, int(solver_type))
+    def do_fft(self, data: Optional[np.ndarray] = None, sign: int = FLUPS_FORWARD):
+        """
+        3D FFT in place: physical -> spectral (FLUPS_FORWARD) or spectral -> physical (FLUPS_BACKWARD,
+        FLUPS_BACKWARD_DIFF after a ROT do_mult)
+
+        The transforms are unnormalised, do_mult applies the normalisation. data defaults to the inner
+        buffer, the only choice on a CUDA/HIP build (a numpy array would be host memory).
+        """
+        fw._lib.flups_do_FFT(self._solver, self._buffer_ptr(data), sign)
+        self._spectral = (sign == FLUPS_FORWARD)
+
+    def do_mult(self, data: Optional[np.ndarray] = None, solver_type: SolverType = SolverType.STD):
+        """
+        Multiply the spectral data by the Green's function and the FFT normalisation (and take the curl
+        for SolverType.ROT), in place. data defaults to the inner buffer.
+        """
+        fw._lib.flups_do_mult(self._solver, self._buffer_ptr(data), int(solver_type))
+
+    def get_wavenumbers(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Wave numbers of the local spectral data, as used by the Green's functions of FLUPS
+
+        Entry (i, j, l) of field_view(get_inner_topo_spectral(), spectrum) is the mode
+        (kx[i], ky[j], kz[l]). Each k is the magnitude (index + koffset) * kfact of the symmetrised
+        index (see flups_symID): it suits isotropic multipliers (filters, Helmholtz, ...), not
+        derivatives, whose sign and phase depend on the transform (use SolverType.ROT for those).
+        The spectral topology only describes the spectral data between do_fft(FLUPS_FORWARD) and
+        do_fft(FLUPS_BACKWARD): call this function in that window.
+
+        Returns
+        -------
+        kx, ky, kz : np.ndarray
+            Shapes (n0, 1, 1), (1, n1, 1) and (1, 1, n2): kx**2 + ky**2 + kz**2 broadcasts to the
+            (n0, n1, n2) local spectral grid
+        """
+        if not self._spectral:
+            raise RuntimeError("get_wavenumbers needs spectral data: call it after do_fft(sign=FLUPS_FORWARD)")
+        topo = self.get_inner_topo_spectral()
+        kfact, koffset, symstart = self.get_spectral_info()
+        istart = topo.get_istart()
+        k = []
+        for d in range(3):
+            ie = istart[d] + np.arange(topo.get_nloc(d))
+            isym = np.maximum(np.abs(2.0 * symstart[d] - ie).astype(int), 1)
+            if symstart[d] != 0.0:
+                ie = np.where(ie <= symstart[d], ie, isym)
+            shape = [1, 1, 1]
+            shape[d] = ie.size
+            k.append(((ie + koffset[d]) * kfact[d]).reshape(shape))
+        return tuple(k)
 
     def switchtopo_info(self):
         """Print information about SwitchTopo"""
@@ -544,6 +606,36 @@ class Solver:
     def cleanup_backend():
         """Free data employed by backend (call after all solvers are freed)"""
         fw._lib.flups_cleanup_backend()
+
+
+def field_view(topology: Topology, data: np.ndarray) -> np.ndarray:
+    """
+    View of an array in the layout of a topology, indexed [component, i0, i1, i2] in the x, y, z order
+
+    The view drops the memory padding and writes go through to data. It is complex128 if the topology
+    is complex (e.g. the spectral topology after do_fft(FLUPS_FORWARD) with a periodic direction) and
+    float64 otherwise.
+
+    Parameters
+    ----------
+    topology : Topology
+        Topology describing the layout of data (memory aligned with topology.axis)
+    data : np.ndarray
+        C-contiguous float64 array of at least topology.memsize values
+    """
+    _double_ptr(data, "data", topology.memsize)
+    nf = 2 if topology.is_complex else 1
+    ax = [topology.axis, (topology.axis + 1) % 3, (topology.axis + 2) % 3]
+    nmem = [topology.get_nmem(d) for d in range(3)]
+    nloc = [topology.get_nloc(d) for d in range(3)]
+    flat = data[:topology.memsize]
+    if nf == 2:
+        flat = flat.view(np.complex128)
+    # memory order: component, ax2, ax1, ax0 (fastest)
+    arr = flat.reshape(topology.lda, nmem[ax[2]], nmem[ax[1]], nmem[ax[0]])
+    arr = arr[:, :nloc[ax[2]], :nloc[ax[1]], :nloc[ax[0]]]
+    pos = {ax[0]: 3, ax[1]: 2, ax[2]: 1}
+    return arr.transpose(0, pos[0], pos[1], pos[2])
 
 
 def hdf5_dump(topology: Topology, filename: str, data: np.ndarray):
