@@ -77,24 +77,21 @@ static inline void ranksplit(const int rank, const int axproc[3], const int npro
  */
 class Topology {
    protected:
-    int nproc_[3];  /**<@brief number of procs per dim (012-indexing)  */
-    int axproc_[3]; /**<@brief axis of the procs for ranksplit  */
-    int nf_;        /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
-    int nloc_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
-    int nmem_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
-    int axis_;      /**<@brief fastest rotating index in the topology  */
-    int rankd_[3];  /**<@brief rank of the current process per dim (012-indexing)  */
-    int nglob_[3];  /**<@brief number of unknowns per dim, global (012-indexing)  */
-    int lda_;       /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
-    // int       nbyproc_[3]; /**<@brief mean number of unknowns per dim = nloc except for the last one (012-indexing)  */
+    int       nproc_[3];  /**<@brief number of procs per dim (012-indexing)  */
+    int       axproc_[3]; /**<@brief axis of the procs for ranksplit  */
+    int       nf_;        /**<@brief the number of doubles inside one unknowns (if complex = 2, if real = 1) */
+    int       nloc_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       nmem_[3];   /**<@brief real number of unknowns per dim, for 1 component, local (012-indexing)  */
+    int       axis_;      /**<@brief fastest rotating index in the topology  */
+    int       rankd_[3];  /**<@brief rank of the current process per dim (012-indexing)  */
+    int       nglob_[3];  /**<@brief number of unknowns per dim, global (012-indexing)  */
+    int       lda_;       /**<@brief leading dimension of array=the number of components (eg scalar=1, vector=3) */
     const int alignment_;
     MPI_Comm  comm_;    /**<@brief the comm associated with the topo, with ranks potentially optimized for switchtopos */
     bool      is_desc_; /**<@brief if true, the topo is a descriptor: it has no communicator and no local information */
 
-    // double h_[3]; //**< @brief grid spacing */
-    // double L_[3];//**< @brief length of the domain  */
-    // -> We got rid of these, as L changes during a transform occuring in the associated topo, and the computation of h would also
-    //      need to depend on the number of points (N, N+2 if we prepare a symmetric transform, etc.)
+    // A topology only describes the layout of the indices, not the geometry: the same layout is used for physical,
+    // padded and spectral data, so h and L belong to the solver (see flups_init).
 
     void init_common_(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3]);
 

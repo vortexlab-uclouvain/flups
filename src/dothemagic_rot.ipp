@@ -32,49 +32,49 @@
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], stream_t stream) {
+void Solver::dothemagic_rot_real_o1(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], stream_t stream) {
 #elif (KIND == 11)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o1(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], stream_t stream) {
+void Solver::dothemagic_rot_complex_o1(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], stream_t stream) {
 #elif (KIND == 02)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_real_o2(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #elif (KIND == 12)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o2(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_complex_o2(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #elif (KIND == 04)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_real_o4(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #elif (KIND == 14)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o4(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_complex_o4(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #elif (KIND == 06)
 /**
  * @brief perform the convolution for real to real cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_real_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_real_o6(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #elif (KIND == 16)
 /**
  * @brief perform the convolution for complex to complex cases - spectral diff
  *
  */
-void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], const double __kfact[3][3][2], const double __symstart[3], const double __hgrid[3], stream_t stream) {
+void Solver::dothemagic_rot_complex_o6(double *data, const double koffset_in[3], const double kfact_in[3][3][2], const double symstart_in[3], const double hgrid_in[3], stream_t stream) {
 #endif
     BEGIN_FUNC;
     int cdim = ndim_ - 1;  // get current dim
@@ -117,13 +117,13 @@ void Solver::dothemagic_rot_complex_o6(double *data, const double __koffset[3], 
     FLUPS_ASSUME_ALIGNED(mygreen, FLUPS_ALIGNMENT);
 
     // define local arrays for the capture by value
-    const double kfact[3][3][2] = {{{__kfact[0][0][0], __kfact[0][0][1]}, {__kfact[0][1][0], __kfact[0][1][1]}, {__kfact[0][2][0], __kfact[0][2][1]}},
-                                   {{__kfact[1][0][0], __kfact[1][0][1]}, {__kfact[1][1][0], __kfact[1][1][1]}, {__kfact[1][2][0], __kfact[1][2][1]}},
-                                   {{__kfact[2][0][0], __kfact[2][0][1]}, {__kfact[2][1][0], __kfact[2][1][1]}, {__kfact[2][2][0], __kfact[2][2][1]}}};
-    const double koffset[3]     = {__koffset[0], __koffset[1], __koffset[2]};
-    const double symstart[3]    = {__symstart[0], __symstart[1], __symstart[2]};
+    const double kfact[3][3][2] = {{{kfact_in[0][0][0], kfact_in[0][0][1]}, {kfact_in[0][1][0], kfact_in[0][1][1]}, {kfact_in[0][2][0], kfact_in[0][2][1]}},
+                                   {{kfact_in[1][0][0], kfact_in[1][0][1]}, {kfact_in[1][1][0], kfact_in[1][1][1]}, {kfact_in[1][2][0], kfact_in[1][2][1]}},
+                                   {{kfact_in[2][0][0], kfact_in[2][0][1]}, {kfact_in[2][1][0], kfact_in[2][1][1]}, {kfact_in[2][2][0], kfact_in[2][2][1]}}};
+    const double koffset[3]     = {koffset_in[0], koffset_in[1], koffset_in[2]};
+    const double symstart[3]    = {symstart_in[0], symstart_in[1], symstart_in[2]};
 #if (KIND == 02 || KIND == 12 || KIND == 04 || KIND == 14 || KIND == 06 || KIND == 16)
-    const double hgrid[3] = {__hgrid[0], __hgrid[1], __hgrid[2]};
+    const double hgrid[3] = {hgrid_in[0], hgrid_in[1], hgrid_in[2]};
 #endif
 
     // do the loop

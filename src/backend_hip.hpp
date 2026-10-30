@@ -74,22 +74,22 @@ typedef enum {
 void backend_make_plan(hipfftHandle* fft, size_t* worksize, const int dim, const int idist, const int odist, const hipfftType type, const int howmany);
 
 // Check HIP / rocBLAS / hipFFT API errors
-#define m_hiprt_check_errors(res)                                                               \
+#define m_hiprt_check_errors(res)                                                                         \
+    do {                                                                                                  \
+        hipError_t flups_err_ = res;                                                                      \
+        BACKEND_CHECK(hipSuccess == flups_err_, "Fatal HIP RT error: %s", hipGetErrorString(flups_err_)); \
+    } while (0)
+
+#define m_rocblas_check_errors(res)                                                                      \
+    do {                                                                                                 \
+        rocblas_status flups_err_ = res;                                                                 \
+        BACKEND_CHECK(rocblas_status_success == flups_err_, "Fatal rocBLAS error: %d", (int)flups_err_); \
+    } while (0)
+
+#define m_hipfft_check_errors(res)                                                              \
     do {                                                                                        \
-        hipError_t __err = res;                                                                 \
-        BACKEND_CHECK(hipSuccess == __err, "Fatal HIP RT error: %s", hipGetErrorString(__err)); \
-    } while (0)
-
-#define m_rocblas_check_errors(res)                                                            \
-    do {                                                                                       \
-        rocblas_status __err = res;                                                            \
-        BACKEND_CHECK(rocblas_status_success == __err, "Fatal rocBLAS error: %d", (int)__err); \
-    } while (0)
-
-#define m_hipfft_check_errors(res)                                                    \
-    do {                                                                              \
-        hipfftResult __err = res;                                                     \
-        BACKEND_CHECK(HIPFFT_SUCCESS == __err, "Fatal hipFFT error: %d", (int)__err); \
+        hipfftResult flups_err_ = res;                                                          \
+        BACKEND_CHECK(HIPFFT_SUCCESS == flups_err_, "Fatal hipFFT error: %d", (int)flups_err_); \
     } while (0)
 
 // Kernel execution

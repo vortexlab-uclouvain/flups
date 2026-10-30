@@ -155,8 +155,6 @@ class Solver {
     void delete_plans_(FFTW_plan_dim* planmap[3]);
     void assign_plan_buffers_();
     void free_plan_buffers_();
-
-    static void pencil0_layout_(FFTW_plan_dim* const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size, PencilLayout* layout);
     /**@} */
 
     /**
@@ -233,6 +231,10 @@ class Solver {
      */
     static PencilLayout pencil_layout(const int nglob[3], const int nproc_init[3], BoundaryType* bc[3][2], const double h[3], const double L[3], const CenterType center[3], const int lda);
 
+   protected:
+    static PencilLayout pencil_layout_(FFTW_plan_dim* const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size);
+
+   public:
     double* get_innerBuffer() { return data_; };
 
     void skip_firstSwitchtopo() { skip_st0_ = true; };

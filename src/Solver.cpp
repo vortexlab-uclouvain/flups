@@ -666,7 +666,8 @@ void Solver::delete_topologies_(Topology *topo[3]) {
 }
 
 /**
- * @brief compute the layout of the first (ip == 0) inner topology of a sorted set of forward plans
+ * @brief the plan-level core of @ref pencil_layout: the layout of the first (ip == 0) inner topology of a sorted set
+ * of forward plans
  *
  * This is the single source of truth for the geometry of that topology: it is used by
  * @ref init_plansAndTopos_ when it creates it and by @ref pencil_layout to predict it without any
@@ -677,34 +678,36 @@ void Solver::delete_topologies_(Topology *topo[3]) {
  * @param size_out the global size after planmap[0], i.e. after @ref FFTW_plan_dim::get_outsize
  * @param nproc_hint the proc decomposition of the physical (user) topology
  * @param comm_size the size of the communicator of the solver
- * @param layout the resulting layout, with #nglob given in the REAL state of the topology
+ * @return PencilLayout the layout, with #nglob given in the REAL state of the topology
  */
-void Solver::pencil0_layout_(FFTW_plan_dim *const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size, PencilLayout *layout) {
+PencilLayout Solver::pencil_layout_(FFTW_plan_dim *const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size) {
     BEGIN_FUNC;
+    PencilLayout layout;
     //-------------------------------------------------------------------------
     /** - the axis is the direction of the plan, the proc ordering is the plan ordering */
     //-------------------------------------------------------------------------
-    layout->axis = planmap[0]->dimID();
+    layout.axis = planmap[0]->dimID();
     for (int ip = 0; ip < 3; ip++) {
-        layout->axproc[ip] = planmap[ip]->dimID();
+        layout.axproc[ip] = planmap[ip]->dimID();
     }
 
     //-------------------------------------------------------------------------
     /** - for the first switchTopo, we keep the number of proc constant in the 3rd direction */
     //-------------------------------------------------------------------------
-    pencil_nproc_hint(layout->axis, layout->nproc, comm_size, layout->axproc[1], nproc_hint);
+    pencil_nproc_hint(layout.axis, layout.nproc, comm_size, layout.axproc[1], nproc_hint);
 
     //-------------------------------------------------------------------------
     /** - the topology is created in the output state of the plan; if the plan is a r2c, the
      *    topology is switched back to real, which doubles the size along the axis */
     //-------------------------------------------------------------------------
     for (int id = 0; id < 3; id++) {
-        layout->nglob[id] = size_out[id];
+        layout.nglob[id] = size_out[id];
     }
     if (planmap[0]->isr2c()) {
-        layout->nglob[layout->axis] *= 2;
+        layout.nglob[layout.axis] *= 2;
     }
     END_FUNC;
+    return layout;
 }
 
 /**
@@ -740,8 +743,7 @@ PencilLayout Solver::pencil_layout(const int nglob[3], const int nproc_init[3], 
     planmap[0]->init(size_tmp, false);
     planmap[0]->get_outsize(size_tmp);
 
-    PencilLayout layout;
-    pencil0_layout_(planmap, size_tmp, nproc_init, comm_size, &layout);
+    const PencilLayout layout = pencil_layout_(planmap, size_tmp, nproc_init, comm_size);
 
     for (int id = 0; id < 3; id++) {
         delete planmap[id];
@@ -811,9 +813,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
                 // the layout of the first topology is shared with Solver::pencil_layout
-                const int    nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
-                PencilLayout layout;
-                pencil0_layout_(planmap, size_tmp, nproc_hint, comm_size, &layout);
+                const int          nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
+                const PencilLayout layout        = pencil_layout_(planmap, size_tmp, nproc_hint, comm_size);
                 FLUPS_CHECK(layout.axis == dimID, "the shared pencil layout gives the axis %d instead of %d", layout.axis, dimID);
                 for (int id = 0; id < 3; id++) {
                     FLUPS_CHECK(layout.axproc[id] == dimOrder[id], "the shared pencil layout gives axproc[%d] = %d instead of %d", id, layout.axproc[id], dimOrder[id]);

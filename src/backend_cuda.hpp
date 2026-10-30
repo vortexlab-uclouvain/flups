@@ -72,22 +72,22 @@ typedef enum {
 void backend_make_plan(cufftHandle* fft, size_t* worksize, const int dim, const int idist, const int odist, const cufftType type, const int howmany);
 
 // Check CUDA API errors
-#define m_cudart_check_errors(res)                                                                 \
-    do {                                                                                           \
-        cudaError_t __err = res;                                                                   \
-        BACKEND_CHECK(cudaSuccess == __err, "Fatal CUDA RT error: %s", cudaGetErrorString(__err)); \
+#define m_cudart_check_errors(res)                                                                           \
+    do {                                                                                                     \
+        cudaError_t flups_err_ = res;                                                                        \
+        BACKEND_CHECK(cudaSuccess == flups_err_, "Fatal CUDA RT error: %s", cudaGetErrorString(flups_err_)); \
     } while (0)
 
-#define m_cublas_check_errors(res)                                                                             \
-    do {                                                                                                       \
-        cublasStatus_t __err = res;                                                                            \
-        BACKEND_CHECK(CUBLAS_STATUS_SUCCESS == __err, "Fatal cuBLAS error: %s", cublasGetStatusString(__err)); \
+#define m_cublas_check_errors(res)                                                                                       \
+    do {                                                                                                                 \
+        cublasStatus_t flups_err_ = res;                                                                                 \
+        BACKEND_CHECK(CUBLAS_STATUS_SUCCESS == flups_err_, "Fatal cuBLAS error: %s", cublasGetStatusString(flups_err_)); \
     } while (0)
 
-#define m_cufft_check_errors(res)                                              \
-    do {                                                                       \
-        cufftResult_t __err = res;                                             \
-        BACKEND_CHECK(CUFFT_SUCCESS == __err, "Fatal cuFFT error: %d", __err); \
+#define m_cufft_check_errors(res)                                                        \
+    do {                                                                                 \
+        cufftResult_t flups_err_ = res;                                                  \
+        BACKEND_CHECK(CUFFT_SUCCESS == flups_err_, "Fatal cuFFT error: %d", flups_err_); \
     } while (0)
 
 // Kernel execution
