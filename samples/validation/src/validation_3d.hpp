@@ -82,10 +82,10 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 /**
  * @name compact-source pad check (--source=1)
  *
- * Solves a compact source (a Spietz bump in the two unbounded directions, times a few harmonics in
- * the spectral one) on the requested box and on a box padded by a factor `pad` in the two unbounded
- * directions -- same h, same source at the same physical location -- and reports the difference of
- * the two solutions on the common box.
+ * Solves a compact source (white noise on the requested box, zero outside) on the requested box and
+ * on a box padded by a factor `pad` in the two unbounded directions -- same h, same source at the
+ * same physical location -- and reports the difference of the two solutions on the common box, in
+ * total and for each mode of the spectral direction.
  *
  * A *compact source* (as opposed to the compact manufactured *solution* used by validation_3d) is
  * what makes the periodisation error of an approximate 2-unbounded kernel visible: a solution that

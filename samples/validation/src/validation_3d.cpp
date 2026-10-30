@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 using namespace std;
@@ -507,13 +508,37 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 
 //==============================================================================
 // compact-source pad check (--source=1 --padcheck=P)
+//
+// With 2 unbounded + 1 spectral directions, every k_z != 0 mode uses the Green's function of a
+// *screened* two-dimensional lattice operator, built by quadrature (lgf_2unb1spe.hpp). An inexact
+// kernel, e.g. its symbol sampled on the doubled grid, is a 2N-periodised kernel: each k_z != 0 mode
+// sees images of the source at a distance d ~ L in the unbounded directions, a relative error
+// ~ exp(-|k_z| d), largest for the smallest k_z, i.e. for a long spectral direction. That error does
+// not decrease with h, and the manufactured-solution test of validation_3d is blind to it (see
+// validation_3d.hpp). With 1 or 3 unbounded directions the kernel is a closed form or a table in
+// physical space and has no such error.
+//
+// The source is white noise, uniform in [-1, 1] on the reference box and zero outside: it is compact
+// and excites every mode of the spectral direction, hence every slice of the kernel. Its free-space
+// solution does not depend on how far the box extends, so a solve on a box P times larger in the two
+// unbounded directions (same h, same origin, same source) gives the same values on the common box.
+// Both solves share the discretisation error, which cancels in the difference: max|dU| is the image
+// error alone, round-off for an exact kernel. The difference is also reported mode by mode along the
+// spectral direction (padnoise_mode lines). The images are strongest for L_z > L_x.
 //==============================================================================
 
 /**
- * @brief the compact Spietz bump, support |t| < 1
+ * @brief white noise, uniform in [-1, 1], as a hash (splitmix64) of the point index @p i
+ *
+ * A hash rather than a random sequence: the value at a point depends neither on the decomposition
+ * nor on the size of the box it is solved in.
  */
-static inline double padcheck_bump_(const double t) {
-    return (fabs(t) >= 1.0) ? 0.0 : exp(c_C * (1.0 - 1.0 / (1.0 - t * t)));
+static inline double padcheck_noise_(const uint64_t i) {
+    uint64_t z = i + 0x9e3779b97f4a7c15ULL;
+    z          = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    z          = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+    z          = z ^ (z >> 31);
+    return 2.0 * ((double)(z >> 11) / 9007199254740992.0) - 1.0;
 }
 
 /**
@@ -529,7 +554,6 @@ static void padcheck_solve_(const DomainDescr &myCase, const FLUPS_GreenType typ
                             const int dir_u[2], const int dir_s, const int nc[3], double *ucommon, MPI_Comm comm) {
     const bool   is_cell = myCase.center_type[0] == CELL_CENTER;
     const double fact    = (double)(!is_cell);
-    const double shift   = is_cell ? 0.5 : 0.0;
 
     // the padded domain: same h, same origin, pad times larger in the two unbounded directions
     int    ncell[3];
@@ -542,13 +566,10 @@ static void padcheck_solve_(const DomainDescr &myCase, const FLUPS_GreenType typ
     const int    nglob[3] = {ncell[0] + (int)fact, ncell[1] + (int)fact, ncell[2] + (int)fact};
     const double h[3]     = {L[0] / ncell[0], L[1] / ncell[1], L[2] / ncell[2]};
 
-    // the source: a bump centred in the *reference* box, of radius 0.35 of the reference box
-    double bump_c[3], bump_r[3];
-    for (int d = 0; d < 3; ++d) {
-        bump_c[d] = 0.50 * myCase.L[d];
-        bump_r[d] = 0.35 * myCase.L[d];
-    }
-    const double Lz = myCase.L[dir_s];
+    // the source: noise on the *reference* box, indexed in its layout; the last node of a periodic
+    // direction is the first one
+    const bool zper  = myCase.mybc[dir_s][0] == PER;
+    const int  nzsrc = (zper && !is_cell) ? nc[dir_s] - 1 : nc[dir_s];
 
     FLUPS_CenterType center_type[3];
     for (int d = 0; d < 3; ++d) {
@@ -588,12 +609,11 @@ static void padcheck_solve_(const DomainDescr &myCase, const FLUPS_GreenType typ
                 g[ax0]            = istart[ax0] + i0;
                 g[ax1]            = istart[ax1] + i1;
                 g[ax2]            = istart[ax2] + i2;
-                const double xu0  = (g[dir_u[0]] + shift) * h[dir_u[0]];
-                const double xu1  = (g[dir_u[1]] + shift) * h[dir_u[1]];
-                const double z    = (g[dir_s] + shift) * h[dir_s];
-                rhs[id]           = padcheck_bump_((xu0 - bump_c[dir_u[0]]) / bump_r[dir_u[0]]) *
-                          padcheck_bump_((xu1 - bump_c[dir_u[1]]) / bump_r[dir_u[1]]) *
-                          (1.0 + sin(c_2pi * z / Lz) + 0.5 * cos(2.0 * c_2pi * z / Lz));
+                if (g[dir_u[0]] < nc[dir_u[0]] && g[dir_u[1]] < nc[dir_u[1]]) {
+                    int gr[3] = {g[0], g[1], g[2]};
+                    gr[dir_s] = g[dir_s] % nzsrc;
+                    rhs[id]   = padcheck_noise_(gr[0] + nc[0] * (gr[1] + ((uint64_t)nc[1]) * gr[2]));
+                }
             }
         }
     }
@@ -675,47 +695,122 @@ void padcheck_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, cons
     }
 
     //-------------------------------------------------------------------------
-    /** - the difference, and the difference of the spectral-mean-free part */
+    /** - the modes of the spectral direction: the transform FLUPS uses there, on the points it takes */
     //-------------------------------------------------------------------------
-    // the mean along the spectral direction, at each point of the two unbounded ones
-    const int nsz  = nc[dir_s];
-    double    dmax = 0.0, dmax_nomean = 0.0, umax = 0.0;
-    {
-        // loop over the (dir_u[0], dir_u[1]) plane, the spectral direction inside
-        const int nu0 = nc[dir_u[0]];
-        const int nu1 = nc[dir_u[1]];
-        for (int j1 = 0; j1 < nu1; ++j1) {
-            for (int j0 = 0; j0 < nu0; ++j0) {
-                double m1 = 0.0, mp = 0.0;
-                for (int js = 0; js < nsz; ++js) {
-                    int g[3];
-                    g[dir_u[0]]      = j0;
-                    g[dir_u[1]]      = j1;
-                    g[dir_s]         = js;
-                    const size_t idx = g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2]);
-                    m1 += u1[idx];
-                    mp += up[idx];
-                }
-                m1 /= nsz;
-                mp /= nsz;
-                for (int js = 0; js < nsz; ++js) {
-                    int g[3];
-                    g[dir_u[0]]      = j0;
-                    g[dir_u[1]]      = j1;
-                    g[dir_s]         = js;
-                    const size_t idx = g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2]);
-                    umax             = max(umax, fabs(u1[idx]));
-                    dmax             = max(dmax, fabs(u1[idx] - up[idx]));
-                    dmax_nomean      = max(dmax_nomean, fabs((u1[idx] - m1) - (up[idx] - mp)));
+    // mode j at the point k: w_k trig(dk (j + oj) (k + ok)) for k in [klo, khi), w_k = wlo / whi on the
+    // first / last point, 1 elsewhere
+    const FLUPS_BoundaryType bl     = myCase.mybc[dir_s][0];
+    const FLUPS_BoundaryType br     = myCase.mybc[dir_s][1];
+    const int                ns     = nc[dir_s];
+    const bool               is_sin = (bl == ODD);
+
+    int    klo = 0, khi = ns, nj;
+    double dk, oj = 0.0, ok = is_cell ? 0.5 : 0.0, wlo = 1.0, whi = 1.0;
+    bool   is_dft = false;
+    if (bl == PER) {
+        // DFT, the last node is the first one
+        khi    = is_cell ? ns : ns - 1;
+        nj     = khi / 2 + 1;
+        dk     = c_2pi / khi;
+        ok     = 0.0;
+        is_dft = true;
+    } else if (is_cell) {
+        // DCT-II (EVEN-EVEN), DST-II (ODD-ODD), DCT-IV (EVEN-ODD), DST-IV (ODD-EVEN)
+        nj = ns;
+        dk = M_PI / ns;
+        oj = (bl != br) ? 0.5 : ((bl == ODD) ? 1.0 : 0.0);
+    } else {
+        // on n = ns - 1 cells, without the zero ODD end points: DCT-I (EVEN-EVEN), DST-I (ODD-ODD),
+        // DCT-III (EVEN-ODD), DST-III (ODD-EVEN)
+        const int n = ns - 1;
+        dk          = M_PI / n;
+        klo         = (bl == ODD) ? 1 : 0;
+        khi         = (br == ODD) ? n : ns;
+        if (bl == br) {
+            nj  = (bl == EVEN) ? n + 1 : n - 1;
+            oj  = (bl == ODD) ? 1.0 : 0.0;
+            wlo = (bl == EVEN) ? 0.5 : 1.0;
+            whi = wlo;
+        } else {
+            nj  = n;
+            oj  = 0.5;
+            wlo = (bl == EVEN) ? 0.5 : 1.0;
+            whi = (br == EVEN) ? 0.5 : 1.0;
+        }
+    }
+    const int      nk = khi - klo;
+    vector<double> bre((size_t)nj * nk), bim(is_dft ? (size_t)nj * nk : 0);
+    for (int j = 0; j < nj; ++j) {
+        for (int kk = 0; kk < nk; ++kk) {
+            const double w           = ((kk == 0) ? wlo : 1.0) * ((kk == nk - 1) ? whi : 1.0);
+            const double ph          = dk * (j + oj) * (klo + kk + ok);
+            bre[(size_t)j * nk + kk] = w * (is_sin ? sin(ph) : cos(ph));
+            if (is_dft) {
+                bim[(size_t)j * nk + kk] = -w * sin(ph);
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    /** - the difference and the solution: max over the box, and of each mode over the (unbounded) plane */
+    //-------------------------------------------------------------------------
+    // red = [max_p |dU_j(p)| for j < nj, max_p |U_j(p)| for j < nj, max|dU|, max|U|], the planar points
+    // p split over the ranks
+    const int      nu0 = nc[dir_u[0]];
+    const int      nu1 = nc[dir_u[1]];
+    vector<double> red(2 * nj + 2, 0.0);
+    vector<double> dz(nk), uz(nk);
+    for (int p = rank; p < nu0 * nu1; p += comm_size) {
+        int g[3];
+        g[dir_u[0]] = p % nu0;
+        g[dir_u[1]] = p / nu0;
+        for (int kk = 0; kk < nk; ++kk) {
+            g[dir_s]         = klo + kk;
+            const size_t idx = g[0] + nc[0] * (g[1] + ((size_t)nc[1]) * g[2]);
+            uz[kk]           = u1[idx];
+            dz[kk]           = u1[idx] - up[idx];
+            red[2 * nj]      = max(red[2 * nj], fabs(dz[kk]));
+            red[2 * nj + 1]  = max(red[2 * nj + 1], fabs(uz[kk]));
+        }
+        for (int j = 0; j < nj; ++j) {
+            const double *br_j = bre.data() + (size_t)j * nk;
+            double        dre = 0.0, ure = 0.0, dim = 0.0, uim = 0.0;
+            for (int kk = 0; kk < nk; ++kk) {
+                dre += br_j[kk] * dz[kk];
+                ure += br_j[kk] * uz[kk];
+            }
+            if (is_dft) {
+                const double *bi_j = bim.data() + (size_t)j * nk;
+                for (int kk = 0; kk < nk; ++kk) {
+                    dim += bi_j[kk] * dz[kk];
+                    uim += bi_j[kk] * uz[kk];
                 }
             }
+            red[j]      = max(red[j], sqrt(dre * dre + dim * dim));
+            red[nj + j] = max(red[nj + j], sqrt(ure * ure + uim * uim));
+        }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, red.data(), 2 * nj + 2, MPI_DOUBLE, MPI_MAX, comm);
+    const double dmax   = red[2 * nj];
+    const double umax   = red[2 * nj + 1];
+    double       dUjmax = 0.0, Ujmax = 0.0, dUorel = 0.0;
+    for (int j = 0; j < nj; ++j) {
+        dUjmax = max(dUjmax, red[j]);
+        Ujmax  = max(Ujmax, red[nj + j]);
+        if (red[nj + j] > 0.0) {
+            dUorel = max(dUorel, red[j] / red[nj + j]);
         }
     }
 
     const double LzoLx = myCase.L[dir_s] / myCase.L[dir_u[0]];
     if (rank == 0) {
-        printf("padcheck: N=%d,%d,%d Lz/Lx=%g pad=%d kernel=%d max|dU|=%12.12e max|dU_nomean|=%12.12e max|U|=%12.12e\n",
-               nc[0], nc[1], nc[2], LzoLx, pad, (int)typeGreen, dmax, dmax_nomean, umax);
+        printf("padcheck: N=%d,%d,%d Lz/Lx=%g pad=%d kernel=%d max|dU|=%12.12e max|U|=%12.12e maxj(dU_j)/maxj(U_j)=%12.12e maxj(dU_j/U_j)=%12.12e\n",
+               nc[0], nc[1], nc[2], LzoLx, pad, (int)typeGreen, dmax, umax, dUjmax / Ujmax, dUorel);
+        // res and h2Rf, the lattice residual L u - h^2 R f and its scale, are not computed (nan)
+        for (int j = 0; j < nj; ++j) {
+            printf("padnoise_mode: kernel=%d Lz/Lx=%g pad=%d j=%d dU=%12.12e U=%12.12e res=nan h2Rf=nan\n",
+                   (int)typeGreen, LzoLx, pad, j, red[j], red[nj + j]);
+        }
 
         string folder  = output_dir + "/data";
         string ct_name = is_cell ? "CellCenter" : "NodeCenter";
@@ -735,7 +830,8 @@ void padcheck_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, cons
         }
         FILE *myfile = fopen(filename, "a+");
         if (myfile != NULL) {
-            fprintf(myfile, "padcheck %d %d %d %g %d %12.12e %12.12e %12.12e\n", nc[0], nc[1], nc[2], LzoLx, pad, dmax, dmax_nomean, umax);
+            fprintf(myfile, "padcheck %d %d %d %g %d %12.12e %12.12e %12.12e %12.12e\n", nc[0], nc[1], nc[2], LzoLx, pad, dmax, umax,
+                    dUjmax / Ujmax, dUorel);
             fclose(myfile);
         }
     }
