@@ -322,7 +322,7 @@ equation).
 
 FLUPS solves homogeneous symmetric problems (ODD: $u = 0$, EVEN: $\partial_n u = 0$). The lattice kernels
 (`LGF_*`, `MEHR_*`) invert a known stencil exactly, so a wall with data ($u = g$ or $\partial_n u = q$) is imposed by
-correcting the right-hand side (derivation in `doc/symmetric_conditions.md`). `pyflups.bc` provides the steps for
+correcting the right-hand side (derivation in `doc/nonhomogeneous_conditions.md`). `pyflups.bc` provides the steps for
 global arrays indexed `[x, y, z]`, node-centred by default (pass `center=pf.CenterType.CELL_CENTER` to every call
 for cell-centred data):
 

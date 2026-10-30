@@ -632,8 +632,8 @@ void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3],
  * MEHR_*F kernels, while the user applies it to the rhs (e.g. with these weights) for the MEHR_*L kernels.
  *
  * A typical use is to impose non-homogeneous Dirichlet/Neumann conditions with a right-hand side correction: see
- * doc/symmetric_conditions.md. The function can be called once the Green's function type is set, before or after
- * @ref flups_setup. Call it with NULL arrays to get the number of points.
+ * doc/nonhomogeneous_conditions.md. The function can be called once the Green's function type is set, before or
+ * after @ref flups_setup. Call it with NULL arrays to get the number of points.
  *
  * @param s the FLUPS solver
  * @param type the left- (\f$ L_h \f$) or right-hand side (\f$ M_h \f$) stencil

@@ -10,7 +10,7 @@ ghost closure of the form "reflection + known data" turns into an exact correcti
 
 where R(u) is the symmetric (ODD/EVEN) extension of u, the one FLUPS solves for, and D = u - R(u)
 is zero on the unknown nodes and known data on the wall/ghost nodes (pyflups.bc, and
-doc/symmetric_conditions.md for the derivation).
+doc/nonhomogeneous_conditions.md for the derivation).
 
 The solve only uses what a user has: f sampled on the nodes of the domain, and g (Dirichlet, u = g)
 or q (Neumann, du/dn = q with n the inward normal) sampled on the nodes of each wall. A manufactured

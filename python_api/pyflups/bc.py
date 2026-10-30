@@ -16,7 +16,7 @@ of the ghost layer m (s_m = m h for node-centred data, (m - 1/2) h for cell-cent
 which taylor_ghost() evaluates from the wall Taylor coefficients a_k = d_n^k u. They follow from the
 data and the PDE: a_0 = g or a_1 = q, a_{k+2} = d_n^k f - Lap_t a_k (Lap_t: Laplacian along the wall).
 Order p needs the terms k < p (Dirichlet ghost O(h^p), Neumann ghost O(h^(p+1))).
-See doc/symmetric_conditions.md and examples/nonhomogeneous_bc.py.
+See doc/nonhomogeneous_conditions.md and examples/nonhomogeneous_bc.py.
 
 The helpers work on global arrays indexed [x, y, z], every rank holding the whole domain, with
 h = L/N and n points per direction:
