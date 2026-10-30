@@ -247,13 +247,13 @@ if _lib is not None:
     ]
     _lib.flups_get_spectralInfo.restype = None
 
-    _lib.flups_get_stencil.argtypes = [
-        POINTER(FLUPS_Solver),
-        c_int,                        # StencilType
-        POINTER(c_int),               # offsets[3*n] or NULL
-        POINTER(c_double)             # weights[n] or NULL
-    ]
-    _lib.flups_get_stencil.restype = c_int
+    for _f in (_lib.flups_get_lhs_stencil, _lib.flups_get_rhs_stencil):
+        _f.argtypes = [
+            POINTER(FLUPS_Solver),
+            POINTER(c_int),           # offsets[3*n] or NULL
+            POINTER(c_double)         # weights[n] or NULL
+        ]
+        _f.restype = c_int
 
     _lib.flups_set_alpha.argtypes = [POINTER(FLUPS_Solver), c_double]
     _lib.flups_set_alpha.restype = None

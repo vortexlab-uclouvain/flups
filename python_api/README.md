@@ -238,7 +238,7 @@ Solver(topology, boundary_conditions, h, L,
 - `set_alpha(alpha)`: Set alpha for Hejlesen kernels
 - `setup(change_comm=False)`: Setup and allocate memory
 - `solve(field, rhs, solver_type=STD)`: Solve the equation
-- `get_stencil(stencil_type=StencilType.LHS)`: Stencil inverted exactly by the lattice kernels, as `(offsets, weights)`
+- `get_lhs_stencil()`, `get_rhs_stencil()`: Stencils $L_h$ and $M_h$ of the problem $L_h u = M_h f$ inverted exactly by the lattice kernels, as `(offsets, weights)`
 - `do_copy`, `do_fft`, `do_mult`, `get_wavenumbers`, `get_inner_topo_spectral`: the steps of `solve`, see [Advanced Usage](#advanced-usage)
 
 #### `Profiler`
@@ -256,7 +256,6 @@ Profiler(name="default")
 - `SolverType`: STD (standard), ROT (rotational/Biot-Savart)
 - `DiffType`: NOD, SPE, FD2, FD4, FD6
 - `CenterType`: NODE_CENTER, CELL_CENTER
-- `StencilType`: LHS ($L_h$), RHS ($M_h$)
 
 ### Utility Functions
 
@@ -330,8 +329,8 @@ for cell-centred data):
 from pyflups import bc as pbc
 
 solver.set_green_type(pf.GreenType.LGF_4)
-lhs = solver.get_stencil(pf.StencilType.LHS)        # L_h (weights in units of 1/h^2)
-rhs_op = solver.get_stencil(pf.StencilType.RHS)     # M_h (identity for LGF_*, apply it yourself for MEHR_*L)
+lhs = solver.get_lhs_stencil()                      # L_h (weights in units of 1/h^2)
+rhs_op = solver.get_rhs_stencil()                   # M_h (identity for LGF_*, apply it yourself for MEHR_*L)
 r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
 
 # D = u - R(u) on the grid extended by r ghost layers, from the wall data: ghost(d, side, m) returns

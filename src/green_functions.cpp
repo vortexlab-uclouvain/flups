@@ -1148,12 +1148,12 @@ void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const do
  *   \f$ M_h = 1 + 1/12 \sum_d \delta^2_d + 1/90 \sum_{i<j} \delta^2_i \delta^2_j - 1/240 \sum_d \delta^4_d \f$.
  *
  * @param typeGreen the Green's function
- * @param type the left- or right-hand side stencil
+ * @param lhs if true, the left-hand side stencil \f$ L_h \f$, else the right-hand side one \f$ M_h \f$
  * @param offsets if not NULL, the offsets of the n points, offsets[3*i + d] (size 3*n)
  * @param weights if not NULL, the weights of the n points, the left-hand side ones are in units of 1/h^2 (size n)
  * @return int the number of points n, 0 if the Green's function is not the inverse of a stencil
  */
-int cmpt_Green_stencil(const GreenType typeGreen, const StencilType type, int *offsets, double *weights) {
+int cmpt_Green_stencil(const GreenType typeGreen, const bool lhs, int *offsets, double *weights) {
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     // dense cube of weights, the widest stencil (LGF_8) reaches 4 points
@@ -1224,7 +1224,7 @@ int cmpt_Green_stencil(const GreenType typeGreen, const StencilType type, int *o
     const bool is_mehr6 = (typeGreen == MEHR_6L || typeGreen == MEHR_6F);
 
     if (c_lgf != NULL) {
-        if (STENCIL_LHS == type) {
+        if (lhs) {
             for (int d = 0; d < 3; ++d) {
                 for (int m = 0; m < n_lgf; ++m) add_d2_step(d, m + 1, c_lgf[m]);
             }
@@ -1232,7 +1232,7 @@ int cmpt_Green_stencil(const GreenType typeGreen, const StencilType type, int *o
             cube[r + w * (r + w * r)] = 1.0;
         }
     } else if (is_mehr4 || is_mehr6) {
-        if (STENCIL_LHS == type) {
+        if (lhs) {
             for (int d = 0; d < 3; ++d) add_d2_step(d, 1, 1.0);
             add_pairs(c_1o6);
             if (is_mehr6) {

@@ -97,21 +97,21 @@ known before the solve.
 
 ## 2. Getting the stencil coefficients from FLUPS
 
-The weights of $L_h$ and $M_h$ are returned by `flups_get_stencil`:
+The weights of $L_h$ and $M_h$ are returned by `flups_get_lhs_stencil` and `flups_get_rhs_stencil`:
 
 ```c
-int flups_get_stencil(FLUPS_Solver* s, const FLUPS_StencilType type, int* offsets, double* weights);
+int flups_get_lhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
+int flups_get_rhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
 ```
 
-- `type` is `STENCIL_LHS` for $L_h$ or `STENCIL_RHS` for $M_h$;
 - the stencil is $L_h u(x) = \frac{1}{h^2} \sum_i w_i \, u(x + o_i h)$ and $M_h f(x) = \sum_i w_i \, f(x + o_i h)$, with
   the integer offsets $o_i$ in `offsets[3*i + d]` and the weights $w_i$ in `weights[i]`;
 - the return value is the number of points $n$ (at most 27). Call the function with `NULL` arrays to get $n$, then
   with arrays of $3n$ and $n$ entries;
-- it returns 0 for `CHAT_2` and `HEJ_*`, which are not the inverse of a stencil;
-- it can be called once the Green's function type is set, before or after `flups_setup`.
+- they return 0 for `CHAT_2` and `HEJ_*`, which are not the inverse of a stencil;
+- they can be called once the Green's function type is set, before or after `flups_setup`.
 
-In Python, `Solver.get_stencil(pf.StencilType.LHS)` (or `RHS`) returns the arrays `(offsets, weights)`.
+In Python, `Solver.get_lhs_stencil()` and `Solver.get_rhs_stencil()` return the arrays `(offsets, weights)`.
 
 ## 3. Imposing the conditions with FLUPS, step by step
 
@@ -119,8 +119,8 @@ In Python, `Solver.get_stencil(pf.StencilType.LHS)` (or `RHS`) returns the array
    their usual condition.
 2. **Kernel.** Use `LGF_*` or `MEHR_*L`. With `MEHR_*F`, FLUPS applies $M_h$ to the whole right-hand side, including
    the correction $-L_h D$, and undoing it would need the non-local $M_h^{-1}$.
-3. **Stencils.** Get $L_h$ and, for `MEHR_*L`, $M_h$ with `flups_get_stencil` (section 2). Their reach $r$ is the
-   number of ghost layers to build.
+3. **Stencils.** Get $L_h$ and, for `MEHR_*L`, $M_h$ with `flups_get_lhs_stencil` / `flups_get_rhs_stencil`
+   (section 2). Their reach $r$ is the number of ghost layers to build.
 4. **Ghost values.** On each wall, compute the coefficients $a_k$ needed for the target order and build $D$ on the $r$
    ghost layers, direction by direction (section 1.3). For node-centred data, also set $D_0 = g$ on the ODD walls.
 5. **Right-hand side.** On every unknown node, compute $M_h f - L_h D$. For `LGF_*`, $M_h f = f$. For `MEHR_*L`,
@@ -140,7 +140,7 @@ modified right-hand side satisfies the compatibility condition up to the discret
 `python_api/examples/nonhomogeneous_bc.py` validates them on a manufactured solution with values and slopes that vary
 along every wall (`--suite`, with `--center=node` or `--center=cell`). For both centrings, with ghost data taken from
 the exact solution the error is at round-off level ($\leq 10^{-13}$) for every lattice kernel and for Dirichlet,
-Neumann and mixed walls, which also checks `flups_get_stencil` against the kernels. Solving from the samples only
+Neumann and mixed walls, which also checks `flups_get_lhs_stencil` and `flups_get_rhs_stencil` against the kernels. Solving from the samples only
 ($f$ on the nodes, $g$ or $q$ on the wall nodes), with every $a_k$ computed by finite differences of accuracy
 $O(h^{P-k})$ ($P = p$ for Dirichlet, $p+1$ for Neumann walls) and the values `MEHR_*L` needs beyond the walls and face
 edges extrapolated, the observed order is the design order of the kernel (2, 4, 6, 8 for `LGF_*`, 4 and 6 for

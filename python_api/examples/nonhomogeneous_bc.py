@@ -3,7 +3,7 @@
 Non-homogeneous Dirichlet / Neumann boundary conditions with FLUPS: RHS correction
 
 FLUPS only knows homogeneous symmetric conditions: ODD (u = 0 on the wall) and EVEN (du/dn = 0).
-The lattice kernels (LGF_p, MEHR_*L) are the exact inverse of a stencil (Solver.get_stencil), so any
+The lattice kernels (LGF_p, MEHR_*L) are the exact inverse of a stencil (Solver.get_lhs_stencil), so any
 ghost closure of the form "reflection + known data" turns into an exact correction of the rhs:
 
     L_h R(u) = M_h f - L_h D    on the unknown nodes,   u = R(u) + D
@@ -257,8 +257,8 @@ def solve_case(kernel, bc, N, mode, ghost_order, nproc, comm, center, L=1.0):
     solver = pf.Solver(topo, fbc, [h] * 3, [L] * 3, center_type=[center] * 3)
     solver.set_green_type(green)
     solver.setup()
-    lhs = solver.get_stencil(pf.StencilType.LHS)
-    rhs_op = solver.get_stencil(pf.StencilType.RHS)
+    lhs = solver.get_lhs_stencil()
+    rhs_op = solver.get_rhs_stencil()
     r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
 
     # corrected rhs on the global grid

@@ -210,8 +210,12 @@ void flups_get_spectralInfo(Solver* s, double kfact[3], double koffset[3], doubl
     s->get_spectralInfo(kfact, koffset, symstart);
 }
 
-int flups_get_stencil(Solver* s, const StencilType type, int* offsets, double* weights) {
-    return cmpt_Green_stencil(s->get_GreenType(), type, offsets, weights);
+int flups_get_lhs_stencil(Solver* s, int* offsets, double* weights) {
+    return cmpt_Green_stencil(s->get_GreenType(), true, offsets, weights);
+}
+
+int flups_get_rhs_stencil(Solver* s, int* offsets, double* weights) {
+    return cmpt_Green_stencil(s->get_GreenType(), false, offsets, weights);
 }
 
 void flups_set_alpha(Solver* s, const double alpha) {

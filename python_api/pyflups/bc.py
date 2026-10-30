@@ -2,7 +2,7 @@
 FLUPS Python API - non-homogeneous Dirichlet / Neumann walls through a right-hand-side correction
 
 FLUPS solves homogeneous symmetric problems: ODD (u = 0 on the wall) and EVEN (du/dn = 0). The
-lattice kernels (LGF_*, MEHR_*) invert a known stencil exactly (Solver.get_stencil), so a wall with
+lattice kernels (LGF_*, MEHR_*) invert a known stencil exactly (Solver.get_lhs_stencil), so a wall with
 data, u = g or du/dn = q, becomes a correction of the right-hand side. Write the field extended to
 the ghost nodes as u = R(u) + D, with R(u) the symmetric extension FLUPS solves for and D zero on
 every unknown node. Then
@@ -52,7 +52,7 @@ def apply_stencil(offsets: np.ndarray, weights: np.ndarray, ext: np.ndarray, r: 
     Parameters
     ----------
     offsets, weights : np.ndarray
-        The stencil, as returned by Solver.get_stencil (the weights are used as is: divide by h^2
+        The stencil, as returned by Solver.get_lhs_stencil or get_rhs_stencil (the weights are used as is: divide by h^2
         for the left-hand side stencil)
     ext : np.ndarray
         Array with r ghost layers on each side
@@ -215,7 +215,7 @@ def corrected_rhs(offsets: np.ndarray, weights: np.ndarray, rhs: np.ndarray, rem
     Parameters
     ----------
     offsets, weights : np.ndarray
-        The left-hand side stencil (Solver.get_stencil(StencilType.LHS))
+        The left-hand side stencil (Solver.get_lhs_stencil())
     rhs : np.ndarray
         M_h f on the n^3 nodes (f itself for the LGF kernels)
     remainder : np.ndarray

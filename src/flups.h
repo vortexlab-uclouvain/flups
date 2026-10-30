@@ -53,7 +53,6 @@ typedef enum GreenType    FLUPS_GreenType;
 typedef enum SolverType   FLUPS_SolverType;
 typedef enum DiffType     FLUPS_DiffType;
 typedef enum CenterType   FLUPS_CenterType;
-typedef enum StencilType  FLUPS_StencilType;
 
 #ifndef __host__
 #define __host__
@@ -621,12 +620,12 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
 
 /**
- * @brief get the finite-difference stencil that the lattice Green's function of the solver inverts exactly
+ * @brief get the left-hand side stencil \f$ L_h \f$ that the lattice Green's function of the solver inverts exactly
  *
  * The LGF_* and MEHR_* kernels are the exact inverse of a stencil in every direction (on the symmetric/periodic
  * extension of the domain for EVEN, ODD and PER directions): the returned solution solves \f$ L_h u = M_h f \f$ with
- * - \f$ L_h u(x) = 1/h^2 \, \sum_i w_i \, u(x + o_i h) \f$ for @ref STENCIL_LHS,
- * - \f$ M_h f(x) = \sum_i w_i \, f(x + o_i h) \f$ for @ref STENCIL_RHS,
+ * - \f$ L_h u(x) = 1/h^2 \, \sum_i w_i \, u(x + o_i h) \f$, the discrete Laplacian, returned by this function,
+ * - \f$ M_h f(x) = \sum_i w_i \, f(x + o_i h) \f$, returned by @ref flups_get_rhs_stencil,
  *
  * on an isotropic grid of spacing h. \f$ M_h \f$ is the identity for the LGF_* kernels. It is applied by FLUPS for the
  * MEHR_*F kernels, while the user applies it to the rhs (e.g. with these weights) for the MEHR_*L kernels.
@@ -636,12 +635,22 @@ void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3],
  * after @ref flups_setup. Call it with NULL arrays to get the number of points.
  *
  * @param s the FLUPS solver
- * @param type the left- (\f$ L_h \f$) or right-hand side (\f$ M_h \f$) stencil
  * @param offsets if not NULL, returns the integer offsets of the n points: offsets[3*i + d] for point i in direction d
- * @param weights if not NULL, returns the n weights (in units of 1/h^2 for @ref STENCIL_LHS)
+ * @param weights if not NULL, returns the n weights, in units of 1/h^2
  * @return int the number of points n (at most 27), 0 if the Green's function is not the inverse of a stencil (CHAT_2, HEJ_*)
  */
-int flups_get_stencil(FLUPS_Solver* s, const FLUPS_StencilType type, int* offsets, double* weights);
+int flups_get_lhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
+
+/**
+ * @brief get the right-hand side stencil \f$ M_h \f$ of the discrete problem \f$ L_h u = M_h f \f$ that the lattice
+ * Green's function of the solver inverts exactly, see @ref flups_get_lhs_stencil
+ *
+ * @param s the FLUPS solver
+ * @param offsets if not NULL, returns the integer offsets of the n points: offsets[3*i + d] for point i in direction d
+ * @param weights if not NULL, returns the n weights
+ * @return int the number of points n (at most 27), 0 if the Green's function is not the inverse of a stencil (CHAT_2, HEJ_*)
+ */
+int flups_get_rhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
 
 /**
  * @brief while using regularized Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
