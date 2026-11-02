@@ -27,7 +27,7 @@ class SwitchTopoX_isr : public SwitchTopoX {
     virtual bool need_recv_buf() const override { return true; };
 
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
-    virtual void execute(opt_double_ptr data, const int sign) const override;
+    virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const override;
     virtual void disp() const override;
 };
 

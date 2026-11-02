@@ -2,8 +2,8 @@
 FLUPS Python API - Enumerations
 Based on flups_interface.h
 
-Copyright © UCLouvain 2020
-Licensed under the Apache License, Version 2.0
+Copyright (c) Université catholique de Louvain (UCLouvain), Belgique
+See LICENSE file in top-level directory
 """
 
 from enum import IntEnum

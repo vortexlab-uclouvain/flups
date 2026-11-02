@@ -6,6 +6,8 @@
 
 #include "chunk_tools.hpp"
 
+#include <limits>
+
 /**
  * @brief Decomposes topo_in into chunks, each of them belonging to a different rank in topo_out
  *
@@ -60,26 +62,36 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         topoi_gend[id] += topo_in->cmpt_start_id(id);
     }
 
-    n_chunks[0] = 1;
+    // if the current rank has nothing to send (no unknowns in the input topo, or no intersection with the
+    // output topo), we have no chunk at all and the rank computations below are not defined
+    bool is_empty = false;
+    for (int id = 0; id < 3; ++id) {
+        is_empty = is_empty || (topoi_gend[id] <= topoi_gstart[id]);
+    }
+    if (is_empty) {
+        FLUPS_INFO("no intersection between the topologies on this rank -> nchunks = 0");
+        n_chunks[0] = 0;
+        *chunks     = reinterpret_cast<MemChunk*>(m_calloc(0));
+        return;
+    }
+
+    // upper bound on the number of chunks: the number of ranks spanned by the intersection.
+    // some of them might own nothing in the output topology (more ranks than unknowns in a direction),
+    // they are skipped below and the actual number of chunks is the number of non-empty ones
+    int n_chunks_max = 1;
     int srank[3], erank[3];
     for (int id = 0; id < 3; ++id) {
         // find the rank that will own the starting/ending point of the input topology
-        // the starting point is always properly defined
         srank[id] = topo_out->cmpt_rank_fromid(topoi_gstart[id] + shift[id], id);
         // the ending point is taken with -1 to be sure to include the end rank
-        // unless start = end, then we just use the start id
-        if (topoi_gend[id] > topoi_gstart[id]) {
-            erank[id] = topo_out->cmpt_rank_fromid(topoi_gend[id] - 1 + shift[id], id);
-        } else {
-            erank[id] = srank[id] - 1;
-        }
+        erank[id] = topo_out->cmpt_rank_fromid(topoi_gend[id] - 1 + shift[id], id);
         // accumulate the number of chunks over the dimensions
         // both ranks are included!
         const int n_ranks = (erank[id] - srank[id] + 1);
-        n_chunks[0] *= m_max(n_ranks, 0);
+        n_chunks_max *= m_max(n_ranks, 0);
     }
-    FLUPS_INFO("sranks = %d %d %d - eranks = %d %d %d -> nchunks = %d", srank[0], srank[1], srank[2], erank[0], erank[1], erank[2], n_chunks[0]);
-    *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks[0] * sizeof(MemChunk)));
+    FLUPS_INFO("sranks = %d %d %d - eranks = %d %d %d -> at most nchunks = %d", srank[0], srank[1], srank[2], erank[0], erank[1], erank[2], n_chunks_max);
+    *chunks = reinterpret_cast<MemChunk*>(m_calloc(n_chunks_max * sizeof(MemChunk)));
 
     //--------------------------------------------------------------------------
     /** - Retrieve the id of the current process in the output topology to check
@@ -99,6 +111,16 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
                 const int irank[3]  = {ir0, ir1, ir2};
                 const int dest_rank = rankindex(irank, topo_out);
                 MemChunk* cchunk    = *chunks + chunk_counter;
+
+                // the destination rank might own nothing in one direction, then there is no chunk to send
+                bool is_empty_chunk = false;
+                for (int id = 0; id < 3; ++id) {
+                    is_empty_chunk = is_empty_chunk || (topo_out->cmpt_start_id_from_rank(irank[id], id) == topo_out->cmpt_start_id_from_rank(irank[id] + 1, id));
+                }
+                if (is_empty_chunk) {
+                    FLUPS_INFO("rank %d owns nothing in the output topology -> no chunk", dest_rank);
+                    continue;
+                }
 
                 for (int id = 0; id < 3; ++id) {
                     // get the start and end index of the topo OUT and the topo IN in the global reference
@@ -147,8 +169,10 @@ void PopulateChunk(const int shift[3], const Topology* topo_in, const Topology* 
         }
     }
 
-    // FLUPS_CHECK((chunk_counter + (int) (self_comm[0]>= 0)) == n_chunks[0], "the chunk counter = %d must be = %d", (chunk_counter + (int) is_self_comm), n_chunks[0]);
-    FLUPS_CHECK(chunk_counter == n_chunks[0], "the chunk counter = %d must be = %d", chunk_counter, n_chunks[0]);
+    FLUPS_CHECK(chunk_counter <= n_chunks_max, "the chunk counter = %d must be <= %d", chunk_counter, n_chunks_max);
+    FLUPS_CHECK(chunk_counter > 0, "a non-empty intersection must lead to at least one chunk");
+    // the actual number of chunks is the number of non-empty ones
+    n_chunks[0] = chunk_counter;
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -286,12 +310,7 @@ void ChunkToNewComm(const MPI_Comm new_comm, const MPI_Group new_group, MemChunk
 void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    // enable the multithreading for this plan
-#if FLUPS_OPENMP
-    fftw_plan_with_nthreads(omp_get_max_threads());
-#endif
-
-    fftw_iodim dims[2];
+    flups_iodim dims[2];
     // dim[0] = dimension of the targeted FRI (FFTW-convention)
     dims[0].n  = 1;
     dims[0].is = 1;
@@ -334,36 +353,30 @@ void PlanShuffleChunk(const bool iscomplex, MemChunk* chunk) {
     FLUPS_INFO("shuffle: DIM 0: n = %d, is=%d, os=%d", dims[0].n, dims[0].is, dims[0].os);
     FLUPS_INFO("shuffle: DIM 1: n = %d, is=%d, os=%d", dims[1].n, dims[1].is, dims[1].os);
 
+    // Allocate temp array to do out-of-place transpose
+    chunk->shuffle_buff = (opt_double_ptr)backend_malloc(chunk->nda * chunk->size_padded * sizeof(double));
+
     // plan the real or complex plan
     // the nf is driven by the OUT topology ALWAYS
-    if (!iscomplex) {
-        chunk->shuffle = fftw_plan_guru_r2r(0, NULL, 2, dims, chunk->data, chunk->data, NULL, FLUPS_FFTW_FLAG);
-        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
-    } else {
-        chunk->shuffle = fftw_plan_guru_dft(0, NULL, 2, dims, (fftw_complex*)chunk->data, (fftw_complex*)chunk->data, FLUPS_FORWARD, FLUPS_FFTW_FLAG);
-        // FLUPS_CHECK(chunk->shuffle != NULL, "Plan has not been setup");
-    }
+    chunk->shuffle = flups_plan_shuffle(dims, chunk->data, chunk->shuffle_buff, iscomplex);
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
 /**
- * @brief executes the shuffle planed by PlanShuffleChunk() 
- * 
- * @param chunk 
+ * @brief executes the shuffle planed by PlanShuffleChunk()
+ *
+ * @param chunk
  */
-void DoShuffleChunk(MemChunk* chunk) {
+void DoShuffleChunk(MemChunk* chunk, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
-    // only the master call the fftw_execute which is executed in multithreading
+    FLUPS_CHECK(chunk->has_shuffle, "this chunk has no out-of-place shuffle plan/buffer (axis %d -> %d), see SwitchTopoX::need_shuffle_plan", chunk->axis, chunk->dest_axis);
     for (int ida = 0; ida < chunk->nda; ++ida) {
-        opt_double_ptr data_ptr = chunk->data + ida * chunk->size_padded;
-        if (chunk->nf == 1) {
-            // we execute it on the different directions of the field but the memory has the same properties (alignement, lenght, etc)
-            fftw_execute_r2r(chunk->shuffle, data_ptr, data_ptr);
-        } else {
-            fftw_execute_dft(chunk->shuffle, (opt_complex_ptr)(data_ptr), (opt_complex_ptr)(data_ptr));
-        }
+        opt_double_ptr data_in  = chunk->data + ida * chunk->size_padded;
+        opt_double_ptr data_out = chunk->shuffle_buff + ida * chunk->size_padded;
+
+        flups_execute_shuffle(chunk->shuffle, data_in, data_out, 2 == chunk->nf, stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
@@ -382,7 +395,7 @@ void DoShuffleChunk(MemChunk* chunk) {
  * @param chunk the chunk of memory to copy
  * @param data the vector of data corresponding to the current memory
  */
-void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data) {
+void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr data, bool is_buff, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
@@ -391,37 +404,48 @@ void CopyChunk2Data(const MemChunk* chunk, const int nmem[3], opt_double_ptr dat
     const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
-    // get the indexes to copy
-    const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
-    const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
+    // get the indexes to copy: n_loop lines of nmax contiguous doubles
+    const int n1     = chunk->isize[ax[1]];
+    const int n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const int nmax   = chunk->isize[ax[0]] * nf;
+    // strides (in doubles) of the lines and of the planes, in the chunk and in the data (= localIndex(ax0, 0, 1, 0, ...))
+    const size_t s1_chunk = (size_t)nmax;
+    const size_t s2_chunk = (size_t)nmax * (size_t)n1;
+    const size_t s1_data  = (size_t)nmem[ax[0]] * (size_t)nf;
+    const size_t s2_data  = s1_data * (size_t)nmem[ax[1]];
 
     FLUPS_INFO("copying data at %d %d %d", chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-#pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
-        opt_double_ptr src_data = chunk->data + chunk->size_padded * lia;
+        opt_double_ptr src_data;
+        if (is_buff)
+            src_data = chunk->shuffle_buff + chunk->size_padded * lia;
+        else
+            src_data = chunk->data + chunk->size_padded * lia;
         opt_double_ptr trg_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // the chunk must be aligned all the time
-        FLUPS_CHECK(m_isaligned(src_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned");
+        FLUPS_CHECK(m_isaligned(src_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned");
 
-#pragma omp for schedule(static)
-        for (int il = 0; il < n_loop; ++il) {
-            // get the local indexes (we cannot used the collaspedIndex one!!!)
-            const int i2 = il / (chunk->isize[ax[1]]);
-            const int i1 = il % (chunk->isize[ax[1]]);
-            // get the starting adddress for the memcpy
-            const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            memcpy(vtrg, vsrc, nmax_byte);
-        }
+        // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
+        const auto op = m_backend_lambda(const int io, const int ii) {
+            // get the line indexes
+            const int i1 = io % n1;
+            const int i2 = io / n1;
+            // get the starting address of the line
+            const double* vsrc = src_data + i1 * s1_chunk + i2 * s2_chunk;
+            double*       vtrg = trg_data + i1 * s1_data + i2 * s2_data;
+            // copy the data
+            vtrg[ii] = vsrc[ii];
+        };
+        parallel_for_2d(op, n_loop, nmax, "CopyChunk2Data", stream);
     }
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
-void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk) {
+void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chunk, stream_t stream) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // get the current ax as the topo_in one (otherwise the copy doesn't make sense)
@@ -430,38 +454,376 @@ void CopyData2Chunk(const int nmem[3], const opt_double_ptr data, MemChunk* chun
     const int ax[3]      = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
     const int listart[3] = {chunk->istart[ax[0]], chunk->istart[ax[1]], chunk->istart[ax[2]]};
 
-    // get the indexes to copy
-    const size_t n_loop    = chunk->isize[ax[1]] * chunk->isize[ax[2]];
-    const size_t nmax_byte = chunk->isize[ax[0]] * nf * sizeof(double);
+    // get the indexes to copy: n_loop lines of nmax contiguous doubles
+    const int n1     = chunk->isize[ax[1]];
+    const int n_loop = chunk->isize[ax[1]] * chunk->isize[ax[2]];
+    const int nmax   = chunk->isize[ax[0]] * nf;
+    // strides (in doubles) of the lines and of the planes, in the chunk and in the data (= localIndex(ax0, 0, 1, 0, ...))
+    const size_t s1_chunk = (size_t)nmax;
+    const size_t s2_chunk = (size_t)nmax * (size_t)n1;
+    const size_t s1_data  = (size_t)nmem[ax[0]] * (size_t)nf;
+    const size_t s2_data  = s1_data * (size_t)nmem[ax[1]];
 
     FLUPS_CHECK((chunk->istart[0] + chunk->isize[0]) <= nmem[0], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[0], chunk->isize[0], nmem[0]);
     FLUPS_CHECK((chunk->istart[1] + chunk->isize[1]) <= nmem[1], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[1], chunk->isize[1], nmem[1]);
     FLUPS_CHECK((chunk->istart[2] + chunk->isize[2]) <= nmem[2], "istart = %d + size = %d must be smaller than the local size %d", chunk->istart[2], chunk->isize[2], nmem[2]);
 
-#pragma omp parallel proc_bind(close)
     for (int lia = 0; lia < chunk->nda; ++lia) {
         // get the starting address for the chunk, taking into account the padding
         opt_double_ptr trg_data = chunk->data + chunk->size_padded * lia;
         opt_double_ptr src_data = data + localIndex(ax[0], listart[0], listart[1], listart[2], ax[0], nmem, nf, lia);
 
         // we alwas know that the chunk memory is aligned
-        FLUPS_CHECK(m_isaligned(trg_data,FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
+        FLUPS_CHECK(m_isaligned(trg_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
         FLUPS_INFO("pointers are %p and %p", trg_data, src_data);
         FLUPS_INFO("copy %d %d %d from data to chunk", chunk->isize[0], chunk->isize[1], chunk->isize[2]);
-        FLUPS_INFO("copy %zu bytes in %zu loops", nmax_byte, n_loop);
+        FLUPS_INFO("copy %d bytes in %d loops", nmax * (int)sizeof(double), n_loop);
         FLUPS_INFO("local memory is %d %d %d, listart is %d %d %d", nmem[0], nmem[1], nmem[2], chunk->istart[0], chunk->istart[1], chunk->istart[2]);
 
-#pragma omp for schedule(static)
-        for (int il = 0; il < n_loop; ++il) {
-            // get the local indexes (we cannot used the collaspedIndex one!!!)
-            const int i2 = il / (chunk->isize[ax[1]]);
-            const int i1 = il % (chunk->isize[ax[1]]);
-            // get the starting adddress for the memcpy
-            const double* __restrict vsrc = src_data + localIndex(ax0, 0, i1, i2, ax0, nmem, nf, 0);
-            double* __restrict vtrg       = trg_data + localIndex(ax0, 0, i1, i2, ax0, chunk->isize, nf, 0);
-            std::memcpy(vtrg, vsrc, nmax_byte);
+        // define the operator: one line per outer index, the point in the line is the inner (contiguous) index
+        const auto op = m_backend_lambda(const int io, const int ii) {
+            // get the line indexes
+            const int i1 = io % n1;
+            const int i2 = io / n1;
+            // get the starting address of the line
+            const double* vsrc = src_data + i1 * s1_data + i2 * s2_data;
+            double*       vtrg = trg_data + i1 * s1_chunk + i2 * s2_chunk;
+            // copy the data
+            vtrg[ii] = vsrc[ii];
+        };
+        parallel_for_2d(op, n_loop, nmax, "CopyData2chunk", stream);
+    }
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief computes the transpose dimensions of the shuffle of a chunk, in nf-units
+ *
+ * replicates the dims[0].n / dims[1].n computation of PlanShuffleChunk() without touching
+ * the flups_shuffle_plan (opaque fftw_plan on the CPU backend); the shuffle then reads
+ * out[u] = in[(u % n0) * n1 + u / n0] for u in [0, n0*n1)
+ */
+static void ChunkShuffleDims(const MemChunk* chunk, int* n0, int* n1) {
+    const int iaxis[3] = {chunk->dest_axis, (chunk->dest_axis + 1) % 3, (chunk->dest_axis + 2) % 3};
+    const int oaxis[3] = {chunk->axis, (chunk->axis + 1) % 3, (chunk->axis + 2) % 3};
+    n0[0]              = 1;
+    n1[0]              = 1;
+    for (int id = 0; id < 3; id++) {
+        if (iaxis[id] != oaxis[0]) {
+            n1[0] *= chunk->isize[iaxis[id]];
+        } else {
+            break;
         }
     }
+    for (int id = 0; id < 3; id++) {
+        if (oaxis[id] != iaxis[0]) {
+            n0[0] *= chunk->isize[oaxis[id]];
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * @brief builds the device-visible descriptor array used by the batched copy kernels
+ *
+ * geometry, chunk pointers, and shuffle dims are all fixed once SwitchTopoX::setup_buffers
+ * has run, so the descriptors are built and uploaded once; the field pointer and the nmem
+ * (which depends on the real/complex state of the topo) change from one execute to the next
+ * and are passed to the kernels instead
+ *
+ * @param nchunks number of chunks in the array
+ * @param chunks the chunk array, with data pointers already assigned
+ */
+ChunkBatch ChunkBatchSetup(const int nchunks, const MemChunk* chunks) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    ChunkBatch batch;
+    if (nchunks <= 0) {
+        return batch;
+    }
+
+    int ndesc = 0;
+    for (int ic = 0; ic < nchunks; ++ic) {
+        ndesc += chunks[ic].nda;
+    }
+    ChunkCopyDesc* h_descs = reinterpret_cast<ChunkCopyDesc*>(m_calloc(ndesc * sizeof(ChunkCopyDesc)));
+
+    size_t ntotal = 0;
+    int    id     = 0;
+    for (int ic = 0; ic < nchunks; ++ic) {
+        const MemChunk* chunk = chunks + ic;
+        const int       ax0   = chunk->axis;
+        const int       ax[3] = {ax0, (ax0 + 1) % 3, (ax0 + 2) % 3};
+
+        // the kernels assume nf, the axis, and the shuffle flag are uniform over the batch
+        FLUPS_CHECK(chunk->nf == chunks[0].nf, "the nf must be uniform over the batch: %d vs %d", chunk->nf, chunks[0].nf);
+        FLUPS_CHECK(chunk->axis == chunks[0].axis, "the axis must be uniform over the batch: %d vs %d", chunk->axis, chunks[0].axis);
+        FLUPS_CHECK(chunk->dest_axis == chunks[0].dest_axis, "the dest_axis must be uniform over the batch: %d vs %d", chunk->dest_axis, chunks[0].dest_axis);
+
+        int shuffle_n0, shuffle_n1;
+        ChunkShuffleDims(chunk, &shuffle_n0, &shuffle_n1);
+
+        // number of transpose tiles of this chunk, for the tiled shuffled unpack
+        const int tile    = CHUNK_TRANSPOSE_TILE;
+        const int ntile_i = (shuffle_n0 + tile - 1) / tile;
+        const int ntile_j = (shuffle_n1 + tile - 1) / tile;
+
+        for (int lia = 0; lia < chunk->nda; ++lia) {
+            ChunkCopyDesc* d = h_descs + id;
+            d->start         = ntotal;
+            d->tile_start    = batch.ntiles;
+            d->chunk_data    = chunk->data + chunk->size_padded * lia;
+            d->listart[0]    = chunk->istart[ax[0]];
+            d->listart[1]    = chunk->istart[ax[1]];
+            d->listart[2]    = chunk->istart[ax[2]];
+            d->lia           = lia;
+            d->nmax          = chunk->isize[ax[0]] * chunk->nf;
+            d->n1            = chunk->isize[ax[1]];
+            d->shuffle_n0    = shuffle_n0;
+            d->shuffle_n1    = shuffle_n1;
+            d->ntile_j       = ntile_j;
+            d->do_shuffle    = (chunk->axis != chunk->dest_axis);
+
+            FLUPS_CHECK(m_isaligned(d->chunk_data, FLUPS_ALIGNMENT), "The chunk memory should be aligned, size_padded = %ld", chunk->size_padded);
+
+            ntotal += (size_t)(d->nmax) * (size_t)(d->n1) * (size_t)(chunk->isize[ax[2]]);
+            batch.ntiles += (size_t)ntile_i * (size_t)ntile_j;
+            ++id;
+        }
+    }
+    // the kernel indexing is int-based (parallel_for limitation, same as the r2r plans)
+    FLUPS_CHECK(ntotal <= (size_t)std::numeric_limits<int>::max(), "the batched copy is too big for the int-based kernel indexing: %zu", ntotal);
+
+    batch.ndesc      = ndesc;
+    batch.ntotal     = ntotal;
+    batch.nf         = chunks[0].nf;
+    batch.axis       = chunks[0].axis;
+    batch.do_shuffle = (chunks[0].axis != chunks[0].dest_axis);
+
+    // upload the descriptors, one-time cost on the default stream
+    batch.descs = reinterpret_cast<ChunkCopyDesc*>(backend_malloc(ndesc * sizeof(ChunkCopyDesc)));
+    backend_memcpy(reinterpret_cast<double*>(batch.descs), reinterpret_cast<double*>(h_descs), ndesc * sizeof(ChunkCopyDesc), memcpyH2D, (stream_t)(0));
+    backend_sync();
+    m_free(h_descs);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+    return batch;
+}
+
+void ChunkBatchFree(ChunkBatch* batch) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    if (batch->descs != NULL) {
+        backend_free(batch->descs);
+    }
+    batch->descs  = NULL;
+    batch->ndesc  = 0;
+    batch->ntotal = 0;
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+/**
+ * @brief batched equivalent of CopyData2Chunk over a whole chunk array: one single kernel launch
+ *
+ * @param batch the descriptors built by ChunkBatchSetup for these chunks
+ * @param nmem the memory strides of the home topology of the chunks, at execute time
+ * @param data the field array in the home topology of the chunks
+ */
+void CopyData2Chunk_batch(const ChunkBatch* batch, const int nmem[3], const opt_double_ptr data, stream_t stream) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    const int            n     = (int)batch->ntotal;
+    const int            ndesc = batch->ndesc;
+    const int            nf    = batch->nf;
+    const int            ax0   = batch->axis;
+    const ChunkCopyDesc* descs = batch->descs;
+    if (n <= 0) {
+        return;
+    }
+    // field strides in the axis frame, in doubles (captured by value)
+    const size_t s1 = (size_t)nf * nmem[ax0];
+    const size_t s2 = s1 * nmem[(ax0 + 1) % 3];
+    const size_t sa = s2 * nmem[(ax0 + 2) % 3];  // stride between the vector components
+
+    auto op = m_backend_lambda(const int idx) {
+        // binary search for the descriptor owning this element
+        int lo = 0;
+        int hi = ndesc - 1;
+        while (lo < hi) {
+            const int mid = (lo + hi + 1) / 2;
+            if (descs[mid].start <= (size_t)idx)
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        const ChunkCopyDesc d     = descs[lo];
+        const int           local = idx - (int)d.start;
+        // get the local indexes
+        const int i0 = local % d.nmax;
+        const int i1 = (local / d.nmax) % d.n1;
+        const int i2 = local / (d.nmax * d.n1);
+        // the chunk side is contiguous, the field side is strided
+        const size_t data_idx = (size_t)(d.listart[0] * nf + i0) + s1 * (d.listart[1] + i1) + s2 * (d.listart[2] + i2) + sa * d.lia;
+        d.chunk_data[local]   = data[data_idx];
+    };
+    parallel_for(op, n, "CopyData2Chunk_batch", stream);
+    //--------------------------------------------------------------------------
+    END_FUNC;
+}
+
+#if M_HAVE_GPU
+/**
+ * @brief tiled shared-memory version of the shuffled batched unpack (one block = one transpose tile)
+ *
+ * the naive fused shuffle reads the chunk with a stride of shuffle_n1 between consecutive
+ * threads; here a tile is staged through shared memory so that both the chunk reads and the
+ * field writes are coalesced. The +1 padding avoids shared memory bank conflicts.
+ *
+ * templated on NF so a complex (nf=2) unit moves as two adjacent doubles of the same tile row
+ */
+template <int NF>
+__global__ void ChunkTransposeKernel(const ChunkCopyDesc* __restrict__ descs, const int ndesc, double* __restrict__ data,
+                                     const size_t s1, const size_t s2, const size_t sa) {
+    const int         tile = CHUNK_TRANSPOSE_TILE;
+    __shared__ double smem[CHUNK_TRANSPOSE_TILE][CHUNK_TRANSPOSE_TILE * NF + 1];
+
+    // binary search for the descriptor owning this tile
+    const size_t bid = blockIdx.x;
+    int          lo  = 0;
+    int          hi  = ndesc - 1;
+    while (lo < hi) {
+        const int mid = (lo + hi + 1) / 2;
+        if (descs[mid].tile_start <= bid)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    const ChunkCopyDesc d   = descs[lo];
+    const int           tid = (int)(bid - d.tile_start);
+    const int           sn0 = d.shuffle_n0;
+    const int           sn1 = d.shuffle_n1;
+    // tile coordinates: bj spans the input-fast dimension (sn1), bi the output-fast one (sn0)
+    const int bj = tid % d.ntile_j;
+    const int bi = tid / d.ntile_j;
+
+    // load phase: coalesced read of the chunk, in[i * sn1 + j] with j the fast index
+    for (int ty = threadIdx.y; ty < tile; ty += blockDim.y) {
+        const int i = bi * tile + ty;
+        const int j = bj * tile + threadIdx.x;
+        if (i < sn0 && j < sn1) {
+#pragma unroll
+            for (int c = 0; c < NF; ++c) {
+                smem[ty][threadIdx.x * NF + c] = d.chunk_data[(size_t)(i * sn1 + j) * NF + c];
+            }
+        }
+    }
+    __syncthreads();
+
+    // write phase: coalesced write to the field, out flat index u = i + j * sn0 with i fast
+    for (int ty = threadIdx.y; ty < tile; ty += blockDim.y) {
+        const int i = bi * tile + threadIdx.x;
+        const int j = bj * tile + ty;
+        if (i < sn0 && j < sn1) {
+            const int u = i + j * sn0;
+#pragma unroll
+            for (int c = 0; c < NF; ++c) {
+                const int    local    = u * NF + c;
+                const int    i0       = local % d.nmax;
+                const int    i1       = (local / d.nmax) % d.n1;
+                const int    i2       = local / (d.nmax * d.n1);
+                const size_t data_idx = (size_t)(d.listart[0] * NF + i0) + s1 * (d.listart[1] + i1) + s2 * (d.listart[2] + i2) + sa * d.lia;
+                data[data_idx]        = smem[threadIdx.x][ty * NF + c];
+            }
+        }
+    }
+}
+
+/**
+ * @brief launches the tiled transpose kernel, one block of (tile x 8) threads per tile
+ */
+static void LaunchChunkTranspose(const ChunkBatch* batch, const size_t s1, const size_t s2, const size_t sa,
+                                 opt_double_ptr data, stream_t stream) {
+    const dim3 grid((unsigned int)batch->ntiles);
+    const dim3 block(CHUNK_TRANSPOSE_TILE, 8);
+
+    const ChunkCopyDesc* descs  = batch->descs;
+    const int            ndesc  = batch->ndesc;
+    const void*          args[] = {&descs, &ndesc, &data, &s1, &s2, &sa};
+#if defined(BACKEND_CUDA)
+    void* kernel = (batch->nf == 2) ? (void*)ChunkTransposeKernel<2> : (void*)ChunkTransposeKernel<1>;
+    m_cudart_check_errors(cudaLaunchKernel(kernel, grid, block, const_cast<void**>(args), 0, stream));
+#elif defined(BACKEND_HIP)
+    void* kernel = (batch->nf == 2) ? (void*)ChunkTransposeKernel<2> : (void*)ChunkTransposeKernel<1>;
+    m_hiprt_check_errors(hipLaunchKernel(kernel, grid, block, const_cast<void**>(args), 0, stream));
+#endif
+}
+#endif  // M_HAVE_GPU
+
+/**
+ * @brief batched equivalent of DoShuffleChunk + CopyChunk2Data over a whole chunk array
+ *
+ * the shuffle (a per-chunk 2D transpose) is fused into the read indexing, so the
+ * shuffle_buff is never touched and a single kernel launch unpacks all the chunks
+ *
+ * @param batch the descriptors built by ChunkBatchSetup for these chunks
+ * @param nmem the memory strides of the home topology of the chunks, at execute time
+ * @param data the field array in the home topology of the chunks
+ */
+void CopyChunk2Data_batch(const ChunkBatch* batch, const int nmem[3], opt_double_ptr data, stream_t stream) {
+    BEGIN_FUNC;
+    //--------------------------------------------------------------------------
+    const int            n     = (int)batch->ntotal;
+    const int            ndesc = batch->ndesc;
+    const int            nf    = batch->nf;
+    const int            ax0   = batch->axis;
+    const ChunkCopyDesc* descs = batch->descs;
+    if (n <= 0) {
+        return;
+    }
+    // field strides in the axis frame, in doubles (captured by value)
+    const size_t s1 = (size_t)nf * nmem[ax0];
+    const size_t s2 = s1 * nmem[(ax0 + 1) % 3];
+    const size_t sa = s2 * nmem[(ax0 + 2) % 3];  // stride between the vector components
+
+#if M_HAVE_GPU
+    // shuffled batches go through the tiled transpose so both sides stay coalesced
+    if (batch->do_shuffle) {
+        LaunchChunkTranspose(batch, s1, s2, sa, data, stream);
+        return;
+    }
+#endif
+
+    auto op = m_backend_lambda(const int idx) {
+        // binary search for the descriptor owning this element
+        int lo = 0;
+        int hi = ndesc - 1;
+        while (lo < hi) {
+            const int mid = (lo + hi + 1) / 2;
+            if (descs[mid].start <= (size_t)idx)
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        const ChunkCopyDesc d     = descs[lo];
+        const int           local = idx - (int)d.start;
+        // get the local indexes
+        const int i0 = local % d.nmax;
+        const int i1 = (local / d.nmax) % d.n1;
+        const int i2 = local / (d.nmax * d.n1);
+        // fused shuffle = transposed read of the chunk, in nf-units
+        int src = local;
+        if (d.do_shuffle) {
+            const int u = local / nf;
+            const int c = local - u * nf;
+            src         = ((u % d.shuffle_n0) * d.shuffle_n1 + u / d.shuffle_n0) * nf + c;
+        }
+        const size_t data_idx = (size_t)(d.listart[0] * nf + i0) + s1 * (d.listart[1] + i1) + s2 * (d.listart[2] + i2) + sa * d.lia;
+        data[data_idx]        = d.chunk_data[src];
+    };
+    parallel_for(op, n, "CopyChunk2Data_batch", stream);
     //--------------------------------------------------------------------------
     END_FUNC;
 }

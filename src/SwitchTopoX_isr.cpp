@@ -4,11 +4,12 @@
  *      See LICENSE file in top-level directory
 */
 #include "SwitchTopoX_isr.hpp"
+#include "backend.hpp"
 
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int* recv_order_list,
-              const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof);
+              const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof);
 
 SwitchTopoX_isr::SwitchTopoX_isr(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -126,7 +127,7 @@ SwitchTopoX_isr::~SwitchTopoX_isr() {
  * @param v
  * @param sign
  */
-void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
+void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign, stream_t stream) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
@@ -134,12 +135,12 @@ void SwitchTopoX_isr::execute(opt_double_ptr v, const int sign) const {
         SendRecv(i2o_nchunks_, send_rqst_, i2o_chunks_,
                  o2i_nchunks_, recv_rqst_, o2i_chunks_,
                  i2o_send_order_, completed_id_, recv_order_,
-                 topo_out_, v, prof_);
+                 topo_out_, v, stream, buf_event_, prof_);
     } else {
         SendRecv(o2i_nchunks_, send_rqst_, o2i_chunks_,
                  i2o_nchunks_, recv_rqst_, i2o_chunks_,
                  o2i_send_order_, completed_id_, recv_order_,
-                 topo_in_, v, prof_);
+                 topo_in_, v, stream, buf_event_, prof_);
     }
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
     //--------------------------------------------------------------------------
@@ -164,7 +165,7 @@ void SwitchTopoX_isr::disp() const {
 void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chunks,
               const int n_recv_chunk, MPI_Request *recv_rqst, MemChunk *recv_chunks,
               const int *send_order_list, int *completed_id, int* recv_order_list,
-              const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler *prof) {
+              const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof) {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // Define the send of a batch of requests
@@ -185,6 +186,9 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             MemChunk *c_chunk = send_chunks + chunk_idx;
             int       rank_in_chunk;
             MPI_Comm_rank(c_chunk->comm, &rank_in_chunk);
+
+            // need to sync the GPU before sending
+            backend_sync_stream(stream);
 
             // start the Isend and store it using ridx to make sure we can test it later
             m_profStart(prof, "start");
@@ -213,6 +217,11 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
         // According to the standard 3.1 pg 77, MPI should start all the requests in the array, independently from the communicator used
         // so we start all the other request and the self request using the same start.
         FLUPS_INFO("starting %d recv request", n_recv_chunk);
+        // the receives write into the shared recv buffer, which the (asynchronous) unpack kernels of the
+        // previous SwitchTopoX may still be reading: wait for them (and only them) before letting MPI in
+        m_profStart(prof, "buffer event");
+        backend_event_sync(*buf_event);
+        m_profStop(prof, "buffer event");
         m_profStart(prof, "start");
         for (int ir = 0; ir < n_recv_chunk; ++ir) {
             MemChunk *c_chunk   = recv_chunks + ir;
@@ -232,8 +241,10 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
     m_profInitLeave(prof, "copy");
     m_profInitLeave(prof, "start");
     m_profInitLeave(prof, "shuffle");
-    // while we have to send msgs to others or recv msg, we keep going
-    while ((send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
+    // while we have to send msgs to others (and wait for their completion) or recv msg, we keep going.
+    // the completion of the sends is explicitly required: a rank with nothing to receive would otherwise leave
+    // with sends still in flight from a memory that is reset and overwritten right after
+    while ((finished_send < n_send_chunk) || (send_cntr < n_send_chunk) || (recv_cntr < n_recv_chunk) || (copy_cntr < n_recv_chunk)) {
         FLUPS_INFO("sent %d/%d - recvd %d/%d - copied %d/%d - reset done? %d", send_cntr, n_send_chunk, recv_cntr, n_recv_chunk, copy_cntr, n_recv_chunk, is_mem_reset);
         //......................................................................
         // [1] test if we have finished some send requests and start new ones
@@ -249,14 +260,14 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
             const int n_to_resend        = m_min(FLUPS_MPI_MAX_NBSEND - still_ongoing_send, send_batch);
             FLUPS_CHECK(n_to_resend >= 0, " You need to send a positive number of request");
             send_my_batch(n_send_chunk, &send_cntr, n_to_resend);
-
-            // if all the send have completed I can reset the memory to 0
-            is_mem_reset = (finished_send == n_send_chunk);
-            if (is_mem_reset) {
-                const size_t reset_size = topo_out->memsize();
-                std::memset(mem, 0, reset_size * sizeof(double));
-                FLUPS_INFO("reset mem done ");
-            }
+        }
+        // if all the send have completed I can reset the memory to 0
+        // (this is checked outside of the send test as we might have nothing to send at all)
+        if (!is_mem_reset && (finished_send == n_send_chunk)) {
+            const size_t reset_size = topo_out->memsize();
+            backend_memset(mem, 0, reset_size * sizeof(double), stream);
+            is_mem_reset = true;
+            FLUPS_INFO("reset mem done ");
         }
         //......................................................................
         // [2] test if we have finished some recv requests and shuffle them
@@ -272,7 +283,9 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 FLUPS_INFO("shuffling request %d/%d with id = %d", recv_cntr + id, n_recv_chunk, rqst_id);
                 // shuffle the data
                 m_profStart(prof, "shuffle");
-                DoShuffleChunk(recv_chunks + rqst_id);
+                MemChunk *chunk = recv_chunks + rqst_id;
+                bool do_shuffle = (chunk->axis != chunk->dest_axis);
+                if (do_shuffle) DoShuffleChunk(chunk, stream);
                 m_profStop(prof, "shuffle");
                 // save the id for copy'ing it later
                 recv_order_list[recv_cntr] = completed_id[id];
@@ -290,12 +303,17 @@ void SendRecv(const int n_send_chunk, MPI_Request *send_rqst, MemChunk *send_chu
                 FLUPS_INFO("treating recv request %d/%d with id = %d", icpy, n_recv_chunk, rqst_id);
                 // copy the data
                 m_profStart(prof, "copy");
-                CopyChunk2Data(recv_chunks + rqst_id, nmem_out, mem);
+                MemChunk *chunk = recv_chunks + rqst_id;
+                bool did_shuffle = (chunk->axis != chunk->dest_axis);
+                CopyChunk2Data(chunk, nmem_out, mem, did_shuffle, stream);
                 m_profStop(prof, "copy");
                 ++copy_cntr;
             }
         }
     }
+    // mark the end of the last unpack kernel: the next SwitchTopoX waits on this event before it lets MPI
+    // write into the shared buffers again (the sends completed above, finished_send == n_send_chunk)
+    backend_event_record(*buf_event, stream);
     m_profStop(prof, "while loop");
     m_profStop(prof, "send/recv");
     //--------------------------------------------------------------------------

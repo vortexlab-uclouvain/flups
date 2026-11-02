@@ -4,7 +4,7 @@ CC = mpicc
 ## For production: 
 CXXFLAGS := -O3 -std=c++17 -DNDEBUG
 CCFLAGS := -O3 -std=c99 -DNDEBUG
-LDFLAGS = -fopenmp #-lstc++ 
+LDFLAGS = #-lstc++ 
 #---------------------------------------------------------   
 # DEPENDENCES DIRECTORIES  
 #---------------------------------------------------------  

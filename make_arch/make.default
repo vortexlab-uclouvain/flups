@@ -4,9 +4,9 @@
 CXX ?= mpicc
 CC ?= mpic++
 # set the flag (optimisation or not)
-CXXFLAGS ?= -fopenmp -O3 -g -std=c++11
-CCFLAGS ?= -fopenmp -O3 -g -std=c99
-LDFLAGS ?= -fopenmp -lstdc++
+CXXFLAGS ?= -O3 -g -std=c++11
+CCFLAGS ?= -O3 -g -std=c99
+LDFLAGS ?= -lstdc++
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES

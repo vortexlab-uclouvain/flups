@@ -3,8 +3,8 @@ PyFLUPS - Python API for FLUPS Library
 
 FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
 
-Copyright © UCLouvain 2020
-Licensed under the Apache License, Version 2.0
+Copyright (c) Université catholique de Louvain (UCLouvain), Belgique
+See LICENSE file in top-level directory
 """
 
 __version__ = "1.0.0"
@@ -29,6 +29,7 @@ from .flups import (
     hdf5_dump,
     print_data,
     locID,
+    field_view,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     'hdf5_dump',
     'print_data',
     'locID',
+    'field_view',
 ]

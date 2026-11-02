@@ -1,8 +1,8 @@
 CXX = mpic++
-CXXFLAGS := -O3 -std=c++17 -fopenmp -DNDEBUG -Wno-format-security -DPROF
+CXXFLAGS := -O3 -std=c++17 -DNDEBUG -Wno-format-security -DPROF
 CC = mpicc
-CCFLAGS := -O3 -std=c99 -fopenmp -DNDEBUG -Wno-format-security
-LDFLAGS += -fopenmp -lstdc++ -lm
+CCFLAGS := -O3 -std=c99 -DNDEBUG -Wno-format-security
+LDFLAGS += -lstdc++ -lm
 
 ## FFTW3
 FFTW_DIR  :=  /usr/local/fftw

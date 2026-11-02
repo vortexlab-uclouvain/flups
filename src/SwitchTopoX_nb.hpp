@@ -32,7 +32,7 @@ class SwitchTopoX_nb : public SwitchTopoX {
 
 
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
-    virtual void execute(opt_double_ptr data, const int sign) const override;
+    virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const override;
     virtual void disp() const override;
 };
 

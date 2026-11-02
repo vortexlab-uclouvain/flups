@@ -16,25 +16,28 @@
 #include "defines.hpp"
 #include "green_functions.hpp"
 #include "hdf5_io.hpp"
+#include "backend.hpp"
 
-#if (FLUPS_MPI_AGGRESSIVE)
 #include "SwitchTopoX_a2a.hpp"
 #include "SwitchTopoX_isr.hpp"
 #include "SwitchTopoX_nb.hpp"
-#else
-#include "SwitchTopo.hpp"
-#include "SwitchTopo_a2a.hpp"
-#include "SwitchTopo_nb.hpp"
-#endif
-
-#include "omp.h"
 
 #ifdef HAVE_METIS
 #include "metis.h"
 #endif
 
-
-
+/**
+ * @brief the layout of the first inner (pencil) topology built by a @ref Solver, in its REAL state
+ *
+ * This is the description of the topology returned by @ref Solver::get_innerTopo_physical, see
+ * @ref Solver::pencil_layout.
+ */
+struct PencilLayout {
+    int axis;      /**<@brief the direction aligned with the fastest rotating index */
+    int nglob[3];  /**<@brief the global number of (real) points in each direction */
+    int nproc[3];  /**<@brief the number of procs in each direction */
+    int axproc[3]; /**<@brief the correspondance between the physical dimensions and the rank decomposition */
+};
 
 /**
  * @brief The Poisson solver
@@ -59,7 +62,7 @@ class Solver {
     bool     skip_st0_      = false;  //!< dictates the solver to skip the first Switchtopo and that the "physical info" are given according to topo_hat_[0]
     int      lda_           = 1;      //!< the number of components of the problem, i.e. 2D or 3D */
     int      ndim_          = 3;      //!< the dimension of the problem, i.e. 2D or 3D */
-    int      fftwalignment_ = 0;      //!< alignement assumed by the FFTW Solver  */
+    int      flupsalignment_ = 0;      //!< alignment of the backend, only reported: the topologies use FLUPS_ALIGNMENT */
     DiffType odiff_         = NOD;    //!< the order of derivative (spectral = SPE, 2nd order FD = FD2) */
     double   normfact_      = 1.0;    //!< normalization factor so that the forward/backward FFT gives output = input */
     double   volfact_       = 1.0;    //!< volume factor due to the convolution computation */
@@ -78,19 +81,11 @@ class Solver {
     Topology* topo_phys_   = NULL;
     Topology* topo_hat_[3] = {NULL, NULL, NULL}; /**< @brief map containing the topologies (i.e. data memory layout) corresponding to each transform */
 
-#if (FLUPS_MPI_AGGRESSIVE)
     SwitchTopoX* switchtopo_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
-#else
-    SwitchTopo*    switchtopo_[3]       = {NULL, NULL, NULL}; /**< @brief switcher of topologies for the forward transform (phys->topo[0], topo[0]->topo[1], topo[1]->topo[2]).*/
-#endif
 
-#if (FLUPS_MPI_AGGRESSIVE)
     m_ptr_t sendBuf_;
     m_ptr_t recvBuf_;
-#else
-    opt_double_ptr sendBuf_             = NULL;               /**<@brief The send buffer for switchtopo_ */
-    opt_double_ptr recvBuf_             = NULL;               /**<@brief The recv buffer for switchtopo_ */
-#endif
+    event_t bufEvent_ = 0; /**<@brief stream event guarding sendBuf_/recvBuf_ against the asynchronous unpack kernels, see SwitchTopoX::buf_event_ */
     /**@} */
 
     /**
@@ -105,12 +100,17 @@ class Solver {
     FFTW_plan_dim* plan_green_[3];                      /**< @brief map containing the plan for the Green's function */
     Topology*      topo_green_[3] = {NULL, NULL, NULL}; /**< @brief list of topos dedicated to Green's function */
 
-#if (FLUPS_MPI_AGGRESSIVE)
     SwitchTopoX* switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
-#else
-    SwitchTopo*    switchtopo_green_[3] = {NULL, NULL, NULL}; /**< @brief switcher of topos for the Green's forward transform*/
-#endif
     /**@} */
+
+    // stream
+    stream_t stream_ = 0;   // use default stream
+
+    // GPU backends: buffers shared by every FFT plan of this solver (the plans run serialized on stream_)
+    double* r2r_mem_       = NULL;  //!< scratch of the r2r transforms (max plan.memsize over all plans)
+    size_t  r2r_mem_size_  = 0;     //!< size of r2r_mem_, in doubles
+    void*   fft_work_      = NULL;  //!< work area of the cuFFT/hipFFT plans (max worksize over all plans)
+    size_t  fft_work_size_ = 0;     //!< size of fft_work_, in bytes
 
     // time the solve
     H3LPR::Profiler* prof_ = NULL;
@@ -122,11 +122,7 @@ class Solver {
      * @{
      */
     void allocate_data_(const Topology* const topo[3], const Topology* topo_phys, double** data);
-#if (FLUPS_MPI_AGGRESSIVE)
     void delete_switchtopos_(SwitchTopoX* switchtopo[3]);
-#else
-    void           delete_switchtopos_(SwitchTopo* switchtopo[3]);
-#endif
     void delete_topologies_(Topology* topo[3]);
     /**@}  */
 
@@ -135,13 +131,11 @@ class Solver {
      *
      * @{
      */
-#if (FLUPS_MPI_AGGRESSIVE)
     void init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopoX* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
-#else
-    void           init_plansAndTopos_(const Topology* topo, Topology* topomap[3], SwitchTopo* switchtopo[3], FFTW_plan_dim* planmap[3], bool isGreen);
-#endif
     void allocate_plans_(const Topology* const topo[3], FFTW_plan_dim* planmap[3], double* data);
     void delete_plans_(FFTW_plan_dim* planmap[3]);
+    void assign_plan_buffers_();
+    void free_plan_buffers_();
     /**@} */
 
     /**
@@ -149,13 +143,8 @@ class Solver {
      *
      * @{
      */
-#if (FLUPS_MPI_AGGRESSIVE)
     void allocate_switchTopo_(const int ntopo, SwitchTopoX** switchtopo, m_ptr_t* send_buff, m_ptr_t* recv_buff);
     void deallocate_switchTopo_(SwitchTopoX** switchtopo, m_ptr_t* send_buff, m_ptr_t* recv_buff);
-#else
-    void           allocate_switchTopo_(const int ntopo, SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
-    void           deallocate_switchTopo_(SwitchTopo** switchtopo, opt_double_ptr* send_buff, opt_double_ptr* recv_buff);
-#endif
     void reorder_metis_(MPI_Comm comm, int* sources, int* sourcesW, int* dests, int* destsW, int* order);
     /**@} */
 
@@ -164,16 +153,20 @@ class Solver {
      *
      * @{
      */
-    void dothemagic_std_real(double* data);
-    void dothemagic_std_complex(double* data);
-    void dothemagic_rot_real_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
-    void dothemagic_rot_complex_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3]);
-    void dothemagic_rot_real_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_real_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_real_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
-    void dothemagic_rot_complex_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3]);
+#if defined(BACKEND_CUDA)
+    // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#extended-lambda-restrictions
+   public:
+#endif
+    void dothemagic_std_real(double* data, stream_t stream);
+    void dothemagic_std_complex(double* data, stream_t stream);
+    void dothemagic_rot_real_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], stream_t stream);
+    void dothemagic_rot_complex_o1(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], stream_t stream);
+    void dothemagic_rot_real_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o2(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_real_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o4(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_real_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
+    void dothemagic_rot_complex_o6(double* data, const double koffset[3], const double kfact[3][3][2], const double symstart[3], const double hgrid[3], stream_t stream);
     /**@} */
 
     /**
@@ -181,10 +174,15 @@ class Solver {
      *
      * @{
      */
+   private:
     void cmptGreenFunction_(Topology* topo[3], double* green, FFTW_plan_dim* planmap[3]);
     void cmptGreenSymmetry_(const Topology* topo, const int sym_idx, double* data, const bool isComplex);
-    void scaleGreenFunction_(const Topology* topo, double* data, bool killModeZero);
     void finalizeGreenFunction_(Topology* topo_field, double* green, const Topology* topo, FFTW_plan_dim* planmap[3]);
+#if defined (BACKEND_CUDA)
+    // see: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#extended-lambda-restrictions
+   public:
+#endif
+    void scaleGreenFunction_(const Topology* topo, double* data, bool killModeZero);
     /**@} */
 
    public:
@@ -195,6 +193,29 @@ class Solver {
     Topology* get_innerTopo_physical();
     Topology* get_innerTopo_spectral();
 
+    /**
+     * @brief compute the layout of the first inner (pencil) topology, without any communication
+     *
+     * This function is pure: it performs no MPI call and needs no communicator, so it can be called
+     * by any rank, including the ranks which are not members of the communicator on which the solver
+     * lives. It returns the layout, in its REAL state, of the topology which
+     * @ref get_innerTopo_physical returns once the solver has been setup.
+     *
+     * @param nglob the global number of points of the physical (user) topology
+     * @param nproc_init the proc decomposition of the physical (user) topology. Its product is the comm size.
+     * @param bc the boundary conditions of the domain for the right hand side (as given to the constructor)
+     * @param h the grid spacing
+     * @param L the domain size
+     * @param center the data centering in each direction (must be the same in the 3 directions)
+     * @param lda the number of components of the field
+     * @return PencilLayout the axis, global size, proc decomposition and proc ordering of the pencil topology
+     */
+    static PencilLayout pencil_layout(const int nglob[3], const int nproc_init[3], BoundaryType* bc[3][2], const double h[3], const double L[3], const CenterType center[3], const int lda);
+
+   protected:
+    static PencilLayout pencil_layout_(FFTW_plan_dim* const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size);
+
+   public:
     double* get_innerBuffer() { return data_; };
 
     void skip_firstSwitchtopo() { skip_st0_ = true; };
@@ -251,9 +272,16 @@ class Solver {
      *
      * @{
      */
-    void set_GreenType(const GreenType type) { typeGreen_ = type; }
+    void      set_GreenType(const GreenType type) { typeGreen_ = type; }
+    GreenType get_GreenType() const { return typeGreen_; }
     void set_alpha(const double alpha) { alphaGreen_ = alpha; }
     /**@} */
+
+    /**
+     * @brief GPU stream used by the solver
+     *
+     */
+    void set_stream(stream_t stream) { stream_ = stream; }
 
     /**
      * @name Print MPI info of the Switchtopos

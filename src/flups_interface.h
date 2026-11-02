@@ -1,5 +1,5 @@
 /**
- * @file flups_interface.hpp
+ * @file flups_interface.h
  * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
  *      See LICENSE file in top-level directory
 */
@@ -29,7 +29,7 @@
  * @brief Memory alignment in bytes.
  *
  */
-#define FLUPS_ALIGNMENT 8
+#define FLUPS_ALIGNMENT 16
 
 //==============================================================================
 /**

@@ -1,12 +1,13 @@
 # FLUPS - A Fourier-based Library of Unbounded Poisson Solvers
 
 ## Licensing and authorship
-> FLUPS is distributed under BSD-3 clause license, copyright (c) UCLouvain 2022.
+> FLUPS is distributed under BSD-3 clause license, copyright (c) UCLouvain 2022, 2026.
 
 The main authors are (by alphabetical order):
-- Pierre Balty (`v2.x`)
+- Pierre Balty (`v2.x` and `v3.x`)
 - Denis-Gabriel Caprace (`v1.x`)
 - Thomas Gillis (`v1.x` and `v2.x`)
+- Gilles Poncelet (`v3.x`)
 
 For the list of all the contributors to the development of FLUPS, description and a complete License: see `LICENSE` file.
 
@@ -23,12 +24,15 @@ If you use FLUPS, please cite them in your publications:
 The high-order Lattice Green's functions (LGF and MEHR) available in FLUPS are described in a third paper. If you use those kernels, please cite the related paper in your publications:
 - [Gabbard et al.](https://arxiv.org/abs/2309.13503), **Lattice Green’s Functions for High-Order Finite Difference Stencils**, SIAM Journal on Numerical Analysis, 2024
 
+The Lattice Green's functions for two unbounded and one periodic direction are described in a fourth paper. If you use those kernels, please also cite:
+- Poncelet et al., **Lattice Green's functions for Poisson problems with two unbounded and one periodic direction**, to be submitted, 2026
+
 ## Why should you use FLUPS?
 - You can solve the Poisson on rectangular and uniform distributed grids;
 - You can use either cell-centred or node-centred data layout;
 - You can use any boundary conditions, including truly unbounded boundary and semi-unbounded conditions;
 - You can solve many times the same Poisson problem at low cost using precomputed Green's function and communication patterns;
-- You can use MPI to fasten the execution;
+- You can use MPI, on CPUs or GPUs, to fasten the execution;
 - You can use the profiler of `h3lpr` (see dependency) to optimize the execution speed;
 - You can use any part of the library on its own, especially the pre-computed communications and the FFTs;
 - You can apply filters or do any computation you want while in the Fourier space.
@@ -51,7 +55,7 @@ ARCH_FILE=... make install -j
 
 - FFTW compatible implementation (e.g. `fftw3` > v3.3.8) in the `fftw_prefix` dir:
 ```shell
-CC=mpicc CXX=mpic++ ./configure --prefix=fftw_prefix --enable-mpi --enable-openmp --disable-fortran --enable-shared
+CC=mpicc CXX=mpic++ ./configure --prefix=fftw_prefix --enable-mpi --enable-avx2 --enable-shared
 ```
 
 - For debugging purpose - HDF5 (> v1.10) in the `hdf5_prefix` dir:
@@ -72,7 +76,7 @@ CXX = mpicc
 
 # set the flag (optimisation or not)
 CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
-LDFLAGS := -fopenmp 
+LDFLAGS := -lstdc++ -lm
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
@@ -91,11 +95,11 @@ HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
 ```
 
-By default, the Makefile is looking for `-lh3lpr`, `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `H3LPR_LIBNAME`, `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
+By default, the Makefile is looking for `-lh3lpr`, `-lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `H3LPR_LIBNAME`, `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
 For example:
 ```makefile
 H3LPR_LIBNAME := -lh3lpr
-FFTW_LIBNAME := -lfftw3_omp -lfftw3
+FFTW_LIBNAME := -lfftw3
 HDF5_LIBNAME := -lhdf5_openmpi
 ```
 
@@ -131,20 +135,19 @@ By default, the Makefile use the open-source utility tool `ar`.
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
 - `HAVE_HDF5` : Enable the use of function to dump flups fields. When using this flag, you should detail your `HDF5` lib and include in your `make_arch`
-- `WITHOUT_OPENMP` allows you to compile flups without OpenMP
 - `COMM_NONBLOCK`: if specified, the code will use the non-blocking communication pattern instead of the all-to-all version.
 - `PERF_VERBOSE`: requires an extensive I/O on the communication pattern used. For performance tuning and debugging purpose only.
 - `NDEBUG`: use this flag to bypass various checks inside the library
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder `./prof` next to your executable.
 - `REORDER_RANKS` (deprecated): try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
-- `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to apply some fancy parameters to allow faster MPI calls if you have a MPI-4.0 compliant version
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
 - `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones when allocating data. 
 - `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once.
 - `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename.
+- `BACKEND_FFTW|CUDA|HIP` selects the backend: FFTW on CPUs (the default when no `BACKEND_*` flag is given), CUDA (cuFFT and cuBLAS) on Nvidia GPUs, HIP (hipFFT and rocBLAS) on AMD GPUs, see [GPU backends](#gpu-backends).
 
 
 /!\ You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
@@ -153,6 +156,24 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 
 The documentation is built using Doxygen.
 To build the documentation, go to the `./doc` subfolder and type `doxygen`.
+
+### GPU backends
+Add the backend flag to `OPTS` in your `make_arch`, together with the target architecture of your GPU compiler, for instance `OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86` (nvcc) or `OPTS += -DBACKEND_HIP --offload-arch=gfx90a` (hipcc/amdclang). All the sources are then compiled as CUDA (`-x cu`) or HIP (`-x hip`) code, and the vendor libraries are found through the following variables, which you may overwrite in your `make_arch`:
+
+| backend | install directory (default) | include and library directories | libraries (default) |
+|---------|-----------------------------|--------------------------------|---------------------|
+| FFTW | `FFTW_DIR` (`/usr`) | `FFTW_INC`, `FFTW_LIB` | `FFTW_LIBNAME` (`-lfftw3`) |
+| CUDA | `CUDA_DIR` (`/usr/local/cuda`) | `CUDA_INC`, `CUDA_LIB` (`lib64`) | `CUDA_LIBNAME` (`-lcudart -lcufft -lcublas`) |
+| HIP | `HIP_DIR` (`/opt/rocm`) | `HIP_INC`, `HIP_LIB` | `HIP_LIBNAME` (`-lrocblas -lhipfft -lamdhip64`) |
+
+`XXX_INC` and `XXX_LIB` default to `$(XXX_DIR)/include` and `$(XXX_DIR)/lib`; the same holds for `HDF5_DIR` and `H3LPR_DIR`. Every library directory is added to the rpath, with the syntax of `nvcc` when it is the compiler (also behind an MPI wrapper).
+
+On GPUs, the solver works on device memory:
+- the MPI library must be GPU-aware, the communication buffers live on the device;
+- `flups_malloc` allocates host memory; the `field` and `rhs` arrays given to `flups_solve` may live on the host or on the device, device arrays avoid the host-device copies;
+- `flups_set_stream` sets the stream on which FLUPS runs (the default stream otherwise), call it before `flups_setup`;
+- prefer the `a2a` or `nb` communication schemes, see [below](#make-the-most-of-the-parallel-implementation).
+
 ## How to use a solver?
 ### Detailed reference
 The scientific background of the library is explained in Caprace et al., **FLUPS - A Fourier-based Library of Unbounded Poisson Solvers**, SIAM Journal on Scientific Computing, 2019 and in Balty et al., **FLUPS - a flexible and performant massively parallel Fourier transform library**, submitted 2022.
@@ -235,8 +256,8 @@ flups_solve(mysolver,rhs, rhs);
 
 Then, destroy the solver and the created topology
 ```
-flups_cleanup(mysolver); // destroy the solver
-flups_cleanup_backend();    // cleanup the backend (fftw, cufft, ...) stuff
+flups_cleanup_solver(mysolver); // destroy the solver
+flups_cleanup_backend();        // cleanup the backend (fftw, cufft, ...) stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {
@@ -255,20 +276,18 @@ This includes:
 
 ### Make the most of the parallel implementation
 
-FLUPS features hybrid distributed (maintained)/shared(deprecated version) memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. Among the two non-blocking implementations, the user can choose to use _persistent_ communication or communication based on _MPI\_Datatype_.
+FLUPS is a pure MPI library: one rank per core (or per GPU). Three communication schemes are available for the topology switches: all-to-all (`a2a`), non-blocking with persistent requests (`nb`) and non-blocking with derived datatypes (`isr`), each built as a separate library (`libflups_a2a`, `libflups_nb`, `libflups_isr`).
 
-The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per CPU, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
-- We highly recommend the use of distributed memory when possible, even if FLUPS can run in a pure OpenMP mode.
+The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per rank, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
 - The all-to-all implementation should be considered as the default robust option. However, acceleration is possible using the non-blocking version, in particular when:
-    - the number of unknowns per core is high (~128^3)
-    - the total number of core is not too high (~< 10k)
-- (deprecated) The mixed use of OpenMP and MPI is supported, and should only be considered in combination with the non-blocking implementation. However, the related performance is highly dependent on the computer architecture. 
-- (deprecated) Should you use shared memory (`OMP_NUM_THREADS>1`), each thread must be handled by a distinct core (no hyper threading). Computer nodes providing non-uniform memory accesses 
+    - the number of unknowns per rank is high (~128^3)
+    - the total number of ranks is not too high (~< 10k)
+- On GPUs, prefer `a2a` or `nb`: `isr` sends non-contiguous derived datatypes straight from device memory, which the MPI library packs very slowly.
 
 We encourage the user seeking for optimal performance to run short dedicated tests on the targeted architecture. The `validation` executable, when compiled with the `PROF` option, can be used to time the execution. A basic comparison of performance on a typical-size problem should involve at least:
-1. the all-to-all implementation without thread
-2. the non-blocking implementation without thread
-3. the isr implementation without thread
+1. the all-to-all implementation
+2. the non-blocking implementation
+3. the isr implementation (if using the CPU backend)
 
 
 ### Memory footprint
@@ -337,14 +356,13 @@ FLUPS can be compiled with different levels of verbosity. The following compilat
 
 ### Testing 
 
-The continuous integration of FLUPS is based on the tools provided by Gitlab. Different types of tests are performed depending on the situation:
-- Any `push` event on any branches will trigger the _build test_. FLUPS is compiled with different compilation flags and coupled with various test cases (written in c++ or c). If there is a problem during the compilation, the test fails. 
+FLUPS comes with a validation suite, in `samples/validation/`, that can be executed on a desktop machine. Once FLUPS is installed, compile the `flups_validation_*` executables in that folder (with the same `make_arch` file) and run, from `samples/validation/`:
+- `python3 scripts/test_3D_bcs.py <center>`: every combination of boundary conditions, on one rank;
+- `python3 scripts/test_3D_kerns.py <center>`: every Green's function kernel on a set of representative boundary conditions, on two ranks (`mpirun -np 2`);
 
-- Any `merge request` triggers some _validation tests_. We test all the possible combination of boundary conditions (1000 possibilities), kernels (8 kernels) and data location (node-centred or cell-centred) using the [Google test library](https://github.com/google/googletest). Basically, we test the spatial convergence of all the kernels with all the combination of boundary conditions. The source code cand be found in the `test` directory while details and explantion of the test can be found [here](test/Readme.md). However, this extremly large amount of tests (16 000 in total)  require extensive computationnal resources. We hence rely on _daily_ testing routine, that uses the `sample/validation/` source code. <br/>
-The _daily test_ is a smaller, in-house, test suite, that can be executed on a desktop machine. Diverse boundary conditions, domain size, resolution, procs repartition and kernels are tested and the results are compared to a dataset that has been generated with a validated version of the code. 
+where `<center>` is `0` for node-centred and `1` for cell-centred data. The errors of each test are compared to a reference dataset (`samples/validation/data_ref/`), generated with a validated version of the code, with a relative tolerance of `1e-10`.
 
 
 ### Other resources and information
 
-- [CI testing](doc/CI.md)
 - [real to real FFT](doc/Mode_Correction.md)

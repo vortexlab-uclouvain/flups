@@ -18,9 +18,12 @@
  */
 
 #include <cmath>
+
+#include "backend.hpp"
+
 // Utility for calculating the integral of sin(t)/t from 0 to x.  Note the official definition
 // does not have pi multiplying t.
-double Si(double x) {
+m_device double Si(double x) {
 #if 0
         // These are the version Gary had taken from Abramowitz & Stegun's formulae.
         // Unfortunately, they don't seem to be quite accurate enough for our needs.

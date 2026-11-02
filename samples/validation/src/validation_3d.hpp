@@ -60,6 +60,48 @@ void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, co
 void validation_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int lda, const int nSolve, const std::string output_dir = ".");
 /**@} */
 
+/**
+ * @name compact-source pad check (--source=1)
+ *
+ * Solves a compact source (white noise on the requested box, zero outside) on the requested box and
+ * on a box padded by a factor `pad` in the two unbounded directions -- same h, same source at the
+ * same physical location -- and reports the difference of the two solutions on the common box, in
+ * total and for each mode of the spectral direction.
+ *
+ * A *compact source* (as opposed to the compact manufactured *solution* used by validation_3d) is
+ * what makes the periodisation error of an approximate 2-unbounded kernel visible: a solution that
+ * is compact is also the periodic solution, so any kernel that satisfies the difference equation
+ * passes the manufactured-solution test.
+ *
+ * @{
+ */
+void padcheck_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int pad, const std::string output_dir = ".");
+/**@} */
+
+/**
+ * @name axially modulated ("wavy") vortex tube (--source=2)
+ *
+ * An *analytical* test case for 2 unbounded + 1 spectral directions: a compact, C-infinity vortex
+ * tube of unit circulation whose strength is modulated along the axis by two harmonics of zero
+ * mean, so that the singular k_z = 0 mode is never involved. Unlike the manufactured solution of
+ * @ref validation_3d the *source* is compact while the solution is not, which is what makes the
+ * periodisation error of an approximate 2-unbounded kernel measurable.
+ *
+ * With `r` the distance to the axis, `R = 0.2 min(Lx,Ly)`, `k_j = 2 pi j / Lz` and
+ * `omega(r) = A exp(-1/(1-(r/R)^2))` (A such that `int omega dA = 1`), the source and the exact
+ * solution of `lap(u) = f` are
+ *
+ *      f(x,y,z) = - omega(r) sum_j a_j c_j(z)
+ *      u(x,y,z) =   sum_j a_j c_j(z) psi_j(r),     c_j'' = -k_j^2 c_j
+ *
+ * with `-(lap_2D - k_j^2) psi_j = omega`, i.e. `psi_j = K_0(kr) A_j(r) + I_0(kr) B_j(r)`,
+ * `A_j(r) = int_0^r I_0(ks) omega(s) s ds` and `B_j(r) = int_r^R K_0(ks) omega(s) s ds`.
+ *
+ * @{
+ */
+void wavytube_3d(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int nSolve, const std::string output_dir = ".");
+/**@} */
+
 
 #ifdef MANUFACTURED_SOLUTION
 

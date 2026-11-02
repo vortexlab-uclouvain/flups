@@ -27,8 +27,6 @@ NAME := flups_vs_accfft
 TARGET_EXE_ISR := $(NAME)_isr
 TARGET_EXE_A2A := $(NAME)_a2a
 TARGET_EXE_NB := $(NAME)_nb
-TARGET_EXE_DPREC_A2A := $(NAME)_dprec_a2a
-TARGET_EXE_DPREC_NB := $(NAME)_dprec_nb
 
 #-----------------------------------------------------------------------------
 BUILDDIR := ./build
@@ -41,8 +39,6 @@ INC += -I$(FLUPSDIR)/include -I$(FLUPSDIR)/src
 LIB_ISR = -L$(FLUPSDIR)/lib -lflups_isr
 LIB_A2A = -L$(FLUPSDIR)/lib -lflups_a2a
 LIB_NB  = -L$(FLUPSDIR)/lib -lflups_nb 
-LIB_DPREC_A2A = -L$(FLUPSDIR)/lib -lflups_dprec_a2a
-LIB_DPREC_NB  = -L$(FLUPSDIR)/lib -lflups_dprec_nb 
 
 #---- ACCFFT
 ACCFFT_DIR ?= /usr/
@@ -55,7 +51,7 @@ LIB += -L$(ACCFFT_LIB) $(ACCFFT_LIBNAME) -Wl,-rpath,$(ACCFFT_LIB)
 #---- FFTW
 FFTW_INC ?= /usr/include
 FFTW_LIB ?= /usr/lib
-FFTW_LIBNAME ?= -lfftw3_omp -lfftw3 -lfftw3_threads
+FFTW_LIBNAME ?= -lfftw3 -lfftw3_threads
 INC += -I$(FFTW_INC)
 LIB += -L$(FFTW_LIB) $(FFTW_LIBNAME) -Wl,-rpath,$(FFTW_LIB)
 
@@ -98,7 +94,7 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $(INC) $(DEF) -fPIC -MMD -c $< -o $@
 
 ################################################################################
-default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_DPREC_A2A) $(TARGET_EXE_DPREC_NB) $(TARGET_EXE_ISR)
+default: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 
 all: default
 
@@ -111,11 +107,6 @@ $(TARGET_EXE_A2A): $(OBJ)
 $(TARGET_EXE_NB): $(OBJ)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_NB)
 	
-$(TARGET_EXE_DPREC_A2A): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_A2A)
-
-$(TARGET_EXE_DPREC_NB): $(OBJ)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(LIB) $(LIB_DPREC_NB)
 
 install: $(TARGET_EXE_A2A) $(TARGET_EXE_NB) $(TARGET_EXE_ISR)
 	mkdir -p $(PREFIX)/bin

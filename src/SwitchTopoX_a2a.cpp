@@ -5,14 +5,17 @@
 */
 #include "SwitchTopoX_a2a.hpp"
 
+#include "backend.hpp"
+
 void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send,
-              MemChunk *recv_chunks, const int *count_recv, const int *disp_recv, 
-              opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request* all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof);
+              MemChunk *recv_chunks, const int *count_recv, const int *disp_recv,
+              const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
+              opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request *all2all_rqst, MPI_Comm subcomm,
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof);
 
-void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm);
+void PrintCountArr(const std::string filename, const int *count_arr, int array_size, MPI_Comm incomm);
 
-void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm);
+void PrintCountArr(const std::string filename, const int *count_arr, int array_size, MPI_Comm incomm);
 
 SwitchTopoX_a2a::SwitchTopoX_a2a(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof)
     : SwitchTopoX(topo_in, topo_out, shift, prof) {
@@ -70,21 +73,29 @@ void SwitchTopoX_a2a::setup_buffers(opt_double_ptr sendData, opt_double_ptr recv
         FLUPS_CHECK(count < std::numeric_limits<int>::max(), "message is too big: %ld vs %d", count, std::numeric_limits<int>::max());
         FLUPS_CHECK(drank < sub_size, "Destination rank of the chunk should be inside the subcomm %d vs %d", drank, sub_size);
     }
-    i2o_rqst_  = reinterpret_cast<MPI_Request *>(m_calloc(1 * sizeof(MPI_Request)));    
+    i2o_rqst_    = reinterpret_cast<MPI_Request *>(m_calloc(1 * sizeof(MPI_Request)));
     i2o_rqst_[0] = MPI_REQUEST_NULL;
-    
-    o2i_rqst_ = reinterpret_cast<MPI_Request *>(m_calloc(1 * sizeof(MPI_Request)));
+
+    o2i_rqst_    = reinterpret_cast<MPI_Request *>(m_calloc(1 * sizeof(MPI_Request)));
     o2i_rqst_[0] = MPI_REQUEST_NULL;
+
+
+#if M_HAVE_GPU
+    //..........................................................................
+    // build the batched copy descriptors, the chunk data pointers are now assigned
+    i2o_batch_ = ChunkBatchSetup(i2o_nchunks_, i2o_chunks_);
+    o2i_batch_ = ChunkBatchSetup(o2i_nchunks_, o2i_chunks_);
+#endif
 
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
-SwitchTopoX_a2a::~SwitchTopoX_a2a(){
+SwitchTopoX_a2a::~SwitchTopoX_a2a() {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     // free the request arrays
-    if(i2o_rqst_ != NULL){
+    if (i2o_rqst_ != NULL) {
         if (i2o_rqst_[0] != MPI_REQUEST_NULL) {
             FLUPS_INFO("Freeing i2o rqst");
             MPI_Request_free(i2o_rqst_);
@@ -92,7 +103,7 @@ SwitchTopoX_a2a::~SwitchTopoX_a2a(){
         m_free(i2o_rqst_);
     }
 
-    if(o2i_rqst_ != NULL){
+    if (o2i_rqst_ != NULL) {
         if (o2i_rqst_[0] != MPI_REQUEST_NULL) {
             FLUPS_INFO("Freeing o2i rqst");
             MPI_Request_free(o2i_rqst_);
@@ -105,6 +116,11 @@ SwitchTopoX_a2a::~SwitchTopoX_a2a(){
     m_free(i2o_disp_);
     m_free(o2i_count_);
     m_free(o2i_disp_);
+
+#if M_HAVE_GPU
+    ChunkBatchFree(&i2o_batch_);
+    ChunkBatchFree(&o2i_batch_);
+#endif
     //--------------------------------------------------------------------------
     END_FUNC;
 }
@@ -115,21 +131,23 @@ SwitchTopoX_a2a::~SwitchTopoX_a2a(){
  * @param v
  * @param sign
  */
-void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign) const {
+void SwitchTopoX_a2a::execute(opt_double_ptr v, const int sign, stream_t stream) const {
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     m_profStarti(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
 
-    if (sign == FLUPS_FORWARD) { 
+    if (sign == FLUPS_FORWARD) {
         All2Allv(i2o_chunks_, i2o_count_, i2o_disp_,
                  o2i_chunks_, o2i_count_, o2i_disp_,
+                 &i2o_batch_, &o2i_batch_,
                  send_buf_, recv_buf_, i2o_rqst_, subcomm_,
-                 topo_in_, topo_out_, v, prof_);
+                 topo_in_, topo_out_, v, stream, buf_event_, prof_);
     } else {
         All2Allv(o2i_chunks_, o2i_count_, o2i_disp_,
                  i2o_chunks_, i2o_count_, i2o_disp_,
+                 &o2i_batch_, &i2o_batch_,
                  recv_buf_, send_buf_, o2i_rqst_, subcomm_,
-                 topo_out_, topo_in_, v, prof_);
+                 topo_out_, topo_in_, v, stream, buf_event_, prof_);
     }
 
     m_profStopi(prof_, "Switchtopo%d_%s", idswitchtopo_, (FLUPS_FORWARD == sign) ? "forward" : "backward");
@@ -155,7 +173,6 @@ void SwitchTopoX_a2a::disp() const {
     END_FUNC;
 }
 
-
 /**
  * @brief process to the Send/Recv operation to go from topo_in to topo_out
  *
@@ -172,34 +189,42 @@ void SwitchTopoX_a2a::disp() const {
  * @param mem
  */
 void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send,
-              MemChunk *recv_chunks, const int *count_recv, const int *disp_recv, 
-              opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request* all2all_rqst, MPI_Comm subcomm,
-              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, H3LPR::Profiler* prof) {
+              MemChunk *recv_chunks, const int *count_recv, const int *disp_recv,
+              const ChunkBatch *send_batch, const ChunkBatch *recv_batch,
+              opt_double_ptr send_buf, opt_double_ptr recv_buf, MPI_Request *all2all_rqst, MPI_Comm subcomm,
+              const Topology *topo_in, const Topology *topo_out, opt_double_ptr mem, stream_t stream, event_t *buf_event, H3LPR::Profiler *prof) {
 
     BEGIN_FUNC;
     //--------------------------------------------------------------------------
     const int nmem_in[3]  = {topo_in->nmem(0), topo_in->nmem(1), topo_in->nmem(2)};
     const int nmem_out[3] = {topo_out->nmem(0), topo_out->nmem(1), topo_out->nmem(2)};
 
+#if !M_HAVE_GPU
     int sub_size;
     MPI_Comm_size(subcomm, &sub_size);
     //..........................................................................
     auto set_sendbuf = [=](MemChunk *chunk) {
         FLUPS_INFO("sending request to rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // copy here the chunk from the input topo to the chunk
-        CopyData2Chunk(nmem_in, mem, chunk);
+        CopyData2Chunk(nmem_in, mem, chunk, stream);
     };
 
     auto complete_recv = [=](MemChunk *chunk) {
         FLUPS_INFO("recving request from rank %d of size %d %d %d", chunk->dest_rank, chunk->isize[0], chunk->isize[1], chunk->isize[2]);
         // shuffle the data
-        DoShuffleChunk(chunk);
-        CopyChunk2Data(chunk, nmem_out, mem);
+        bool flag = (chunk->axis != chunk->dest_axis);
+        if (flag) DoShuffleChunk(chunk, stream);
+        CopyChunk2Data(chunk, nmem_out, mem, flag, stream);
     };
+#endif
     //..........................................................................
     // Prepare the send buffer
     {
         m_profStarti(prof, "copy data 2 chunk");
+#if M_HAVE_GPU
+        // a single kernel packs all the chunks, avoiding per-chunk launch latency
+        CopyData2Chunk_batch(send_batch, nmem_in, mem, stream);
+#else
         int count = 0;
         for (int ir = 0; ir < sub_size; ++ir) {
             // we might have nothing to send to that rank in the subcomm
@@ -210,26 +235,34 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
                 count += 1;
             }
         }
+#endif
         m_profStopi(prof, "copy data 2 chunk");
     }
 
+    // sync GPU before sending
+    backend_sync_stream(stream);
 
     m_profStarti(prof, "all2all - start");
 
     MPI_Ialltoallv(send_buf, count_send, disp_send, MPI_DOUBLE, recv_buf, count_recv, disp_recv, MPI_DOUBLE, subcomm, all2all_rqst);
+
     m_profStopi(prof, "all2all - start");
 
     // reset the memory to 0.0 as we do inplace computations
     const size_t reset_size = topo_out->memsize();
-    std::memset(mem, 0, reset_size * sizeof(double));
+    backend_memset(mem, 0, reset_size * sizeof(double), stream);
 
     m_profStarti(prof, "all2all - wait");
-    MPI_Wait(all2all_rqst, MPI_STATUS_IGNORE);    
+    MPI_Wait(all2all_rqst, MPI_STATUS_IGNORE);
     m_profStopi(prof, "all2all - wait");
 
     // Copy back the recveived data
     {
         m_profStarti(prof, "shuffle and copy chunk 2 data");
+#if M_HAVE_GPU
+        // a single kernel unpacks all the chunks, the shuffle is fused in the read indexing
+        CopyChunk2Data_batch(recv_batch, nmem_out, mem, stream);
+#else
         int count = 0;
         for (int ir = 0; ir < sub_size; ++ir) {
             if (count_recv[ir] > 0) {
@@ -239,74 +272,74 @@ void All2Allv(MemChunk *send_chunks, const int *count_send, const int *disp_send
                 count += 1;
             }
         }
+#endif
         m_profStopi(prof, "shuffle and copy chunk 2 data");
     }
+    // mark the end of the unpack kernels: a following nb/isr SwitchTopoX waits on this event before it
+    // posts its receives into the shared buffers (a2a itself drains the stream before MPI_Ialltoallv)
+    backend_event_record(*buf_event, stream);
 
     //--------------------------------------------------------------------------
     END_FUNC;
 }
 
-
 void SwitchTopoX_a2a::print_info() const {
     BEGIN_FUNC;
-    FLUPS_CHECK(i2o_count_!=NULL, "The setup must be initialised before printring their information");
+    FLUPS_CHECK(i2o_count_ != NULL, "The setup must be initialised before printring their information");
     //--------------------------------------------------------------------------
     // Call the base class
     SwitchTopoX::print_info();
 
-    // Get MPI information 
+    // Get MPI information
     int world_size;
     MPI_Comm_size(inComm_, &world_size);
     int sub_size;
     MPI_Comm_size(subcomm_, &sub_size);
 
-    // Get filename  
-    std::string filename_forward = "./prof/Nrank_" + std::to_string(world_size)+ "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_forward_messages.txt";
+    // Get filename
+    std::string filename_forward = "./prof/Nrank_" + std::to_string(world_size) + "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_forward_messages.txt";
     PrintCountArr(filename_forward, i2o_count_, sub_size, inComm_);
-    
-    std::string filename_backward = "./prof/Nrank_" + std::to_string(world_size)+ "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_backward_messages.txt";
+
+    std::string filename_backward = "./prof/Nrank_" + std::to_string(world_size) + "_SwitchTopo_" + std::to_string(idswitchtopo_) + "_backward_messages.txt";
     PrintCountArr(filename_backward, o2i_count_, sub_size, inComm_);
     //--------------------------------------------------------------------------
     END_FUNC;
-
 }
 
-
-void PrintCountArr(const std::string filename, const int* count_arr, int array_size, MPI_Comm incomm){
+void PrintCountArr(const std::string filename, const int *count_arr, int array_size, MPI_Comm incomm) {
     BEGIN_FUNC;
-    FLUPS_CHECK(count_arr!=NULL, "The setup must be initialised before printring their information");
+    FLUPS_CHECK(count_arr != NULL, "The setup must be initialised before printring their information");
     //--------------------------------------------------------------------------
-    // Get MPI information 
+    // Get MPI information
     int world_rank;
     MPI_Comm_rank(incomm, &world_rank);
 
     // Create the message for this rank
     std::string msg = std::string((world_rank == 0) ? "" : "\n") + "rank " + std::to_string(world_rank);
-    for(int i = 0; i < array_size; ++i){
-        msg += " " +  std::to_string((count_arr[i]/1000.0)*sizeof(double));
+    for (int i = 0; i < array_size; ++i) {
+        msg += " " + std::to_string((count_arr[i] / 1000.0) * sizeof(double));
     }
     size_t msg_size = msg.length();
 
-
-    // Open the file using MPI IO functions 
+    // Open the file using MPI IO functions
     FLUPS_INFO("opening file <%s>", filename.c_str());
 
-    MPI_File   mpi_file;     
-    int err = MPI_File_open(incomm, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE | MPI_MODE_EXCL, MPI_INFO_NULL, &mpi_file);
+    MPI_File mpi_file;
+    int      err = MPI_File_open(incomm, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE | MPI_MODE_EXCL, MPI_INFO_NULL, &mpi_file);
     FLUPS_CHECK(err == MPI_SUCCESS, "ERROR while opening  <%s>, MPI_File_open failed (error = %d)", filename.c_str(), err);
 
     // Get the current offset
-    size_t offset_ttl = 0; 
+    size_t offset_ttl = 0;
     FLUPS_CHECK(sizeof(unsigned long) == sizeof(size_t), "The mpi type should correspond to the standard size");
     MPI_Scan(&msg_size, &offset_ttl, 1, MPI_UNSIGNED_LONG, MPI_SUM, incomm);
 
     // the current position of current proc
-    //MPI_Offset offset = offset_ttl - msg_size;
-    //MPI_File_seek(mpi_file, offset, MPI_SEEK_SET);
+    // MPI_Offset offset = offset_ttl - msg_size;
+    // MPI_File_seek(mpi_file, offset, MPI_SEEK_SET);
 
     MPI_Status status;
     MPI_Offset offset = offset_ttl - msg_size;
-    err = MPI_File_write_at(mpi_file, offset, msg.c_str(), msg_size, MPI_CHAR, &status);
+    err               = MPI_File_write_at(mpi_file, offset, msg.c_str(), msg_size, MPI_CHAR, &status);
     FLUPS_CHECK(err == MPI_SUCCESS, "ERROR while writing in  <%s> (error = %d)", filename.c_str(), err);
 
     MPI_File_close(&mpi_file);

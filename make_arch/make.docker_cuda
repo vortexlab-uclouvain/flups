@@ -1,0 +1,45 @@
+CXX = mpic++
+CC  = mpicc
+
+## Compile & linker flags
+CXXFLAGS := -g -O3 -std=c++17
+LDFLAGS  := -g -O3 -lstdc++ -lm
+
+## Pick backend
+OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86
+
+## Asan flags
+## Note: export ASAN_OPTIONS=protect_shadow_gap=0:use_sigaltstack=0 before running
+#CXXFLAGS += -fsanitize=address -fsanitize=undefined
+#LDFLAGS  += -fsanitize=address -fsanitize=undefined
+
+## HEFFTE
+HEFFTE_DIR := ${HOME}/heffte-2.4.1/build
+HEFFTE_LIB := ${HEFFTE_DIR}/lib
+HEFFTE_INC := ${HEFFTE_DIR}/include
+HEFFTE_LIBNAME := -lheffte
+
+## CUDA
+CUDA_DIR := /usr/local/cuda
+CUDA_LIB := ${CUDA_DIR}/lib64
+CUDA_INC := ${CUDA_DIR}/include
+CUDA_LIBNAME := -lcudart -lcublas -lcufft
+
+## Specify the location of FFTW3
+FFTW_LIB := /usr/lib/x86_64-linux-gnu
+FFTW_INC := /usr/include
+
+## Specify the location of HDF5
+HDF5_LIB := /usr/lib/x86_64-linux-gnu
+HDF5_INC := /usr/include
+HDF5_LIBNAME := -lhdf5_openmpi
+
+## Specify the location of H3LPR
+H3LPR_DIR := /soft/h3lpr
+H3LPR_LIB := ${H3LPR_DIR}/lib
+H3LPR_INC := ${H3LPR_DIR}/include
+
+## Specify the location of Googletest library
+GTEST_DIR := /soft/googletest
+GTEST_LIB := ${GTEST_DIR}/lib
+GTEST_INC := ${GTEST_DIR}/include

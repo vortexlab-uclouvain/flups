@@ -1,5 +1,5 @@
 /**
- * @file exphint.hpp
+ * @file expint.hpp
  * @copyright Copyright (c) Université catholique de Louvain (UCLouvain), Belgique 
  *      See LICENSE file in top-level directory
 */
@@ -25,17 +25,18 @@
 #include <limits>
 #include <stdexcept>
 
-/**********************************************************************/
-static double c_gamma = 0.5772156649015328606;
-static double expint1(double x);
-static double expint2(double x);
-static double expint(const int n, const double x);
+#include "backend.hpp"
+
+#define c_gamma (0.5772156649015328606)
+
+m_device static double expint1(double x);
+m_device static double expint2(double x);
+m_device static double expint(const int n, const double x);
 /**********************************************************************/
 
-static double expint_ei(double x) 
-{
+m_device static double expint_ei(double x) {
     double value;
- 
+
     if (x >= -4. && x <= 4.)
         value = expint1(x);
     else if (x > 4.)
@@ -59,8 +60,7 @@ static double expint_ei(double x)
 /*                                                                    */
 /**********************************************************************/
 
-static double expint1(double x)
-{
+m_device static double expint1(double x) {
     static int MAX = 23; /* The number of coefficients in a[].   */
 
     static double a[23] = {7.8737715392882774,
@@ -123,8 +123,7 @@ static double expint1(double x)
 /*                                                                    */
 /**********************************************************************/
 
-static double expint2(double x)
-{
+m_device static double expint2(double x) {
     static int MAX = 23; /* The number of coefficients in a[].   */
 
     static double a[23] = {0.2155283776715125,
@@ -180,25 +179,25 @@ static double expint2(double x)
 /*                      double expint()                              */
 /*                                                                    */
 /**********************************************************************/
-// Utility for calculating the exponential integral of order n  from -\infty to x. 
+// Utility for calculating the exponential integral of order n  from -\infty to x.
 // Evaluates the exponential integral E_n(x)
 // This snippets of code is taken from the book Numerical Recipies, third.
 //
-// Here MAXIT is the maximum allowed number of iterations; 
-// c_gamma is Euler’s constant \gamma; 
-// EPS is the desired relative error, not smaller than the machine precision; 
+// Here MAXIT is the maximum allowed number of iterations;
+// c_gamma is Euler’s constant \gamma;
+// EPS is the desired relative error, not smaller than the machine precision;
 // BIG is a number near the largest representable floating-point number.
 /**********************************************************************/
-static int    MAXIT = 1000;
-static double EPS   = std::numeric_limits<double>::epsilon();
-static double BIG   = std::numeric_limits<double>::max()* EPS;
+m_constant static int    MAXIT = 1000;
+m_constant static double EPS   = std::numeric_limits<double>::epsilon();
+m_constant static double BIG   = std::numeric_limits<double>::max();
 
-static double expint(const int n, const double x) {
+m_device static double expint(const int n, const double x) {
     // ------------------------------------------------------------------------
     int    i, ii, nm1 = n - 1;
     double a, b, c, d, del, fact, h, psi, ans;
     if (n < 0 || x < 0.0 || (x == 0.0 && (n == 0 || n == 1))) {
-        throw std::runtime_error("bad arguments in expint");
+        assert(false && "bad arguments in expint");
     }
     if (n == 0) {
         ans = exp(-x) / x;  // Special case
@@ -206,7 +205,7 @@ static double expint(const int n, const double x) {
         ans = 1.0 / nm1;
     } else if (x > 1.0) {  // Lentz's algorithm
         b = x + n;
-        c = BIG;
+        c = BIG * EPS;
         d = 1.0 / b;
         h = d;
         for (i = 1; i <= MAXIT; i++) {
@@ -221,7 +220,7 @@ static double expint(const int n, const double x) {
                 return ans;
             }
         }
-        throw std::runtime_error("continued fraction failed in expint");
+        assert(false && "continued fraction failed in expint");
     } else {                                              // Evaluate series.
         ans  = (nm1 != 0) ? (1.0 / nm1) : (-log(x) - c_gamma);  // Set first term.
         fact = 1.0;
@@ -241,7 +240,7 @@ static double expint(const int n, const double x) {
                 return ans;
             }
         }
-        throw std::runtime_error("series failed in expint");
+        assert(false && "series failed in expint");
     }
     // ------------------------------------------------------------------------
     return ans;
