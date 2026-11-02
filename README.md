@@ -41,7 +41,6 @@ The Lattice Green's functions for two unbounded and one periodic direction are d
 
 FLUPS is a C++ library, with an API in C.
 The compilation of FLUPS was tested with GCC (v9.4) and clang (v12.0).
-You can either compile FLUPS by yourself, or use the provided Dockerfile to create a container with all the dependencies installed.
 
 ### Dependencies
 First, you need to install the dependencies, typically using the following configuration commands (for the mpich compilers)
