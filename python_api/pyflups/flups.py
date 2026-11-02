@@ -20,6 +20,23 @@ from .enums import (
 _active_solvers_count = 0
 
 
+def _double_ptr(data: np.ndarray, name: str, size: int, writeable: bool = False):
+    """
+    Pointer to the data of an array handed to FLUPS, which reads/writes it as `size` contiguous doubles:
+    the array must be a C-contiguous float64 numpy array of at least `size` values (writeable if
+    FLUPS writes in it). Copying it instead would silently corrupt or drop the data.
+    """
+    if not isinstance(data, np.ndarray) or data.dtype != np.float64:
+        raise TypeError(f"{name} must be a numpy array of float64, got {getattr(data, 'dtype', type(data).__name__)}")
+    if not data.flags['C_CONTIGUOUS']:
+        raise TypeError(f"{name} must be C-contiguous (FLUPS accesses it in place), use np.ascontiguousarray")
+    if writeable and not data.flags['WRITEABLE']:
+        raise ValueError(f"{name} is read-only, FLUPS writes in it")
+    if data.size < size:
+        raise ValueError(f"{name} holds {data.size} values, FLUPS accesses {size} of them")
+    return data.ctypes.data_as(POINTER(c_double))
+
+
 class Topology:
     """
     FLUPS Topology class
@@ -79,7 +96,7 @@ class Topology:
         # Convert MPI communicator
         if comm is None:
             comm = MPI.COMM_WORLD
-        mpi_comm = fw.mpi_comm_to_int(comm)
+        mpi_comm = fw.mpi_comm_handle(comm)
 
         # Create topology - with error handling for MPI incompatibilities
         try:
@@ -149,7 +166,7 @@ class Topology:
 
     @property
     def memsize(self) -> int:
-        """Get memory size on this rank (in bytes)"""
+        """Get memory size on this rank, in number of doubles (padding and all the components included)"""
         return fw._lib.flups_topo_get_memsize(self._topo)
 
     def cmpt_rank_from_id(self, global_id: int, direction: int) -> int:
@@ -162,8 +179,7 @@ class Topology:
 
     def get_comm(self) -> MPI.Comm:
         """Get the MPI communicator"""
-        comm_int = fw._lib.flups_topo_get_comm(self._topo)
-        return MPI.Comm.f2py(comm_int)
+        return fw.mpi_comm_from_handle(fw._lib.flups_topo_get_comm(self._topo))
 
     def ranksplit(self, rank: int) -> np.ndarray:
         """Split rank into rank per dimensions"""
@@ -256,6 +272,7 @@ class Solver:
         """
         self._solver = None
         self._topology = topology
+        self._spectral = False  # the inner buffer holds spectral data (between do_fft FORWARD and BACKWARD)
 
         # Prepare boundary conditions array
         # bc is BoundaryType* [3][2], which is a 3x2 array of pointers
@@ -382,10 +399,13 @@ class Solver:
         """
         Solve the Poisson equation
 
+        Both arrays follow the layout of the topology given to the solver: C-contiguous float64
+        numpy arrays of at least topology.memsize values (TypeError/ValueError otherwise).
+
         Parameters
         ----------
         field : np.ndarray
-            Output array for the solution (will be modified in-place if same as rhs)
+            Output array, overwritten in place with the solution (may be the same array as rhs)
         rhs : np.ndarray
             Right-hand side of the equation
         solver_type : SolverType, optional
@@ -394,23 +414,19 @@ class Solver:
         Returns
         -------
         np.ndarray
-            Solution field (same as input field array)
+            Solution field (the field array itself)
         """
-        # Ensure arrays are contiguous and double precision
-        if not field.flags['C_CONTIGUOUS']:
-            field = np.ascontiguousarray(field, dtype=np.float64)
-        if not rhs.flags['C_CONTIGUOUS']:
-            rhs = np.ascontiguousarray(rhs, dtype=np.float64)
-
-        field_ptr = field.ctypes.data_as(POINTER(c_double))
-        rhs_ptr = rhs.ctypes.data_as(POINTER(c_double))
+        size = self._topology.memsize
+        field_ptr = _double_ptr(field, "field", size, writeable=True)
+        rhs_ptr = _double_ptr(rhs, "rhs", size)
 
         fw._lib.flups_solve(self._solver, field_ptr, rhs_ptr, int(solver_type))
+        self._spectral = False
 
         return field
 
     def get_alloc_size(self) -> int:
-        """Get maximum amount of memory required by FLUPS"""
+        """Get the maximum amount of memory required by FLUPS, in number of doubles"""
         return fw._lib.flups_get_allocSize(self._solver)
 
     def get_spectral_info(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -436,8 +452,59 @@ class Solver:
                 np.array([koffset[0], koffset[1], koffset[2]]),
                 np.array([symstart[0], symstart[1], symstart[2]]))
 
+    def get_lhs_stencil(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get the left-hand side stencil L_h that the lattice Green's function inverts exactly
+
+        The LGF_* and MEHR_* kernels solve L_h u = M_h f on an isotropic grid of spacing h, with
+        L_h u(x) = 1/h^2 sum_i w_i u(x + o_i h) the discrete Laplacian and M_h f(x) = sum_i w_i f(x + o_i h)
+        (see get_rhs_stencil). The Green's function type must be set first (see set_green_type).
+
+        Returns
+        -------
+        offsets : np.ndarray
+            Integer offsets of the n points, shape (n, 3)
+        weights : np.ndarray
+            Weights of the n points in units of 1/h^2, shape (n,). n = 0 if the kernel is not the
+            inverse of a stencil (CHAT_2, HEJ_*)
+        """
+        return self._get_stencil(fw._lib.flups_get_lhs_stencil)
+
+    def get_rhs_stencil(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get the right-hand side stencil M_h of the discrete problem L_h u = M_h f (see get_lhs_stencil)
+
+        M_h is the identity for LGF_*, applied by FLUPS for MEHR_*F and by the user for MEHR_*L.
+
+        Returns
+        -------
+        offsets : np.ndarray
+            Integer offsets of the n points, shape (n, 3)
+        weights : np.ndarray
+            Weights of the n points, shape (n,). n = 0 if the kernel is not the inverse of a stencil
+            (CHAT_2, HEJ_*)
+        """
+        return self._get_stencil(fw._lib.flups_get_rhs_stencil)
+
+    def _get_stencil(self, cfunc) -> Tuple[np.ndarray, np.ndarray]:
+        """Query one of the stencil functions of the C API: the size first, then the points"""
+        null_int = cast(None, POINTER(c_int))
+        null_dbl = cast(None, POINTER(c_double))
+        n = cfunc(self._solver, null_int, null_dbl)
+        offsets = np.zeros((n, 3), dtype=np.intc)
+        weights = np.zeros(n, dtype=np.float64)
+        if n > 0:
+            cfunc(self._solver, offsets.ctypes.data_as(POINTER(c_int)), weights.ctypes.data_as(POINTER(c_double)))
+        return offsets, weights
+
     def get_inner_buffer(self) -> np.ndarray:
-        """Get the inner buffer used by FLUPS"""
+        """
+        Get the inner buffer used by FLUPS, as a numpy array of get_alloc_size() doubles (no copy)
+
+        Host (FFTW) builds only: on a CUDA/HIP build the buffer lives on the device and reading this
+        array crashes. The portable way to read or write the inner buffer is do_copy with the topology
+        describing its content (see examples/manual_solve.py).
+        """
         ptr = fw._lib.flups_get_innerBuffer(self._solver)
         size = self.get_alloc_size()
         # Create numpy array from pointer
@@ -475,19 +542,73 @@ class Solver:
         fw._lib.flups_skip_firstSwitchtopo(self._solver)
 
     def do_copy(self, topology: Topology, data: np.ndarray, sign: int):
-        """Copy data from user to FLUPS arrays"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
+        """
+        Copy topology.memsize doubles between a user array and the inner buffer of FLUPS
+
+        FLUPS_FORWARD copies data into the inner buffer, FLUPS_BACKWARD copies the inner buffer into
+        data. The copy starts at the beginning of both arrays, the topology only gives its size: use the
+        user topology for the physical data (rhs and solution) and get_inner_topo_spectral() for the
+        spectral data. On a CUDA/HIP build the inner buffer lives on the device and the copy is a
+        host <-> device transfer.
+        """
+        data_ptr = _double_ptr(data, "data", topology.memsize, writeable=(sign != FLUPS_FORWARD))
         fw._lib.flups_do_copy(self._solver, topology._ptr, data_ptr, sign)
 
-    def do_fft(self, data: np.ndarray, sign: int):
-        """Compute FFT (physical to spectral space)"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
-        fw._lib.flups_do_FFT(self._solver, data_ptr, sign)
+    def _buffer_ptr(self, data: Optional[np.ndarray]):
+        if data is None:
+            return fw._lib.flups_get_innerBuffer(self._solver)
+        return _double_ptr(data, "data", self.get_alloc_size(), writeable=True)
 
-    def do_mult(self, data: np.ndarray, solver_type: SolverType):
-        """Multiply with Green's function"""
-        data_ptr = data.ctypes.data_as(POINTER(c_double))
-        fw._lib.flups_do_mult(self._solver, data_ptr, int(solver_type))
+    def do_fft(self, data: Optional[np.ndarray] = None, sign: int = FLUPS_FORWARD):
+        """
+        3D FFT in place: physical -> spectral (FLUPS_FORWARD) or spectral -> physical (FLUPS_BACKWARD,
+        FLUPS_BACKWARD_DIFF after a ROT do_mult)
+
+        The transforms are unnormalised, do_mult applies the normalisation. data defaults to the inner
+        buffer, the only choice on a CUDA/HIP build (a numpy array would be host memory).
+        """
+        fw._lib.flups_do_FFT(self._solver, self._buffer_ptr(data), sign)
+        self._spectral = (sign == FLUPS_FORWARD)
+
+    def do_mult(self, data: Optional[np.ndarray] = None, solver_type: SolverType = SolverType.STD):
+        """
+        Multiply the spectral data by the Green's function and the FFT normalisation (and take the curl
+        for SolverType.ROT), in place. data defaults to the inner buffer.
+        """
+        fw._lib.flups_do_mult(self._solver, self._buffer_ptr(data), int(solver_type))
+
+    def get_wavenumbers(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Wave numbers of the local spectral data, as used by the Green's functions of FLUPS
+
+        Entry (i, j, l) of field_view(get_inner_topo_spectral(), spectrum) is the mode
+        (kx[i], ky[j], kz[l]). Each k is the magnitude (index + koffset) * kfact of the symmetrised
+        index (see flups_symID): it suits isotropic multipliers (filters, Helmholtz, ...), not
+        derivatives, whose sign and phase depend on the transform (use SolverType.ROT for those).
+        The spectral topology only describes the spectral data between do_fft(FLUPS_FORWARD) and
+        do_fft(FLUPS_BACKWARD): call this function in that window.
+
+        Returns
+        -------
+        kx, ky, kz : np.ndarray
+            Shapes (n0, 1, 1), (1, n1, 1) and (1, 1, n2): kx**2 + ky**2 + kz**2 broadcasts to the
+            (n0, n1, n2) local spectral grid
+        """
+        if not self._spectral:
+            raise RuntimeError("get_wavenumbers needs spectral data: call it after do_fft(sign=FLUPS_FORWARD)")
+        topo = self.get_inner_topo_spectral()
+        kfact, koffset, symstart = self.get_spectral_info()
+        istart = topo.get_istart()
+        k = []
+        for d in range(3):
+            ie = istart[d] + np.arange(topo.get_nloc(d))
+            isym = np.maximum(np.abs(2.0 * symstart[d] - ie).astype(int), 1)
+            if symstart[d] != 0.0:
+                ie = np.where(ie <= symstart[d], ie, isym)
+            shape = [1, 1, 1]
+            shape[d] = ie.size
+            k.append(((ie + koffset[d]) * kfact[d]).reshape(shape))
+        return tuple(k)
 
     def switchtopo_info(self):
         """Print information about SwitchTopo"""
@@ -497,6 +618,36 @@ class Solver:
     def cleanup_backend():
         """Free data employed by backend (call after all solvers are freed)"""
         fw._lib.flups_cleanup_backend()
+
+
+def field_view(topology: Topology, data: np.ndarray) -> np.ndarray:
+    """
+    View of an array in the layout of a topology, indexed [component, i0, i1, i2] in the x, y, z order
+
+    The view drops the memory padding and writes go through to data. It is complex128 if the topology
+    is complex (e.g. the spectral topology after do_fft(FLUPS_FORWARD) with a periodic direction) and
+    float64 otherwise.
+
+    Parameters
+    ----------
+    topology : Topology
+        Topology describing the layout of data (memory aligned with topology.axis)
+    data : np.ndarray
+        C-contiguous float64 array of at least topology.memsize values
+    """
+    _double_ptr(data, "data", topology.memsize)
+    nf = 2 if topology.is_complex else 1
+    ax = [topology.axis, (topology.axis + 1) % 3, (topology.axis + 2) % 3]
+    nmem = [topology.get_nmem(d) for d in range(3)]
+    nloc = [topology.get_nloc(d) for d in range(3)]
+    flat = data[:topology.memsize]
+    if nf == 2:
+        flat = flat.view(np.complex128)
+    # memory order: component, ax2, ax1, ax0 (fastest)
+    arr = flat.reshape(topology.lda, nmem[ax[2]], nmem[ax[1]], nmem[ax[0]])
+    arr = arr[:, :nloc[ax[2]], :nloc[ax[1]], :nloc[ax[0]]]
+    pos = {ax[0]: 3, ax[1]: 2, ax[2]: 1}
+    return arr.transpose(0, pos[0], pos[1], pos[2])
 
 
 def hdf5_dump(topology: Topology, filename: str, data: np.ndarray):
@@ -510,9 +661,9 @@ def hdf5_dump(topology: Topology, filename: str, data: np.ndarray):
     filename : str
         Output filename (without extension)
     data : np.ndarray
-        Data to dump
+        Data to dump (C-contiguous float64, at least topology.memsize values)
     """
-    data_ptr = data.ctypes.data_as(POINTER(c_double))
+    data_ptr = _double_ptr(data, "data", topology.memsize)
     fw._lib.flups_hdf5_dump(topology._ptr, filename.encode('utf-8'), data_ptr)
 
 
@@ -525,9 +676,9 @@ def print_data(topology: Topology, data: np.ndarray):
     topology : Topology
         Topology describing the data layout
     data : np.ndarray
-        Data to print
+        Data to print (C-contiguous float64, at least topology.memsize values)
     """
-    data_ptr = data.ctypes.data_as(POINTER(c_double))
+    data_ptr = _double_ptr(data, "data", topology.memsize)
     fw._lib.flups_print_data(topology._ptr, data_ptr)
 
 

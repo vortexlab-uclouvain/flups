@@ -1,6 +1,6 @@
 CXX = mpic++
-CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align -fopenmp  -DPROF -DDEV_SIMULATE_GRAPHCOMM
-LDFLAGS += -fopenmp
+CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align  -DPROF -DDEV_SIMULATE_GRAPHCOMM
+LDFLAGS +=
 
 ## FFTW3
 FFTW_DIR  :=  /usr/local/fftw

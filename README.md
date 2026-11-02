@@ -19,7 +19,7 @@ FLUPS is described in [this paper](https://arxiv.org/abs/2006.09300). If you use
 - You can solve the Poisson on rectangular and uniform distributed 2D/3D grids;
 - You can use any boundary conditions, including truly unbounded boundary conditions and semi-unbounded conditions;
 - You can solve may times the same Poisson problem at low cost using precomputed Green's function and communication patterns;
-- You can use threads and/or MPI to fasten the execution;
+- You can use MPI, on CPUs or GPUs, to fasten the execution;
 - You can use the build-in profiler to optimize the execution speed;
 - You can use any part of the library on its own, especially the pre-computed communications and the FFTs;
 - You can apply filters or do any computation you want while in the Fourier space.
@@ -43,7 +43,7 @@ ARCH_FILE=... make install -j
 
 - FFTW (> v3.3.8) in the `fftw_prefix` dir:
 ```shell
-CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-openmp --enable-avx2 --enable-shared
+CC=icc CXX=icpc FC=ifort ./configure --prefix=fftw_prefix --enable-mpi --enable-avx2 --enable-shared
 ```
 
 - For debugging purpose - HDF5 (> v1.10) in the `hdf5_prefix` dir:
@@ -64,7 +64,7 @@ CXX = mpiicpc
 
 # set the flag (optimisation or not)
 CXXFLAGS := -O3 -g -DNDEBUG -stdc++11
-LDFLAGS := -fopenmp 
+LDFLAGS := -lstdc++ -lm
 
 #---------------------------------------------------------
 # DEPENDENCES DIRECTORIES
@@ -82,10 +82,10 @@ HDF5_DIR  := hdf5_prefix
 HDF5_LIB := ${HDF5_DIR}/lib
 HDF5_INC := ${HDF5_DIR}/include
 ```
-By default, the Makefile is looking for `-lfftw3_openmp -lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
+By default, the Makefile is looking for `-lfftw3` and `-lhdf5`. You can overwrite this by changing the variable `FFTW_LIBNAME` and `HDF5_LIBNAME` in your arch file.
 For example:
 ```makefile
-FFTW_LIBNAME := -lfftw3_omp -lfftw3
+FFTW_LIBNAME := -lfftw3
 HDF5_LIBNAME := -lhdf5_openmpi
 ```
 
@@ -123,7 +123,7 @@ By default, the Makefile use the open-source utility tool `ar`.
 
 The documentation is built using Doxygen.
 To build the documentation, go to the `./doc` subfolder and type `doxygen`.
-LDFLAGS := -fopenmp -fsanitize=undefined -fsanitize=address
+LDFLAGS := -fsanitize=undefined -fsanitize=address
 ### Available compilation flags
 Here is an exhautstive list of the compilation flags that can be used to change the behavior of the code. To use `MY_FLAG`, simply add `-DMY_FLAG` to the variable `OPTS` in your `make_arch`.
 - `DUMP_DBG`: if specified, the solver will I/O fields using the HDF5 library. /!\ When using this option, you should also use the flag  `HAVE-HDF5` and provide the path to your `HDF5` include and libs in your `make_arch`
@@ -134,15 +134,32 @@ Here is an exhautstive list of the compilation flags that can be used to change 
 - `PROF`: allow you to use the build-in profiler to have a detailed view of the timing in each part of the solve. Make sure you have created a folder ```./prof``` next to your executable.
 - `REORDER_RANKS`: try to reorder the MPI ranks based on the precomputed communication graph, using call to MPI_Dist_graph. We recommend the use of this feature when the number of processes > 128 and the nodes are allocated exclusive for your application, especially on fully unbounded domains.
 - `HAVE_METIS` (deprecated): in combination with REORDER_RANKS, use METIS instead of MPI_Dist_graph to partition the call graph based on the allocated ressources. You must hence install metis for this functionality. This part of the code has never been demonstrated to show a real increase of performances and therefore is depracted. However we still conserve the code active with this flag.
-- `COMM_DPREC`: will use the deprectated communication implementation (slower initalization time, kept for comparison purposes)
 - `BALANCE_DPREC`: will use the deprecated distribution of unknowns on the ranks
 - `MPI_40` : Use this flag to use persistent non blocking collective call in the all2all version of the code
 - `FFTW_FLAG` drives the flag used to init the fftw routines and can be set to ` FFTW_ESTIMATE`, ` FFTW_MEASURE`, ` FFTW_PATIENT`, or `FFTW_EXHAUSTIVE`.
 - `MPI_NO_ALLOC` Use this flag to use the system allocation functions instead of the MPI ones whan allocating data. 
 - `MPI_BATCH_SEND=x` will have `x` non-blocking active send request, set to `INT_MAX` to send them all at once
 - `HAVE_WISDOM=\"path/to/filename\"` indicates that FFTW wisdom can be found at the given filename
+- `BACKEND_FFTW|CUDA|HIP` selects the backend: FFTW on CPUs (the default when no `BACKEND_*` flag is given), CUDA (cuFFT and cuBLAS) on Nvidia GPUs, HIP (hipFFT and rocBLAS) on AMD GPUs, see [GPU backends](#gpu-backends).
 
 :warning: You may also change the memory alignement and the FFTW planner flag in the `flups.h` file.
+
+### GPU backends
+Add the backend flag to `OPTS` in your `make_arch`, together with the target architecture of your GPU compiler, for instance `OPTS += -DBACKEND_CUDA --gpu-architecture=sm_86` (nvcc) or `OPTS += -DBACKEND_HIP --offload-arch=gfx90a` (hipcc/amdclang). All the sources are then compiled as CUDA (`-x cu`) or HIP (`-x hip`) code, and the vendor libraries are found through the following variables, which you may overwrite in your `make_arch`:
+
+| backend | install directory (default) | include and library directories | libraries (default) |
+|---------|-----------------------------|--------------------------------|---------------------|
+| FFTW | `FFTW_DIR` (`/usr`) | `FFTW_INC`, `FFTW_LIB` | `FFTW_LIBNAME` (`-lfftw3`) |
+| CUDA | `CUDA_DIR` (`/usr/local/cuda`) | `CUDA_INC`, `CUDA_LIB` (`lib64`) | `CUDA_LIBNAME` (`-lcudart -lcufft -lcublas`) |
+| HIP | `HIP_DIR` (`/opt/rocm`) | `HIP_INC`, `HIP_LIB` | `HIP_LIBNAME` (`-lrocblas -lhipfft -lamdhip64`) |
+
+`XXX_INC` and `XXX_LIB` default to `$(XXX_DIR)/include` and `$(XXX_DIR)/lib`; the same holds for `HDF5_DIR` and `H3LPR_DIR`. Every library directory is added to the rpath, with the syntax of `nvcc` when it is the compiler (also behind an MPI wrapper).
+
+On GPUs, the solver works on device memory:
+- the MPI library must be GPU-aware, the communication buffers live on the device;
+- `flups_malloc` allocates host memory; the `field` and `rhs` arrays given to `flups_solve` may live on the host or on the device, device arrays avoid the host-device copies;
+- `flups_set_stream` sets the stream on which FLUPS runs (the default stream otherwise), call it before `flups_setup`;
+- prefer the `a2a` or `nb` communication schemes, see [below](#make-the-most-of-the-parallel-implementation).
 
 ## How to use a solver?
 
@@ -226,8 +243,8 @@ flups_solve(mysolver,rhs, rhs);
 
 Then, destroy the solver and the created topology
 ```
-flups_cleanup(mysolver); // destroy the solver
-flups_cleanup_backend();    // cleanup the backend (fftw, cufft, ...) stuff
+flups_cleanup_solver(mysolver); // destroy the solver
+flups_cleanup_backend();        // cleanup the backend (fftw, cufft, ...) stuff
 flups_topo_free(topo);
 for (int id = 0; id < 3; id++) {
     for (int is = 0; is < 2; is++) {
@@ -246,20 +263,17 @@ This includes:
 
 ### Make the most of the parallel implementation
 
-FLUPS features hybrid distributed/shared memory capabilities, enabling the library to adapt to a variety of software/hardware configurations. Also, two types of communications schemes are available: all-to-all and non-blocking. The user can select one option or the other at compilation time, through the `COMM_NONBLOCK` flag. 
+FLUPS is a pure MPI library: one rank per core (or per GPU). Three communication schemes are available for the topology switches: all-to-all (`a2a`), non-blocking with persistent requests (`nb`) and non-blocking with derived datatypes (`isr`), each built as a separate library (`libflups_a2a`, `libflups_nb`, `libflups_isr`).
 
-The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per CPU, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
-- We highly recommend the use of distributed memory when possible, even if FLUPS can run in a pure OpenMP mode.
-- Should you use shared memory (`OMP_NUM_THREADS>1`), each thread must be handled by a distinct core (no hyper threading). Computer nodes providing non-uniform memory accesses 
+The actual performance of the library (in terms of time-to-solution) depends a.o. on the number of unknowns per rank, on the type of boundary conditions and on the architectures it runs on.  We here provide some guidelines for the user to determine the optimal setup (see reference publication for more details):
 - The all-to-all implementation should be considered as the default robust option. However, acceleration is possible using the non-blocking version, in particular when:
-    - the number of unknowns per core is high (~128^3)
-    - the total number of core is not too high (~< 10k)
-- The mixed use of OpenMP and MPI is supported, and should only be considered in combination with the non-blocking implementation. However, the related performance is highly dependent on the computer architecture. 
+    - the number of unknowns per rank is high (~128^3)
+    - the total number of ranks is not too high (~< 10k)
+- On GPUs, prefer `a2a` or `nb`: `isr` sends non-contiguous derived datatypes straight from device memory, which the MPI library packs very slowly.
 
 We encourage the user seeking for optimal performance to run short dedicated tests on the targeted architecture. The `validation` executable, when compiled with the `PROF` option, can be used to time the execution. A basic comparison of performance on a typical-size problem should involve at least:
-1. the all-to-all implementation without thread
-2. the non-blocking implementation without thread
-3. the non-blocking implementation with 2 to 4 threads
+1. the all-to-all implementation
+2. the non-blocking implementation
 
 
 ### Memory footprint

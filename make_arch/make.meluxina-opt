@@ -4,7 +4,7 @@ CC = mpicc
 ## For production: 
 CXXFLAGS := -O3 -std=c++17 -DNDEBUG -march=native -DNO_PROF
 CCFLAGS := -O3 -std=c99 -DNDEBUG -march=native -DNO_PROF
-LDFLAGS = -fopenmp
+LDFLAGS =
 #---------------------------------------------------------   
 # DEPENDENCES DIRECTORIES  
 #---------------------------------------------------------  

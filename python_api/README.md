@@ -72,6 +72,11 @@ Or set it temporarily:
 export FLUPS_LIB_PATH=/path/to/flups/lib
 ```
 
+`make python` builds one library per SwitchTopo communication backend (`libflups_a2a`, `libflups_nb`,
+`libflups_isr`). PyFLUPS loads `libflups` if present, then `libflups_nb`, `libflups_a2a` and `libflups_isr`,
+searching `FLUPS_LIB_PATH` first, then the `lib` folder of the FLUPS checkout it belongs to. Set `FLUPS_LIB` to
+choose: either a backend name (`export FLUPS_LIB=a2a`) or the full path of a library.
+
 ## Testing the Installation
 
 ### Quick Test
@@ -100,12 +105,14 @@ mpirun -np 4 python simple_poisson.py
 
 ### Library not found
 
-**Error:** `Could not find FLUPS library`
+**Error:** `ImportError: Could not find the FLUPS library ...` when importing pyflups. The message lists the
+library names and the folders that were searched.
 
-**Solution:** 
-- Verify library exists: `ls $FLUPS_LIB_PATH`
-- Check for `libflups.so` (Linux) or `libflups.dylib` (macOS)
-- Ensure FLUPS is compiled: `make ARCH_FILE=make_arch/make.osx_gcc` (for macOS)
+**Solution:**
+- Verify the library exists: `ls $FLUPS_LIB_PATH` should show `libflups_a2a.so`, `libflups_nb.so`, `libflups_isr.so`
+  (`.dylib` on macOS)
+- Ensure FLUPS is compiled with `make python`, e.g. `ARCH_FILE=make_arch/make.osx_gcc make python` (for macOS)
+- Point `FLUPS_LIB_PATH` to the folder, or `FLUPS_LIB` to the library itself
 
 ### MPI errors
 
@@ -231,6 +238,8 @@ Solver(topology, boundary_conditions, h, L,
 - `set_alpha(alpha)`: Set alpha for Hejlesen kernels
 - `setup(change_comm=False)`: Setup and allocate memory
 - `solve(field, rhs, solver_type=STD)`: Solve the equation
+- `get_lhs_stencil()`, `get_rhs_stencil()`: Stencils $L_h$ and $M_h$ of the problem $L_h u = M_h f$ inverted exactly by the lattice kernels, as `(offsets, weights)`
+- `do_copy`, `do_fft`, `do_mult`, `get_wavenumbers`, `get_inner_topo_spectral`: the steps of `solve`, see [Advanced Usage](#advanced-usage)
 
 #### `Profiler`
 Timing measurements for performance analysis.
@@ -253,18 +262,9 @@ Profiler(name="default")
 - `hdf5_dump(topology, filename, data)`: Export data to HDF5
 - `print_data(topology, data)`: Print data to console
 - `locID(axsrc, i0, i1, i2, lia, axtrg, size, nf)`: Compute memory index
+- `field_view(topology, data)`: View of `data` in the layout of `topology`, indexed `[component, i0, i1, i2]` (x, y, z order, padding dropped, complex if the topology is)
 
 ## Advanced Usage
-
-### Using Inner Buffers
-
-```python
-# Get FLUPS internal buffer
-buffer = solver.get_inner_buffer()
-
-# Get physical topology
-topo_phys = solver.get_inner_topo_physical()
-```
 
 ### Profiling
 
@@ -279,19 +279,70 @@ solver = pf.Solver(..., profiler=prof)
 prof.display()
 ```
 
-### Spectral Operations
+### Step by Step Solve and Spectral Operations
+
+`solve(field, rhs)` is a sequence of five steps on the inner buffer of FLUPS, which can be called one by one:
 
 ```python
-# Get spectral information
-kfact, koffset, symstart = solver.get_spectral_info()
-
-# Manual FFT operations
-solver.do_copy(topology, data, pf.FLUPS_FORWARD)
-solver.do_fft(data, pf.FLUPS_FORWARD)
-solver.do_mult(data, pf.SolverType.STD)
-solver.do_fft(data, pf.FLUPS_BACKWARD)
-solver.do_copy(topology, data, pf.FLUPS_BACKWARD)
+solver.do_copy(topo, rhs, pf.FLUPS_FORWARD)        # rhs -> inner buffer (host -> device on a GPU build)
+solver.do_fft(sign=pf.FLUPS_FORWARD)               # physical -> spectral, in place
+solver.do_mult(solver_type=pf.SolverType.STD)      # Green's function and FFT normalisation
+solver.do_fft(sign=pf.FLUPS_BACKWARD)              # spectral -> physical, in place
+solver.do_copy(topo, field, pf.FLUPS_BACKWARD)     # inner buffer -> field
 ```
+
+`do_fft` and `do_mult` work on the inner buffer by default. Between the two FFTs, the inner buffer holds the spectrum
+in the layout of `solver.get_inner_topo_spectral()`: real if every direction is symmetric, complex as soon as one is
+periodic. To modify it (filter, other Green's function, ...):
+
+```python
+topo_spec = solver.get_inner_topo_spectral()
+spec = np.zeros(topo_spec.memsize)
+solver.do_copy(topo_spec, spec, pf.FLUPS_BACKWARD)            # inner buffer -> spec
+kx, ky, kz = solver.get_wavenumbers()                          # broadcastable to the local spectral grid
+pf.field_view(topo_spec, spec)[...] *= np.exp(-0.5 * sigma**2 * (kx**2 + ky**2 + kz**2))
+solver.do_copy(topo_spec, spec, pf.FLUPS_FORWARD)             # spec -> inner buffer
+```
+
+- The topology of the spectral data, `field_view` and `get_wavenumbers` are only valid between
+  `do_fft(sign=FLUPS_FORWARD)` and `do_fft(sign=FLUPS_BACKWARD)` (`get_wavenumbers` raises otherwise).
+- `get_wavenumbers` returns the magnitudes $|k_d|$ used by the Green's functions: fine for isotropic multipliers, not
+  for derivatives (use `SolverType.ROT`).
+- The FFTs are unnormalised. A multiplier applied after `do_mult` needs nothing more; a multiplier that replaces
+  `do_mult` must include the normalisation factor (measured once by a forward + backward FFT of a constant field in
+  `examples/manual_solve.py`).
+- On an FFTW build, `pf.field_view(topo_spec, solver.get_inner_buffer())` is a view of the inner buffer itself and
+  avoids the two copies. On a GPU build the inner buffer lives on the device: use `do_copy`.
+
+See `examples/manual_solve.py` for a complete, validated example (step by step solve, spectral filter, screened Poisson
+equation).
+
+### Non-homogeneous Dirichlet / Neumann Walls
+
+FLUPS solves homogeneous symmetric problems (ODD: $u = 0$, EVEN: $\partial_n u = 0$). The lattice kernels
+(`LGF_*`, `MEHR_*`) invert a known stencil exactly, so a wall with data ($u = g$ or $\partial_n u = q$) is imposed by
+correcting the right-hand side (derivation in `doc/nonhomogeneous_conditions.md`). `pyflups.bc` provides the steps for
+global arrays indexed `[x, y, z]`, node-centred by default (pass `center=pf.CenterType.CELL_CENTER` to every call
+for cell-centred data):
+
+```python
+from pyflups import bc as pbc
+
+solver.set_green_type(pf.GreenType.LGF_4)
+lhs = solver.get_lhs_stencil()                      # L_h (weights in units of 1/h^2)
+rhs_op = solver.get_rhs_stencil()                   # M_h (identity for LGF_*, apply it yourself for MEHR_*L)
+r = max(pbc.stencil_reach(lhs[0]), pbc.stencil_reach(rhs_op[0]))
+
+# D = u - R(u) on the grid extended by r ghost layers, from the wall data: ghost(d, side, m) returns
+# g (m = 0, ODD walls of node-centred data) or the ghost data of layer m, e.g. pbc.taylor_ghost(a, m, h, wall_type)
+D = pbc.ghost_remainder(bc, n, r, ghost)
+rhs = pbc.corrected_rhs(*lhs, pbc.apply_stencil(*rhs_op, f_ext, r), D, h, bc)
+
+# ... scatter rhs to the FLUPS layout, solve (ODD for Dirichlet, EVEN for Neumann walls), gather v ...
+u = pbc.recover(v, D, bc)                           # sets the Dirichlet wall nodes to g
+```
+
+See `examples/nonhomogeneous_bc.py` for a complete, validated example.
 
 ## Examples
 
@@ -300,6 +351,8 @@ Complete examples are provided in the `examples/` directory:
 - `simple_poisson.py`: Basic Poisson solver
 - `vector_field.py`: Solving for vector fields
 - `advanced_usage.py`: Using advanced features
+- `manual_solve.py`: The steps of `solve` one by one, with a spectral filter and a user Green's function in between (validated against analytic solutions)
+- `nonhomogeneous_bc.py`: Non-homogeneous Dirichlet/Neumann walls through a right-hand-side correction (`--suite` runs the validation)
 
 Run examples with MPI:
 ```bash
@@ -317,11 +370,30 @@ Licensed under the Apache License, Version 2.0. See LICENSE file for details.
 If you use FLUPS in your research, please cite:
 
 ```
-@article{gillis2019,
-  title={A parallel multigrid-based preconditioner for the 3D heterogeneous Helmholtz equation},
-  author={Gillis, Thomas and others},
-  journal={Journal of Computational Physics},
-  year={2019}
+@article{caprace2021,
+  title={{FLUPS}: A {F}ourier-Based Library of Unbounded {P}oisson Solvers},
+  author={Caprace, Denis-Gabriel and Gillis, Thomas and Chatelain, Philippe},
+  journal={SIAM Journal on Scientific Computing},
+  volume={43},
+  number={1},
+  pages={C31--C60},
+  year={2021},
+  doi={10.1137/19M1303848}
+}
+```
+
+and, for the parallel FFT library and its communication backends:
+
+```
+@article{balty2023,
+  title={{FLUPS}: A Flexible and Performant Massively Parallel {F}ourier Transform Library},
+  author={Balty, Pierre and Chatelain, Philippe and Gillis, Thomas},
+  journal={IEEE Transactions on Parallel and Distributed Systems},
+  volume={34},
+  number={7},
+  pages={2011--2024},
+  year={2023},
+  doi={10.1109/TPDS.2023.3254302}
 }
 ```
 

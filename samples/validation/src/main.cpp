@@ -72,6 +72,8 @@ int main(int argc, char *argv[]) {
     auto arg_lda     = parser.GetValue<int>("--lda", "the leading dimension fo array, number of component  (1=scalar, 3=vector)", 1);
     auto arg_nsample = parser.GetValue<int>("--nres", "Nr is the number of higher resolutions that will be tested, with a resolution (R * 2^[0:Nr-1])", 1);
     auto arg_outputdir = parser.GetValue<std::string>("--outdir", "the output directory for the error","./");
+    auto arg_source  = parser.GetValue<int>("--source", "the test case: 0=manufactured solution (default), 1=compact source (white noise) pad check, 2=axially modulated (wavy) vortex tube", 0);
+    auto arg_padcheck = parser.GetValue<int>("--padcheck", "with --source=1, the padding factor P of the reference solve (the two unbounded directions are solved again on a P times larger box with the same h); 0/1 = no padded solve", 0);
 
     // Retreive the vector value
     auto arg_nprocs = parser.GetValues<int, 3>("--np", "the number of processes in each direction", {1, 1, 1});
@@ -120,6 +122,8 @@ int main(int argc, char *argv[]) {
         printf("  --lda: %d\n", arg_lda);
         printf("  --center: %d\n", arg_center);
         printf("  --nsolve: %d\n", arg_nsolve);
+        printf("  --source: %d\n", arg_source);
+        printf("  --padcheck: %d\n", arg_padcheck);
         for (int i = 0; i < arg_nsample; i++) {
             printf("   -> sample %d: %d %d %d\n", i + 1, size[i * 3], size[i * 3 + 1], size[i * 3 + 2]);
         }
@@ -147,7 +151,13 @@ int main(int argc, char *argv[]) {
         }
 
         // let's gooo
-        validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve, arg_outputdir);
+        if (arg_source == 1) {
+            padcheck_3d(valCase, (FLUPS_GreenType)arg_kernel, (arg_padcheck > 1) ? arg_padcheck : 1, arg_outputdir);
+        } else if (arg_source == 2) {
+            wavytube_3d(valCase, (FLUPS_GreenType)arg_kernel, arg_nsolve, arg_outputdir);
+        } else {
+            validation_3d(valCase, (FLUPS_GreenType) arg_kernel, arg_lda, arg_nsolve, arg_outputdir);
+        }
     }
 
     

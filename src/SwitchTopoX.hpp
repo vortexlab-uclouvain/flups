@@ -2,8 +2,8 @@
 #define SWITCHTOPOX_HPP_
 
 #include "Topology.hpp"
-#include "defines.hpp"
 #include "chunk_tools.hpp"
+#include "defines.hpp"
 
 /**
  * @brief More efficient implementation of the SwitchTopo
@@ -27,14 +27,16 @@ class SwitchTopoX {
     MemChunk *i2o_chunks_ = NULL;  //!< the local chunks of memory in the output topology
     MemChunk *o2i_chunks_ = NULL;  //!< the local chunks of memory in the output topology
 
-    // int i2o_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
-    // int o2i_selfcomm_ = -1; //!< Index of the self communication chunk (remains at -1 if there is no self communication)
-
     opt_double_ptr send_buf_ = NULL; /**<@brief The send buffer for MPI send */
     opt_double_ptr recv_buf_ = NULL; /**<@brief The recv buffer for MPI recv */
-
-    fftw_plan *i2o_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the output topo
-    fftw_plan *o2i_shuffle_ = NULL;  //!< FFTW plan to shuffle the indexes around from the input topo to the ouput topo
+    /**
+     * @brief event recorded on the stream after the last kernel reading the (shared) send/recv buffers.
+     *
+     * The buffers are shared by every SwitchTopoX of a Solver and the unpack kernels are asynchronous:
+     * before MPI is allowed to write into the buffers again (posting the receives), the host waits on
+     * this event. Owned by the Solver, see set_buffer_event().
+     */
+    event_t* buf_event_ = NULL;
 
     H3LPR::Profiler *prof_         = NULL;
     int              idswitchtopo_ = -1;
@@ -43,16 +45,18 @@ class SwitchTopoX {
     explicit SwitchTopoX(const Topology *topo_in, const Topology *topo_out, const int shift[3], H3LPR::Profiler *prof);
     virtual ~SwitchTopoX();
 
-    virtual bool need_send_buf()const  = 0;
-    virtual bool need_recv_buf()const  = 0;
+    virtual bool need_send_buf() const = 0;
+    virtual bool need_recv_buf() const = 0;
+    /** @brief true if the received chunks are shuffled out-of-place (needs a shuffle plan + buffer per chunk) */
+    virtual bool need_shuffle_plan() const { return true; };
 
     // abstract functions
-    void setup();
+    void         setup();
     virtual void print_info() const;
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData);
-    virtual void execute(opt_double_ptr data, const int sign) const = 0;
-    virtual void disp() const                                       = 0;
-    
+    void         set_buffer_event(event_t* event) { buf_event_ = event; };
+    virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const = 0;
+    virtual void disp() const                                                        = 0;
 
     size_t get_bufMemSize() const;
     size_t get_ChunkArraysMemSize(const int lda, const int nchunks, const MemChunk *chunks) const;

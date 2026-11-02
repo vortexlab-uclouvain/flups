@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &comm_size);
-    m_log("Starting...");
+    m_log("Starting on %d ranks...", comm_size);
 
     //-------------------------------------------------------------------------
     // Definition of the problem
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
     /** - solve the equation */
     //-------------------------------------------------------------------------
     for (int is = 0; is < nsolve; is++) {
-        m_log("Iteration %d/%d", is, nsolve);
+        m_log("Iteration %d/%d", is+1, nsolve);
         flups_solve(mysolver, field, rhs, STD);
     }
 
@@ -122,11 +122,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-
-    // m_log("Printing results");
-    // printf("[test %d] Error computation - end %d %d %d ", rank,flups_topo_get_nloc(topo,ax0) - is_last_topo[0], flups_topo_get_nloc(topo,ax1) - is_last_topo[1], flups_topo_get_nloc(topo,ax2) - is_last_topo[2] );
-    // std::string arg_name = (argc == 2) ? argv[1] : "default";
-    // print_res(field, topo, "data/sol_" + arg_name) ;
 
     // --------------------------------------------------------------------------
     // Local error

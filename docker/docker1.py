@@ -49,7 +49,7 @@ Stage0 += hdf5(version='1.14.6', toolchain=omp.toolchain,
 # ===========================
 # FFTW - with --enable-shared for .so compatibility
 Stage0 += fftw(version='3.3.10', toolchain=omp.toolchain,
-               configure_opts=['--disable-fortran','--enable-openmp','--enable-shared','--enable-static'])
+               configure_opts=['--disable-fortran','--enable-sse2','--enable-avx','--enable-shared','--enable-static'])
 
 # ===========================
 # Python 3 only (install directly with apt)

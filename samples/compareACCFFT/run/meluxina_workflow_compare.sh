@@ -5,7 +5,7 @@
 ## after the version of OMPI
 
 OMPIVERSION=4.1.3
-#CODE_VERSION='dprec_nb dprec_a2a nb a2a'
+#CODE_VERSION=' nb a2a'
 CODE_VERSION='isr nb'
 
 ##-------------------------------------------------------------------------------------------------------------

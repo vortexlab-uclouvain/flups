@@ -25,7 +25,6 @@
 
 #include "vtube.hpp"
 
-#include "omp.h"
 
 template <>
 double gexpint<1>(const double z) {
@@ -122,7 +121,7 @@ void vtube(const DomainDescr myCase, const FLUPS_GreenType typeGreen, const int 
     //-------------------------------------------------------------------------
     /** - Initialize the solver */
     //-------------------------------------------------------------------------
-    std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size) + "_nthread" + std::to_string(omp_get_max_threads());
+    std::string     name = "tube_" + std::to_string((int)(nglob[0] / L[0])) + "_nrank" + std::to_string(comm_size);
     FLUPS_Profiler *prof = flups_profiler_new_n(name.c_str());
     FLUPS_Solver   *mysolver;
     mysolver = flups_init_timed(topo, mybc, h, L, order, center_type, prof);

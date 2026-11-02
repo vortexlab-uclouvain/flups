@@ -1,3 +1,8 @@
+# Symmetric boundary conditions: FFTW transforms
+
+Non-homogeneous Dirichlet and Neumann walls are imposed through the right-hand side: see
+[nonhomogeneous_conditions.md](nonhomogeneous_conditions.md).
+
 Considering symetric boundary conditions, here are all the possible cases: 
 
 ![test-2](/uploads/3cdcfee9c2e981ba77e1585a6fa2f622/test-2.png)
@@ -21,3 +26,5 @@ This will impact the parameter in the FFTW_Plan_Dim class.
 | Offset of the modes  | 0.0                         | 0.0               | 0.0               | 0.0                   |
 | # of points out      | N - 2                       | N - 1             | N - 1             | N                     |
 | Input correction     | First and last data ignored | First data ignored| Last data ignored | /                     |
+
+The ignored nodes of an ODD side are the wall nodes; FLUPS returns 0 there.

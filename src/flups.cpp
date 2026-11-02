@@ -28,11 +28,12 @@
 
 #include "flups.h"
 
-#include <algorithm>  // std::remove
+#include <filesystem>  // std::filesystem::path
 
 #include "FFTW_plan_dim.hpp"
 #include "Solver.hpp"
 #include "Topology.hpp"
+#include "backend.hpp"
 #include "defines.hpp"
 #include "h3lpr/profiler.hpp"
 
@@ -54,8 +55,17 @@ Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], cons
     return t;
 }
 
+Topology* flups_topo_new_desc(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment) {
+    Topology* t = new Topology(axis, lda, nglob, nproc, isComplex, axproc, alignment);
+    return t;
+}
+
 void flups_topo_free(const Topology* t) {
     delete t;
+}
+
+bool flups_topo_is_desc(const Topology* t) {
+    return t->is_desc();
 }
 
 bool flups_topo_get_isComplex(const Topology* t) {
@@ -84,6 +94,10 @@ int flups_topo_get_nmem(const Topology* t, const int dim) {
 
 int flups_topo_get_nproc(const Topology* t, const int dim) {
     return t->nproc(dim);
+}
+
+int flups_topo_get_axproc(const Topology* t, const int dim) {
+    return t->axproc(dim);
 }
 
 void flups_topo_get_istartGlob(const Topology* t, int istart[3]) {
@@ -135,29 +149,35 @@ Solver* flups_init_timed(Topology* t, BoundaryType* bc[3][2], const double h[3],
     return s;
 }
 
+// get the layout of the first inner pencil topology, without any communication
+void flups_pencil_layout(const int nglob[3], const int nproc[3], BoundaryType* bc[3][2], const double h[3], const double L[3], const CenterType center_type[3], const int lda, int* axis, int nglob_out[3], int nproc_out[3], int axproc_out[3]) {
+    const PencilLayout layout = Solver::pencil_layout(nglob, nproc, bc, h, L, center_type, lda);
+    (*axis)                   = layout.axis;
+    for (int id = 0; id < 3; id++) {
+        nglob_out[id]  = layout.nglob[id];
+        nproc_out[id]  = layout.nproc[id];
+        axproc_out[id] = layout.axproc[id];
+    }
+}
 
 void flups_cleanup_solver(Solver* s) {
     delete s;
 }
 
-// destroy the solver
+// destroy the solver and cleanup the backend (kept for backward compatibility)
 void flups_cleanup(Solver* s) {
     flups_cleanup_all(s);
 }
 
-// Destroy the solver and cleanup fftw
+// Destroy the solver and cleanup the backend
 void flups_cleanup_all(Solver* s) {
-    delete s;
+    flups_cleanup_solver(s);
     flups_cleanup_backend();
 }
 
-// cleanup all the structures related to fftw
+// cleanup all the structures related to the backend
 void flups_cleanup_backend() {
-#if FLUPS_OPENMP
-    fftw_cleanup_threads();
-#endif
-
-    fftw_cleanup();
+    backend_finalize();
 };
 
 // setup the solver
@@ -165,8 +185,11 @@ void flups_set_greenType(Solver* s, const GreenType type) {
     s->set_GreenType(type);
 }
 
+void flups_set_stream(Solver* s, void* stream) {
+    stream_t* h_stream = reinterpret_cast<stream_t*>(stream);
 
-void flups_set_stream(Solver* s, void* stream) {}
+    s->set_stream(*h_stream);
+}
 
 void flups_setup(Solver* s, const bool changeComm) {
     s->setup(changeComm);
@@ -185,6 +208,14 @@ size_t flups_get_allocSize(Solver* s) {
 
 void flups_get_spectralInfo(Solver* s, double kfact[3], double koffset[3], double symstart[3]) {
     s->get_spectralInfo(kfact, koffset, symstart);
+}
+
+int flups_get_lhs_stencil(Solver* s, int* offsets, double* weights) {
+    return cmpt_Green_stencil(s->get_GreenType(), true, offsets, weights);
+}
+
+int flups_get_rhs_stencil(Solver* s, int* offsets, double* weights) {
+    return cmpt_Green_stencil(s->get_GreenType(), false, offsets, weights);
 }
 
 void flups_set_alpha(Solver* s, const double alpha) {
@@ -274,30 +305,30 @@ void flups_print_data(const Topology* topo, double* data) {
 //  MISC
 //**********************************************************************
 /**
- * @brief writes the file murphy.info used for tracking of the results, bookkeeping etc
+ * @brief writes the file <executable>.flups.info used for tracking of the results, bookkeeping etc
  */
 void flups_info(int argc, char** argv) {
     int rank, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     if (rank == 0) {
-        std::string filename(argv[0]);
-        // remove the "./" that might be in it
-        filename.erase(std::remove(filename.begin(), filename.end(), '.'), filename.end());
-        filename.erase(std::remove(filename.begin(), filename.end(), '/'), filename.end());
+        // keep the executable name only: argv[0] may be spelled "./flups_test", an absolute path
+        // (gdb, srun) or a relative one, and the info file must always be "<executable>.flups.info"
+        const std::filesystem::path exec_path((argc > 0 && NULL != argv[0]) ? argv[0] : "flups");
+        std::string                 filename = exec_path.filename().string();
+        if (filename.empty()) {
+            filename = "flups";
+        }
         filename += ".flups.info";
         FILE* file = fopen(filename.c_str(), "w+");
         fprintf(file, "FLUPS \n");
         fprintf(file, "- commit: %s\n", FLUPS_GIT_COMMIT);
         fprintf(file, "- comm_world size: %d\n", comm_size);
         fprintf(file, "- defines:\n");
+#if defined(BACKEND_FFTW)
         fprintf(file, "\tFLUPS_FFTW_FLAG = %d (estimate: %d, measure: %d, patient: %d)\n", FLUPS_FFTW_FLAG, FFTW_ESTIMATE, FFTW_MEASURE, FFTW_PATIENT);
-        fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
-#if (FLUPS_MPI_AGGRESSIVE)
-        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? yes\n");
-#else
-        fprintf(file, "\tFLUPS_MPI_AGGRESSIVE ? no\n");
 #endif
+        fprintf(file, "\tFLUPS_ALIGNMENT = %d\n", FLUPS_ALIGNMENT);
 #ifndef NDEBUG
         fprintf(file, "\tNDEBUG ? no\n");
 #else

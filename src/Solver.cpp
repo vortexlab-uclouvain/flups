@@ -27,6 +27,7 @@
 
 #include "FFTW_plan_dim_cell.hpp"
 #include "FFTW_plan_dim_node.hpp"
+#include "backend.hpp"
 
 /**
  * @brief Constructs a fftw Poisson solver, initilizes the plans and determines their order of execution
@@ -41,47 +42,45 @@
 Solver::Solver(Topology *topo, BoundaryType *rhsbc[3][2], const double h[3], const double L[3], const DiffType orderDiff, const CenterType centertype[3], H3LPR::Profiler *prof) {
     BEGIN_FUNC;
 
-    // //-------------------------------------------------------------------------
-    // /** - Initialize the OpenMP threads for FFTW */
-    // //-------------------------------------------------------------------------
-#if FLUPS_OPENMP    
-    fftw_init_threads();
-#endif
-
-#ifdef FLUPS_WISDOM_PATH
-    FLUPS_WARNING("Importing wisdom from %s", FLUPS_WISDOM_PATH);
-    fftw_import_wisdom_from_filename(FLUPS_WISDOM_PATH);
-#endif
+    //-------------------------------------------------------------------------
+    /** - Initialize backend */
+    //-------------------------------------------------------------------------
+    backend_init();
 
     //-------------------------------------------------------------------------
     /** - Check the alignement in memory between FFTW and the one defines in @ref flups.h */
     //-------------------------------------------------------------------------
+#if M_HAVE_GPU
+    // TODO: how to check the alignment on the GPU?
+    flupsalignment_ = FLUPS_ALIGNMENT;
+#else
     // align a random array
     int     alignSize = FLUPS_ALIGNMENT / sizeof(double);
-    double *data      = (double *)m_calloc(10 * alignSize * sizeof(double));
+    double *data      = (double *)backend_malloc(10 * alignSize * sizeof(double));
     // initialize the fftw alignement
-    fftwalignment_ = (fftw_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
+    flupsalignment_ = (backend_alignment_of(&(data[0])) == 0) ? sizeof(double) : 0;
     // get the fftw alignement and stop if it is lower than the one we assumed
     for (int i = 1; i < 10 * alignSize; i++) {
-        if (fftw_alignment_of(&(data[i])) == 0) {
+        if (backend_alignment_of(&(data[i])) == 0) {
             // if we are above the minimum requirement, generate an error
             if (i > alignSize) {
-                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the FFTW alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: FFTW=%d vs FLUPS=%d", fftwalignment_, FLUPS_ALIGNMENT);
+                FLUPS_CHECK(false, "The FLUPS alignement has to be a multiple integer of the backend alignement, please change the constant variable FLUPS_ALIGNMENT into file flups_interface.h accordingly: backend=%d vs FLUPS=%d", flupsalignment_, FLUPS_ALIGNMENT);
             }
             // else, just stop and advise the user to change
             break;
         }
-        fftwalignment_ += sizeof(double);
+        flupsalignment_ += sizeof(double);
     }
-    if (fftwalignment_ != FLUPS_ALIGNMENT) {
-        FLUPS_WARNING("FFTW alignement is OK, yet not optimal: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
-        FLUPS_WARNING("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
+    if (flupsalignment_ != FLUPS_ALIGNMENT) {
+        FLUPS_WARNING("Backend alignement is OK, yet not optimal: backend = %d vs FLUPS = %d (8 = FFTW built without SIMD)", flupsalignment_, FLUPS_ALIGNMENT);
+        FLUPS_WARNING("Consider using an alignment of 32 for AVX/AVX2 (256bit registers) and 64 for AVX-512 (512bit registers)");
     } else {
-        FLUPS_INFO("FFTW alignement is OK: FFTW = %d vs FLUPS = %d", fftwalignment_, FLUPS_ALIGNMENT);
-        FLUPS_INFO("Consider using an alignment of 32 for the AVX (128bit registers) and 64 for the AVX2 (256bit registers)");
+        FLUPS_INFO("Backend alignement is OK: backend = %d vs FLUPS = %d", flupsalignment_, FLUPS_ALIGNMENT);
+        FLUPS_INFO("Consider using an alignment of 32 for AVX/AVX2 (256bit registers) and 64 for AVX-512 (512bit registers)");
     }
 
     m_free(data);
+#endif
 
     //-------------------------------------------------------------------------
     /** - Create the timer */
@@ -495,7 +494,7 @@ Solver::~Solver() {
     //-------------------------------------------------------------------------
     // m_profStarti(prof_, "Clean up");
     // for Green
-    if (green_ != NULL) m_free(green_);
+    if (green_ != NULL) backend_free(green_);
     // delete the plans
     delete_plans_(plan_forward_);
     delete_plans_(plan_backward_);
@@ -515,16 +514,10 @@ Solver::~Solver() {
 #endif
     delete_topologies_(topo_hat_);
 
-    if (data_ != NULL) m_free(data_);
-
-    // cleanup
-    //#ifdef FLUPS_WISDOM_PATH
-    //    FLUPS_WARNING("exporting wisdom to %s",FLUPS_WISDOM_PATH);
-    //    fftw_export_wisdom_to_filename(FLUPS_WISDOM_PATH);
-    //#endif
-
-
-    // m_profStopi(prof_, "Clean up");
+    if (data_ != NULL) backend_free(data_);
+#if M_HAVE_GPU
+    free_plan_buffers_();
+#endif
     //-------------------------------------------------------------------------
     END_FUNC;
 }
@@ -557,6 +550,88 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
         delete planmap[ip];
         planmap[ip] = NULL;
     }
+#if M_HAVE_GPU
+    // the shared buffers are sized for the plan sets alive at the time; once none is left (e.g. after
+    // the Green plans, before the field plans are created) release them so the field sets start afresh
+    bool            any_alive = false;
+    FFTW_plan_dim **sets[4]   = {plan_forward_, plan_backward_, (odiff_ != NOD) ? plan_backward_diff_ : NULL, plan_green_};
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            any_alive = any_alive || (sets[is][ip] != NULL && sets[is][ip]->get_plan() != NULL);
+        }
+    }
+    if (!any_alive) {
+        free_plan_buffers_();
+    }
+#endif
+    END_FUNC;
+}
+
+/**
+ * @brief release the buffers shared by the FFT plans (GPU backends), see assign_plan_buffers_
+ */
+void Solver::free_plan_buffers_() {
+    if (r2r_mem_ != NULL) backend_free(r2r_mem_);
+    if (fft_work_ != NULL) backend_free(fft_work_);
+    r2r_mem_       = NULL;
+    r2r_mem_size_  = 0;
+    fft_work_      = NULL;
+    fft_work_size_ = 0;
+}
+
+/**
+ * @brief size and hand out the two buffers shared by every FFT plan of the solver (GPU backends)
+ *
+ * All the plans of a solver execute serialized on stream_, so one r2r scratch and one FFT library
+ * work area, each sized to the max over the plans alive, are enough. The buffers grow when a new plan
+ * set needs more and are then re-assigned to every alive plan (the pointer changed).
+ */
+void Solver::assign_plan_buffers_() {
+    BEGIN_FUNC;
+#if M_HAVE_GPU
+    FFTW_plan_dim **sets[4] = {plan_forward_, plan_backward_, (odiff_ != NOD) ? plan_backward_diff_ : NULL, plan_green_};
+    // get the sizes needed by every alive plan
+    size_t need_mem  = 0;
+    size_t need_work = 0;
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            FFTW_plan_dim *pd = sets[is][ip];
+            if (pd == NULL || pd->get_plan() == NULL) continue;
+            flups_fft_plan *plan = pd->get_plan();
+            for (int ida = 0; ida < pd->lda(); ida++) {
+                need_work = std::max(need_work, flups_plan_worksize(plan[ida]));
+                if (plan[ida].is_r2r) need_mem = std::max(need_mem, (size_t)plan[ida].memsize);
+            }
+        }
+    }
+    // (re)allocate if needed
+    if (need_mem > r2r_mem_size_) {
+        if (r2r_mem_ != NULL) backend_free(r2r_mem_);
+        r2r_mem_      = (double *)backend_malloc(need_mem * sizeof(double));
+        r2r_mem_size_ = need_mem;
+    }
+    if (need_work > fft_work_size_) {
+        if (fft_work_ != NULL) backend_free(fft_work_);
+        fft_work_      = backend_malloc(need_work);
+        fft_work_size_ = need_work;
+    }
+    FLUPS_INFO("shared plan buffers: r2r scratch = %zu doubles, FFT work area = %zu bytes", r2r_mem_size_, fft_work_size_);
+    // every alive plan gets the (possibly new) buffers
+    for (int is = 0; is < 4; is++) {
+        if (sets[is] == NULL) continue;
+        for (int ip = 0; ip < ndim_; ip++) {
+            FFTW_plan_dim *pd = sets[is][ip];
+            if (pd == NULL || pd->get_plan() == NULL) continue;
+            flups_fft_plan *plan = pd->get_plan();
+            for (int ida = 0; ida < pd->lda(); ida++) {
+                if (plan[ida].is_r2r) plan[ida].mem = r2r_mem_;
+                if (flups_plan_worksize(plan[ida]) > 0) flups_plan_set_workarea(plan[ida], fft_work_);
+            }
+        }
+    }
+#endif
     END_FUNC;
 }
 
@@ -565,11 +640,7 @@ void Solver::delete_plans_(FFTW_plan_dim *planmap[3]) {
  *
  * @param switchtopo
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::delete_switchtopos_(SwitchTopoX *switchtopo[3]) {
-#else
-void Solver::delete_switchtopos_(SwitchTopo *switchtopo[3]) {
-#endif
     BEGIN_FUNC;
     // deallocate the plans
     for (int ip = 0; ip < 3; ip++) {
@@ -595,6 +666,93 @@ void Solver::delete_topologies_(Topology *topo[3]) {
 }
 
 /**
+ * @brief the plan-level core of @ref pencil_layout: the layout of the first (ip == 0) inner topology of a sorted set
+ * of forward plans
+ *
+ * This is the single source of truth for the geometry of that topology: it is used by
+ * @ref init_plansAndTopos_ when it creates it and by @ref pencil_layout to predict it without any
+ * communication. It is pure arithmetic: no MPI call and no communicator is needed.
+ *
+ * @param planmap the sorted plans. Only planmap[0] must have been initialized (@ref FFTW_plan_dim::init),
+ *                the 2 others are only used for their #dimID.
+ * @param size_out the global size after planmap[0], i.e. after @ref FFTW_plan_dim::get_outsize
+ * @param nproc_hint the proc decomposition of the physical (user) topology
+ * @param comm_size the size of the communicator of the solver
+ * @return PencilLayout the layout, with #nglob given in the REAL state of the topology
+ */
+PencilLayout Solver::pencil_layout_(FFTW_plan_dim *const planmap[3], const int size_out[3], const int nproc_hint[3], const int comm_size) {
+    BEGIN_FUNC;
+    PencilLayout layout;
+    //-------------------------------------------------------------------------
+    /** - the axis is the direction of the plan, the proc ordering is the plan ordering */
+    //-------------------------------------------------------------------------
+    layout.axis = planmap[0]->dimID();
+    for (int ip = 0; ip < 3; ip++) {
+        layout.axproc[ip] = planmap[ip]->dimID();
+    }
+
+    //-------------------------------------------------------------------------
+    /** - for the first switchTopo, we keep the number of proc constant in the 3rd direction */
+    //-------------------------------------------------------------------------
+    pencil_nproc_hint(layout.axis, layout.nproc, comm_size, layout.axproc[1], nproc_hint);
+
+    //-------------------------------------------------------------------------
+    /** - the topology is created in the output state of the plan; if the plan is a r2c, the
+     *    topology is switched back to real, which doubles the size along the axis */
+    //-------------------------------------------------------------------------
+    for (int id = 0; id < 3; id++) {
+        layout.nglob[id] = size_out[id];
+    }
+    if (planmap[0]->isr2c()) {
+        layout.nglob[layout.axis] *= 2;
+    }
+    END_FUNC;
+    return layout;
+}
+
+/**
+ * @brief compute the layout of the first inner (pencil) topology, without any communication
+ *
+ * see the documentation in @ref Solver.hpp
+ */
+PencilLayout Solver::pencil_layout(const int nglob[3], const int nproc_init[3], BoundaryType *bc[3][2], const double h[3], const double L[3], const CenterType center[3], const int lda) {
+    BEGIN_FUNC;
+    FLUPS_CHECK(center[0] == center[1] && center[0] == center[2], "We handle only data located at the same place in all the direction");
+
+    const int comm_size = nproc_init[0] * nproc_init[1] * nproc_init[2];
+
+    //-------------------------------------------------------------------------
+    /** - build the forward plans exactly as the Solver constructor does and sort them */
+    //-------------------------------------------------------------------------
+    FFTW_plan_dim *planmap[3];
+    for (int id = 0; id < 3; id++) {
+        if (CELL_CENTER == center[id]) {
+            planmap[id] = new FFTW_plan_dim_cell(lda, id, h, L, bc[id], FLUPS_FORWARD, false);
+        } else if (NODE_CENTER == center[id]) {
+            planmap[id] = new FFTW_plan_dim_node(lda, id, h, L, bc[id], FLUPS_FORWARD, false);
+        } else {
+            FLUPS_CHECK(false, "The type of data you asked is not supported");
+        }
+    }
+    sort_plans(planmap);
+
+    //-------------------------------------------------------------------------
+    /** - dry run of the first plan only: init is not idempotent, so it must be done once */
+    //-------------------------------------------------------------------------
+    int size_tmp[3] = {nglob[0], nglob[1], nglob[2]};
+    planmap[0]->init(size_tmp, false);
+    planmap[0]->get_outsize(size_tmp);
+
+    const PencilLayout layout = pencil_layout_(planmap, size_tmp, nproc_init, comm_size);
+
+    for (int id = 0; id < 3; id++) {
+        delete planmap[id];
+    }
+    END_FUNC;
+    return layout;
+}
+
+/**
  * @brief Initializes a set of 3 plans by doing a dry run through the plans
  *
  * @param topo the starting topology
@@ -603,11 +761,7 @@ void Solver::delete_topologies_(Topology *topo[3]) {
  * @param planmap the plan that will be created
  * @param isGreen indicates if the plans are for Green
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopoX *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
-#else
-void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], SwitchTopo *switchtopo[3], FFTW_plan_dim *planmap[3], bool isGreen) {
-#endif
     BEGIN_FUNC;
 
     // @Todo: check that plan_forward_ exists before doing plan_green_ !
@@ -658,9 +812,14 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
         if (!isGreen && topomap != NULL && switchtopo != NULL) {
             // determines the proc repartition using the previous one if available
             if (ip == 0) {
-                // for the first switchTopo, we keep the number of proc constant in the 3rd direction
-                const int nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
-                pencil_nproc_hint(dimID, nproc, comm_size, dimOrder[1], nproc_hint);
+                // the layout of the first topology is shared with Solver::pencil_layout
+                const int          nproc_hint[3] = {topo->nproc(0), topo->nproc(1), topo->nproc(2)};
+                const PencilLayout layout        = pencil_layout_(planmap, size_tmp, nproc_hint, comm_size);
+                FLUPS_CHECK(layout.axis == dimID, "the shared pencil layout gives the axis %d instead of %d", layout.axis, dimID);
+                for (int id = 0; id < 3; id++) {
+                    FLUPS_CHECK(layout.axproc[id] == dimOrder[id], "the shared pencil layout gives axproc[%d] = %d instead of %d", id, layout.axproc[id], dimOrder[id]);
+                    nproc[id] = layout.nproc[id];
+                }
             } else {
                 const int nproc_hint[3] = {current_topo->nproc(0), current_topo->nproc(1), current_topo->nproc(2)};
                 // for the other switchtopos, we keep constant the id that is not mine, neither the old topo id
@@ -669,7 +828,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // create the new topology corresponding to planmap[ip] in the output layout (size and isComplex)
             // the rank distribution is computed using the dimOrder array, where every topology
             // const int proc_axis[3] = {dimOrder[ip], dimOrder[(ip + 1) % 3], dimOrder[(ip + 2) % 3]};
-            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
+            // padded to FLUPS_ALIGNMENT, a multiple of the backend one, which the solver kernels assume
+            topomap[ip] = new Topology(dimID, lda_, size_tmp, nproc, isComplex, dimOrder, FLUPS_ALIGNMENT, topo_phys_->get_comm());
             // determines fieldstart = the point where the old topo has to begin in the new one
             // There are cases (typically for MIXUNB) where the data after being switched starts with an offset in memory in the new topo.
             int fieldstart[3] = {0};
@@ -678,49 +838,29 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             // if the topo was real before the plan and is now complex
             if (planmap[ip]->isr2c()) {
                 topomap[ip]->switch2real();
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #elif defined(COMM_ISR)
-                switchtopo[ip]     = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else
 
-                switchtopo[ip]     = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
-#else  // deprecated - still there for comparison purpose
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
-#endif
-
-#endif
                 topomap[ip]->switch2complex();
 
             } else {
                 // create the switchtopoMPI to change topology
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip] = new SwitchTopoX_nb(current_topo, topomap[ip], fieldstart, prof_);
 #elif defined(COMM_ISR)
-                switchtopo[ip]     = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_isr(current_topo, topomap[ip], fieldstart, prof_);
 #else
-                switchtopo[ip]     = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
+                switchtopo[ip] = new SwitchTopoX_a2a(current_topo, topomap[ip], fieldstart, prof_);
 #endif
 
-#else  // deprecated - still there for comparison purpose
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip]     = new SwitchTopo_nb(current_topo, topomap[ip], fieldstart, prof_);
-#else
-                switchtopo[ip]     = new SwitchTopo_a2a(current_topo, topomap[ip], fieldstart, prof_);
-#endif
-
-#endif
             }
             // #ifdef PERF_VERBOSE
             // switchtopo[ip]->disp_rankgraph(ip - 1, ip);
@@ -763,7 +903,8 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
             }
 
             // create the new topology in the output layout (size and isComplex). lda of Green is always 1.
-            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, fftwalignment_, topo_phys_->get_comm());
+            // padded to FLUPS_ALIGNMENT, a multiple of the backend one, which the solver kernels assume
+            topomap[ip] = new Topology(dimID, 1, size_tmp, nproc, isComplex, dimOrder, FLUPS_ALIGNMENT, topo_phys_->get_comm());
             // switchmap only to be done for topo0->topo1 and topo1->topo2
             if (ip < ndim_ - 1) {
                 // get the fieldstart = the point where the old topo has to begin in the new
@@ -771,7 +912,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 // it shouldn't be different from 0 for this case since we are doing green, but safety first
                 planmap[ip + 1]->get_fieldstart(fieldstart);
                 // we do the link between topomap[ip] and the current_topo
-#if (FLUPS_MPI_AGGRESSIVE)
 
 #if defined(COMM_NONBLOCK)
                 switchtopo[ip + 1] = new SwitchTopoX_nb(topomap[ip], current_topo, fieldstart, NULL);
@@ -781,14 +921,6 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
                 switchtopo[ip + 1] = new SwitchTopoX_a2a(topomap[ip], current_topo, fieldstart, NULL);
 #endif
 
-#else
-
-#if defined(COMM_NONBLOCK)
-                switchtopo[ip + 1] = new SwitchTopo_nb(topomap[ip], current_topo, fieldstart, NULL);
-#else
-                switchtopo[ip + 1] = new SwitchTopo_a2a(topomap[ip], current_topo, fieldstart, NULL);
-#endif
-#endif
                 switchtopo[ip + 1]->disp();
             }
 
@@ -836,11 +968,7 @@ void Solver::init_plansAndTopos_(const Topology *topo, Topology *topomap[3], Swi
  * @param send_buff
  * @param recv_buff
  */
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::allocate_switchTopo_(const int ntopo, SwitchTopoX **switchtopo, m_ptr_t *send_buff, m_ptr_t *recv_buff) {
-#else
-void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-#endif
     BEGIN_FUNC;
     //-------------------------------------------------------------------------
     size_t max_mem = 0;
@@ -861,68 +989,46 @@ void Solver::allocate_switchTopo_(const int ntopo, SwitchTopo **switchtopo, opt_
             max_mem = std::max(max_mem, switchtopo[id]->get_bufMemSize());
 
             need_send = need_send ||
-#if (FLUPS_MPI_AGGRESSIVE)
                         switchtopo[id]->need_send_buf();
-#else
-                        true;
-#endif
             need_recv = need_recv ||
-#if (FLUPS_MPI_AGGRESSIVE)
                         switchtopo[id]->need_recv_buf();
-#else
-                        true;
-#endif
         }
     }
-    FLUPS_CHECK(max_mem > 0, "number of memory %zu should be >0", max_mem);
-#if (FLUPS_MPI_AGGRESSIVE)
+    // max_mem = 0 is legal: this rank owns no unknown in any of the topologies and never communicates
+    if (max_mem == 0) {
+        FLUPS_INFO("this rank has nothing to communicate in any of the switchtopos");
+    }
+
     if (need_send) {
         send_buff->calloc(max_mem * sizeof(double));
     }
     if (need_recv) {
         recv_buff->calloc(max_mem * sizeof(double));
     }
-#else
-    *send_buff = need_send ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
-    *recv_buff = need_recv ? ((opt_double_ptr)m_calloc(max_mem * sizeof(double))) : nullptr;
-#endif
 
-    // std::memset(*send_buff, 0, max_mem * sizeof(double));
-    // std::memset(*recv_buff, 0, max_mem * sizeof(double));
-
+    // the event guarding the shared buffers (recorded by every switchtopo after its last unpack kernel)
+    bufEvent_ = backend_event_create();
     // associate the buffers to the switchtopo
     for (int id = 0; id < ntopo; id++) {
         if (switchtopo[id] != NULL) {
-#if (FLUPS_MPI_AGGRESSIVE)
             switchtopo[id]->setup_buffers(need_send ? (*send_buff)() : nullptr,
                                           need_recv ? (*recv_buff)() : nullptr);
-#else
-            switchtopo[id]->setup_buffers(*send_buff, *recv_buff);
-#endif
+            switchtopo[id]->set_buffer_event(&bufEvent_);
         }
     }
     //-------------------------------------------------------------------------
     END_FUNC;
 }
 
-#if (FLUPS_MPI_AGGRESSIVE)
 void Solver::deallocate_switchTopo_(SwitchTopoX **switchtopo, m_ptr_t *send_buff, m_ptr_t *recv_buff) {
-#else
-void Solver::deallocate_switchTopo_(SwitchTopo **switchtopo, opt_double_ptr *send_buff, opt_double_ptr *recv_buff) {
-#endif
-#if (FLUPS_MPI_AGGRESSIVE)
+    // no kernel may still read the buffers when they are released
+    if (bufEvent_ != (event_t)0) {
+        backend_event_sync(bufEvent_);
+        backend_event_destroy(bufEvent_);
+        bufEvent_ = (event_t)0;
+    }
     send_buff->free();
     recv_buff->free();
-#else
-    if (*send_buff != NULL) {
-        m_free(*send_buff);
-        (*send_buff) = NULL;
-    }
-    if (*recv_buff != NULL) {
-        m_free(*recv_buff);
-        (*recv_buff) = NULL;
-    }
-#endif
 }
 
 /**
@@ -938,7 +1044,11 @@ void Solver::allocate_plans_(const Topology *const topo[3], FFTW_plan_dim *planm
     for (int ip = 0; ip < ndim_; ip++) {
         planmap[ip]->allocate_plan(topo[ip], data);
     }
-    //-------------------------------------------------------------------------
+
+#if M_HAVE_GPU
+    // the r2r scratch and the FFT work area are shared by every plan of the solver
+    assign_plan_buffers_();
+#endif
     END_FUNC;
 }
 
@@ -970,9 +1080,10 @@ void Solver::allocate_data_(const Topology *const topo[3], const Topology *topo_
     }
 
     FLUPS_INFO_3("Complex memory allocation, size = %ld", size_tot);
-    (*data) = (double *)m_calloc(size_tot * sizeof(double));
+    (*data) = (double *)backend_malloc(size_tot * sizeof(double));
+    backend_memset(*data, 0, size_tot * sizeof(double), stream_);
+    backend_sync_stream(stream_);
 
-    std::memset(*data, 0, size_tot * sizeof(double));
     //-------------------------------------------------------------------------
     /** - Check memory alignement */
     //-------------------------------------------------------------------------
@@ -1050,16 +1161,16 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     int n_unbounded = ndim_ - nbr_spectral;
     if ((n_unbounded) == 3) {
         FLUPS_INFO(">> using Green function type %d on 3 dir unbounded", typeGreen_);
-        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_3dirunbounded(topo[0], hfact, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 2) {
         FLUPS_INFO(">> using Green function of type %d on 2 dir unbounded", typeGreen_);
-        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_2dirunbounded(topo[0], hfact, kfact, koffset, symstart, hgrid_, green, typeGreen_, kernelLength, stream_, prof_);
     } else if ((n_unbounded) == 1) {
         FLUPS_INFO(">> using Green function of type %d on 1 dir unbounded", typeGreen_);
-        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_1dirunbounded(topo[0], hfact, kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);
     } else if ((n_unbounded) == 0) {
         FLUPS_INFO(">> using Green function of type %d on 3 dir spectral", typeGreen_);
-        cmpt_Green_0dirunbounded(topo[0], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength);
+        cmpt_Green_0dirunbounded(topo[0], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, stream_);
     }
     // else {
     //     FLUPS_ERROR("Sorry, the number of unbounded directions does not match: %d = %d - %d", n_unbounded, ndim_, nbr_spectral);
@@ -1080,12 +1191,12 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
 
         // go to the topology for the plan, if we are not already on it
         if (ip > 0) {
-            switchtopo_green_[ip]->execute(green, FLUPS_FORWARD);
+            switchtopo_green_[ip]->execute(green, FLUPS_FORWARD, stream_);
         }
 
         // execute the plan, if not already spectral
         if (!isSpectral[dimID]) {
-            plan_green_[ip]->execute_plan(topo[ip], green);
+            plan_green_[ip]->execute_plan(topo[ip], green, stream_);
         }
 
         if (plan_green_[ip]->isr2c_doneByFFT()) {
@@ -1101,22 +1212,13 @@ void Solver::cmptGreenFunction_(Topology *topo[3], double *green, FFTW_plan_dim 
     scaleGreenFunction_(topo[ndim_ - 1], green, false);
 
     //-------------------------------------------------------------------------
-    /** - Complete the Green function in 2dirunbounded regularized case: we rewrite on the whole domain
-     *      except the plane where k=0 in the spectral direction, as this was correctly computed. */
-    // No need to scale this as that part of the Green function has a volfact = 1
-    const bool is_hej = (typeGreen_ == HEJ_2 || typeGreen_ == HEJ_4 || typeGreen_ == HEJ_6 || typeGreen_ == HEJ_8 || typeGreen_ == HEJ_10);
-    const bool is_lgf = (typeGreen_ == LGF_2 || typeGreen_ == LGF_4 || typeGreen_ == LGF_6 || typeGreen_ == LGF_8);
-    const bool is_meh = (typeGreen_ == MEHR_4L || typeGreen_ == MEHR_4F || typeGreen_ == MEHR_6L || typeGreen_ == MEHR_6F);
-    if (ndim_ == 3 && nbr_spectral == 1 && (is_hej || is_lgf || is_meh)) {
-        int istart_cstm[3] = {0, 0, 0};  // global
-
-        for (int ip = 0; ip < 3; ip++) {
-            const int dimID = planmap[ip]->dimID();
-            istart_cstm[ip] = isSpectral[ip] ? 1 : 0;  // avoid rewriting on the part of Green already computed
-            kfact[dimID]    = planmap[ip]->kfact();
-        }
-        cmpt_Green_0dirunbounded(topo[ndim_ - 1], hgrid_[0], kfact, koffset, symstart, green, typeGreen_, kernelLength, istart_cstm, NULL);
-    }
+    /** - In 2 unbounded + 1 spectral directions the k != 0 planes used to be overwritten here by the
+     *      sampled symbol. They no longer are: @ref cmpt_Green_2dirunbounded fills every plane in
+     *      physical space (CHAT_2 through its own closed form, LGF/MEHR with the exact screened slice
+     *      LGF, HEJ with the exact screened slice of their regularised kernel). Sampling the symbol on
+     *      the doubled grid yields the DFT of the *periodised* kernel, so restoring that overwrite
+     *      would bring back the field of the periodic images of the source. */
+    //-------------------------------------------------------------------------
 #ifdef DUMP_DBG
     hdf5_dump(topo[ndim_ - 1], "green_h", green);
 #endif
@@ -1145,25 +1247,21 @@ void Solver::scaleGreenFunction_(const Topology *topo, opt_double_ptr data, cons
 
     FLUPS_CHECK(FLUPS_ISALIGNED(data) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0, "please use FLUPS_ALIGNMENT to align the memory");
 
-    // do the loop
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(nf, onmax, inmax, nmem, data, volfact, ax0)
-    for (int io = 0; io < onmax; io++) {
-        opt_double_ptr dataloc = data + collapsedIndex(ax0, 0, io, nmem, nf);
-        // set the alignment
+    // do the loop, one pencil per outer index
+    const size_t stride_o = (size_t)nmem[ax0] * (size_t)nf;  // = collapsedIndex(ax0, 0, 1, nmem, nf)
+    const auto   op       = m_backend_lambda(const int io, const int ii) {
+        opt_double_ptr dataloc = data + stride_o * io;
         FLUPS_ASSUME_ALIGNED(dataloc, FLUPS_ALIGNMENT);
-        for (size_t ii = 0; ii < inmax; ii++) {
-            dataloc[ii] = dataloc[ii] * volfact;
-        }
-    }
+        dataloc[ii] *= volfact;
+    };
+    parallel_for_2d(op, (int)onmax, (int)inmax, "scale green", stream_);
 
     if (killModeZero) {
         int istart[3];
 
         topo->get_istart_glob(istart);
         if (istart[0] == 0 && istart[1] == 0 && istart[2] == 0) {
-            for (int i0 = 0; i0 < topo->nf(); i0++) {
-                data[i0] = 0.0;
-            }
+            backend_memset(data, 0, topo->nf() * sizeof(double), stream_);
             FLUPS_INFO("Imposing Green's function mode 0 to be 0.");
         }
     }
@@ -1224,7 +1322,7 @@ void Solver::finalizeGreenFunction_(Topology *topo_field, double *green, const T
  */
 void Solver::solve(double *field, double *rhs, const SolverType type) {
     BEGIN_FUNC;
-    FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type !=ROT), "You need vectors when using the ROT solver");
+    FLUPS_CHECK((type == ROT && topo_phys_->lda() == 3) || (type != ROT), "You need vectors when using the ROT solver");
     FLUPS_CHECK(!(type == ROT && odiff_ == NOD), "If calling the ROT solver, you need to initialize it with orderDiff = SPE or orderDiff = FD2");
     FLUPS_CHECK((type == ROT && (odiff_ == SPE || odiff_ == FD2 || odiff_ == FD4 || odiff_ == FD6)) || (type != ROT), "The differenciation order asked does not exist ");
     FLUPS_CHECK(field != NULL, "field is NULL");
@@ -1235,16 +1333,22 @@ void Solver::solve(double *field, double *rhs, const SolverType type) {
 
     m_profStarti(prof_, "solve");
     //-------------------------------------------------------------------------
-    /** - clean the data memory */
+    /** - clean the data memory, only needed without the first SwitchTopo */
     //-------------------------------------------------------------------------
-    std::memset(mydata, 0, sizeof(double) * get_allocSize());
+    // In the normal path do_copy() fills the physical part and the first SwitchTopo resets the whole
+    // buffer before unpacking into it, so zeroing it here is a dead full pass over the largest buffer.
+    // With skip_firstSwitchtopo() the FFT of the first direction runs directly on the copied data, and
+    // the padding of an unbounded direction must already be zero: only then do we reset it.
+    if (skip_st0_) {
+        backend_memset(mydata, 0, sizeof(double) * get_allocSize(), stream_);
+    }
 
     //-------------------------------------------------------------------------
     /** - copy the rhs in the correct order */
     //-------------------------------------------------------------------------
     FLUPS_CHECK(topo_phys_->nf() == 1, "The RHS topology cannot be complex");
-
     do_copy(topo_phys_, rhs, FLUPS_FORWARD);
+    // no need to sync here, everything is queued on the same stream
 
 #ifdef DUMP_DBG
     hdf5_dump(topo_phys_, "rhs", mydata);
@@ -1306,105 +1410,21 @@ void Solver::do_copy(const Topology *topo, double *data, const int sign) {
     double *owndata = data_;
     double *argdata = data;
 
-    const int    ax0     = topo->axis();
-    const int    ax1     = (ax0 + 1) % 3;
-    const int    ax2     = (ax0 + 2) % 3;
-    const int    nmem[3] = {topo->nmem(0), topo->nmem(1), topo->nmem(2)};
-    const size_t memdim  = topo->memdim();
-    const size_t ondim   = topo->nloc(ax1) * topo->nloc(ax2);
-    const size_t onmax   = topo->nloc(ax1) * topo->nloc(ax2) * lda_;
-    const size_t inmax   = topo->nloc(ax0);
+    const size_t    memdim      = topo->memsize();
+    const memType_t arg_memtype = backend_get_memtype(argdata);
+    const memType_t own_memtype = backend_get_memtype(owndata);
+    FLUPS_CHECK(memTypeHost == arg_memtype || memTypeDevice == arg_memtype, "argdata is not a valid host or device pointer, is %d", arg_memtype);
+    FLUPS_CHECK(memTypeHost == own_memtype || memTypeDevice == own_memtype, "owndata is not a valid host or device pointer, is %d", own_memtype);
 
-    // if the data is aligned and the FRI is a multiple of the alignment we can go for a full aligned loop
-    if (FLUPS_ISALIGNED(argdata) && (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT == 0) {
-        // do the loop
-        if (sign == FLUPS_FORWARD) {
-            // Copying from arg to own
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-            for (int id = 0; id < onmax; id++) {
-                // get the lia and the io
-                const size_t lia = id / ondim;
-                const size_t io  = id % ondim;
-                // get the pointers
-                opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                // set the alignment
-                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                for (size_t ii = 0; ii < inmax; ii++) {
-                    ownloc[ii] = argloc[ii];
-                }
-            }
-        } else {  // FLUPS_BACKWARD
-                  // Copying from own to arg
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-            for (int id = 0; id < onmax; id++) {
-                // get the lia and the io
-                const size_t lia = id / ondim;
-                const size_t io  = id % ondim;
-                // get the pointers
-                opt_double_ptr argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                opt_double_ptr ownloc = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                // set the alignment
-                FLUPS_ASSUME_ALIGNED(argloc, FLUPS_ALIGNMENT);
-                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                for (size_t ii = 0; ii < inmax; ii++) {
-                    argloc[ii] = ownloc[ii];
-                }
-            }
-        }
+    if (FLUPS_FORWARD == sign) {
+        memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyH2D) : (memTypeHost == own_memtype ? memcpyD2H : memcpyD2D);
+        backend_memcpy(owndata, argdata, memdim * sizeof(double), kind, stream_);
     } else {
-        // do the loop
-        FLUPS_WARNING("loop uses unaligned access: alignment(&data[0]) = %d, alignment(data[i]) = %lu. Please align your topology using FLUPS_ALIGNMENT!!", FLUPS_CMPT_ALIGNMENT(argdata), (nmem[ax0] * topo->nf() * sizeof(double)) % FLUPS_ALIGNMENT);
-        if (sign == FLUPS_FORWARD) {
-            // Copying from arg to own
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-            for (int id = 0; id < onmax; id++) {
-                // get the lia and the io
-                const size_t lia = id / ondim;
-                const size_t io  = id % ondim;
-                // get the pointers
-                double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                for (size_t ii = 0; ii < inmax; ii++) {
-                    ownloc[ii] = argloc[ii];
-                }
-            }
-        } else {  // FLUPS_BACKWARD
-                  // Copying from own to arg
-#pragma omp parallel for default(none) proc_bind(close) schedule(static) firstprivate(onmax, inmax, owndata, argdata, nmem, ax0, ondim, memdim)
-            for (int id = 0; id < onmax; id++) {
-                // get the lia and the io
-                const size_t lia = id / ondim;
-                const size_t io  = id % ondim;
-                // get the pointers
-                double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-                FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-                for (size_t ii = 0; ii < inmax; ii++) {
-                    argloc[ii] = ownloc[ii];
-                }
-            }
-        }
+        memcpyKind_t kind = (memTypeHost == arg_memtype) ? (memTypeHost == own_memtype ? memcpyH2H : memcpyD2H) : (memTypeHost == own_memtype ? memcpyH2D : memcpyD2D);
+        backend_memcpy(argdata, owndata, memdim * sizeof(double), kind, stream_);
     }
 
-#ifndef NDEBUG
-    for (int id = 0; id < onmax; id++) {
-        // get the lia and the io
-        const size_t lia          = id / ondim;
-        const size_t io           = id % ondim;
-        double *__restrict argloc = argdata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-        opt_double_ptr ownloc     = owndata + lia * memdim + collapsedIndex(ax0, 0, io, nmem, 1);
-        FLUPS_ASSUME_ALIGNED(ownloc, FLUPS_ALIGNMENT);
-        for (size_t ii = 0; ii < inmax; ii++) {
-            FLUPS_CHECK(std::isfinite(argloc[ii]), "You should not have nan here... -> %zu", ii);
-        }
-    }
-
-#endif
     m_profStop(prof_, "copy rhs");
-
     //-------------------------------------------------------------------------
     END_FUNC;
 }
@@ -1428,49 +1448,49 @@ void Solver::do_FFT(double *data, const int sign) {
             // go to the correct topo
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_FORWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
             // run the FFT
-            m_profStarti(prof_, "fftw");
-            plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStarti(prof_, "fft");
+            plan_forward_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2complex();
             }
-            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_forward_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
         }
     } else if (sign == FLUPS_BACKWARD) {  // FLUPS_BACKWARD
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
-            m_profStarti(prof_, "fftw");
-            plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStarti(prof_, "fft");
+            plan_backward_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
-            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_backward_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
         }
     } else if (sign == FLUPS_BACKWARD_DIFF) {  // FLUPS_BACKWARD_DIFF
         for (int ip = ndim_ - 1; ip >= 0; ip--) {
-            m_profStarti(prof_, "fftw");
-            plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata);
-            m_profStopi(prof_, "fftw");
+            m_profStarti(prof_, "fft");
+            plan_backward_diff_[ip]->execute_plan(topo_hat_[ip], mydata, stream_);
+            m_profStopi(prof_, "fft");
             // get if we are now complex
             if (plan_forward_[ip]->isr2c()) {
                 topo_hat_[ip]->switch2real();
             }
-            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata);
+            plan_backward_diff_[ip]->postprocess_plan(topo_hat_[ip], mydata, stream_);
 
             m_profStarti(prof_, "SwitchTopo");
             if (!(skip_st0_ && (ip == 0))) {
-                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD);
+                switchtopo_[ip]->execute(mydata, FLUPS_BACKWARD, stream_);
             }
             m_profStopi(prof_, "SwitchTopo");
         }
@@ -1495,9 +1515,9 @@ void Solver::do_mult(double *data, const SolverType type) {
     // every lda is done at once inside the dothemagic functions
     if (type == STD) {
         if (!topo_hat_[ndim_ - 1]->isComplex()) {
-            dothemagic_std_real(data);
+            dothemagic_std_real(data, stream_);
         } else {
-            dothemagic_std_complex(data);
+            dothemagic_std_complex(data, stream_);
         }
     } else {
         // compute the coefficients: kfact, koffset and symstart
@@ -1534,23 +1554,23 @@ void Solver::do_mult(double *data, const SolverType type) {
         }
         if (!topo_hat_[ndim_ - 1]->isComplex()) {
             if (odiff_ == SPE) {
-                dothemagic_rot_real_o1(data, koffset, kfact, symstart);
+                dothemagic_rot_real_o1(data, koffset, kfact, symstart, stream_);
             } else if (odiff_ == FD2) {
-                dothemagic_rot_real_o2(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o2(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD4) {
-                dothemagic_rot_real_o4(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o4(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD6) {
-                dothemagic_rot_real_o6(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_real_o6(data, koffset, kfact, symstart, hgrid_, stream_);
             }
         } else {
             if (odiff_ == SPE) {
-                dothemagic_rot_complex_o1(data, koffset, kfact, symstart);
+                dothemagic_rot_complex_o1(data, koffset, kfact, symstart, stream_);
             } else if (odiff_ == FD2) {
-                dothemagic_rot_complex_o2(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o2(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD4) {
-                dothemagic_rot_complex_o4(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o4(data, koffset, kfact, symstart, hgrid_, stream_);
             } else if (odiff_ == FD6) {
-                dothemagic_rot_complex_o6(data, koffset, kfact, symstart, hgrid_);
+                dothemagic_rot_complex_o6(data, koffset, kfact, symstart, hgrid_, stream_);
             }
         }
     }

@@ -15,7 +15,6 @@ echo "job type : $PBS_ENVIRONMENT"
 echo "submit dir : $PBS_O_WORKDIR" 
 echo "queue : $PBS_O_QUEUE" 
 echo "user : $PBS_O_LOGNAME" 
-echo "threads : $OMP_NUM_THREADS -> ${MY_NTH}" 
 NCPUS=$((1*${MY_NY}*${MY_NZ}))
 echo "CPU         :  $NCPUS"
 
@@ -33,8 +32,8 @@ MY_SIZE_X=$((${MY_SIZE}*${LX}))
 MY_SIZE_Y=$((${MY_SIZE}*${LY}))
 MY_SIZE_Z=$((${MY_SIZE}*${LZ}))
 
-echo "launching  mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}"
-mpirun -n ${NCPUS} -genv OMP_NUM_THREADS=${MY_NTH} ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}
+echo "launching  mpirun -n ${NCPUS} -genv ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}"
+mpirun -n ${NCPUS} -genv ./${EXE} -np ${MY_NY} ${MY_NZ} -res ${MY_SIZE_X} ${MY_SIZE_Y} ${MY_SIZE_Z} -ni 100 >> stdout_${PBS_JOBID}
 
 ################## 
 echo "End time : " $(date)

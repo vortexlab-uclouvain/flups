@@ -20,9 +20,9 @@ RUN cd /h3lpr &&\
     git checkout origin/develop &&\
     echo "CXX = mpic++" > make_arch/make.temp &&\
     echo "CC  = mpicc" >> make_arch/make.temp &&\
-    echo "CXXFLAGS := -O3 -std=c++17 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp  &&\
-    echo "CCFLAGS := -O3 -std=c99 -fopenmp -DCOLOR_PROF" >> make_arch/make.temp &&\
-    echo "LDFLAGS += -fopenmp -lm" >> make_arch/make.temp &&\
+    echo "CXXFLAGS := -O3 -std=c++17 -DCOLOR_PROF " >> make_arch/make.temp  &&\
+    echo "CCFLAGS := -O3 -std=c99 -DCOLOR_PROF" >> make_arch/make.temp &&\
+    echo "LDFLAGS += -lstdc++ -lm" >> make_arch/make.temp &&\
     echo "GTEST_INC = /soft/googletest/include" >> make_arch/make.temp &&\
     echo "GTEST_LIB = /soft/googletest/lib" >> make_arch/make.temp &&\
     ARCH_FILE=make_arch/make.temp PREFIX=/soft/h3lpr make install -j4 &&\

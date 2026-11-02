@@ -29,8 +29,9 @@
 #ifndef FLUPS_H
 #define FLUPS_H
 
-#include "flups_interface.h"
 #include <mpi.h>
+
+#include "flups_interface.h"
 
 #ifdef __cplusplus
 #include <cmath>
@@ -52,6 +53,13 @@ typedef enum GreenType    FLUPS_GreenType;
 typedef enum SolverType   FLUPS_SolverType;
 typedef enum DiffType     FLUPS_DiffType;
 typedef enum CenterType   FLUPS_CenterType;
+
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
 
 /**@} */
 
@@ -126,7 +134,7 @@ void flups_info(int argc, char** argv);
  * @param nf the number of unknows in one element
  * @return size_t
  */
-static inline size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int lia, const int axtrg, const int size[3], const int nf) {
+static inline __host__ __device__ size_t flups_locID(const int axsrc, const int i0, const int i1, const int i2, const int lia, const int axtrg, const int size[3], const int nf) {
     const int i[3] = {i0, i1, i2};
     const int dax0 = (3 + axtrg - axsrc) % 3;
     const int dax1 = (dax0 + 1) % 3;
@@ -187,7 +195,7 @@ static inline size_t flups_locID(const int axsrc, const int i0, const int i1, co
  * @param axtrg the FRI of the target topology, i.e. the way the memory is aligned in the current topology
  * @param is the spectral index
  */
-static inline void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
+static inline __host__ __device__ void flups_symID(const int axsrc, const int i0, const int i1, const int i2, const int istart[3], const double symstart[3], const int axtrg, int is[3]) {
     // get the global indexes in the axsrc configuration
     const int ie[3] = {(istart[axsrc] + i0), (istart[(axsrc + 1) % 3] + i1), (istart[(axsrc + 2) % 3] + i2)};
     // cmpt the shift in axis and the axis for the symstart
@@ -230,11 +238,47 @@ static inline void flups_symID(const int axsrc, const int i0, const int i1, cons
 FLUPS_Topology* flups_topo_new(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment, MPI_Comm comm);
 
 /**
+ * @brief Creates and returns a topology descriptor, i.e. a topology without any communicator.
+ *
+ * A descriptor describes the decomposition but has no notion of a current rank: it can therefore be
+ * built by any rank, including the ranks which are not members of the communicator on which the
+ * decomposition lives. This is the way for a non-member rank to answer geometry questions about a
+ * solver running on a sub-communicator.
+ *
+ * @warning Only the rank-explicit questions can be asked to a descriptor: @ref flups_topo_cmpt_rank_fromid,
+ * @ref flups_topo_cmpt_start_id_from_rank, @ref flups_topo_ranksplit, @ref flups_topo_rankindex and the getters
+ * of the decomposition itself (@ref flups_topo_get_axis, @ref flups_topo_get_nglob, @ref flups_topo_get_nproc,
+ * @ref flups_topo_get_axproc, @ref flups_topo_get_lda, @ref flups_topo_get_isComplex). Every rank-implicit
+ * accessor (@ref flups_topo_get_nloc, @ref flups_topo_get_nmem, @ref flups_topo_get_memsize,
+ * @ref flups_topo_get_locsize, @ref flups_topo_get_istartGlob) fails on it.
+ *
+ * @param axis The direction which is aligned with the fastest rotating index
+ * @param lda leading dimension of the array, i.e. the number of components for a vector field
+ * @param nglob The global number of points in each direction of the domain
+ * @param nproc The number of processors per direction.
+ * @param isComplex The state of the topo: real (false) or complex (true)
+ * @param axproc The correspondance between the physical dimensions and the rank decomposition. NULL for the default behavior (0 1 2).
+ * @param alignment Memory alignement constant: the memsize are adapted so that . See FLUPS_ALIGNMENT, or by default
+ * @return FLUPS_Topology* pointer to the topology descriptor
+ */
+FLUPS_Topology* flups_topo_new_desc(const int axis, const int lda, const int nglob[3], const int nproc[3], const bool isComplex, const int axproc[3], const int alignment);
+
+/**
  * @brief Clean and free the topo.
+ *
+ * Also valid for a topology descriptor obtained with @ref flups_topo_new_desc.
  *
  * @param t topo to be freed
  */
 void flups_topo_free(const FLUPS_Topology* t);
+
+/**
+ * @brief Determines if the topo is a descriptor, i.e. a topo without communicator
+ *
+ * @param t
+ * @return true if the topo has been created by @ref flups_topo_new_desc
+ */
+bool flups_topo_is_desc(const FLUPS_Topology* t);
 
 /**
  * @brief Determines if the topo works on real or complex numbers
@@ -299,6 +343,14 @@ int flups_topo_get_nmem(const FLUPS_Topology* t, const int dim);
  */
 int flups_topo_get_nproc(const FLUPS_Topology* t, const int dim);
 /**
+ * @brief Determines the correspondance between the physical dimensions and the rank decomposition
+ *
+ * @param t
+ * @param dim
+ * @return int the direction [0-3]
+ */
+int flups_topo_get_axproc(const FLUPS_Topology* t, const int dim);
+/**
  * @brief Determines the start index of this process in all 3 directions
  *
  * @param t
@@ -314,9 +366,9 @@ void flups_topo_get_istartGlob(const FLUPS_Topology* t, int istart[3]);
 size_t flups_topo_get_locsize(const FLUPS_Topology* t);
 
 /**
- * @brief returns the memory size of on this proc, i.e. the number of bytes in this proc, including padded memory and all the vector components
+ * @brief returns the memory size on this proc, i.e. the number of doubles (not bytes) on this proc, including padded memory and all the vector components
  *
- * @return long
+ * @return size_t
  */
 size_t flups_topo_get_memsize(const FLUPS_Topology* t);
 
@@ -377,7 +429,31 @@ int flups_topo_rankindex(const FLUPS_Topology* topo, const int rankd[3]);
  */
 
 /**
+ * @anchor flups_comm_usage
+ * @par Communicator usage
+ *
+ * FLUPS never uses MPI_COMM_WORLD internally: every collective operation of a solver happens on the
+ * communicator of the topology given to @ref flups_init. Therefore a solver may be created and used
+ * on a sub-communicator of the application, but then only the ranks which are members of that
+ * communicator are allowed to call the solver functions (they are collective on it): the non-member
+ * ranks must never call them.
+ *
+ * A non-member rank which still needs to answer geometry questions about the decomposition (which
+ * rank owns a global index, where does a given rank start) can obtain the layout of the first inner
+ * pencil topology with @ref flups_pencil_layout, build a topology descriptor out of it with
+ * @ref flups_topo_new_desc and use the rank-explicit questions: none of this requires a communicator
+ * nor a collective call.
+ *
+ * @warning this usage is incompatible with the REORDER_RANKS compilation flag, which renumbers the
+ * ranks inside the communicator: the geometry answered by a descriptor would then not match the one
+ * used by the solver.
+ */
+
+/**
  * @brief Creates a solver for the specified domain.
+ *
+ * @warning collective on the communicator of the topology t: only its member ranks may call this function,
+ * see @ref flups_comm_usage.
  *
  * @param t user-determined topology of data in physical space, describing the data that will be provided to the solver
  * @param bc boundary conditions of the domain for the right hand side
@@ -395,11 +471,42 @@ FLUPS_Solver* flups_init(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const 
 FLUPS_Solver* flups_init_timed(FLUPS_Topology* t, FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_DiffType orderDiff, const FLUPS_CenterType center_type[3], FLUPS_Profiler* prof);
 
 /**
- * @brief must be called before execution terminates as it frees the memory used by the solver
+ * @brief Computes the layout of the first inner (pencil) topology of a solver, without building it.
+ *
+ * This function is pure: it performs no MPI call and needs no communicator, so it may be called by
+ * any rank, including the ranks which are not members of the communicator on which the solver lives,
+ * see @ref flups_comm_usage. The arguments describe the domain exactly like @ref flups_init does.
+ *
+ * The returned layout is the one of the topology which @ref flups_get_innerTopo_physical reports
+ * once @ref flups_setup has been called, given in its REAL state (isComplex is false). It is meant
+ * to be fed to
+ * @code{.c}
+ * flups_topo_new_desc(axis, lda, nglob_out, nproc_out, false, axproc_out, FLUPS_ALIGNMENT);
+ * @endcode
+ * to obtain a descriptor of that topology on any rank.
+ *
+ * @param nglob The global number of points in each direction of the domain, as given to @ref flups_topo_new
+ * @param nproc The number of processors per direction of the physical topology, as given to @ref flups_topo_new.
+ *              Its product is the size of the communicator of the solver.
+ * @param bc boundary conditions of the domain for the right hand side
+ * @param h physical space increment in each direction
+ * @param L physical length of the domain in each direction
+ * @param center_type the data centering, must be the same in the 3 directions
+ * @param lda leading dimension of the array, i.e. the number of components for a vector field
+ * @param axis (output) the direction aligned with the fastest rotating index of the pencil topology
+ * @param nglob_out (output) the global number of (real) points of the pencil topology
+ * @param nproc_out (output) the number of processors per direction of the pencil topology
+ * @param axproc_out (output) the correspondance between the physical dimensions and the rank decomposition
+ */
+void flups_pencil_layout(const int nglob[3], const int nproc[3], FLUPS_BoundaryType* bc[3][2], const double h[3], const double L[3], const FLUPS_CenterType center_type[3], const int lda, int* axis, int nglob_out[3], int nproc_out[3], int axproc_out[3]);
+
+/**
+ * @brief must be called before execution terminates as it frees the memory used by the solver and the data of the backend
  *
  * @param s
- * @warning this function free all the data of the backend (fftw, cufft,...). If you use multiple solver, you should **not** call this function 
- * @warning this function is kept for backward compatibility
+ * @warning this function free all the data of the backend (fftw, cufft,...). If you use multiple solver, you should **not** call this function,
+ *          use @ref flups_cleanup_solver and @ref flups_cleanup_backend instead
+ * @warning this function is kept for backward compatibility, it is equivalent to @ref flups_cleanup_all
  */
 void flups_cleanup(FLUPS_Solver* s);
 
@@ -407,28 +514,30 @@ void flups_cleanup(FLUPS_Solver* s);
  * @brief must be called before execution terminates as it frees the memory used by the solver
  *
  * @param s
- * @warning If you use multiple solver, you should call this function for each solver before cleaning up the backend
+ * @warning this function does not free the data of the backend. If you use multiple solver, you should call this function
+ *          for each solver before cleaning up the backend with @ref flups_cleanup_backend
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage.
  */
 void flups_cleanup_solver(FLUPS_Solver* s);
 
 /**
- * @brief Free the memomry of the solver and the data employed by by the back end (fftw, cufft,...).
+ * @brief Free the memory of the solver and the data employed by the backend (fftw, cufft,...).
  *
- * @warning this function free all the data of the back end (fftw, cufft,...).
- *          If you use multiple solver, you should  call this function only for the last solver
+ * @warning this function free all the data of the backend (fftw, cufft,...).
+ *          If you use multiple solver, you should call this function only for the last solver
  * @param s
  */
 void flups_cleanup_all(FLUPS_Solver* s);
 
 /**
- * @brief Free data employed by the backend (fftw,...) 
+ * @brief Free data employed by the backend (fftw, cufft,...)
  *
- * @warning this function free all the data of fftw. If you use multiple solver, this function
+ * @warning this function free all the data of the backend. If you use multiple solver, this function
  * should be called after all the solver have freed
  *
  */
-void flups_cleanup_backend(); 
-
+void flups_cleanup_backend();
 
 /**
  * @brief sets the type of the Green's function used by the solver
@@ -454,6 +563,9 @@ void flups_set_stream(FLUPS_Solver* s, void* stream);
  * @warning after this call the solver cannot been change anymore!
  *
  * @warning if changeComm is true, you need to update MPI rank based on the new communicator that is provided by @ref flups_topo_get_comm
+ *
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage.
  *
  * @param s
  * @param changeComm indicate if FLUPS is allowed to change the communicator of the Topology used to inilialize the solver (only valid if compiled with RORDER_RANKS)
@@ -485,7 +597,10 @@ void flups_solve(FLUPS_Solver* s, double* field, double* rhs, const FLUPS_Solver
  */
 
 /**
- * @brief get the maximun amount of memory required by FLUPS
+ * @brief get the maximum amount of memory required by FLUPS, in number of doubles (not bytes)
+ *
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage.
  *
  * @param s
  * @return size_t
@@ -503,6 +618,39 @@ size_t flups_get_allocSize(FLUPS_Solver* s);
  * @param symstart the first point which is symmetrized, to use with @ref flups_symID
  */
 void flups_get_spectralInfo(FLUPS_Solver* s, double kfact[3], double koffset[3], double symstart[3]);
+
+/**
+ * @brief get the left-hand side stencil \f$ L_h \f$ that the lattice Green's function of the solver inverts exactly
+ *
+ * The LGF_* and MEHR_* kernels are the exact inverse of a stencil in every direction (on the symmetric/periodic
+ * extension of the domain for EVEN, ODD and PER directions): the returned solution solves \f$ L_h u = M_h f \f$ with
+ * - \f$ L_h u(x) = 1/h^2 \, \sum_i w_i \, u(x + o_i h) \f$, the discrete Laplacian, returned by this function,
+ * - \f$ M_h f(x) = \sum_i w_i \, f(x + o_i h) \f$, returned by @ref flups_get_rhs_stencil,
+ *
+ * on an isotropic grid of spacing h. \f$ M_h \f$ is the identity for the LGF_* kernels. It is applied by FLUPS for the
+ * MEHR_*F kernels, while the user applies it to the rhs (e.g. with these weights) for the MEHR_*L kernels.
+ *
+ * A typical use is to impose non-homogeneous Dirichlet/Neumann conditions with a right-hand side correction: see
+ * doc/nonhomogeneous_conditions.md. The function can be called once the Green's function type is set, before or
+ * after @ref flups_setup. Call it with NULL arrays to get the number of points.
+ *
+ * @param s the FLUPS solver
+ * @param offsets if not NULL, returns the integer offsets of the n points: offsets[3*i + d] for point i in direction d
+ * @param weights if not NULL, returns the n weights, in units of 1/h^2
+ * @return int the number of points n (at most 27), 0 if the Green's function is not the inverse of a stencil (CHAT_2, HEJ_*)
+ */
+int flups_get_lhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
+
+/**
+ * @brief get the right-hand side stencil \f$ M_h \f$ of the discrete problem \f$ L_h u = M_h f \f$ that the lattice
+ * Green's function of the solver inverts exactly, see @ref flups_get_lhs_stencil
+ *
+ * @param s the FLUPS solver
+ * @param offsets if not NULL, returns the integer offsets of the n points: offsets[3*i + d] for point i in direction d
+ * @param weights if not NULL, returns the n weights
+ * @return int the number of points n (at most 27), 0 if the Green's function is not the inverse of a stencil (CHAT_2, HEJ_*)
+ */
+int flups_get_rhs_stencil(FLUPS_Solver* s, int* offsets, double* weights);
 
 /**
  * @brief while using regularized Hejlesen kernels, set the alpha factor, i.e. the number of grid points in the smoothing Gaussian
@@ -524,12 +672,19 @@ void flups_set_alpha(FLUPS_Solver* s, const double alpha);  // must be done befo
 /**
  * @brief Get the inner buffer used by flups
  *
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage.
+ *
  * @param s
  */
 double* flups_get_innerBuffer(FLUPS_Solver* s);
 
 /**
  * @brief returns the first pencil topology in the physical space, i.e. the one used for rhs and solution
+ *
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage. A non-member rank must build a descriptor of that pencil topology with
+ * @ref flups_pencil_layout and @ref flups_topo_new_desc instead.
  *
  * @param s
  * @return const FLUPS_Topology*
@@ -548,7 +703,7 @@ FLUPS_Topology* flups_get_innerTopo_spectral(FLUPS_Solver* s);
  * @brief Instruct flups to not perform the first SwitchTopology from the user topology to the first pencil one
  *
  * @warning be very careful with these call, it might end up with undefined behavior
- * 
+ *
  * @param s flups solver
  */
 void flups_skip_firstSwitchtopo(FLUPS_Solver* s);
@@ -565,6 +720,9 @@ void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, co
 /**
  * @brief compute the FFT, go from the physical space to the spectral one
  *
+ * @warning collective on the communicator of the topology given to @ref flups_init: only its member ranks
+ * may call this function, see @ref flups_comm_usage.
+ *
  * @param s
  * @param data
  * @param sign
@@ -572,6 +730,9 @@ void flups_do_copy(FLUPS_Solver* s, const FLUPS_Topology* topo, double* data, co
 void flups_do_FFT(FLUPS_Solver* s, double* data, const int sign);
 /**
  * @brief compute the multiplication between the Green's function and the field
+ *
+ * @warning only the ranks of the communicator of the topology given to @ref flups_init may call this function,
+ * see @ref flups_comm_usage.
  *
  * @param s
  * @param data
@@ -583,7 +744,7 @@ void flups_do_mult(FLUPS_Solver* s, double* data, const FLUPS_SolverType type);
 
 /**
  * @brief for a set of boundary conditions returns the succession of directions for the pencils
- * 
+ *
  * @param bc the boundary conditions
  * @param dirs the different directions of the pencils ([0] is the first direction, etc.)
  */

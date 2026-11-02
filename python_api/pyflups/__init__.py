@@ -29,6 +29,7 @@ from .flups import (
     hdf5_dump,
     print_data,
     locID,
+    field_view,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     'hdf5_dump',
     'print_data',
     'locID',
+    'field_view',
 ]

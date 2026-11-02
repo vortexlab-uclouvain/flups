@@ -2,15 +2,19 @@
 #define SRC_SWITCHTOPOX_A2A_HPP_
 
 #include "SwitchTopoX.hpp"
+#include "backend.hpp"
 
 class SwitchTopoX_a2a : public SwitchTopoX {
     MPI_Request* i2o_rqst_ = NULL;  //!< MPI i2o requests
     MPI_Request* o2i_rqst_ = NULL;  //!< MPI o2i requests
 
-    int *i2o_count_ = NULL; /**<@brief count argument of the all_to_all_v for input to output */
-    int *i2o_disp_  = NULL; /**<@brief start argument of the all_to_all_v for input to output */
-    int *o2i_count_ = NULL; /**<@brief count argument of the all_to_all_v for output to input */
-    int *o2i_disp_  = NULL; /**<@brief start argument of the all_to_all_v for output to input */
+    int* i2o_count_ = NULL; /**<@brief count argument of the all_to_all_v for input to output */
+    int* i2o_disp_  = NULL; /**<@brief start argument of the all_to_all_v for input to output */
+    int* o2i_count_ = NULL; /**<@brief count argument of the all_to_all_v for output to input */
+    int* o2i_disp_  = NULL; /**<@brief start argument of the all_to_all_v for output to input */
+
+    ChunkBatch i2o_batch_; /**<@brief batched copy descriptors of the i2o chunks (GPU only) */
+    ChunkBatch o2i_batch_; /**<@brief batched copy descriptors of the o2i chunks (GPU only) */
 
    public:
     explicit SwitchTopoX_a2a(const Topology* topo_in, const Topology* topo_out, const int shift[3], H3LPR::Profiler* prof);
@@ -18,11 +22,12 @@ class SwitchTopoX_a2a : public SwitchTopoX {
 
     void print_info() const override;
 
-    virtual bool need_send_buf()const override{return true;};
-    virtual bool need_recv_buf()const override{return true;};
+    virtual bool need_send_buf() const override { return true; };
+    virtual bool need_recv_buf() const override { return true; };
+    virtual bool need_shuffle_plan() const override { return !M_HAVE_GPU; };
 
     virtual void setup_buffers(opt_double_ptr sendData, opt_double_ptr recvData) override;
-    virtual void execute(opt_double_ptr data, const int sign) const override;
+    virtual void execute(opt_double_ptr data, const int sign, stream_t stream) const override;
     virtual void disp() const override;
 };
 

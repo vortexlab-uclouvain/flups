@@ -2,51 +2,48 @@
  * @file green_functions.hpp
  * @author Thomas Gillis and Denis-Gabriel Caprace
  * @copyright Copyright © UCLouvain 2020
- * 
+ *
  * FLUPS is a Fourier-based Library of Unbounded Poisson Solvers.
- * 
+ *
  * Copyright <2020> <Université catholique de Louvain (UCLouvain), Belgique>
- * 
+ *
  * List of the contributors to the development of FLUPS, Description and complete License: see LICENSE and NOTICE files.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
-#include "defines.hpp"
 #include "Topology.hpp"
+#include "backend.hpp"
 #include "bessel.hpp"
+#include "defines.hpp"
 #include "expint.hpp"
 
-// define macros to strigyfy, both are required!
-#define STR(a) ZSTR(a)
-#define ZSTR(a) #a
-
-
-void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3],                                                 const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length);
-void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid   , const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3]);
+void cmpt_Green_3dirunbounded(const Topology *topo, const double hfact[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_2dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], const double hgrid[3], double *green, GreenType typeGreen, const double length, stream_t stream, H3LPR::Profiler *prof = NULL);
+void cmpt_Green_1dirunbounded(const Topology *topo, const double hfact[3], const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, stream_t stream);
+void cmpt_Green_0dirunbounded(const Topology *topo, const double hgrid, const double kfact[3], const double koffset[3], const double symstart[3], double *green, GreenType typeGreen, const double length, const int istart_custom[3], const int iend_custom[3], stream_t stream);
+int  cmpt_Green_stencil(const GreenType typeGreen, const bool lhs, int *offsets, double *weights);
 
 /**
  * @brief read the LGF file in the KERNEL_PATH folder
- * 
+ *
  * @param [in] greendim the dimension of the Green function to use, 2D or 3D
  * @param [out] N the size above which we switch to the approximation, i.e. the size of the pre-stored kernel is N^3
- * @param [out] data the data where we store the 
+ * @param [out] data the data where we store the
  */
-static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, double** data) {
+static void lgf_readfile_(GreenType typeGreen, const int greendim, int *N, double **data, stream_t stream) {
     BEGIN_FUNC;
 
     // get LGF order
@@ -65,10 +62,10 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
 
     // some defined parameters:
     char lgfname[512];
-    char path[] = STR(KERNEL_PATH);
-    int datasize = 0;
+    char path[]   = KERNEL_PATH;
+    int  datasize = 0;
     if (greendim == 3) {
-        (*N) = 32;
+        (*N)     = 32;
         datasize = (*N) * (*N) * (*N);
         if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
             sprintf(lgfname, "%s/MEHR_%dL_3d_%d.ker", path, order, (*N));
@@ -78,7 +75,7 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
             sprintf(lgfname, "%s/LGF_%d_3d_%d.ker", path, order, (*N));
         }
     } else if (greendim == 2) {
-        (*N) = 32;
+        (*N)     = 32;
         datasize = (*N) * (*N);
         if (MEHR_4L == typeGreen || MEHR_6L == typeGreen) {
             sprintf(lgfname, "%s/MEHR_4L6L_2d_%d.ker", path, (*N));
@@ -107,5 +104,15 @@ static void lgf_readfile_(GreenType typeGreen, const int greendim, int* N, doubl
     } else {
         FLUPS_CHECK(false, "unable to read file %s", lgfname);
     }
+#if M_HAVE_GPU
+    // if we are on GPU, we need to copy the data to the device !
+    double *device_ptr = (double *)backend_malloc(sizeof(double) * datasize);
+    backend_memcpy(device_ptr, *data, sizeof(double) * datasize, memcpyH2D, stream);
+    backend_sync_stream(stream);
+    // now we can free the host pointer
+    m_free(*data);
+    (*data) = device_ptr;
+#endif
+
     END_FUNC;
 }

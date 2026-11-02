@@ -11,7 +11,6 @@ workflow:
 default :
   image : git.immc.ucl.ac.be:5050/examples/flups:latest
   before_script :
-    - OMP_NUM_THREADS=1
     #--------------------------------------------------------------------------
     # create the ~/.ssh and set the correct permissions
     - mkdir -p ~/.ssh

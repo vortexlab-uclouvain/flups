@@ -4,9 +4,9 @@ source $1/scripts/flups_loadmodule_lm3.sh
 # Export the variables needed for flups
 export FLUPS_MPICXX=mpic++
 export FLUPS_MPICC=mpicc
-export FLUPS_CXXFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF"
-export FLUPS_CCFLAGS="-fopenmp -O3 -g -DNDEBUG -std=c99"
-export FLUPS_LDFLAGS="-fopenmp -lstdc++ -rdynamic -ldl"
+export FLUPS_CXXFLAGS=" -O3 -g -DNDEBUG -std=c++11 -mtune=skylake -DPROF"
+export FLUPS_CCFLAGS=" -O3 -g -DNDEBUG -std=c99"
+export FLUPS_LDFLAGS=" -lstdc++ -rdynamic -ldl"
 
 
 # Clone and compile google source test 

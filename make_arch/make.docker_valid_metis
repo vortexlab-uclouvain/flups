@@ -1,6 +1,6 @@
 CXX = mpic++
-CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align -fopenmp  -DPROF -DHAVE_METIS -DREORDER_RANKS -DDEV_SIMULATE_GRAPHCOMM
-LDFLAGS += -fopenmp
+CXXFLAGS := -O0 -g --debug -DVERBOSE -std=c++17 -Wno-format-security -Wcast-align  -DPROF -DHAVE_METIS -DREORDER_RANKS -DDEV_SIMULATE_GRAPHCOMM
+LDFLAGS +=
 
 METIS_INC := /metis-5.1.0/include
 METIS_LIB := /metis-5.1.0/lib
